@@ -81,3 +81,5 @@ memory/test_credentials.md
 # Mobile development
 android-sdk/desktop-app/node_modules/electron/dist/electron
 desktop-app/node_modules/electron/dist/electron
+desktop-app/dist/NEO-LIB-windows-portable.zip
+desktop-app/dist/win-unpacked/NEO-LIB.exe

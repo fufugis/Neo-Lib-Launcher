@@ -55,6 +55,7 @@
         }
       ],
       "icon": "build/icon.png",
+      "signAndEditExecutable": false,
       "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "nsis": {

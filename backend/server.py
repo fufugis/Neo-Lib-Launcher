@@ -1,4 +1,5 @@
 from fastapi import FastAPI, APIRouter
+from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -65,6 +66,33 @@ async def get_status_checks():
             check['timestamp'] = datetime.fromisoformat(check['timestamp'])
     
     return status_checks
+
+
+# ---- Download endpoints for the desktop-app builds ----
+DESKTOP_DIST = Path('/app/desktop-app/dist')
+
+@api_router.get('/download/neolib-portable')
+async def download_portable():
+    f = DESKTOP_DIST / 'NEO-LIB-windows-portable.zip'
+    if not f.exists():
+        return {"error": "Build not available"}
+    return FileResponse(
+        path=str(f),
+        media_type='application/zip',
+        filename='NEO-LIB-windows-portable.zip',
+    )
+
+@api_router.get('/download/info')
+async def download_info():
+    f = DESKTOP_DIST / 'NEO-LIB-windows-portable.zip'
+    if not f.exists():
+        return {"available": False}
+    return {
+        "available": True,
+        "filename": "NEO-LIB-windows-portable.zip",
+        "size_bytes": f.stat().st_size,
+        "size_mb": round(f.stat().st_size / (1024 * 1024), 1),
+    }
 
 # Include the router in the main app
 app.include_router(api_router)
