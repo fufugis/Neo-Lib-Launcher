@@ -16,7 +16,7 @@ import { cn, colorFromId } from '../lib/utils';
  */
 export default function GameDetail({
   game, categories, onLaunch, onRefetch, onRevealFolder,
-  onToggleCategory, fetching,
+  onToggleCategory, fetching, settings = {},
 }) {
   if (!game) return <EmptyState />;
   return (
@@ -27,7 +27,11 @@ export default function GameDetail({
       transition={{ duration: 0.28 }}
       className="relative flex h-full flex-1 flex-col overflow-y-auto"
     >
-      <Hero game={game} />
+      <Hero
+        game={game}
+        bannerBlend={settings.bannerBlend ?? 60}
+        scanlinesEnabled={settings.scanlinesEnabled !== false}
+      />
 
       <ActionBar
         game={game}
@@ -69,8 +73,10 @@ export default function GameDetail({
 }
 
 /* ---------- Hero ---------- */
-function Hero({ game }) {
+function Hero({ game, bannerBlend = 60, scanlinesEnabled = true }) {
   const bg = game.background || game.headerImage || game.coverUrl;
+  // bannerBlend: 0 = no fade (solid image), 100 = fully blended into background
+  const t = Math.max(0, Math.min(100, bannerBlend)) / 100;
   return (
     <div className="relative isolate aspect-[16/5.5] w-full overflow-hidden">
       {bg ? (
@@ -81,6 +87,7 @@ function Hero({ game }) {
           src={bg}
           alt=""
           className="absolute inset-0 h-full w-full object-cover"
+          style={{ opacity: 1 - t * 0.25 }}
         />
       ) : (
         <div className="absolute inset-0">
@@ -88,11 +95,28 @@ function Hero({ game }) {
           <div className="synth-horizon" />
         </div>
       )}
-      {/* Multi-layer gradient for legibility + synthwave vibe */}
-      <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/30 to-transparent" />
-      <div className="absolute inset-0 bg-gradient-to-r from-surface/85 via-transparent to-transparent" />
+      {/* Layered gradients — strength scales with bannerBlend so the image dissolves into the UI */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: `linear-gradient(to top, rgb(var(--surface)) ${10 + t * 25}%, transparent 100%)`,
+        }}
+      />
+      <div
+        className="absolute inset-0"
+        style={{
+          background: `linear-gradient(to right, rgb(var(--surface) / ${0.5 + t * 0.4}) 0%, transparent 55%)`,
+        }}
+      />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgb(var(--accent)/0.18),transparent_55%)]" />
-      <div className="scanlines absolute inset-0 opacity-40" />
+      {/* Top fade so the banner blends seamlessly into the title bar above */}
+      <div
+        className="absolute inset-x-0 top-0 h-12"
+        style={{
+          background: 'linear-gradient(to bottom, rgb(var(--surface)) 0%, transparent 100%)',
+        }}
+      />
+      {scanlinesEnabled && <div className="scanlines absolute inset-0 opacity-40" />}
 
       <div className="absolute inset-0 flex items-end px-8 pb-7">
         <div className="max-w-3xl">
@@ -121,22 +145,28 @@ function Hero({ game }) {
             className="mt-3 flex flex-wrap items-center gap-2 text-[11px]"
           >
             {(game.genres || []).slice(0, 5).map((g) => (
-              <span
+              <button
                 key={g}
-                className="rounded-full hairline px-2.5 py-1 text-muted"
+                onClick={() => openSearch(`${g} games`)}
+                className="rounded-full hairline px-2.5 py-1 text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)] transition-colors"
                 style={{ borderColor: 'rgb(var(--accent) / 0.4)', color: 'rgb(var(--ink))' }}
+                title={`Search "${g} games" on Google`}
               >
                 {g}
-              </span>
+              </button>
             ))}
-            {game.releaseDate && (
-              <span className="text-muted/80">· {game.releaseDate}</span>
-            )}
+            {game.releaseDate && <span className="text-muted/80">· {game.releaseDate}</span>}
           </motion.div>
         </div>
       </div>
     </div>
   );
+}
+
+function openSearch(query) {
+  const url = 'https://www.google.com/search?q=' + encodeURIComponent(query);
+  if (typeof window !== 'undefined' && window.api?.openExternal) window.api.openExternal(url);
+  else window.open(url, '_blank');
 }
 
 /* ---------- Action bar ---------- */
@@ -249,14 +279,52 @@ function ActionBar({ game, categories, onLaunch, onRefetch, onRevealFolder, onTo
 
 /* ---------- Inline meta strip ---------- */
 function MetaStrip({ game }) {
+  const linkList = (label, arr, queryPrefix = '') =>
+    arr && arr.length > 0 ? (
+      <span className="space-x-1">
+        {arr.slice(0, 3).map((x, i) => (
+          <React.Fragment key={x + i}>
+            <button
+              onClick={() => openSearch(`${queryPrefix}${x}`)}
+              className="text-ink hover:text-[rgb(var(--accent-2))] hover:underline underline-offset-2 transition-colors"
+              title={`Search "${x}" on Google`}
+            >
+              {x}
+            </button>
+            {i < Math.min(arr.length, 3) - 1 && <span className="text-muted/60">,</span>}
+          </React.Fragment>
+        ))}
+      </span>
+    ) : (
+      '—'
+    );
+
   const items = [
-    { icon: <Calendar size={12} />, label: 'Released', value: game.releaseDate || '—' },
-    { icon: <Tag size={12} />, label: 'Genres', value: (game.genres || []).join(', ') || '—' },
-    { icon: <Building2 size={12} />, label: 'Developer', value: (game.developers || []).join(', ') || '—' },
-    { icon: <Building2 size={12} />, label: 'Publisher', value: (game.publishers || []).join(', ') || '—' },
+    { icon: <Calendar size={12} />, label: 'Released', value: game.releaseDate ? (
+      <button
+        onClick={() => openSearch(`${game.name} release date`)}
+        className="text-ink hover:text-[rgb(var(--accent-2))] hover:underline underline-offset-2"
+      >
+        {game.releaseDate}
+      </button>
+    ) : '—' },
+    { icon: <Tag size={12} />, label: 'Genres', value: linkList('Genres', game.genres, '') },
+    { icon: <Building2 size={12} />, label: 'Developer', value: linkList('Dev', game.developers, '') },
+    { icon: <Building2 size={12} />, label: 'Publisher', value: linkList('Pub', game.publishers, '') },
   ];
   if (typeof game.metacritic === 'number')
-    items.push({ icon: <Award size={12} />, label: 'Metacritic', value: String(game.metacritic) });
+    items.push({
+      icon: <Award size={12} />,
+      label: 'Metacritic',
+      value: (
+        <button
+          onClick={() => openSearch(`${game.name} metacritic`)}
+          className="text-ink hover:text-[rgb(var(--accent-2))] hover:underline"
+        >
+          {game.metacritic}
+        </button>
+      ),
+    });
   if (game.website)
     items.push({
       icon: <Globe size={12} />,

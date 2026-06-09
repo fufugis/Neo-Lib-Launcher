@@ -15,7 +15,7 @@ import { guessNameFromPath } from '../lib/utils';
  *     - Accept / Skip / Re-search (with custom query, skips current source)
  *  4. Done → option to add more manually
  */
-export default function WizardModal({ open, onClose, onImport, onAddManual, geminiKey }) {
+export default function WizardModal({ open, onClose, onImport, onAccept, onAddManual, geminiKey }) {
   const [step, setStep] = React.useState(1);
   const [root, setRoot] = React.useState('');
   const [candidates, setCandidates] = React.useState([]);
@@ -140,7 +140,6 @@ export default function WizardModal({ open, onClose, onImport, onAddManual, gemi
   };
 
   const finish = () => {
-    onImport(accepted);
     onClose();
   };
 
@@ -317,7 +316,7 @@ export default function WizardModal({ open, onClose, onImport, onAddManual, gemi
           <div className="flex items-center justify-center gap-2 pt-2">
             <button
               data-testid="wizard-add-manual-btn"
-              onClick={() => { onImport(accepted); onClose(); onAddManual && onAddManual(); }}
+              onClick={() => { onClose(); onAddManual && onAddManual(); }}
               className="inline-flex items-center gap-2 rounded-full hairline px-4 py-2 text-xs text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)]"
             >
               <PlusCircle size={13} /> Add another manually
@@ -327,7 +326,7 @@ export default function WizardModal({ open, onClose, onImport, onAddManual, gemi
               onClick={finish}
               className="neon inline-flex items-center gap-2 rounded-full bg-[rgb(var(--accent))] px-5 py-2 text-xs font-bold text-[rgb(var(--surface))]"
             >
-              Add to library <ArrowRight size={13} />
+              Done <ArrowRight size={13} />
             </button>
           </div>
         </div>

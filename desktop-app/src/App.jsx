@@ -130,7 +130,10 @@ export default function App() {
           toolCategories: lib.toolCategories || [],
           toolOrderByCategory: lib.toolOrderByCategory || {},
         });
-        setSettings((prev) => ({ ...prev, ...s }));
+        // Reset collapsed state each session by default — user wanted "always expanded unless I close them"
+        const cleanSettings = { ...s };
+        if (!s.categoriesCollapsedDefault) cleanSettings.collapsed = {};
+        setSettings((prev) => ({ ...prev, ...cleanSettings }));
         if (lib.games?.[0]) setSelectedId(lib.games[0].id);
 
         // Wire playtime tracking event
@@ -280,6 +283,8 @@ export default function App() {
       appid: result.appid || g.appid,
       source: result.source,
       coverUrl: coverUrl || g.coverUrl,
+      // Icon fallback: if the game has no .exe icon, use the capsule/header so it's not just a letter
+      icon: g.icon || coverUrl || result.capsuleImage || result.headerImage || null,
       headerImage: result.headerImage || g.headerImage,
       background: result.background || g.background,
       shortDescription: result.shortDescription || g.shortDescription,
@@ -497,7 +502,7 @@ export default function App() {
 
   return (
     <div className="relative flex h-screen w-screen flex-col bg-surface text-ink">
-      <BgAmbience theme={settings.theme} />
+      <BgAmbience theme={settings.theme} settings={settings} />
       <TitleBar search={search} setSearch={setSearch} />
 
       <div className="relative z-10 flex min-h-0 flex-1">
@@ -537,6 +542,7 @@ export default function App() {
                 game={selected}
                 categories={currentCats.filter((c) => !c.private || unlockedCategories.includes(c.id))}
                 fetching={fetching}
+                settings={settings}
                 onLaunch={launchGame}
                 onRefetch={(g) => refetchGame(g, { skipCurrentSource: true })}
                 onRevealFolder={(g) => (isElectron ? window.api.revealInFolder(g.exePath) : notify('Open: ' + g.exePath))}
@@ -612,10 +618,12 @@ export default function App() {
   );
 }
 
-function BgAmbience({ theme }) {
+function BgAmbience({ theme, settings = {} }) {
   if (theme !== 'synthwave') return null;
+  if (settings.synthGridEnabled === false) return null;
+  const intensity = (settings.gridIntensity ?? 100) / 100;
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+    <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden" style={{ opacity: intensity }}>
       <div className="synth-grid" />
       <div className="synth-horizon" />
       <div

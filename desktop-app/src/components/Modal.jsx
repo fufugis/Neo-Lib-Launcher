@@ -1,33 +1,42 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 
 export default function Modal({ open, onClose, title, children, wide, testid }) {
+  // ESC to close — global keydown
   React.useEffect(() => {
+    if (!open) return undefined;
     const h = (e) => {
-      if (e.key === 'Escape') onClose?.();
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose?.();
+      }
     };
-    if (open) document.addEventListener('keydown', h);
+    document.addEventListener('keydown', h);
     return () => document.removeEventListener('keydown', h);
   }, [open, onClose]);
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
           data-testid={testid}
           initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
-          className="fixed inset-0 z-50 grid place-items-center bg-black/50 backdrop-blur-sm"
+          animate={{ opacity: 1, pointerEvents: 'auto' }}
+          exit={{ opacity: 0, pointerEvents: 'none', transition: { duration: 0.1 } }}
+          transition={{ duration: 0.14 }}
+          className="fixed inset-0 z-[100] grid place-items-center bg-black/55 backdrop-blur-sm"
           onClick={onClose}
+          style={{ pointerEvents: 'auto' }}
         >
           <motion.div
-            initial={{ scale: 0.96, y: 12, opacity: 0 }}
+            initial={{ scale: 0.96, y: 8, opacity: 0 }}
             animate={{ scale: 1, y: 0, opacity: 1 }}
-            exit={{ scale: 0.96, y: 12, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 280, damping: 24 }}
+            exit={{ scale: 0.97, y: 6, opacity: 0, transition: { duration: 0.1 } }}
+            transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
             onClick={(e) => e.stopPropagation()}
             className={
               'relative w-full max-h-[90vh] overflow-hidden rounded-2xl hairline bg-panel shadow-2xl ' +
@@ -39,6 +48,7 @@ export default function Modal({ open, onClose, title, children, wide, testid }) 
               <button
                 data-testid="modal-close-btn"
                 onClick={onClose}
+                title="Close (Esc)"
                 className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-surface hover:text-ink transition-colors"
               >
                 <X size={14} />
@@ -48,6 +58,7 @@ export default function Modal({ open, onClose, title, children, wide, testid }) 
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

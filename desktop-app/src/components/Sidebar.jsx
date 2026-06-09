@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Wand2, Settings, RefreshCw, Trash2, Pencil, FolderOpen, MoreVertical,
@@ -386,9 +387,15 @@ function Section({
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.18 }}
-            className="overflow-hidden"
+            style={{ overflow: 'hidden' }}
+            onAnimationComplete={(d) => {
+              // Allow dropdown menus to escape the bounds after expand animation
+              if (d?.height === 'auto') {
+                /* noop — content is fully expanded */
+              }
+            }}
           >
-            <div className="pl-4">
+            <div className="pl-4" style={{ overflow: 'visible' }}>
               {section.games.length === 0 ? (
                 <div className="px-3 py-2 text-[11px] text-muted/70 italic">
                   Empty — drop a game here.
@@ -426,14 +433,34 @@ function GameRow({
   g, size, selected, onClick, onContext, fromCatId, indexInCat,
   sectionGames, onReorderInCat, onMoveBetween, categories,
 }) {
-  const [menuOpen, setMenuOpen] = React.useState(false);
+  const [menu, setMenu] = React.useState({ open: false, x: 0, y: 0 });
   const ref = React.useRef(null);
 
   React.useEffect(() => {
-    const close = (e) => ref.current && !ref.current.contains(e.target) && setMenuOpen(false);
-    if (menuOpen) document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, [menuOpen]);
+    const close = (e) => {
+      // Close on any click anywhere — the menu items themselves stopPropagate before closing
+      setMenu((m) => (m.open ? { ...m, open: false } : m));
+    };
+    if (menu.open) {
+      document.addEventListener('mousedown', close);
+      document.addEventListener('contextmenu', close);
+    }
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('contextmenu', close);
+    };
+  }, [menu.open]);
+
+  const openMenuAt = (x, y) => {
+    // Clamp to viewport
+    const W = window.innerWidth, H = window.innerHeight;
+    const w = 240, h = 320;
+    setMenu({
+      open: true,
+      x: Math.min(x, W - w - 8),
+      y: Math.min(y, H - h - 8),
+    });
+  };
 
   const isSmall = size.id === 'small';
   const isBig = size.id === 'big';
@@ -476,7 +503,7 @@ function GameRow({
           onMoveBetween(gameId, fromCat, fromCatId, { copy: e.ctrlKey, beforeGameId: g.id });
         }
       }}
-      onContextMenu={(e) => { e.preventDefault(); setMenuOpen(true); }}
+      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); openMenuAt(e.clientX, e.clientY); }}
       onClick={onClick}
       data-testid={`game-row-${g.id}`}
       className={cn(
@@ -538,35 +565,39 @@ function GameRow({
       {/* Hover menu trigger */}
       <button
         data-testid={`game-row-menu-${g.id}`}
-        onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          const r = e.currentTarget.getBoundingClientRect();
+          openMenuAt(r.right - 8, r.bottom + 4);
+        }}
         className="opacity-0 group-hover:opacity-100 text-muted hover:text-ink transition-opacity"
       >
         <MoreVertical size={13} />
       </button>
 
-      <AnimatePresence>
-        {menuOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: -4 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: -4 }}
-            transition={{ duration: 0.12 }}
-            onClick={(e) => e.stopPropagation()}
-            className="absolute right-2 top-full z-30 mt-1 w-60 overflow-hidden rounded-lg hairline glass shadow-2xl py-1"
-          >
-            <Item icon={<RefreshCw size={13} />} label="Re-obtain info online" onClick={() => { setMenuOpen(false); onContext('refetch'); }} testid={`game-ctx-refetch-${g.id}`} />
-            <Item icon={<Pencil size={13} />} label="Rename" onClick={() => { setMenuOpen(false); onContext('rename'); }} testid={`game-ctx-rename-${g.id}`} />
-            <Item icon={<Terminal size={13} />} label="Edit launch args" onClick={() => { setMenuOpen(false); onContext('args'); }} testid={`game-ctx-args-${g.id}`} />
-            <Item icon={<Info size={13} />} label="Details / edit cover" onClick={() => { setMenuOpen(false); onContext('details'); }} testid={`game-ctx-details-${g.id}`} />
-            <Divider />
-            <Item icon={<Tag size={13} />} label="Manage categories…" onClick={() => { setMenuOpen(false); onContext('manage-categories'); }} testid={`game-ctx-cats-${g.id}`} />
-            <Item icon={<FolderOpen size={13} />} label="Reveal in folder" onClick={() => { setMenuOpen(false); onContext('reveal'); }} testid={`game-ctx-reveal-${g.id}`} />
-            <Item icon={<FolderOpen size={13} />} label="Open containing directory" onClick={() => { setMenuOpen(false); onContext('open-dir'); }} testid={`game-ctx-open-dir-${g.id}`} />
-            <Divider />
-            <Item icon={<Trash2 size={13} />} label="Remove from library" danger onClick={() => { setMenuOpen(false); onContext('remove'); }} testid={`game-ctx-remove-${g.id}`} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {menu.open && createPortal(
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96, y: -4 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.12 }}
+          onClick={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.stopPropagation()}
+          style={{ position: 'fixed', top: menu.y, left: menu.x, zIndex: 200, width: 240 }}
+          className="overflow-hidden rounded-lg hairline glass shadow-2xl py-1"
+        >
+          <Item icon={<RefreshCw size={13} />} label="Re-obtain info online" onClick={() => { setMenu({ ...menu, open: false }); onContext('refetch'); }} testid={`game-ctx-refetch-${g.id}`} />
+          <Item icon={<Pencil size={13} />} label="Rename" onClick={() => { setMenu({ ...menu, open: false }); onContext('rename'); }} testid={`game-ctx-rename-${g.id}`} />
+          <Item icon={<Terminal size={13} />} label="Edit launch args" onClick={() => { setMenu({ ...menu, open: false }); onContext('args'); }} testid={`game-ctx-args-${g.id}`} />
+          <Item icon={<Info size={13} />} label="Details / edit cover" onClick={() => { setMenu({ ...menu, open: false }); onContext('details'); }} testid={`game-ctx-details-${g.id}`} />
+          <Divider />
+          <Item icon={<Tag size={13} />} label="Manage categories…" onClick={() => { setMenu({ ...menu, open: false }); onContext('manage-categories'); }} testid={`game-ctx-cats-${g.id}`} />
+          <Item icon={<FolderOpen size={13} />} label="Reveal in folder" onClick={() => { setMenu({ ...menu, open: false }); onContext('reveal'); }} testid={`game-ctx-reveal-${g.id}`} />
+          <Item icon={<FolderOpen size={13} />} label="Open containing directory" onClick={() => { setMenu({ ...menu, open: false }); onContext('open-dir'); }} testid={`game-ctx-open-dir-${g.id}`} />
+          <Divider />
+          <Item icon={<Trash2 size={13} />} label="Remove from library" danger onClick={() => { setMenu({ ...menu, open: false }); onContext('remove'); }} testid={`game-ctx-remove-${g.id}`} />
+        </motion.div>,
+        document.body
+      )}
     </motion.div>
   );
 }
@@ -619,11 +650,11 @@ export function CategoryContextMenu({ open, anchor, category, onClose, onAction 
     { icon: <Trash2 size={13} />, label: 'Delete category', action: 'delete', danger: true },
   ];
 
-  return (
+  return createPortal(
     <motion.div
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
-      style={{ position: 'fixed', top: anchor.y, left: anchor.x, zIndex: 70 }}
+      style={{ position: 'fixed', top: anchor.y, left: anchor.x, zIndex: 200 }}
       onClick={(e) => e.stopPropagation()}
       data-testid="category-context-menu"
       className="w-56 overflow-hidden rounded-lg hairline glass shadow-2xl py-1"
@@ -645,6 +676,7 @@ export function CategoryContextMenu({ open, anchor, category, onClose, onAction 
           />
         )
       )}
-    </motion.div>
+    </motion.div>,
+    document.body
   );
 }

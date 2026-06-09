@@ -1,19 +1,33 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { THEMES } from '../lib/utils';
-import { Check, Sparkles, Eye, EyeOff } from 'lucide-react';
+import { Check, Sparkles, Eye, EyeOff, Sliders, Power } from 'lucide-react';
 import Modal from './Modal';
 
 export default function SettingsModal({ open, onClose, settings, setSettings }) {
-  const setTheme = (id) => setSettings({ ...settings, theme: id });
-  const setGemini = (geminiKey) => setSettings({ ...settings, geminiKey });
+  const setKey = (patch) => setSettings({ ...settings, ...patch });
   const [showKey, setShowKey] = React.useState(false);
+  const [autoStart, setAutoStart] = React.useState(false);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    if (open && typeof window !== 'undefined' && window.api?.getAutoStart) {
+      window.api.getAutoStart().then((v) => { if (!cancelled) setAutoStart(!!v); });
+    }
+    return () => { cancelled = true; };
+  }, [open]);
+
+  const toggleAutoStart = async () => {
+    const next = !autoStart;
+    setAutoStart(next);
+    if (window.api?.setAutoStart) await window.api.setAutoStart(next);
+  };
 
   return (
     <Modal open={open} onClose={onClose} title="Settings" wide testid="settings-modal">
       <div className="p-5 space-y-6">
-        <section>
-          <h3 className="mb-3 text-[10px] uppercase tracking-[0.28em] text-muted">Theme</h3>
+        {/* Themes */}
+        <Section title="Theme">
           <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
             {THEMES.map((t) => (
               <motion.button
@@ -21,7 +35,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings }) 
                 data-testid={`theme-${t.id}`}
                 whileHover={{ y: -2 }}
                 whileTap={{ scale: 0.97 }}
-                onClick={() => setTheme(t.id)}
+                onClick={() => setKey({ theme: t.id })}
                 className={
                   'group relative flex items-center gap-3 rounded-lg hairline p-3 text-left transition-all ' +
                   (settings.theme === t.id
@@ -48,32 +62,106 @@ export default function SettingsModal({ open, onClose, settings, setSettings }) 
               </motion.button>
             ))}
           </div>
-        </section>
+        </Section>
 
-        <section>
-          <h3 className="mb-2 text-[10px] uppercase tracking-[0.28em] text-muted">
-            <Sparkles size={11} className="mr-1 inline text-[rgb(var(--accent))]" />
-            AI fallback · optional
-          </h3>
+        {/* Visual effects */}
+        <Section title={<><Sliders size={11} className="inline mr-1.5 text-[rgb(var(--accent))]" />Visual effects</>}>
+          <div className="space-y-3">
+            <Toggle
+              label="Animations"
+              hint="Smooth transitions, hover lifts, page reveals."
+              value={settings.animationsEnabled !== false}
+              onChange={(v) => setKey({ animationsEnabled: v })}
+              testid="opt-animations"
+            />
+            <Toggle
+              label="Synthwave grid background"
+              hint="Animated retro grid behind the app."
+              value={settings.synthGridEnabled !== false}
+              onChange={(v) => setKey({ synthGridEnabled: v })}
+              testid="opt-synth-grid"
+            />
+            <Toggle
+              label="Sparkle highlights"
+              hint="Tiny accent flickers on selected items."
+              value={!!settings.sparklesEnabled}
+              onChange={(v) => setKey({ sparklesEnabled: v })}
+              testid="opt-sparkles"
+            />
+            <Toggle
+              label="Scanlines on banners"
+              hint="Subtle retro CRT lines over hero images."
+              value={settings.scanlinesEnabled !== false}
+              onChange={(v) => setKey({ scanlinesEnabled: v })}
+              testid="opt-scanlines"
+            />
+            <Slider
+              label="Background grid intensity"
+              value={settings.gridIntensity ?? 100}
+              min={0}
+              max={150}
+              onChange={(v) => setKey({ gridIntensity: v })}
+              testid="opt-grid-intensity"
+            />
+            <Slider
+              label="Banner blend (how much the hero image fades into the app)"
+              value={settings.bannerBlend ?? 60}
+              min={0}
+              max={100}
+              suffix="%"
+              onChange={(v) => setKey({ bannerBlend: v })}
+              testid="opt-banner-blend"
+            />
+          </div>
+        </Section>
+
+        {/* App behaviour */}
+        <Section title={<><Power size={11} className="inline mr-1.5 text-[rgb(var(--accent))]" />App behaviour</>}>
+          <div className="space-y-3">
+            <Toggle
+              label="Start with Windows"
+              hint="Launch NEO-LIB automatically when you log in."
+              value={autoStart}
+              onChange={toggleAutoStart}
+              testid="opt-autostart"
+            />
+            <Toggle
+              label="Confirm before removing games"
+              hint="Show a dialog when deleting a library entry."
+              value={settings.confirmRemove !== false}
+              onChange={(v) => setKey({ confirmRemove: v })}
+              testid="opt-confirm-remove"
+            />
+            <Toggle
+              label="Categories collapsed by default"
+              hint="Off = always start expanded (override remembered state)."
+              value={!!settings.categoriesCollapsedDefault}
+              onChange={(v) => setKey({ categoriesCollapsedDefault: v })}
+              testid="opt-cats-collapsed"
+            />
+          </div>
+        </Section>
+
+        {/* AI fallback */}
+        <Section title={<><Sparkles size={11} className="inline mr-1.5 text-[rgb(var(--accent))]" />AI fallback · optional</>}>
           <p className="mb-3 text-xs text-muted leading-relaxed">
             NEO-LIB looks up game metadata for free from Steam, GOG, and the public web. If you want
-            an AI fallback for the trickiest obscure games, paste a <a
+            an AI fallback for the trickiest obscure games, paste a{' '}
+            <a
               href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                window.api?.openExternal('https://aistudio.google.com/app/apikey');
-              }}
+              onClick={(e) => { e.preventDefault(); window.api?.openExternal('https://aistudio.google.com/app/apikey'); }}
               className="text-[rgb(var(--accent-2))] hover:underline"
-            >free Gemini API key</a> below. Stays on this PC, never sent anywhere except Google.
+            >free Gemini API key</a>{' '}
+            below. Stays on this PC, never sent anywhere except Google.
           </p>
           <div className="relative">
             <input
               data-testid="settings-gemini-key"
               type={showKey ? 'text' : 'password'}
               value={settings.geminiKey || ''}
-              onChange={(e) => setGemini(e.target.value.trim())}
+              onChange={(e) => setKey({ geminiKey: e.target.value.trim() })}
               placeholder="AIza…"
-              className="w-full rounded-md bg-surface/60 hairline px-3 h-9 pr-9 text-sm font-mono focus:outline-none focus:border-accent/60"
+              className="w-full rounded-md bg-surface/60 hairline px-3 h-9 pr-9 text-sm font-mono focus:outline-none focus:border-[rgb(var(--accent)/0.6)]"
             />
             <button
               onClick={() => setShowKey((v) => !v)}
@@ -83,16 +171,81 @@ export default function SettingsModal({ open, onClose, settings, setSettings }) 
               {showKey ? <EyeOff size={13} /> : <Eye size={13} />}
             </button>
           </div>
-        </section>
+        </Section>
 
-        <section>
-          <h3 className="mb-2 text-[10px] uppercase tracking-[0.28em] text-muted">About</h3>
+        <Section title="About">
           <p className="text-xs text-muted leading-relaxed">
-            NEO-LIB v1.0. Local-first. Metadata sourced from Steam, GOG, and DuckDuckGo/Google web
-            results. Library data lives in <span className="font-mono text-ink">%APPDATA%/NEO-LIB</span>.
+            NEO-LIB v1.0. Local-first. Metadata sourced from Steam, GOG, DuckDuckGo and Google.
+            Library data lives in <span className="font-mono text-ink">%APPDATA%/NEO-LIB</span>.
           </p>
-        </section>
+        </Section>
+
+        <div className="flex justify-end pt-1">
+          <button
+            data-testid="settings-done-btn"
+            onClick={onClose}
+            className="neon rounded-full bg-[rgb(var(--accent))] px-6 py-2 text-xs font-bold text-[rgb(var(--surface))]"
+          >
+            Done
+          </button>
+        </div>
       </div>
     </Modal>
+  );
+}
+
+function Section({ title, children }) {
+  return (
+    <section>
+      <h3 className="mb-3 text-[10px] uppercase tracking-[0.28em] text-muted">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function Toggle({ label, hint, value, onChange, testid }) {
+  return (
+    <label className="flex cursor-pointer items-center gap-3 rounded-lg hairline bg-surface/40 px-3 py-2.5 hover:border-[rgb(var(--accent)/0.4)] transition-colors">
+      <div className="min-w-0 flex-1">
+        <div className="text-[13px] font-medium">{label}</div>
+        {hint && <div className="text-[11px] text-muted">{hint}</div>}
+      </div>
+      <button
+        type="button"
+        data-testid={testid}
+        onClick={() => onChange(!value)}
+        className={
+          'relative h-5 w-9 shrink-0 rounded-full transition-colors ' +
+          (value ? 'bg-[rgb(var(--accent))] shadow-[0_0_10px_-2px_rgb(var(--accent))]' : 'bg-[rgb(var(--border))]')
+        }
+      >
+        <span
+          className="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all"
+          style={{ left: value ? '18px' : '2px' }}
+        />
+      </button>
+    </label>
+  );
+}
+
+function Slider({ label, value, min, max, onChange, suffix = '', testid }) {
+  return (
+    <div className="rounded-lg hairline bg-surface/40 px-3 py-2.5">
+      <div className="mb-1.5 flex items-center justify-between">
+        <div className="text-[13px] font-medium">{label}</div>
+        <div className="text-[11px] text-[rgb(var(--accent-2))] neon-text-cyan">
+          {value}{suffix}
+        </div>
+      </div>
+      <input
+        type="range"
+        data-testid={testid}
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full accent-[rgb(var(--accent))]"
+      />
+    </div>
   );
 }

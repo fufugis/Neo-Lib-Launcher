@@ -301,10 +301,38 @@ ipcMain.handle('scan:directory', async (_e, root) => {
 function cleanSearchTerm(name) {
   return name
     .replace(/[_\-]+/g, ' ')
-    .replace(/\b(v?\d+(\.\d+)+|\d{4})\b/g, ' ')
-    .replace(/\b(setup|installer|launcher|client|game|win64|win32|x64|x86|steam|epic|gog|repack|deluxe|ultimate|edition|crack|crackfix)\b/gi, ' ')
+    // Only strip version-number patterns (e.g. v1.2.3) — NOT 4-digit numbers, which are often titles (Anno 1800, Civ VI, etc.)
+    .replace(/\b(v?\d+\.\d+(\.\d+)+)\b/g, ' ')
+    .replace(/\b(setup|installer|launcher|client|win64|win32|x64|x86|repack|crackfix|crack)\b/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+// Lightweight fuzzy score between two strings (0-1, higher = better).
+function fuzzyScore(a, b) {
+  if (!a || !b) return 0;
+  const A = a.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').trim();
+  const B = b.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').trim();
+  if (A === B) return 1.0;
+  if (B.startsWith(A) || A.startsWith(B)) return 0.92;
+  if (B.includes(A) || A.includes(B)) return 0.82;
+  // token overlap (Jaccard)
+  const ta = new Set(A.split(/\s+/).filter(Boolean));
+  const tb = new Set(B.split(/\s+/).filter(Boolean));
+  let inter = 0;
+  for (const t of ta) if (tb.has(t)) inter++;
+  const uni = ta.size + tb.size - inter;
+  if (uni === 0) return 0;
+  return inter / uni;
+}
+
+// Pick the best of a list of {name, ...} matches against a query.
+function pickBestMatch(query, results, nameKey = 'name') {
+  if (!results || results.length === 0) return null;
+  const scored = results.map((r) => ({ r, s: fuzzyScore(query, r[nameKey] || '') }));
+  scored.sort((a, b) => b.s - a.s);
+  // If the top score is too low and there's no clear winner, still return the top
+  return scored[0].r;
 }
 
 // ---------------- Generic HTML helpers ---------------- //
@@ -449,6 +477,27 @@ ipcMain.handle('app:openContainingDir', async (_e, p) => {
   if (!p) return;
   const dir = path.dirname(p);
   await shell.openPath(dir);
+});
+
+// ---------------- Auto-start with Windows ---------------- //
+ipcMain.handle('app:setAutoStart', async (_e, enabled) => {
+  try {
+    app.setLoginItemSettings({
+      openAtLogin: !!enabled,
+      path: process.execPath,
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('app:getAutoStart', async () => {
+  try {
+    return !!app.getLoginItemSettings().openAtLogin;
+  } catch {
+    return false;
+  }
 });
 
 // ---------------- GOG search & details ---------------- //
@@ -605,7 +654,7 @@ ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey 
         `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=en&cc=us`
       );
       if (data.items && data.items.length > 0) {
-        const top = data.items[0];
+        const top = pickBestMatch(term, data.items, 'name') || data.items[0];
         const det = await httpGetJson(
           `https://store.steampowered.com/api/appdetails?appids=${top.id}&l=en&cc=us`
         );
@@ -638,9 +687,9 @@ ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey 
   if (!skipSources.includes('gog')) {
     try {
       const data = await httpGetJson(
-        `https://catalog.gog.com/v1/catalog?limit=5&query=like:${encodeURIComponent(term)}&order=desc:score&productType=in:game,pack`
+        `https://catalog.gog.com/v1/catalog?limit=10&query=like:${encodeURIComponent(term)}&order=desc:score&productType=in:game,pack`
       );
-      const top = (data.products || [])[0];
+      const top = pickBestMatch(term, data.products || [], 'title');
       if (top) {
         return {
           source: 'gog',

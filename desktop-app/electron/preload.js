@@ -43,4 +43,6 @@ contextBridge.exposeInMainWorld('api', {
   openExternal: (url) => ipcRenderer.invoke('app:openExternal', url),
   revealInFolder: (p) => ipcRenderer.invoke('app:revealInFolder', p),
   openContainingDir: (p) => ipcRenderer.invoke('app:openContainingDir', p),
+  setAutoStart: (v) => ipcRenderer.invoke('app:setAutoStart', v),
+  getAutoStart: () => ipcRenderer.invoke('app:getAutoStart'),
 });
