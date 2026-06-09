@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import TitleBar from './components/TitleBar';
 import Sidebar, { CategoryContextMenu } from './components/Sidebar';
 import GameDetail from './components/GameDetail';
+import ShowcaseStrip from './components/ShowcaseStrip';
 import SettingsModal from './components/SettingsModal';
 import AddGameModal from './components/AddGameModal';
 import WizardModal from './components/WizardModal';
@@ -12,7 +13,8 @@ import { uid, guessNameFromPath, hashPin } from './lib/utils';
 
 const isElectron = typeof window !== 'undefined' && !!window.api;
 
-/* --- Browser-preview demo data --- */
+/* ---- Browser-preview demo data ---- */
+const NOW = Date.now();
 const DEMO_GAMES = [
   {
     id: 'demo-1', name: 'Hollow Knight', appid: 367520, source: 'steam',
@@ -26,6 +28,7 @@ const DEMO_GAMES = [
     developers: ['Team Cherry'], publishers: ['Team Cherry'],
     releaseDate: '24 Feb, 2017', metacritic: 90, website: 'https://hollowknight.com',
     screenshots: [], categoryIds: ['cat-fav'],
+    playtime: 16200, lastPlayedAt: NOW - 86400000, addedAt: NOW - 86400000 * 32,
   },
   {
     id: 'demo-2', name: 'Hades', appid: 1145360, source: 'steam',
@@ -37,7 +40,20 @@ const DEMO_GAMES = [
     genres: ['Action', 'Indie', 'Rogue-like'],
     developers: ['Supergiant Games'], publishers: ['Supergiant Games'],
     releaseDate: '17 Sep, 2020', metacritic: 93,
-    screenshots: [], categoryIds: [],
+    screenshots: [], categoryIds: ['cat-fav', 'cat-rpg'],
+    playtime: 38000, lastPlayedAt: NOW - 86400000 * 3, addedAt: NOW - 86400000 * 14,
+  },
+  {
+    id: 'demo-3', name: 'Disco Elysium', appid: 632470, source: 'steam',
+    exePath: 'D:\\Games\\Disco Elysium\\disco.exe',
+    coverUrl: 'https://cdn.akamai.steamstatic.com/steam/apps/632470/header.jpg',
+    headerImage: 'https://cdn.akamai.steamstatic.com/steam/apps/632470/header.jpg',
+    shortDescription: 'Disco Elysium - The Final Cut is a groundbreaking role playing game.',
+    genres: ['RPG', 'Adventure'],
+    developers: ['ZA/UM'], publishers: ['ZA/UM'],
+    releaseDate: '15 Oct, 2019', metacritic: 91,
+    screenshots: [], categoryIds: ['cat-rpg'],
+    playtime: 0, addedAt: NOW - 86400000 * 5,
   },
 ];
 const DEMO_CATEGORIES = [
@@ -47,10 +63,15 @@ const DEMO_CATEGORIES = [
 ];
 
 export default function App() {
-  const [library, setLibrary] = React.useState({ games: [], categories: [] });
-  const [settings, setSettings] = React.useState({ theme: 'synthwave', firstRun: true, geminiKey: '' });
+  const [library, setLibrary] = React.useState({
+    games: [], categories: [], gameOrderByCategory: {},
+  });
+  const [settings, setSettings] = React.useState({
+    theme: 'synthwave', firstRun: true, geminiKey: '',
+    librarySize: 'medium', showcaseMode: 'recent_added',
+    collapsed: {},
+  });
   const [selectedId, setSelectedId] = React.useState(null);
-  const [activeCategoryId, setActiveCategoryId] = React.useState('__all__');
   const [unlockedCategories, setUnlockedCategories] = React.useState([]);
   const [search, setSearch] = React.useState('');
 
@@ -58,31 +79,55 @@ export default function App() {
   const [showWizard, setShowWizard] = React.useState(false);
   const [showSettings, setShowSettings] = React.useState(false);
 
-  // Category modals
   const [catModal, setCatModal] = React.useState({ open: false, initial: null });
   const [catCtx, setCatCtx] = React.useState({ open: false, category: null, anchor: null });
   const [pinModal, setPinModal] = React.useState({ open: false, mode: 'unlock', category: null, error: '' });
-  const [pinThen, setPinThen] = React.useState(null); // callback after PIN entered
+  const [pinThen, setPinThen] = React.useState(null);
 
   const [fetching, setFetching] = React.useState(false);
   const [updatingAll, setUpdatingAll] = React.useState(false);
   const [toast, setToast] = React.useState(null);
 
-  // --- Load --- //
+  /* --- Load on mount --- */
   React.useEffect(() => {
     (async () => {
       if (isElectron) {
         const lib = await window.api.loadLibrary();
         const s = await window.api.loadSettings();
-        const merged = {
-          games: (lib.games || []).map((g) => ({ categoryIds: [], ...g })),
+        setLibrary({
+          games: (lib.games || []).map((g) => ({ categoryIds: [], addedAt: Date.now(), ...g })),
           categories: lib.categories || [],
-        };
-        setLibrary(merged);
-        setSettings({ theme: 'synthwave', geminiKey: '', ...s });
-        if (merged.games[0]) setSelectedId(merged.games[0].id);
+          gameOrderByCategory: lib.gameOrderByCategory || {},
+        });
+        setSettings((prev) => ({ ...prev, ...s }));
+        if (lib.games?.[0]) setSelectedId(lib.games[0].id);
+
+        // Wire playtime tracking event
+        window.api.onGameExited(({ gameId, seconds }) => {
+          if (!gameId) return;
+          // We need access to library here — use a setter to avoid stale closure
+          setLibrary((curr) => ({
+            ...curr,
+            games: curr.games.map((g) =>
+              g.id === gameId
+                ? {
+                    ...g,
+                    playtime: (g.playtime || 0) + seconds,
+                    lastPlayedAt: Date.now(),
+                  }
+                : g
+            ),
+          }));
+        });
       } else {
-        setLibrary({ games: DEMO_GAMES, categories: DEMO_CATEGORIES });
+        setLibrary({
+          games: DEMO_GAMES,
+          categories: DEMO_CATEGORIES,
+          gameOrderByCategory: {
+            'cat-fav': ['demo-1', 'demo-2'],
+            'cat-rpg': ['demo-2', 'demo-3'],
+          },
+        });
         setSelectedId(DEMO_GAMES[0].id);
       }
     })();
@@ -92,58 +137,65 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', settings.theme || 'synthwave');
   }, [settings.theme]);
 
-  // --- Persistence --- //
-  const persistLibrary = React.useCallback((next) => {
-    setLibrary(next);
-    if (isElectron) window.api.saveLibrary(next);
-  }, []);
-  const persistSettings = React.useCallback((next) => {
+  // Persist whenever library changes (after initial load)
+  const skipPersist = React.useRef(true);
+  React.useEffect(() => {
+    if (skipPersist.current) { skipPersist.current = false; return; }
+    if (isElectron) window.api.saveLibrary(library);
+  }, [library]);
+
+  const persistSettings = (next) => {
     setSettings(next);
     if (isElectron) window.api.saveSettings(next);
-  }, []);
+  };
+  const updateSetting = (patch) => persistSettings({ ...settings, ...patch });
 
-  // --- Notifications --- //
   const notify = (msg) => {
     setToast(msg);
     clearTimeout(notify._t);
     notify._t = setTimeout(() => setToast(null), 2500);
   };
 
-  // --- Game ops --- //
+  /* --- Helpers --- */
+  const ensureOrder = (catId, gameIds) => {
+    const order = library.gameOrderByCategory[catId] || [];
+    const set = new Set(order);
+    return [...order, ...gameIds.filter((id) => !set.has(id))];
+  };
+
+  /* --- Games --- */
   const addGame = (data) => {
-    const g = { id: uid(), categoryIds: [], ...data };
-    persistLibrary({ ...library, games: [g, ...library.games] });
+    const g = { id: uid(), categoryIds: [], addedAt: Date.now(), ...data };
+    setLibrary((prev) => ({ ...prev, games: [g, ...prev.games] }));
     setSelectedId(g.id);
     setShowAdd(false);
     notify(`Added ${g.name}`);
   };
   const importMany = (entries) => {
     if (!entries.length) return;
-    const newOnes = entries.map((e) => ({ id: uid(), categoryIds: [], ...e }));
-    persistLibrary({ ...library, games: [...newOnes, ...library.games] });
+    const newOnes = entries.map((e) => ({ id: uid(), categoryIds: [], addedAt: Date.now(), ...e }));
+    setLibrary((prev) => ({ ...prev, games: [...newOnes, ...prev.games] }));
     setSelectedId(newOnes[0].id);
     notify(`Imported ${newOnes.length} game${newOnes.length !== 1 ? 's' : ''}`);
   };
   const updateGame = (id, patch) => {
-    persistLibrary({
-      ...library,
-      games: library.games.map((g) => (g.id === id ? { ...g, ...patch } : g)),
-    });
+    setLibrary((prev) => ({
+      ...prev,
+      games: prev.games.map((g) => (g.id === id ? { ...g, ...patch } : g)),
+    }));
   };
   const removeGame = (id) => {
-    const next = { ...library, games: library.games.filter((g) => g.id !== id) };
-    persistLibrary(next);
-    if (selectedId === id) setSelectedId(next.games[0]?.id || null);
+    setLibrary((prev) => {
+      const order = { ...prev.gameOrderByCategory };
+      for (const k of Object.keys(order)) order[k] = order[k].filter((x) => x !== id);
+      return {
+        ...prev,
+        games: prev.games.filter((g) => g.id !== id),
+        gameOrderByCategory: order,
+      };
+    });
+    if (selectedId === id) setSelectedId(null);
     notify('Game removed');
-  };
-  const moveGame = (id, dir) => {
-    const list = [...library.games];
-    const i = list.findIndex((g) => g.id === id);
-    if (i < 0) return;
-    const j = i + dir;
-    if (j < 0 || j >= list.length) return;
-    [list[i], list[j]] = [list[j], list[i]];
-    persistLibrary({ ...library, games: list });
   };
 
   const launchGame = async (g) => {
@@ -151,39 +203,31 @@ export default function App() {
       notify(`Would launch: ${g.exePath}`);
       return;
     }
-    const res = await window.api.launchGame(g.exePath);
+    const res = await window.api.launchGame({
+      exePath: g.exePath, launchArgs: g.launchArgs || '', gameId: g.id,
+    });
     if (!res.ok) notify('Launch failed: ' + (res.error || ''));
     else notify(`Launching ${g.name}…`);
   };
 
-  // --- Multi-source metadata --- //
+  /* --- Metadata --- */
   const refetchGame = async (g, opts = {}) => {
-    if (!isElectron) {
-      notify('Re-fetch works only in the installed app.');
-      return null;
-    }
+    if (!isElectron) { notify('Re-fetch only works in the installed app.'); return null; }
     setFetching(true);
     const query = opts.query || g.name || guessNameFromPath(g.exePath);
     const skip = [];
-    // If user said "got it wrong", make it skip the current source (so it tries differently)
     if (opts.skipCurrentSource && g.source) skip.push(g.source);
-
-    const result = await window.api.fetchMetadata({
-      query,
-      skipSources: skip,
-      geminiKey: settings.geminiKey || '',
-    });
+    const result = await window.api.fetchMetadata({ query, skipSources: skip, geminiKey: settings.geminiKey || '' });
     if (!result) {
       setFetching(false);
       notify('No metadata found anywhere online.');
       return null;
     }
-    // Cache cover if it's an external URL
     let coverUrl = result.capsuleImage || result.headerImage || null;
     if (coverUrl && coverUrl.startsWith('http')) {
       coverUrl = (await window.api.cacheImage(coverUrl, result.name)) || coverUrl;
     }
-    const patch = {
+    updateGame(g.id, {
       name: result.name || g.name,
       appid: result.appid || g.appid,
       source: result.source,
@@ -199,11 +243,10 @@ export default function App() {
       metacritic: result.metacritic ?? g.metacritic,
       screenshots: result.screenshots?.length ? result.screenshots : g.screenshots || [],
       website: result.website || g.website || '',
-    };
-    updateGame(g.id, patch);
+    });
     setFetching(false);
-    notify(`Updated · ${patch.name} (via ${result.source})`);
-    return patch;
+    notify(`Updated · ${result.name || g.name} (via ${result.source})`);
+    return result;
   };
 
   const refetchAll = async () => {
@@ -214,64 +257,105 @@ export default function App() {
     notify('All games refreshed.');
   };
 
-  // --- Categories --- //
+  /* --- Categories --- */
   const createCategory = (data) => {
     const c = { id: uid(), private: false, ...data };
-    persistLibrary({ ...library, categories: [...library.categories, c] });
+    setLibrary((prev) => ({ ...prev, categories: [...prev.categories, c] }));
     setCatModal({ open: false, initial: null });
     notify(`Category "${c.name}" created`);
   };
   const updateCategory = (id, patch) => {
-    persistLibrary({
-      ...library,
-      categories: library.categories.map((c) => (c.id === id ? { ...c, ...patch } : c)),
-    });
+    setLibrary((prev) => ({
+      ...prev,
+      categories: prev.categories.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+    }));
   };
   const deleteCategory = (id) => {
-    persistLibrary({
-      ...library,
-      categories: library.categories.filter((c) => c.id !== id),
-      games: library.games.map((g) => ({
-        ...g,
-        categoryIds: (g.categoryIds || []).filter((cid) => cid !== id),
-      })),
-    });
-    if (activeCategoryId === id) setActiveCategoryId('__all__');
+    setLibrary((prev) => ({
+      ...prev,
+      categories: prev.categories.filter((c) => c.id !== id),
+      games: prev.games.map((g) => ({ ...g, categoryIds: (g.categoryIds || []).filter((x) => x !== id) })),
+      gameOrderByCategory: Object.fromEntries(
+        Object.entries(prev.gameOrderByCategory).filter(([k]) => k !== id)
+      ),
+    }));
     notify('Category deleted');
   };
-  const moveCategory = (id, dir) => {
-    const list = [...library.categories];
-    const i = list.findIndex((c) => c.id === id);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= list.length) return;
-    [list[i], list[j]] = [list[j], list[i]];
-    persistLibrary({ ...library, categories: list });
+
+  // Drop one category before another (in `categories` array order)
+  const reorderCategory = (fromId, beforeId) => {
+    setLibrary((prev) => {
+      const list = [...prev.categories];
+      const from = list.findIndex((c) => c.id === fromId);
+      const to = list.findIndex((c) => c.id === beforeId);
+      if (from < 0 || to < 0 || from === to) return prev;
+      const [item] = list.splice(from, 1);
+      const insertAt = list.findIndex((c) => c.id === beforeId);
+      list.splice(insertAt, 0, item);
+      return { ...prev, categories: list };
+    });
+  };
+
+  /* --- Game ↔ category drag/drop --- */
+  // fromCatId / toCatId may be null (uncategorized).
+  const moveGameToCategory = (gameId, fromCatId, toCatId, opts = {}) => {
+    const { copy = false, beforeGameId } = opts;
+    setLibrary((prev) => {
+      const games = prev.games.map((g) => {
+        if (g.id !== gameId) return g;
+        const ids = new Set(g.categoryIds || []);
+        if (!copy && fromCatId) ids.delete(fromCatId);
+        if (toCatId) ids.add(toCatId);
+        return { ...g, categoryIds: Array.from(ids) };
+      });
+      // Adjust order for target
+      const order = { ...prev.gameOrderByCategory };
+      const targetKey = toCatId || '__uncat__';
+      const list = (order[targetKey] || []).filter((x) => x !== gameId);
+      if (beforeGameId) {
+        const i = list.indexOf(beforeGameId);
+        list.splice(i < 0 ? list.length : i, 0, gameId);
+      } else {
+        list.push(gameId);
+      }
+      order[targetKey] = list;
+      // Also remove from source category order if moving
+      if (!copy && fromCatId) {
+        order[fromCatId] = (order[fromCatId] || []).filter((x) => x !== gameId);
+      }
+      return { ...prev, games, gameOrderByCategory: order };
+    });
+  };
+
+  const reorderGameInCategory = (catId, fromId, beforeId) => {
+    setLibrary((prev) => {
+      const key = catId;
+      const order = { ...prev.gameOrderByCategory };
+      const ids = (order[key] || []).slice();
+      const i = ids.indexOf(fromId);
+      if (i < 0) ids.push(fromId);
+      else ids.splice(i, 1);
+      const j = ids.indexOf(beforeId);
+      ids.splice(j < 0 ? ids.length : j, 0, fromId);
+      order[key] = ids;
+      return { ...prev, gameOrderByCategory: order };
+    });
   };
 
   const toggleGameInCategory = (game, categoryId) => {
     const has = (game.categoryIds || []).includes(categoryId);
-    const next = has
-      ? (game.categoryIds || []).filter((c) => c !== categoryId)
-      : [...(game.categoryIds || []), categoryId];
-    updateGame(game.id, { categoryIds: next });
+    updateGame(game.id, {
+      categoryIds: has
+        ? (game.categoryIds || []).filter((c) => c !== categoryId)
+        : [...(game.categoryIds || []), categoryId],
+    });
   };
 
-  // Drag from sidebar onto a category chip — add (don't remove other categories)
-  const assignGameToCategory = (gameId, categoryId) => {
-    const g = library.games.find((x) => x.id === gameId);
-    if (!g) return;
-    if (!(g.categoryIds || []).includes(categoryId)) {
-      updateGame(gameId, { categoryIds: [...(g.categoryIds || []), categoryId] });
-      notify(`Added "${g.name}" → ${library.categories.find((c) => c.id === categoryId)?.name}`);
-    }
-  };
-
-  // --- Ghost / PIN flow --- //
+  /* --- Ghost categories --- */
   const requestUnlock = (category) => {
     setPinThen(() => (pin) => {
       if (hashPin(pin) === category.pinHash) {
         setUnlockedCategories((u) => [...new Set([...u, category.id])]);
-        setActiveCategoryId(category.id);
         setPinModal({ open: false, mode: 'unlock', category: null, error: '' });
       } else {
         setPinModal((p) => ({ ...p, error: 'Wrong PIN.' }));
@@ -298,10 +382,15 @@ export default function App() {
       } else {
         if (confirm(`Delete "${c.name}"? Games stay in your library.`)) deleteCategory(c.id);
       }
-    } else if (action === 'up') {
-      moveCategory(c.id, -1);
-    } else if (action === 'down') {
-      moveCategory(c.id, 1);
+    } else if (action === 'up' || action === 'down') {
+      setLibrary((prev) => {
+        const list = [...prev.categories];
+        const i = list.findIndex((x) => x.id === c.id);
+        const j = i + (action === 'up' ? -1 : 1);
+        if (i < 0 || j < 0 || j >= list.length) return prev;
+        [list[i], list[j]] = [list[j], list[i]];
+        return { ...prev, categories: list };
+      });
     } else if (action === 'set-private') {
       setPinThen(() => (pin) => {
         updateCategory(c.id, { private: true, pinHash: hashPin(pin) });
@@ -321,12 +410,17 @@ export default function App() {
     }
   };
 
-  // --- Game right-click actions --- //
+  /* --- Game right-click actions --- */
   const handleGameContext = async (action, g) => {
     if (action === 'remove') return removeGame(g.id);
     if (action === 'reveal') {
       if (isElectron) window.api.revealInFolder(g.exePath);
-      else notify(`Open: ${g.exePath}`);
+      else notify('Open: ' + g.exePath);
+      return;
+    }
+    if (action === 'open-dir') {
+      if (isElectron) window.api.openContainingDir(g.exePath);
+      else notify('Open dir: ' + g.exePath);
       return;
     }
     if (action === 'refetch') {
@@ -345,35 +439,38 @@ export default function App() {
     }
     if (action === 'details') {
       const cover = prompt('Cover image URL (leave empty to keep current):', g.coverUrl || '');
-      if (cover !== null) updateGame(g.id, { coverUrl: cover || g.coverUrl });
+      if (cover) updateGame(g.id, { coverUrl: cover });
       return;
     }
     if (action === 'manage-categories') {
-      // Quick: open category modal preset to add a new one if none exist, else select first
       setCatModal({ open: true, initial: null });
       return;
     }
   };
 
+  /* --- Collapsed state --- */
+  const toggleCollapsed = (id) =>
+    updateSetting({ collapsed: { ...settings.collapsed, [id]: !settings.collapsed[id] } });
+
+  const visibleGames = library.games; // sidebar handles filter; showcase considers all visible games
   const selected = library.games.find((g) => g.id === selectedId) || null;
 
   return (
     <div className="relative flex h-screen w-screen flex-col bg-surface text-ink">
-      {/* Background ambience for synthwave */}
       <BgAmbience theme={settings.theme} />
-
       <TitleBar search={search} setSearch={setSearch} />
 
       <div className="relative z-10 flex min-h-0 flex-1">
         <Sidebar
           games={library.games}
           categories={library.categories}
-          activeCategoryId={activeCategoryId}
+          gameOrderByCategory={library.gameOrderByCategory}
+          collapsed={settings.collapsed || {}}
           unlockedCategories={unlockedCategories}
           search={search}
           selectedId={selectedId}
+          librarySize={settings.librarySize || 'medium'}
           onSelect={setSelectedId}
-          onSelectCategory={setActiveCategoryId}
           onAddManual={() => setShowAdd(true)}
           onOpenWizard={() => setShowWizard(true)}
           onOpenSettings={() => setShowSettings(true)}
@@ -381,31 +478,51 @@ export default function App() {
           onCreateCategory={() => setCatModal({ open: true, initial: null })}
           onCategoryContext={(category, anchor) => setCatCtx({ open: true, category, anchor })}
           onGameContext={handleGameContext}
-          onMoveGame={moveGame}
-          onAssignGameToCategory={assignGameToCategory}
+          onSetLibrarySize={(s) => updateSetting({ librarySize: s })}
+          onMoveGameToCategory={moveGameToCategory}
+          onReorderGameInCategory={reorderGameInCategory}
+          onReorderCategory={reorderCategory}
+          onToggleCollapsed={toggleCollapsed}
           onUnlockCategory={requestUnlock}
           updatingAll={updatingAll}
         />
 
         <main className="relative flex min-w-0 flex-1 flex-col">
-          <AnimatePresence mode="wait">
-            <GameDetail
-              key={selected?.id || 'empty'}
-              game={selected}
-              categories={library.categories.filter((c) => !c.private || unlockedCategories.includes(c.id))}
-              fetching={fetching}
-              onLaunch={launchGame}
-              onRefetch={(g) => refetchGame(g, { skipCurrentSource: true })}
-              onRevealFolder={(g) => (isElectron ? window.api.revealInFolder(g.exePath) : notify('Open: ' + g.exePath))}
-              onToggleCategory={toggleGameInCategory}
-            />
-          </AnimatePresence>
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <AnimatePresence mode="wait">
+              <GameDetail
+                key={selected?.id || 'empty'}
+                game={selected}
+                categories={library.categories.filter((c) => !c.private || unlockedCategories.includes(c.id))}
+                fetching={fetching}
+                onLaunch={launchGame}
+                onRefetch={(g) => refetchGame(g, { skipCurrentSource: true })}
+                onRevealFolder={(g) => (isElectron ? window.api.revealInFolder(g.exePath) : notify('Open: ' + g.exePath))}
+                onToggleCategory={toggleGameInCategory}
+              />
+            </AnimatePresence>
+          </div>
+
+          {/* Showcase strip below preview */}
+          <ShowcaseStrip
+            games={visibleGames}
+            mode={settings.showcaseMode || 'recent_added'}
+            setMode={(m) => updateSetting({ showcaseMode: m })}
+            onSelect={setSelectedId}
+            selectedId={selectedId}
+          />
         </main>
       </div>
 
       {/* Modals */}
       <AddGameModal open={showAdd} onClose={() => setShowAdd(false)} onCreate={addGame} />
-      <WizardModal open={showWizard} onClose={() => setShowWizard(false)} onImport={importMany} />
+      <WizardModal
+        open={showWizard}
+        onClose={() => setShowWizard(false)}
+        onImport={importMany}
+        onAddManual={() => setShowAdd(true)}
+        geminiKey={settings.geminiKey || ''}
+      />
       <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} settings={settings} setSettings={persistSettings} />
       <CategoryModal
         open={catModal.open}
@@ -415,9 +532,7 @@ export default function App() {
           if (catModal.initial) {
             updateCategory(catModal.initial.id, data);
             setCatModal({ open: false, initial: null });
-          } else {
-            createCategory(data);
-          }
+          } else createCategory(data);
         }}
       />
       <PinModal
@@ -430,7 +545,6 @@ export default function App() {
         onSubmit={(pin) => pinThen && pinThen(pin)}
       />
 
-      {/* Category context menu */}
       <CategoryContextMenu
         open={catCtx.open}
         anchor={catCtx.anchor}
@@ -439,13 +553,10 @@ export default function App() {
         onAction={handleCategoryAction}
       />
 
-      {/* Toast */}
       <AnimatePresence>
         {toast && (
           <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 10, opacity: 0 }}
+            initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 10, opacity: 0 }}
             data-testid="toast"
             className="pointer-events-none fixed bottom-6 left-1/2 z-[80] -translate-x-1/2 rounded-full hairline glass px-4 py-2 text-xs"
           >
@@ -457,7 +568,6 @@ export default function App() {
   );
 }
 
-/* Subtle animated synthwave background visible behind low-contrast surfaces */
 function BgAmbience({ theme }) {
   if (theme !== 'synthwave') return null;
   return (
@@ -466,10 +576,7 @@ function BgAmbience({ theme }) {
       <div className="synth-horizon" />
       <div
         className="absolute -top-40 left-1/2 h-[60vh] w-[80vw] -translate-x-1/2 rounded-full opacity-30 blur-3xl"
-        style={{
-          background:
-            'radial-gradient(circle, rgb(var(--accent)/0.45), transparent 60%)',
-        }}
+        style={{ background: 'radial-gradient(circle, rgb(var(--accent)/0.45), transparent 60%)' }}
       />
     </div>
   );

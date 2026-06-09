@@ -25,7 +25,6 @@ export const THEMES = [
   { id: 'crimson',   label: 'Crimson',   swatch: '#dc263c' },
 ];
 
-// Preset palette for user categories
 export const CATEGORY_COLORS = [
   { id: 'magenta', label: 'Magenta', hex: '#ff2a8a' },
   { id: 'cyan',    label: 'Cyan',    hex: '#00e5ff' },
@@ -37,15 +36,56 @@ export const CATEGORY_COLORS = [
   { id: 'crimson', label: 'Crimson', hex: '#ff3654' },
   { id: 'slate',   label: 'Slate',   hex: '#7a869a' },
 ];
-
 export const colorFromId = (id) =>
   CATEGORY_COLORS.find((c) => c.id === id)?.hex || '#ff2a8a';
 
-// Lightweight, deterministic hash for PIN storage (NOT cryptographic — just obfuscation
-// since the file is local; full secrecy isn't possible without a master password).
+// Local-only PIN obfuscation (not cryptographic — file is on disk anyway).
 export const hashPin = (pin) => {
   const s = `neo-lib:${pin}`;
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
   return String(h);
+};
+
+// Library appearance sizes
+export const SIZES = [
+  { id: 'small',  label: 'Small',  rowH: 26, icon: 16, font: 12 },
+  { id: 'medium', label: 'Medium', rowH: 44, icon: 32, font: 13 },
+  { id: 'big',    label: 'Big',    rowH: 64, icon: 52, font: 14 },
+];
+export const sizeById = (id) => SIZES.find((s) => s.id === id) || SIZES[1];
+
+// Showcase sort modes
+export const SHOWCASE_MODES = [
+  { id: 'recent_added',  label: 'Recently added' },
+  { id: 'recent_played', label: 'Recently played' },
+  { id: 'most_played',   label: 'Most played' },
+  { id: 'untouched',     label: 'Untouched gems' },
+  { id: 'random',        label: 'Random pick' },
+];
+
+export const formatPlaytime = (sec) => {
+  if (!sec || sec < 60) return `${sec || 0}s`;
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+};
+
+export const sortGamesForShowcase = (games, mode) => {
+  const list = [...games];
+  switch (mode) {
+    case 'recent_added':
+      return list.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+    case 'recent_played':
+      return list.sort((a, b) => (b.lastPlayedAt || 0) - (a.lastPlayedAt || 0));
+    case 'most_played':
+      return list.sort((a, b) => (b.playtime || 0) - (a.playtime || 0));
+    case 'untouched':
+      return list.filter((g) => !g.playtime).sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+    case 'random':
+      return list.sort(() => Math.random() - 0.5);
+    default:
+      return list;
+  }
 };

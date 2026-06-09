@@ -21,7 +21,8 @@ contextBridge.exposeInMainWorld('api', {
 
   // exe
   extractIcon: (exePath) => ipcRenderer.invoke('exe:icon', exePath),
-  launchGame: (exePath) => ipcRenderer.invoke('game:launch', exePath),
+  launchGame: (opts) => ipcRenderer.invoke('game:launch', opts),
+  onGameExited: (cb) => ipcRenderer.on('game:exited', (_e, info) => cb(info)),
 
   // scan
   scanDirectory: (root) => ipcRenderer.invoke('scan:directory', root),
@@ -41,4 +42,5 @@ contextBridge.exposeInMainWorld('api', {
   // misc
   openExternal: (url) => ipcRenderer.invoke('app:openExternal', url),
   revealInFolder: (p) => ipcRenderer.invoke('app:revealInFolder', p),
+  openContainingDir: (p) => ipcRenderer.invoke('app:openContainingDir', p),
 });

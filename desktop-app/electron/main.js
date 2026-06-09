@@ -182,14 +182,32 @@ ipcMain.handle('exe:icon', async (_e, exePath) => {
 });
 
 // ---------------- IPC: Launch game ---------------- //
-ipcMain.handle('game:launch', async (_e, exePath) => {
+const runningGames = new Map(); // exePath -> { startedAt }
+
+ipcMain.handle('game:launch', async (_e, { exePath, launchArgs, gameId } = {}) => {
+  if (!exePath || typeof exePath !== 'string') {
+    return { ok: false, error: 'No exePath provided' };
+  }
   try {
+    const argv = (launchArgs || '').trim()
+      ? (launchArgs || '').trim().split(/\s+/)
+      : [];
     if (process.platform === 'win32') {
-      const child = spawn(exePath, [], {
+      const child = spawn(exePath, argv, {
         detached: true,
         stdio: 'ignore',
         cwd: path.dirname(exePath),
       });
+      const startedAt = Date.now();
+      runningGames.set(gameId || exePath, { startedAt });
+      child.on('exit', () => {
+        const seconds = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
+        runningGames.delete(gameId || exePath);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('game:exited', { gameId, exePath, seconds });
+        }
+      });
+      child.on('error', () => runningGames.delete(gameId || exePath));
       child.unref();
       return { ok: true };
     }
@@ -425,6 +443,12 @@ ipcMain.handle('app:openExternal', async (_e, url) => {
 
 ipcMain.handle('app:revealInFolder', async (_e, p) => {
   shell.showItemInFolder(p);
+});
+
+ipcMain.handle('app:openContainingDir', async (_e, p) => {
+  if (!p) return;
+  const dir = path.dirname(p);
+  await shell.openPath(dir);
 });
 
 // ---------------- GOG search & details ---------------- //
