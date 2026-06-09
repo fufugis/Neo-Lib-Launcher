@@ -4,6 +4,7 @@ import {
   Plus, Wand2, Settings, RefreshCw, Trash2, Pencil, FolderOpen, MoreVertical,
   Lock, ChevronRight, ChevronDown, Tag, GripVertical, Sparkles, Terminal,
   Info, ArrowUp, ArrowDown, Palette, Eye, EyeOff, Sliders, Library as LibIcon,
+  Wrench,
 } from 'lucide-react';
 import { cn, colorFromId, sizeById } from '../lib/utils';
 
@@ -21,6 +22,7 @@ import { cn, colorFromId, sizeById } from '../lib/utils';
 export default function Sidebar({
   games, categories, gameOrderByCategory, collapsed,
   unlockedCategories, search, selectedId, librarySize,
+  mode, onSetMode,
   onSelect,
   onAddManual, onOpenWizard, onOpenSettings, onUpdateAll,
   onCreateCategory, onCategoryContext, onGameContext,
@@ -31,6 +33,7 @@ export default function Sidebar({
 }) {
   const size = sizeById(librarySize);
   const [libSettingsOpen, setLibSettingsOpen] = React.useState(false);
+  const isTools = mode === 'tools';
 
   // Build per-category game lists honoring per-category ordering
   const orderedGamesIn = (catId) => {
@@ -65,7 +68,7 @@ export default function Sidebar({
     }),
     {
       id: '__uncat__',
-      category: { id: '__uncat__', name: 'Uncategorized', colorId: 'slate' },
+      category: { id: '__uncat__', name: isTools ? 'Unsorted' : 'Uncategorized', colorId: 'slate' },
       isGhost: false,
       games: searchFilter(orderedGamesIn('__uncat__')),
       count: orderedGamesIn('__uncat__').length,
@@ -74,17 +77,39 @@ export default function Sidebar({
 
   return (
     <aside className="relative flex h-full w-[320px] shrink-0 flex-col border-r hairline bg-panel/40">
-      {/* Toolbar */}
-      <div className="flex items-center gap-1.5 p-3">
-        <SideBtn label="Add" icon={<Plus size={14} />} onClick={onAddManual} testid="sidebar-add-btn" />
-        <SideBtn label="Wizard" icon={<Wand2 size={14} />} onClick={onOpenWizard} testid="sidebar-wizard-btn" />
-        <div className="flex-1" />
-        <SideBtn
-          icon={<RefreshCw size={14} className={updatingAll ? 'animate-spin' : ''} />}
-          onClick={onUpdateAll}
-          testid="sidebar-update-all-btn"
-          title="Refresh metadata for all games"
+      {/* Tab bar — Library / Tools */}
+      <div className="flex items-center gap-1 p-2 pb-0">
+        <TabPill
+          label="Library"
+          icon={<LibIcon size={12} />}
+          active={mode !== 'tools'}
+          onClick={() => onSetMode('library')}
+          testid="tab-library"
         />
+        <TabPill
+          label="Tools"
+          icon={<Wrench size={12} />}
+          active={mode === 'tools'}
+          onClick={() => onSetMode('tools')}
+          testid="tab-tools"
+        />
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex items-center gap-1.5 p-3 pt-2">
+        <SideBtn label="Add" icon={<Plus size={14} />} onClick={onAddManual} testid="sidebar-add-btn" />
+        {!isTools && (
+          <SideBtn label="Wizard" icon={<Wand2 size={14} />} onClick={onOpenWizard} testid="sidebar-wizard-btn" />
+        )}
+        <div className="flex-1" />
+        {!isTools && (
+          <SideBtn
+            icon={<RefreshCw size={14} className={updatingAll ? 'animate-spin' : ''} />}
+            onClick={onUpdateAll}
+            testid="sidebar-update-all-btn"
+            title="Refresh metadata for all games"
+          />
+        )}
         <div className="relative">
           <SideBtn
             icon={<Sliders size={14} />}
@@ -107,7 +132,9 @@ export default function Sidebar({
       </div>
 
       <div className="flex items-center justify-between px-4 pb-2">
-        <span className="text-[10px] uppercase tracking-[0.28em] text-muted">Library</span>
+        <span className="text-[10px] uppercase tracking-[0.28em] text-muted">
+          {isTools ? 'Tools' : 'Library'}
+        </span>
         <button
           data-testid="category-new-btn"
           onClick={onCreateCategory}
@@ -159,6 +186,34 @@ function SideBtn({ icon, label, onClick, testid, title }) {
     >
       <span className="text-[rgb(var(--accent))] transition-transform group-hover:scale-110">{icon}</span>
       {label && <span>{label}</span>}
+    </button>
+  );
+}
+
+function TabPill({ label, icon, active, onClick, testid }) {
+  return (
+    <button
+      data-testid={testid}
+      onClick={onClick}
+      className={cn(
+        'group relative inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 h-8 text-[11px] font-bold uppercase tracking-[0.22em] transition-all',
+        active
+          ? 'text-ink bg-[rgb(var(--accent)/0.12)] hairline border-[rgb(var(--accent)/0.6)] shadow-[0_0_12px_-3px_rgb(var(--accent)/0.55)]'
+          : 'text-muted hover:text-ink hover:bg-panel/60'
+      )}
+    >
+      <span className={active ? 'text-[rgb(var(--accent))]' : 'text-muted'}>{icon}</span>
+      {label}
+      {active && (
+        <motion.span
+          layoutId="tab-underline"
+          className="absolute -bottom-0.5 left-3 right-3 h-px"
+          style={{
+            background:
+              'linear-gradient(90deg, transparent, rgb(var(--accent)) 50%, transparent)',
+          }}
+        />
+      )}
     </button>
   );
 }

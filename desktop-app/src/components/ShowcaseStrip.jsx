@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Flame, Plus, Sparkles, Shuffle, ChevronLeft, ChevronRight } from 'lucide-react';
-import { SHOWCASE_MODES, sortGamesForShowcase, formatPlaytime, cn } from '../lib/utils';
+import { Clock, Flame, Plus, Sparkles, Shuffle, ChevronLeft, ChevronRight, LayoutGrid } from 'lucide-react';
+import { SHOWCASE_MODES, sortGamesForShowcase, formatPlaytime, formatRelative, cn } from '../lib/utils';
 
 const ICONS = {
   recent_added:  <Plus size={11} />,
@@ -14,37 +14,65 @@ const ICONS = {
 export default function ShowcaseStrip({ games, mode, setMode, onSelect, selectedId }) {
   const sorted = React.useMemo(() => sortGamesForShowcase(games, mode).slice(0, 30), [games, mode]);
   const scrollRef = React.useRef(null);
-
-  const scroll = (dir) => {
-    if (!scrollRef.current) return;
-    scrollRef.current.scrollBy({ left: dir * 320, behavior: 'smooth' });
-  };
-
+  const scroll = (dir) => scrollRef.current?.scrollBy({ left: dir * 320, behavior: 'smooth' });
   if (games.length === 0) return null;
 
   return (
     <div
-      className="relative border-t hairline bg-panel/30"
       data-testid="showcase-strip"
+      className="relative isolate flex-shrink-0 overflow-hidden"
+      style={{
+        background:
+          'linear-gradient(180deg, rgb(var(--panel)/0.4) 0%, rgb(var(--accent-soft)/0.25) 100%)',
+      }}
     >
-      <div className="flex items-center justify-between px-6 pt-3 pb-1.5">
-        <div className="flex items-center gap-1.5">
-          {SHOWCASE_MODES.map((m) => (
-            <button
-              key={m.id}
-              data-testid={`showcase-mode-${m.id}`}
-              onClick={() => setMode(m.id)}
-              className={cn(
-                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10.5px] uppercase tracking-wider transition-all',
-                mode === m.id
-                  ? 'bg-[rgb(var(--accent)/0.14)] text-ink hairline border-[rgb(var(--accent)/0.55)]'
-                  : 'text-muted hover:text-ink'
-              )}
-            >
-              <span className="text-[rgb(var(--accent))]">{ICONS[m.id]}</span>
-              {m.label}
-            </button>
-          ))}
+      {/* Flashy top divider — magenta → cyan gradient line with bloom */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px"
+        style={{
+          background:
+            'linear-gradient(90deg, transparent 0%, rgb(var(--accent)/0.9) 25%, rgb(var(--accent-2)/0.9) 75%, transparent 100%)',
+          boxShadow:
+            '0 0 12px rgb(var(--accent)/0.55), 0 0 24px rgb(var(--accent-2)/0.35)',
+        }}
+      />
+      {/* Faint diagonal stripes for retro panel feel */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.06]"
+        style={{
+          backgroundImage:
+            'repeating-linear-gradient(135deg, currentColor 0 1px, transparent 1px 12px)',
+          color: 'rgb(var(--accent))',
+        }}
+      />
+
+      {/* Header */}
+      <div className="relative flex items-center justify-between px-6 pt-3 pb-1.5">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 pr-2 border-r border-[rgb(var(--border))]">
+            <LayoutGrid size={12} className="text-[rgb(var(--accent-2))] neon-text-cyan" />
+            <span className="font-display text-[10px] font-bold uppercase tracking-[0.32em] text-[rgb(var(--accent-2))] neon-text-cyan">
+              Deck
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 overflow-x-auto">
+            {SHOWCASE_MODES.map((m) => (
+              <button
+                key={m.id}
+                data-testid={`showcase-mode-${m.id}`}
+                onClick={() => setMode(m.id)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10.5px] font-medium uppercase tracking-wider transition-all',
+                  mode === m.id
+                    ? 'bg-[rgb(var(--accent)/0.16)] text-ink hairline border-[rgb(var(--accent)/0.6)] shadow-[0_0_12px_-2px_rgb(var(--accent)/0.45)]'
+                    : 'text-muted hover:text-ink'
+                )}
+              >
+                <span className="text-[rgb(var(--accent))]">{ICONS[m.id]}</span>
+                {m.label}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="flex items-center gap-1">
           <ScrollBtn onClick={() => scroll(-1)}><ChevronLeft size={13} /></ScrollBtn>
@@ -54,19 +82,12 @@ export default function ShowcaseStrip({ games, mode, setMode, onSelect, selected
 
       <div
         ref={scrollRef}
-        className="flex gap-3 overflow-x-auto px-6 pb-4 pt-2 [scrollbar-width:thin]"
+        className="relative flex gap-3 overflow-x-auto px-6 pb-4 pt-2 [scrollbar-width:thin]"
         style={{ scrollbarWidth: 'thin' }}
       >
         <AnimatePresence mode="popLayout">
           {sorted.map((g, i) => (
-            <Tile
-              key={g.id}
-              g={g}
-              mode={mode}
-              selected={selectedId === g.id}
-              index={i}
-              onClick={() => onSelect(g.id)}
-            />
+            <Tile key={g.id} g={g} mode={mode} selected={selectedId === g.id} index={i} onClick={() => onSelect(g.id)} />
           ))}
         </AnimatePresence>
         {sorted.length === 0 && (
@@ -81,7 +102,7 @@ function ScrollBtn({ children, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="grid h-6 w-6 place-items-center rounded-md hairline text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]"
+      className="grid h-6 w-6 place-items-center rounded-md hairline text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)] hover:bg-[rgb(var(--accent)/0.06)]"
     >
       {children}
     </button>
@@ -90,13 +111,10 @@ function ScrollBtn({ children, onClick }) {
 
 function Tile({ g, mode, selected, index, onClick }) {
   const stat = (() => {
-    if (mode === 'most_played' || mode === 'recent_played') {
-      return g.playtime ? formatPlaytime(g.playtime) : 'Never';
-    }
-    if (mode === 'recent_added') {
-      return g.addedAt ? new Date(g.addedAt).toLocaleDateString() : '—';
-    }
-    if (mode === 'untouched') return 'Untouched';
+    if (mode === 'most_played') return g.playtime ? formatPlaytime(g.playtime) : 'Never played';
+    if (mode === 'recent_played') return g.lastPlayedAt ? `Played ${formatRelative(g.lastPlayedAt)}` : 'Never played';
+    if (mode === 'recent_added')  return g.addedAt ? `Added ${formatRelative(g.addedAt)}` : '—';
+    if (mode === 'untouched')     return g.addedAt ? `Added ${formatRelative(g.addedAt)}` : 'Untouched';
     return '';
   })();
 
@@ -111,8 +129,8 @@ function Tile({ g, mode, selected, index, onClick }) {
       onClick={onClick}
       data-testid={`showcase-tile-${g.id}`}
       className={cn(
-        'group relative h-[88px] w-[152px] shrink-0 overflow-hidden rounded-lg hairline bg-surface/60 text-left transition-shadow',
-        selected ? 'ring-1 ring-[rgb(var(--accent))] shadow-[0_0_18px_-2px_rgb(var(--accent)/0.55)]' : ''
+        'group relative h-[88px] w-[158px] shrink-0 overflow-hidden rounded-lg hairline bg-surface/60 text-left transition-shadow',
+        selected ? 'ring-1 ring-[rgb(var(--accent))] shadow-[0_0_18px_-2px_rgb(var(--accent)/0.55)]' : 'hover:shadow-[0_0_14px_-3px_rgb(var(--accent-2)/0.5)]'
       )}
     >
       {(g.coverUrl || g.headerImage) ? (
@@ -128,13 +146,9 @@ function Tile({ g, mode, selected, index, onClick }) {
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
       <div className="absolute inset-0 flex flex-col justify-end p-2">
-        <div className="truncate text-[11.5px] font-semibold text-white">
-          {g.name}
-        </div>
+        <div className="truncate text-[11.5px] font-semibold text-white">{g.name}</div>
         {stat && (
-          <div className="truncate text-[10px] text-[rgb(var(--accent-2))] neon-text-cyan">
-            {stat}
-          </div>
+          <div className="truncate text-[10px] text-[rgb(var(--accent-2))] neon-text-cyan">{stat}</div>
         )}
       </div>
     </motion.button>

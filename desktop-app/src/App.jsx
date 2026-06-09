@@ -62,6 +62,33 @@ const DEMO_CATEGORIES = [
   { id: 'cat-secret', name: 'After hours', colorId: 'magenta', private: true, pinHash: hashPin('1234') },
 ];
 
+const DEMO_TOOLS = [
+  {
+    id: 'tool-1', name: 'GPU-Z', exePath: 'C:\\Tools\\GPU-Z\\GPU-Z.exe',
+    shortDescription: 'A lightweight system utility designed to provide vital information about your video card.',
+    about: 'TechPowerUp GPU-Z is a lightweight system utility designed to provide vital information about your video card and graphics processor.',
+    genres: ['System info'], website: 'https://www.techpowerup.com/gpuz/',
+    categoryIds: ['tcat-hw'], addedAt: NOW - 86400000 * 22, source: 'manual',
+  },
+  {
+    id: 'tool-2', name: 'CPU-Z', exePath: 'C:\\Tools\\CPU-Z\\cpuz_x64.exe',
+    shortDescription: 'Gathers information on some of the main devices of your system.',
+    about: 'CPU-Z is a freeware utility that gathers information on some of the main devices of your system: processor, mainboard, memory.',
+    genres: ['System info'], website: 'https://www.cpuid.com',
+    categoryIds: ['tcat-hw'], addedAt: NOW - 86400000 * 9, source: 'manual',
+  },
+  {
+    id: 'tool-3', name: 'OBS Studio', exePath: 'C:\\Program Files\\obs-studio\\bin\\64bit\\obs64.exe',
+    shortDescription: 'Free open-source software for video recording and live streaming.',
+    about: 'OBS Studio is free and open source software for video recording and live streaming.',
+    genres: ['Recording'], website: 'https://obsproject.com',
+    categoryIds: [], addedAt: NOW - 86400000 * 4, source: 'manual',
+  },
+];
+const DEMO_TOOL_CATEGORIES = [
+  { id: 'tcat-hw', name: 'Hardware monitors', colorId: 'lime', private: false },
+];
+
 export default function App() {
   const [library, setLibrary] = React.useState({
     games: [], categories: [], gameOrderByCategory: {},
@@ -72,6 +99,7 @@ export default function App() {
     collapsed: {},
   });
   const [selectedId, setSelectedId] = React.useState(null);
+  const [selectedToolId, setSelectedToolId] = React.useState(null);
   const [unlockedCategories, setUnlockedCategories] = React.useState([]);
   const [search, setSearch] = React.useState('');
 
@@ -98,6 +126,9 @@ export default function App() {
           games: (lib.games || []).map((g) => ({ categoryIds: [], addedAt: Date.now(), ...g })),
           categories: lib.categories || [],
           gameOrderByCategory: lib.gameOrderByCategory || {},
+          tools: (lib.tools || []).map((t) => ({ categoryIds: [], addedAt: Date.now(), ...t })),
+          toolCategories: lib.toolCategories || [],
+          toolOrderByCategory: lib.toolOrderByCategory || {},
         });
         setSettings((prev) => ({ ...prev, ...s }));
         if (lib.games?.[0]) setSelectedId(lib.games[0].id);
@@ -127,8 +158,12 @@ export default function App() {
             'cat-fav': ['demo-1', 'demo-2'],
             'cat-rpg': ['demo-2', 'demo-3'],
           },
+          tools: DEMO_TOOLS,
+          toolCategories: DEMO_TOOL_CATEGORIES,
+          toolOrderByCategory: { 'tcat-hw': ['tool-1', 'tool-2'] },
         });
         setSelectedId(DEMO_GAMES[0].id);
+        setSelectedToolId(DEMO_TOOLS[0].id);
       }
     })();
   }, []);
@@ -156,46 +191,59 @@ export default function App() {
     notify._t = setTimeout(() => setToast(null), 2500);
   };
 
+  /* --- Mode-aware slice keys (library vs tools) --- */
+  const isTools = settings.mode === 'tools';
+  const sliceK = isTools
+    ? { items: 'tools', cats: 'toolCategories', order: 'toolOrderByCategory' }
+    : { items: 'games', cats: 'categories', order: 'gameOrderByCategory' };
+  const currentItems = library[sliceK.items] || [];
+  const currentCats = library[sliceK.cats] || [];
+  const currentOrder = library[sliceK.order] || {};
+  const currentSelectedId = isTools ? selectedToolId : selectedId;
+  const setCurrentSelectedId = isTools ? setSelectedToolId : setSelectedId;
+
+  const setMode = (m) => updateSetting({ mode: m });
+
   /* --- Helpers --- */
   const ensureOrder = (catId, gameIds) => {
-    const order = library.gameOrderByCategory[catId] || [];
+    const order = currentOrder[catId] || [];
     const set = new Set(order);
     return [...order, ...gameIds.filter((id) => !set.has(id))];
   };
 
-  /* --- Games --- */
+  /* --- Items (Games / Tools) --- */
   const addGame = (data) => {
     const g = { id: uid(), categoryIds: [], addedAt: Date.now(), ...data };
-    setLibrary((prev) => ({ ...prev, games: [g, ...prev.games] }));
-    setSelectedId(g.id);
+    setLibrary((prev) => ({ ...prev, [sliceK.items]: [g, ...(prev[sliceK.items] || [])] }));
+    setCurrentSelectedId(g.id);
     setShowAdd(false);
     notify(`Added ${g.name}`);
   };
   const importMany = (entries) => {
     if (!entries.length) return;
     const newOnes = entries.map((e) => ({ id: uid(), categoryIds: [], addedAt: Date.now(), ...e }));
-    setLibrary((prev) => ({ ...prev, games: [...newOnes, ...prev.games] }));
+    setLibrary((prev) => ({ ...prev, games: [...newOnes, ...prev.games] })); // wizard always imports games
     setSelectedId(newOnes[0].id);
     notify(`Imported ${newOnes.length} game${newOnes.length !== 1 ? 's' : ''}`);
   };
   const updateGame = (id, patch) => {
     setLibrary((prev) => ({
       ...prev,
-      games: prev.games.map((g) => (g.id === id ? { ...g, ...patch } : g)),
+      [sliceK.items]: (prev[sliceK.items] || []).map((g) => (g.id === id ? { ...g, ...patch } : g)),
     }));
   };
   const removeGame = (id) => {
     setLibrary((prev) => {
-      const order = { ...prev.gameOrderByCategory };
+      const order = { ...(prev[sliceK.order] || {}) };
       for (const k of Object.keys(order)) order[k] = order[k].filter((x) => x !== id);
       return {
         ...prev,
-        games: prev.games.filter((g) => g.id !== id),
-        gameOrderByCategory: order,
+        [sliceK.items]: (prev[sliceK.items] || []).filter((g) => g.id !== id),
+        [sliceK.order]: order,
       };
     });
-    if (selectedId === id) setSelectedId(null);
-    notify('Game removed');
+    if (currentSelectedId === id) setCurrentSelectedId(null);
+    notify(isTools ? 'Tool removed' : 'Game removed');
   };
 
   const launchGame = async (g) => {
@@ -250,95 +298,87 @@ export default function App() {
   };
 
   const refetchAll = async () => {
-    if (library.games.length === 0) return;
+    if (currentItems.length === 0) return;
     setUpdatingAll(true);
-    for (const g of library.games) await refetchGame(g);
+    for (const g of currentItems) await refetchGame(g);
     setUpdatingAll(false);
-    notify('All games refreshed.');
+    notify('All refreshed.');
   };
 
   /* --- Categories --- */
   const createCategory = (data) => {
     const c = { id: uid(), private: false, ...data };
-    setLibrary((prev) => ({ ...prev, categories: [...prev.categories, c] }));
+    setLibrary((prev) => ({ ...prev, [sliceK.cats]: [...(prev[sliceK.cats] || []), c] }));
     setCatModal({ open: false, initial: null });
     notify(`Category "${c.name}" created`);
   };
   const updateCategory = (id, patch) => {
     setLibrary((prev) => ({
       ...prev,
-      categories: prev.categories.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+      [sliceK.cats]: (prev[sliceK.cats] || []).map((c) => (c.id === id ? { ...c, ...patch } : c)),
     }));
   };
   const deleteCategory = (id) => {
     setLibrary((prev) => ({
       ...prev,
-      categories: prev.categories.filter((c) => c.id !== id),
-      games: prev.games.map((g) => ({ ...g, categoryIds: (g.categoryIds || []).filter((x) => x !== id) })),
-      gameOrderByCategory: Object.fromEntries(
-        Object.entries(prev.gameOrderByCategory).filter(([k]) => k !== id)
+      [sliceK.cats]: (prev[sliceK.cats] || []).filter((c) => c.id !== id),
+      [sliceK.items]: (prev[sliceK.items] || []).map((g) => ({
+        ...g, categoryIds: (g.categoryIds || []).filter((x) => x !== id),
+      })),
+      [sliceK.order]: Object.fromEntries(
+        Object.entries(prev[sliceK.order] || {}).filter(([k]) => k !== id)
       ),
     }));
     notify('Category deleted');
   };
 
-  // Drop one category before another (in `categories` array order)
   const reorderCategory = (fromId, beforeId) => {
     setLibrary((prev) => {
-      const list = [...prev.categories];
+      const list = [...(prev[sliceK.cats] || [])];
       const from = list.findIndex((c) => c.id === fromId);
-      const to = list.findIndex((c) => c.id === beforeId);
-      if (from < 0 || to < 0 || from === to) return prev;
+      if (from < 0) return prev;
       const [item] = list.splice(from, 1);
       const insertAt = list.findIndex((c) => c.id === beforeId);
-      list.splice(insertAt, 0, item);
-      return { ...prev, categories: list };
+      list.splice(insertAt < 0 ? list.length : insertAt, 0, item);
+      return { ...prev, [sliceK.cats]: list };
     });
   };
 
-  /* --- Game ↔ category drag/drop --- */
-  // fromCatId / toCatId may be null (uncategorized).
+  /* --- Drag & drop --- */
   const moveGameToCategory = (gameId, fromCatId, toCatId, opts = {}) => {
     const { copy = false, beforeGameId } = opts;
     setLibrary((prev) => {
-      const games = prev.games.map((g) => {
+      const items = (prev[sliceK.items] || []).map((g) => {
         if (g.id !== gameId) return g;
         const ids = new Set(g.categoryIds || []);
         if (!copy && fromCatId) ids.delete(fromCatId);
         if (toCatId) ids.add(toCatId);
         return { ...g, categoryIds: Array.from(ids) };
       });
-      // Adjust order for target
-      const order = { ...prev.gameOrderByCategory };
+      const order = { ...(prev[sliceK.order] || {}) };
       const targetKey = toCatId || '__uncat__';
       const list = (order[targetKey] || []).filter((x) => x !== gameId);
       if (beforeGameId) {
         const i = list.indexOf(beforeGameId);
         list.splice(i < 0 ? list.length : i, 0, gameId);
-      } else {
-        list.push(gameId);
-      }
+      } else list.push(gameId);
       order[targetKey] = list;
-      // Also remove from source category order if moving
-      if (!copy && fromCatId) {
-        order[fromCatId] = (order[fromCatId] || []).filter((x) => x !== gameId);
-      }
-      return { ...prev, games, gameOrderByCategory: order };
+      if (!copy && fromCatId) order[fromCatId] = (order[fromCatId] || []).filter((x) => x !== gameId);
+      return { ...prev, [sliceK.items]: items, [sliceK.order]: order };
     });
   };
 
   const reorderGameInCategory = (catId, fromId, beforeId) => {
     setLibrary((prev) => {
-      const key = catId;
-      const order = { ...prev.gameOrderByCategory };
-      const ids = (order[key] || []).slice();
+      const order = { ...(prev[sliceK.order] || {}) };
+      const ids = (order[catId] || []).slice();
       const i = ids.indexOf(fromId);
       if (i < 0) ids.push(fromId);
       else ids.splice(i, 1);
       const j = ids.indexOf(beforeId);
       ids.splice(j < 0 ? ids.length : j, 0, fromId);
-      order[key] = ids;
-      return { ...prev, gameOrderByCategory: order };
+      order[catId] = ids;
+      return { ...prev, [sliceK.order]: order };
     });
   };
 
@@ -384,12 +424,12 @@ export default function App() {
       }
     } else if (action === 'up' || action === 'down') {
       setLibrary((prev) => {
-        const list = [...prev.categories];
+        const list = [...(prev[sliceK.cats] || [])];
         const i = list.findIndex((x) => x.id === c.id);
         const j = i + (action === 'up' ? -1 : 1);
         if (i < 0 || j < 0 || j >= list.length) return prev;
         [list[i], list[j]] = [list[j], list[i]];
-        return { ...prev, categories: list };
+        return { ...prev, [sliceK.cats]: list };
       });
     } else if (action === 'set-private') {
       setPinThen(() => (pin) => {
@@ -452,8 +492,8 @@ export default function App() {
   const toggleCollapsed = (id) =>
     updateSetting({ collapsed: { ...settings.collapsed, [id]: !settings.collapsed[id] } });
 
-  const visibleGames = library.games; // sidebar handles filter; showcase considers all visible games
-  const selected = library.games.find((g) => g.id === selectedId) || null;
+  const visibleGames = currentItems;
+  const selected = currentItems.find((g) => g.id === currentSelectedId) || null;
 
   return (
     <div className="relative flex h-screen w-screen flex-col bg-surface text-ink">
@@ -462,15 +502,17 @@ export default function App() {
 
       <div className="relative z-10 flex min-h-0 flex-1">
         <Sidebar
-          games={library.games}
-          categories={library.categories}
-          gameOrderByCategory={library.gameOrderByCategory}
+          games={currentItems}
+          categories={currentCats}
+          gameOrderByCategory={currentOrder}
           collapsed={settings.collapsed || {}}
           unlockedCategories={unlockedCategories}
           search={search}
-          selectedId={selectedId}
+          selectedId={currentSelectedId}
           librarySize={settings.librarySize || 'medium'}
-          onSelect={setSelectedId}
+          mode={settings.mode || 'library'}
+          onSetMode={setMode}
+          onSelect={setCurrentSelectedId}
           onAddManual={() => setShowAdd(true)}
           onOpenWizard={() => setShowWizard(true)}
           onOpenSettings={() => setShowSettings(true)}
@@ -493,7 +535,7 @@ export default function App() {
               <GameDetail
                 key={selected?.id || 'empty'}
                 game={selected}
-                categories={library.categories.filter((c) => !c.private || unlockedCategories.includes(c.id))}
+                categories={currentCats.filter((c) => !c.private || unlockedCategories.includes(c.id))}
                 fetching={fetching}
                 onLaunch={launchGame}
                 onRefetch={(g) => refetchGame(g, { skipCurrentSource: true })}
@@ -503,14 +545,16 @@ export default function App() {
             </AnimatePresence>
           </div>
 
-          {/* Showcase strip below preview */}
-          <ShowcaseStrip
-            games={visibleGames}
-            mode={settings.showcaseMode || 'recent_added'}
-            setMode={(m) => updateSetting({ showcaseMode: m })}
-            onSelect={setSelectedId}
-            selectedId={selectedId}
-          />
+          {/* Showcase strip below preview — only on Library tab */}
+          {!isTools && (
+            <ShowcaseStrip
+              games={visibleGames}
+              mode={settings.showcaseMode || 'recent_added'}
+              setMode={(m) => updateSetting({ showcaseMode: m })}
+              onSelect={setCurrentSelectedId}
+              selectedId={currentSelectedId}
+            />
+          )}
         </main>
       </div>
 
