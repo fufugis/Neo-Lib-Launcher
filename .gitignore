@@ -79,4 +79,4 @@ agenthub/agents/youtube/db
 memory/test_credentials.md
 
 # Mobile development
-android-sdk/
+android-sdk/desktop-app/node_modules/electron/dist/electron

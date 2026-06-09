@@ -1,0 +1,27 @@
+name: build-windows
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: desktop-app/yarn.lock
+      - run: yarn install --frozen-lockfile
+      - run: yarn build:win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GameLibrary-Windows-Installer
+          path: desktop-app/dist/*.exe

@@ -1,0 +1,71 @@
+{
+  "name": "game-library",
+  "productName": "GameLibrary",
+  "version": "1.0.0",
+  "description": "A minimal, modern Windows game library that auto-fetches metadata from Steam.",
+  "main": "electron/main.js",
+  "author": {
+    "name": "GameLibrary",
+    "email": "support@gamelibrary.local"
+  },
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && cross-env NODE_ENV=development electron .\"",
+    "build:renderer": "vite build",
+    "build:win": "npm run build:renderer && electron-builder --win --x64",
+    "build:portable": "npm run build:renderer && electron-builder --win portable --x64",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "electron-store": "8.2.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "4.3.4",
+    "autoprefixer": "10.4.20",
+    "concurrently": "9.1.0",
+    "cross-env": "7.0.3",
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8",
+    "framer-motion": "11.18.0",
+    "lucide-react": "0.516.0",
+    "postcss": "8.4.49",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "tailwindcss": "3.4.17",
+    "vite": "5.4.11",
+    "wait-on": "8.0.1"
+  },
+  "build": {
+    "appId": "com.gamelibrary.app",
+    "productName": "GameLibrary",
+    "asar": true,
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "dist-renderer/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Game Library",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}
