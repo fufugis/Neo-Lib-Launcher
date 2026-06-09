@@ -93,7 +93,7 @@ function createWindow() {
     minHeight: 600,
     frame: false,
     backgroundColor: '#0a0a0c',
-    title: 'Game Library',
+    title: 'NEO-LIB',
     icon: path.join(__dirname, '..', 'build', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -289,6 +289,62 @@ function cleanSearchTerm(name) {
     .trim();
 }
 
+// ---------------- Generic HTML helpers ---------------- //
+function httpGetText(url) {
+  return new Promise((resolve, reject) => {
+    https
+      .get(
+        url,
+        {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
+          },
+        },
+        (res) => {
+          if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+            return resolve(httpGetText(res.headers.location));
+          }
+          let body = '';
+          res.on('data', (c) => (body += c));
+          res.on('end', () => resolve(body));
+        }
+      )
+      .on('error', reject);
+  });
+}
+
+function httpPostJson(url, body, extraHeaders = {}) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const data = JSON.stringify(body);
+    const req = https.request(
+      {
+        hostname: u.hostname,
+        port: 443,
+        path: u.pathname + u.search,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(data),
+          ...extraHeaders,
+        },
+      },
+      (res) => {
+        let out = '';
+        res.on('data', (c) => (out += c));
+        res.on('end', () => {
+          try { resolve(JSON.parse(out)); } catch (e) { reject(e); }
+        });
+      }
+    );
+    req.on('error', reject);
+    req.write(data);
+    req.end();
+  });
+}
+
 ipcMain.handle('steam:search', async (_e, query) => {
   const term = cleanSearchTerm(query);
   if (!term) return [];
@@ -370,3 +426,273 @@ ipcMain.handle('app:openExternal', async (_e, url) => {
 ipcMain.handle('app:revealInFolder', async (_e, p) => {
   shell.showItemInFolder(p);
 });
+
+// ---------------- GOG search & details ---------------- //
+ipcMain.handle('gog:search', async (_e, query) => {
+  const term = cleanSearchTerm(query);
+  if (!term) return [];
+  const url = `https://catalog.gog.com/v1/catalog?limit=10&query=like:${encodeURIComponent(term)}&order=desc:score&productType=in:game,pack`;
+  try {
+    const data = await httpGetJson(url);
+    return (data.products || []).map((p) => ({
+      id: p.id,
+      slug: p.slug,
+      title: p.title,
+      genres: (p.genres || []).map((g) => g.name || g),
+      developers: (p.developers || []),
+      publishers: (p.publishers || []),
+      releaseDate: p.releaseDate ? p.releaseDate.slice(0, 10) : '',
+      coverHorizontal: p.coverHorizontal,
+      coverVertical: p.coverVertical,
+      screenshots: (p.screenshots || []).map((s) =>
+        (typeof s === 'string' ? s : s.url || s).replace('{formatter}', 'product_card_v2_logo_710x355').replace('{ext}', 'webp')
+      ).slice(0, 6),
+      url: `https://www.gog.com${p.storeLink || ''}`,
+    }));
+  } catch {
+    return [];
+  }
+});
+
+// ---------------- Web fallback (DuckDuckGo + Google) ---------------- //
+// Returns lightweight game-like metadata extracted from search result snippets.
+async function ddgSearch(term) {
+  const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(term + ' video game wiki')}`;
+  try {
+    const html = await httpGetText(url);
+    // crude: parse anchor titles + snippets
+    const results = [];
+    const reBlock = /<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>[\s\S]{0,1200}?class="result__snippet"[^>]*>([\s\S]{0,500}?)<\/a>/g;
+    let m;
+    while ((m = reBlock.exec(html)) && results.length < 8) {
+      const title = m[2].replace(/<[^>]+>/g, '').trim();
+      const snippet = m[3].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+      results.push({ url: decodeURIComponent(m[1]), title, snippet });
+    }
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+async function googleScrape(term) {
+  // Best-effort, Google may rate-limit / show captcha. Used as last resort.
+  const url = `https://www.google.com/search?q=${encodeURIComponent(term + ' video game')}&hl=en`;
+  try {
+    const html = await httpGetText(url);
+    const results = [];
+    const re = /<h3[^>]*>([^<]+)<\/h3>[\s\S]{0,2200}?<div[^>]+VwiC3b[^>]*>([\s\S]{0,400}?)<\/div>/g;
+    let m;
+    while ((m = re.exec(html)) && results.length < 8) {
+      results.push({
+        title: m[1].replace(/<[^>]+>/g, '').trim(),
+        snippet: m[2].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(),
+      });
+    }
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+ipcMain.handle('web:search', async (_e, query) => {
+  const term = cleanSearchTerm(query);
+  if (!term) return { results: [], synthesized: null };
+  let results = await ddgSearch(term);
+  if (results.length === 0) results = await googleScrape(term);
+  // Synthesize a single guess from the best result.
+  let synth = null;
+  if (results.length > 0) {
+    const top = results[0];
+    const yearMatch = (top.snippet + ' ' + top.title).match(/\b(19|20)\d{2}\b/);
+    const genreKeywords = [
+      'RPG', 'action', 'adventure', 'puzzle', 'platformer', 'shooter', 'strategy',
+      'simulation', 'roguelike', 'rogue-like', 'horror', 'survival', 'racing', 'sports',
+      'fighting', 'metroidvania', 'visual novel', 'sandbox', 'open-world', 'open world', 'indie',
+    ];
+    const text = (top.snippet + ' ' + top.title).toLowerCase();
+    const genres = Array.from(new Set(genreKeywords.filter((k) => text.includes(k.toLowerCase()))))
+      .map((g) => g.replace(/\b\w/g, (c) => c.toUpperCase()));
+    synth = {
+      name: cleanTitle(top.title) || term,
+      about: top.snippet,
+      shortDescription: top.snippet,
+      genres,
+      releaseDate: yearMatch ? yearMatch[0] : '',
+      website: top.url || '',
+      developers: [],
+      publishers: [],
+      screenshots: [],
+      source: 'web',
+    };
+  }
+  return { results, synthesized: synth };
+});
+
+function cleanTitle(t) {
+  return (t || '')
+    .replace(/\s*[-–|]\s*(Wikipedia|IGN|Steam|GOG\.com|GOG|Epic Games|Metacritic|Official\b.*|.+ - YouTube).*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// ---------------- Gemini fallback (optional) ---------------- //
+ipcMain.handle('gemini:metadata', async (_e, { apiKey, query }) => {
+  if (!apiKey || !query) return null;
+  const prompt = `You are a video-game database. Given this rough name guessed from a folder/exe: "${query}". 
+Return ONLY a single compact JSON object (no markdown) with these fields:
+{
+ "name": "canonical title",
+ "shortDescription": "1-2 sentence summary",
+ "about": "3-5 sentence description",
+ "genres": ["..."],
+ "developers": ["..."],
+ "publishers": ["..."],
+ "releaseDate": "YYYY or 'DD Mon YYYY' if known",
+ "website": "official site or wiki URL or empty"
+}
+If you cannot identify the game, set "name" to "" and return empty strings/arrays.`;
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${encodeURIComponent(apiKey)}`;
+    const body = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
+    };
+    const data = await httpPostJson(url, body);
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const parsed = JSON.parse(text);
+    if (!parsed.name) return null;
+    return { ...parsed, source: 'gemini', screenshots: [] };
+  } catch (e) {
+    return null;
+  }
+});
+
+// ---------------- Unified metadata pipeline ---------------- //
+// Tries Steam → GOG → Gemini (if key) → Web scrape. Returns first usable result + source.
+ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey }) => {
+  const term = cleanSearchTerm(query);
+  if (!term) return null;
+
+  // 1. Steam
+  if (!skipSources.includes('steam')) {
+    try {
+      const data = await httpGetJson(
+        `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=en&cc=us`
+      );
+      if (data.items && data.items.length > 0) {
+        const top = data.items[0];
+        const det = await httpGetJson(
+          `https://store.steampowered.com/api/appdetails?appids=${top.id}&l=en&cc=us`
+        );
+        const entry = det && det[top.id];
+        if (entry && entry.success) {
+          const d = entry.data;
+          return {
+            source: 'steam',
+            appid: top.id,
+            name: d.name,
+            shortDescription: d.short_description,
+            about: stripHtml(d.about_the_game || '').slice(0, 1400),
+            headerImage: d.header_image,
+            capsuleImage: d.capsule_imagev5 || d.capsule_image,
+            background: d.background_raw || d.background,
+            screenshots: (d.screenshots || []).slice(0, 6).map((s) => s.path_full),
+            genres: (d.genres || []).map((g) => g.description),
+            developers: d.developers || [],
+            publishers: d.publishers || [],
+            releaseDate: d.release_date ? d.release_date.date : '',
+            metacritic: d.metacritic ? d.metacritic.score : null,
+            website: d.website || '',
+          };
+        }
+      }
+    } catch {}
+  }
+
+  // 2. GOG
+  if (!skipSources.includes('gog')) {
+    try {
+      const data = await httpGetJson(
+        `https://catalog.gog.com/v1/catalog?limit=5&query=like:${encodeURIComponent(term)}&order=desc:score&productType=in:game,pack`
+      );
+      const top = (data.products || [])[0];
+      if (top) {
+        return {
+          source: 'gog',
+          gogId: top.id,
+          name: top.title,
+          shortDescription: '',
+          about: '',
+          headerImage: top.coverHorizontal,
+          capsuleImage: top.coverVertical,
+          background: top.coverHorizontal,
+          screenshots: (top.screenshots || [])
+            .map((s) => (typeof s === 'string' ? s : s.url || ''))
+            .map((s) => s.replace('{formatter}', 'product_card_v2_logo_710x355').replace('{ext}', 'webp'))
+            .filter(Boolean)
+            .slice(0, 6),
+          genres: (top.genres || []).map((g) => g.name || g),
+          developers: top.developers || [],
+          publishers: top.publishers || [],
+          releaseDate: top.releaseDate ? top.releaseDate.slice(0, 10) : '',
+          website: 'https://www.gog.com' + (top.storeLink || ''),
+        };
+      }
+    } catch {}
+  }
+
+  // 3. Gemini (if user key provided)
+  if (!skipSources.includes('gemini') && geminiKey) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${encodeURIComponent(geminiKey)}`;
+      const prompt = `Return ONLY JSON for game "${term}": {"name":"","shortDescription":"","about":"","genres":[],"developers":[],"publishers":[],"releaseDate":"","website":""}. If unknown leave fields empty.`;
+      const data = await httpPostJson(url, {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
+      });
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const parsed = JSON.parse(text);
+      if (parsed && parsed.name) {
+        return {
+          source: 'gemini',
+          ...parsed,
+          screenshots: [],
+        };
+      }
+    } catch {}
+  }
+
+  // 4. Web fallback (DuckDuckGo → Google)
+  try {
+    let webResults = await ddgSearch(term);
+    if (webResults.length === 0) webResults = await googleScrape(term);
+    if (webResults.length > 0) {
+      const top = webResults[0];
+      const yearMatch = (top.snippet + ' ' + top.title).match(/\b(19|20)\d{2}\b/);
+      const text = (top.snippet + ' ' + top.title).toLowerCase();
+      const genreKeywords = [
+        'RPG', 'action', 'adventure', 'puzzle', 'platformer', 'shooter', 'strategy',
+        'simulation', 'roguelike', 'rogue-like', 'horror', 'survival', 'racing', 'sports',
+        'fighting', 'metroidvania', 'visual novel', 'sandbox', 'open-world', 'indie',
+      ];
+      const genres = Array.from(new Set(genreKeywords.filter((k) => text.includes(k.toLowerCase()))))
+        .map((g) => g.replace(/\b\w/g, (c) => c.toUpperCase()));
+      return {
+        source: 'web',
+        name: cleanTitle(top.title) || term,
+        shortDescription: top.snippet,
+        about: top.snippet,
+        screenshots: [],
+        genres,
+        developers: [],
+        publishers: [],
+        releaseDate: yearMatch ? yearMatch[0] : '',
+        website: top.url || '',
+      };
+    }
+  } catch {}
+
+  return null;
+});
+

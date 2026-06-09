@@ -1,8 +1,8 @@
 {
-  "name": "game-library",
-  "productName": "GameLibrary",
+  "name": "neo-lib",
+  "productName": "NEO-LIB",
   "version": "1.0.0",
-  "description": "A minimal, modern Windows game library that auto-fetches metadata from Steam.",
+  "description": "A synthwave-flavored, multi-source game library for Windows.",
   "main": "electron/main.js",
   "author": {
     "name": "GameLibrary",
@@ -35,8 +35,8 @@
     "wait-on": "8.0.1"
   },
   "build": {
-    "appId": "com.gamelibrary.app",
-    "productName": "GameLibrary",
+    "appId": "com.neolib.app",
+    "productName": "NEO-LIB",
     "asar": true,
     "directories": {
       "buildResources": "build",
@@ -63,7 +63,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Game Library",
+      "shortcutName": "NEO-LIB",
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": false
     }

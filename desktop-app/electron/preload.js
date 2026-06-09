@@ -30,6 +30,11 @@ contextBridge.exposeInMainWorld('api', {
   searchSteam: (q) => ipcRenderer.invoke('steam:search', q),
   steamDetails: (appid) => ipcRenderer.invoke('steam:details', appid),
 
+  // multi-source metadata
+  fetchMetadata: (opts) => ipcRenderer.invoke('metadata:auto', opts),
+  webSearch: (q) => ipcRenderer.invoke('web:search', q),
+  gogSearch: (q) => ipcRenderer.invoke('gog:search', q),
+
   // cache
   cacheImage: (url, name) => ipcRenderer.invoke('image:cache', { url, name }),
 
