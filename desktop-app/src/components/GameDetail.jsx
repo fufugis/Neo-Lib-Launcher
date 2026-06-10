@@ -2,7 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play, RefreshCw, Calendar, Award, Building2, Globe, FolderOpen,
-  Tag, Sparkles, ChevronLeft, ChevronRight, Youtube,
+  Tag, Sparkles, ChevronLeft, ChevronRight, Youtube, FileText, Wrench,
 } from 'lucide-react';
 import { cn, colorFromId } from '../lib/utils';
 import { hoverThrottled, playLaunch } from '../lib/sound';
@@ -174,7 +174,7 @@ function openSearch(query, engine = 'google') {
 }
 
 /* ---------- Action bar ---------- */
-function ActionBar({ game, categories, onLaunch, onRefetch, onRevealFolder, onToggleCategory, fetching }) {
+function ActionBar({ game, categories, onLaunch, onRefetch, onRevealFolder, onToggleCategory, fetching, settings = {} }) {
   const [catOpen, setCatOpen] = React.useState(false);
   const popRef = React.useRef(null);
   React.useEffect(() => {
@@ -205,6 +205,36 @@ function ActionBar({ game, categories, onLaunch, onRefetch, onRevealFolder, onTo
       >
         <Youtube size={13} />
         YouTube
+      </button>
+
+      <button
+        data-testid="detail-patchnotes-btn"
+        onClick={() => {
+          const url = game.appid
+            ? `https://store.steampowered.com/news/app/${game.appid}`
+            : `https://www.google.com/search?q=${encodeURIComponent(game.name + ' patch notes')}`;
+          if (typeof window !== 'undefined' && window.api?.openExternal) window.api.openExternal(url);
+          else window.open(url, '_blank');
+        }}
+        title={game.appid ? 'Steam patch notes' : 'Search patch notes online'}
+        className="inline-flex items-center gap-2 rounded-full hairline px-4 py-2 text-xs text-muted hover:text-[rgb(var(--accent-2))] hover:border-[rgb(var(--accent-2)/0.5)] transition-colors"
+      >
+        <FileText size={13} />
+        Patch Notes
+      </button>
+
+      <button
+        data-testid="detail-mods-btn"
+        onClick={() => {
+          const url = `https://www.nexusmods.com/games?keyword=${encodeURIComponent(game.name)}`;
+          if (typeof window !== 'undefined' && window.api?.openExternal) window.api.openExternal(url);
+          else window.open(url, '_blank');
+        }}
+        title="Find mods for this game on Nexus Mods"
+        className="inline-flex items-center gap-2 rounded-full hairline px-4 py-2 text-xs text-muted hover:text-[rgb(var(--accent-2))] hover:border-[rgb(var(--accent-2)/0.5)] transition-colors"
+      >
+        <Wrench size={13} />
+        Mods
       </button>
 
       <button

@@ -47,9 +47,9 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
       // Fetch metadata via Steam if we have appid, else multi-source
       let result = null;
       if (kind === 'steam' && it.appid) {
-        try { result = await window.api?.fetchMetadata({ query: it.name, skipSources: [], geminiKey }); } catch {}
+        try { result = await window.api?.fetchMetadata({ query: it.name, skipSources: [], geminiKey }); } catch { /* ignore */ }
       } else {
-        try { result = await window.api?.fetchMetadata({ query: it.name, skipSources: [], geminiKey }); } catch {}
+        try { result = await window.api?.fetchMetadata({ query: it.name, skipSources: [], geminiKey }); } catch { /* ignore */ }
       }
       let coverUrl = result?.capsuleImage || result?.headerImage || null;
       if (coverUrl && coverUrl.startsWith('http')) {

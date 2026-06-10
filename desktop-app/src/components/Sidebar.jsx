@@ -166,6 +166,7 @@ export default function Sidebar({
             sectionIdx={sectionIdx}
             collapsed={!!collapsed[s.id]}
             size={size}
+            iconPosition={iconPosition}
             selectedId={selectedId}
             onSelect={onSelect}
             onContext={(action, payload) => onGameContext(action, payload.game, payload)}
@@ -282,7 +283,7 @@ function LibrarySettingsPopover({ librarySize, onSetLibrarySize, onClose, onCrea
 
 /* ---------------- Section ---------------- */
 function Section({
-  section, sectionIdx, collapsed, size, selectedId, onSelect,
+  section, sectionIdx, collapsed, size, iconPosition, selectedId, onSelect,
   onContext, onCategoryContext, onUnlockCategory, onToggleCollapsed,
   onMoveGameToCategory, onReorderGameInCategory, onReorderCategory,
   unlockedCategories, categories,
