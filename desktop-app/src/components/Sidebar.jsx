@@ -176,6 +176,8 @@ export default function Sidebar({
             collapsed={!!collapsed[s.id]}
             size={size}
             iconPosition={iconPosition}
+            catTextSize={catTextSize}
+            catGlow={catGlow}
             selectedId={selectedId}
             onSelect={onSelect}
             onContext={(action, payload) => onGameContext(action, payload.game, payload)}
@@ -256,13 +258,24 @@ function LibrarySettingsPopover({
   return (
     <motion.div
       ref={ref}
+      drag
+      dragMomentum={false}
+      dragElastic={0}
       initial={{ opacity: 0, y: -6, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -6, scale: 0.96 }}
       transition={{ duration: 0.14 }}
-      className="absolute right-0 top-full z-30 mt-1 w-72 overflow-hidden rounded-lg hairline glass shadow-2xl p-3 space-y-3"
+      onMouseDown={(e) => e.stopPropagation()}
+      style={{ right: 0, top: '100%' }}
+      className="absolute z-30 mt-1 w-72 max-w-[calc(100vw-32px)] max-h-[80vh] overflow-y-auto rounded-lg hairline glass shadow-2xl p-3 space-y-3"
       data-testid="library-settings-popover"
     >
+      <div
+        className="cursor-move -mt-1 -mx-1 mb-1 px-2 py-1 text-[9px] uppercase tracking-[0.22em] text-muted/80 flex items-center gap-1.5 select-none border-b border-[rgb(var(--border))]/60"
+        title="Drag to move"
+      >
+        <GripVertical size={10} /> Library settings
+      </div>
       <div>
         <div className="mb-1.5 text-[10px] uppercase tracking-wider text-muted">Quick preset</div>
         <div className="grid grid-cols-3 gap-1">
@@ -300,8 +313,8 @@ function LibrarySettingsPopover({
       <PopSlider
         label="Category text size"
         value={catTextSize}
-        min={9}
-        max={16}
+        min={6}
+        max={18}
         suffix="px"
         onChange={onChangeCatTextSize}
         testid="pop-cat-text-size"
@@ -310,7 +323,7 @@ function LibrarySettingsPopover({
         label="Category glow"
         value={catGlow}
         min={0}
-        max={100}
+        max={200}
         suffix="%"
         onChange={onChangeCatGlow}
         testid="pop-cat-glow"
@@ -374,6 +387,7 @@ function Section({
   onContext, onCategoryContext, onUnlockCategory, onToggleCollapsed,
   onMoveGameToCategory, onReorderGameInCategory, onReorderCategory,
   unlockedCategories, categories,
+  catTextSize = 11, catGlow = 40,
 }) {
   const isUncat = section.id === '__uncat__';
   const c = section.category;
@@ -475,13 +489,29 @@ function Section({
           />
         )}
 
-        {/* Name */}
+        {/* Name — applies dynamic font size + glow (catTextSize / catGlow sliders) */}
         <span
           className={cn(
-            'flex-1 truncate font-display text-[11px] font-bold uppercase tracking-[0.18em]',
+            'flex-1 truncate font-display font-bold uppercase tracking-[0.18em]',
             section.isGhost ? 'text-[rgb(var(--accent))]/80' : 'text-ink/95'
           )}
-          style={!section.isGhost && !isUncat ? { textShadow: `0 0 8px ${color}40` } : undefined}
+          style={(() => {
+            const g = Math.max(0, Math.min(200, catGlow)) / 100; // 0..2
+            const base = `${catTextSize}px`;
+            if (section.isGhost || isUncat || g === 0) {
+              return { fontSize: base };
+            }
+            // Layered outer-glow (cheap CSS post-processing): inner halo + outer halo + contrast bump.
+            const inner = (4 + g * 4).toFixed(1);    // 4..12 px
+            const outer = (10 + g * 14).toFixed(1);  // 10..38 px
+            const punch = (12 + g * 12).toFixed(1);  // 12..36 px
+            return {
+              fontSize: base,
+              textShadow: `0 0 ${inner}px ${color}, 0 0 ${outer}px ${color}${g > 1 ? '' : 'C0'}, 0 0 ${punch}px ${color}66`,
+              filter: g > 1.2 ? `drop-shadow(0 0 ${(g * 4).toFixed(1)}px ${color})` : undefined,
+              letterSpacing: '0.2em',
+            };
+          })()}
         >
           {section.isGhost ? 'Private' : c.name}
         </span>
@@ -715,6 +745,7 @@ function GameRow({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.12 }}
           onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
           onContextMenu={(e) => e.stopPropagation()}
           style={{ position: 'fixed', top: menu.y, left: menu.x, zIndex: 200, width: 240 }}
           className="overflow-hidden rounded-lg hairline glass shadow-2xl py-1"
@@ -759,12 +790,16 @@ function Divider() {
 
 /* ---------------- Category context menu ---------------- */
 export function CategoryContextMenu({ open, anchor, category, onClose, onAction }) {
+  const ref = React.useRef(null);
   React.useEffect(() => {
-    const close = () => onClose();
-    if (open) {
-      document.addEventListener('mousedown', close);
-      document.addEventListener('contextmenu', close);
-    }
+    if (!open) return undefined;
+    // Only close if the click target is OUTSIDE the menu
+    const close = (e) => {
+      if (ref.current && ref.current.contains(e.target)) return;
+      onClose();
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('contextmenu', close);
     return () => {
       document.removeEventListener('mousedown', close);
       document.removeEventListener('contextmenu', close);
@@ -787,15 +822,24 @@ export function CategoryContextMenu({ open, anchor, category, onClose, onAction 
 
   return createPortal(
     <motion.div
+      ref={ref}
+      drag
+      dragMomentum={false}
+      dragElastic={0}
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
       style={{ position: 'fixed', top: anchor.y, left: anchor.x, zIndex: 200 }}
       onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onContextMenu={(e) => e.stopPropagation()}
       data-testid="category-context-menu"
       className="w-56 overflow-hidden rounded-lg hairline glass shadow-2xl py-1"
     >
-      <div className="px-3 pt-1 pb-2 text-[10px] uppercase tracking-wider text-muted">
-        {category.name}
+      <div
+        className="cursor-move px-3 pt-1 pb-2 text-[10px] uppercase tracking-wider text-muted select-none flex items-center gap-1.5"
+        title="Drag to move"
+      >
+        <GripVertical size={10} /> {category.name}
       </div>
       {items.map((it, i) =>
         it.divider ? (

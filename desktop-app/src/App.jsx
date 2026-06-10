@@ -671,9 +671,7 @@ function BgAmbience({ theme, settings = {} }) {
     return (
       <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden" style={{ opacity: intensity }}>
         <div className="vapor-clouds" />
-        <div className="vapor-sun" />
         <div className="vapor-floor" />
-        <div className="vapor-palms" />
       </div>
     );
   }

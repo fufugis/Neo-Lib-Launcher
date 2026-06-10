@@ -162,28 +162,28 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
     if (coverUrl && coverUrl.startsWith('http')) {
       coverUrl = (await window.api?.cacheImage(coverUrl, result.name)) || coverUrl;
     }
-    setAccepted((a) => [
-      ...a,
-      {
-        name: result?.name || current?.folderName,
-        exePath: current?.exe,
-        icon,
-        source: result?.source,
-        appid: result?.appid,
-        coverUrl: coverUrl || result?.headerImage,
-        headerImage: result?.headerImage,
-        background: result?.background,
-        shortDescription: result?.shortDescription,
-        about: result?.about,
-        genres: result?.genres || [],
-        developers: result?.developers || [],
-        publishers: result?.publishers || [],
-        releaseDate: result?.releaseDate || '',
-        metacritic: result?.metacritic,
-        screenshots: result?.screenshots || [],
-        website: result?.website || '',
-      },
-    ]);
+    const entry = {
+      name: result?.name || current?.folderName,
+      exePath: current?.exe,
+      icon,
+      source: result?.source,
+      appid: result?.appid,
+      coverUrl: coverUrl || result?.headerImage,
+      headerImage: result?.headerImage,
+      background: result?.background,
+      shortDescription: result?.shortDescription,
+      about: result?.about,
+      genres: result?.genres || [],
+      developers: result?.developers || [],
+      publishers: result?.publishers || [],
+      releaseDate: result?.releaseDate || '',
+      metacritic: result?.metacritic,
+      screenshots: result?.screenshots || [],
+      website: result?.website || '',
+    };
+    // CRITICAL: persist immediately so games are saved even if the wizard is closed mid-flow.
+    if (onAccept) onAccept(entry);
+    setAccepted((a) => [...a, entry]);
     advance();
   };
 
