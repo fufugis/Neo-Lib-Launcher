@@ -479,7 +479,103 @@ ipcMain.handle('app:openContainingDir', async (_e, p) => {
   await shell.openPath(dir);
 });
 
-// ---------------- Auto-start with Windows ---------------- //
+// ---------------- Steam library detection ---------------- //
+function readSteamLibraryFolders(steamPath) {
+  // Parses libraryfolders.vdf (very simple key/value parser, good enough).
+  const file = path.join(steamPath, 'steamapps', 'libraryfolders.vdf');
+  try {
+    const text = fs.readFileSync(file, 'utf8');
+    const paths = new Set([steamPath]);
+    const re = /"path"\s*"([^"]+)"/g;
+    let m;
+    while ((m = re.exec(text))) paths.add(m[1].replace(/\\\\/g, '\\'));
+    return [...paths];
+  } catch {
+    return [steamPath];
+  }
+}
+
+function parseAcfManifest(text) {
+  const get = (k) => {
+    const m = text.match(new RegExp(`"${k}"\\s*"([^"]+)"`));
+    return m ? m[1] : '';
+  };
+  return {
+    appid: get('appid'),
+    name: get('name'),
+    installdir: get('installdir'),
+    buildid: get('buildid'),
+    lastUpdated: get('LastUpdated'),
+  };
+}
+
+function defaultSteamPath() {
+  const candidates = [
+    'C:\\Program Files (x86)\\Steam',
+    'C:\\Program Files\\Steam',
+    process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Steam') : null,
+  ].filter(Boolean);
+  for (const c of candidates) {
+    try { if (fs.existsSync(path.join(c, 'steam.exe'))) return c; } catch {}
+  }
+  return null;
+}
+
+ipcMain.handle('launcher:scan-steam', async () => {
+  const steamPath = defaultSteamPath();
+  if (!steamPath) return { ok: false, error: 'Steam install not found.' };
+  const libraries = readSteamLibraryFolders(steamPath);
+  const found = [];
+  for (const lib of libraries) {
+    const sa = path.join(lib, 'steamapps');
+    try {
+      const entries = fs.readdirSync(sa);
+      for (const e of entries) {
+        if (!e.startsWith('appmanifest_') || !e.endsWith('.acf')) continue;
+        try {
+          const text = fs.readFileSync(path.join(sa, e), 'utf8');
+          const m = parseAcfManifest(text);
+          if (!m.appid || !m.name) continue;
+          // Heuristic: skip Steamworks Common Redistributables / Tools
+          if (/^(Steamworks Common|Proton |Steam Linux Runtime)/i.test(m.name)) continue;
+          const installdir = path.join(sa, 'common', m.installdir);
+          found.push({
+            appid: m.appid,
+            name: m.name,
+            installdir,
+            buildid: m.buildid,
+            launchUrl: `steam://run/${m.appid}`,
+          });
+        } catch {}
+      }
+    } catch {}
+  }
+  return { ok: true, items: found, source: 'steam' };
+});
+
+// Generic launcher placeholders — useful for users to manually add shortcut folders.
+ipcMain.handle('launcher:scan-epic', async () => {
+  const manifestsDir = path.join(process.env.PROGRAMDATA || 'C:\\ProgramData', 'Epic', 'EpicGamesLauncher', 'Data', 'Manifests');
+  if (!fs.existsSync(manifestsDir)) return { ok: false, error: 'Epic Games Launcher manifests not found.' };
+  const items = [];
+  try {
+    for (const f of fs.readdirSync(manifestsDir)) {
+      if (!f.endsWith('.item')) continue;
+      try {
+        const data = JSON.parse(fs.readFileSync(path.join(manifestsDir, f), 'utf8'));
+        if (!data.bIsApplication || data.bIsManaged === false) continue;
+        items.push({
+          name: data.DisplayName,
+          installdir: data.InstallLocation,
+          appid: data.AppName,
+          launchUrl: `com.epicgames.launcher://apps/${data.CatalogNamespace}%3A${data.CatalogItemId}%3A${data.AppName}?action=launch&silent=true`,
+          launchExe: data.LaunchExecutable ? path.join(data.InstallLocation, data.LaunchExecutable) : null,
+        });
+      } catch {}
+    }
+  } catch {}
+  return { ok: true, items, source: 'epic' };
+});
 ipcMain.handle('app:setAutoStart', async (_e, enabled) => {
   try {
     app.setLoginItemSettings({

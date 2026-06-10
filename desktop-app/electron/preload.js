@@ -45,4 +45,8 @@ contextBridge.exposeInMainWorld('api', {
   openContainingDir: (p) => ipcRenderer.invoke('app:openContainingDir', p),
   setAutoStart: (v) => ipcRenderer.invoke('app:setAutoStart', v),
   getAutoStart: () => ipcRenderer.invoke('app:getAutoStart'),
+
+  // launcher imports
+  scanSteam: () => ipcRenderer.invoke('launcher:scan-steam'),
+  scanEpic: () => ipcRenderer.invoke('launcher:scan-epic'),
 });

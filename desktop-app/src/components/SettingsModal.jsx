@@ -64,8 +64,68 @@ export default function SettingsModal({ open, onClose, settings, setSettings }) 
           </div>
         </Section>
 
+        {/* Library appearance — moved here as well */}
+        <Section title="Library appearance">
+          <div className="space-y-3">
+            <div className="rounded-lg hairline bg-surface/40 px-3 py-2.5">
+              <div className="mb-2 text-[13px] font-medium">Game icon position</div>
+              <div className="grid grid-cols-3 gap-1">
+                {['left', 'right', 'none'].map((p) => (
+                  <button
+                    key={p}
+                    data-testid={`icon-pos-${p}`}
+                    onClick={() => setKey({ iconPosition: p })}
+                    className={
+                      'rounded-md hairline py-1.5 text-[11px] capitalize transition-colors ' +
+                      ((settings.iconPosition || 'left') === p
+                        ? 'border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.12)] text-ink'
+                        : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]')
+                    }
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <Slider
+              label="Game row size"
+              value={settings.rowSize ?? 44}
+              min={22}
+              max={80}
+              suffix="px"
+              onChange={(v) => setKey({ rowSize: v })}
+              testid="opt-row-size"
+            />
+            <Slider
+              label="Category text size"
+              value={settings.catTextSize ?? 11}
+              min={9}
+              max={16}
+              suffix="px"
+              onChange={(v) => setKey({ catTextSize: v })}
+              testid="opt-cat-text-size"
+            />
+            <Slider
+              label="Category text glow"
+              value={settings.catGlow ?? 40}
+              min={0}
+              max={100}
+              suffix="%"
+              onChange={(v) => setKey({ catGlow: v })}
+              testid="opt-cat-glow"
+            />
+            <Toggle
+              label="Sound effects (Launch button)"
+              hint="Short modern blip on hover/click."
+              value={settings.soundsEnabled !== false}
+              onChange={(v) => setKey({ soundsEnabled: v })}
+              testid="opt-sounds"
+            />
+          </div>
+        </Section>
+
         {/* Visual effects */}
-        <Section title={<><Sliders size={11} className="inline mr-1.5 text-[rgb(var(--accent))]" />Visual effects</>}>
+        <Section title="Visual effects">
           <div className="space-y-3">
             <Toggle
               label="Animations"
@@ -116,7 +176,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings }) 
         </Section>
 
         {/* App behaviour */}
-        <Section title={<><Power size={11} className="inline mr-1.5 text-[rgb(var(--accent))]" />App behaviour</>}>
+        <Section title="App behaviour">
           <div className="space-y-3">
             <Toggle
               label="Start with Windows"
@@ -143,7 +203,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings }) 
         </Section>
 
         {/* AI fallback */}
-        <Section title={<><Sparkles size={11} className="inline mr-1.5 text-[rgb(var(--accent))]" />AI fallback · optional</>}>
+        <Section title="AI fallback · optional">
           <p className="mb-3 text-xs text-muted leading-relaxed">
             NEO-LIB looks up game metadata for free from Steam, GOG, and the public web. If you want
             an AI fallback for the trickiest obscure games, paste a{' '}
@@ -197,7 +257,9 @@ export default function SettingsModal({ open, onClose, settings, setSettings }) 
 function Section({ title, children }) {
   return (
     <section>
-      <h3 className="mb-3 text-[10px] uppercase tracking-[0.28em] text-muted">{title}</h3>
+      <h3 className="mb-3 font-display text-[13px] font-bold uppercase tracking-[0.18em] text-ink border-l-2 border-[rgb(var(--accent))] pl-3 neon-text">
+        {title}
+      </h3>
       {children}
     </section>
   );

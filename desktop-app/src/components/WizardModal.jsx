@@ -2,7 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FolderSearch, Loader2, Check, X as XIcon, RefreshCw, ChevronRight, Sparkles,
-  Search, ArrowRight, PlusCircle,
+  Search, ArrowRight, PlusCircle, FolderOpen, Gamepad2,
 } from 'lucide-react';
 import Modal from './Modal';
 import { guessNameFromPath } from '../lib/utils';
@@ -27,13 +27,73 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
   const [accepted, setAccepted] = React.useState([]);
   const [queryOverride, setQueryOverride] = React.useState('');
   const [skipSources, setSkipSources] = React.useState([]);
+  const [launcherStatus, setLauncherStatus] = React.useState('');
+
+  const notifyTodo = (name) =>
+    setLauncherStatus(`${name} integration is on the roadmap — for now use "Choose folder" below and point it at your ${name} install directory.`);
+
+  const importLauncher = async (kind) => {
+    setLauncherStatus(`Scanning ${kind === 'steam' ? 'Steam' : 'Epic'}…`);
+    const api = kind === 'steam' ? window.api?.scanSteam : window.api?.scanEpic;
+    if (!api) { setLauncherStatus('Not available in browser preview.'); return; }
+    const r = await api();
+    if (!r?.ok || !r.items?.length) {
+      setLauncherStatus(r?.error || `No installed ${kind} games found.`);
+      return;
+    }
+    setLauncherStatus(`Importing ${r.items.length} ${kind} games…`);
+    let imported = 0;
+    for (const it of r.items) {
+      // Fetch metadata via Steam if we have appid, else multi-source
+      let result = null;
+      if (kind === 'steam' && it.appid) {
+        try { result = await window.api?.fetchMetadata({ query: it.name, skipSources: [], geminiKey }); } catch {}
+      } else {
+        try { result = await window.api?.fetchMetadata({ query: it.name, skipSources: [], geminiKey }); } catch {}
+      }
+      let coverUrl = result?.capsuleImage || result?.headerImage || null;
+      if (coverUrl && coverUrl.startsWith('http')) {
+        coverUrl = (await window.api?.cacheImage(coverUrl, result?.name || it.name)) || coverUrl;
+      }
+      const entry = {
+        name: result?.name || it.name,
+        exePath: it.launchExe || it.installdir || it.launchUrl,
+        launchArgs: '',
+        launchUrl: it.launchUrl,
+        source: kind === 'steam' ? 'steam-import' : 'epic-import',
+        launcher: kind,
+        appid: result?.appid || it.appid,
+        steamAppId: kind === 'steam' ? it.appid : undefined,
+        steamBuildId: it.buildid || undefined,
+        coverUrl: coverUrl || result?.headerImage,
+        headerImage: result?.headerImage,
+        background: result?.background,
+        shortDescription: result?.shortDescription,
+        about: result?.about,
+        genres: result?.genres || [],
+        developers: result?.developers || [],
+        publishers: result?.publishers || [],
+        releaseDate: result?.releaseDate || '',
+        metacritic: result?.metacritic,
+        screenshots: result?.screenshots || [],
+        website: result?.website || '',
+        // Pre-tag with the launcher category so App can group them
+        categoryIds: [kind === 'steam' ? '__launcher_steam__' : '__launcher_epic__'],
+      };
+      if (onAccept) onAccept(entry);
+      imported++;
+      setLauncherStatus(`Imported ${imported}/${r.items.length}…`);
+    }
+    setLauncherStatus(`Done — added ${imported} games from ${kind}.`);
+    setTimeout(() => onClose(), 800);
+  };
 
   /* eslint-disable react-hooks/set-state-in-effect, react-hooks/immutability */
   React.useEffect(() => {
     if (!open) {
       setStep(1); setRoot(''); setCandidates([]); setCursor(0);
       setCurrent(null); setResult(null); setIcon(null); setBusy(false);
-      setAccepted([]); setQueryOverride(''); setSkipSources([]);
+      setAccepted([]); setQueryOverride(''); setSkipSources([]); setLauncherStatus('');
     }
   }, [open]);
 
@@ -150,13 +210,31 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
           <div className="flex items-start gap-3">
             <Sparkles size={18} className="mt-0.5 text-[rgb(var(--accent))]" />
             <p className="text-sm text-muted">
-              Pick a folder, your Games drive, or even <code className="text-ink">C:\</code>. NEO-LIB
-              will scan every program on it and identify which ones are games using Steam, GOG, web
-              search and (if enabled) AI. You&apos;ll review every match before anything is added.
+              Pick a folder to scan, or import directly from your installed launchers below.
+              You&apos;ll review every match before anything is added.
             </p>
           </div>
+
+          {/* Launcher imports */}
           <div className="rounded-lg hairline bg-surface/50 p-4">
-            <div className="mb-2 text-[10px] uppercase tracking-wider text-muted">Folder to scan</div>
+            <div className="mb-2 text-[10px] uppercase tracking-wider text-muted">Import from a launcher (installed games only)</div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <LauncherBtn label="Steam"       onClick={() => importLauncher('steam')}        testid="launcher-steam" />
+              <LauncherBtn label="Epic Games"  onClick={() => importLauncher('epic')}         testid="launcher-epic" />
+              <LauncherBtn label="GOG Galaxy"  onClick={() => notifyTodo('GOG Galaxy')}       testid="launcher-gog" />
+              <LauncherBtn label="EA App"      onClick={() => notifyTodo('EA App')}           testid="launcher-ea" />
+              <LauncherBtn label="Ubisoft"     onClick={() => notifyTodo('Ubisoft Connect')}  testid="launcher-ubi" />
+              <LauncherBtn label="Battle.net"  onClick={() => notifyTodo('Battle.net')}       testid="launcher-bnet" />
+              <LauncherBtn label="Riot Client" onClick={() => notifyTodo('Riot Client')}      testid="launcher-riot" />
+              <LauncherBtn label="Xbox / GP"   onClick={() => notifyTodo('Xbox / Game Pass')} testid="launcher-xbox" />
+              <LauncherBtn label="Rockstar"    onClick={() => notifyTodo('Rockstar Games')}   testid="launcher-rockstar" />
+            </div>
+            {launcherStatus && <div className="mt-3 text-[11px] text-muted">{launcherStatus}</div>}
+          </div>
+
+          {/* Manual folder pick */}
+          <div className="rounded-lg hairline bg-surface/50 p-4">
+            <div className="mb-2 text-[10px] uppercase tracking-wider text-muted">…or scan a folder / drive</div>
             <div className="flex items-center gap-3">
               <div className="min-w-0 flex-1 truncate text-sm">
                 {root || <span className="text-muted">No folder selected</span>}
@@ -217,6 +295,20 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
               <div className="flex items-center gap-2 text-[11px] text-muted">
                 {icon && <img src={icon} alt="" className="h-5 w-5 rounded" />}
                 <span className="truncate" title={current.exe}>{current.folderName}</span>
+              </div>
+              {/* Folder path + open-folder for quick inspection */}
+              <div className="rounded-md hairline bg-panel/40 p-2 space-y-1.5">
+                <div className="text-[10px] uppercase tracking-wider text-muted">Detected folder</div>
+                <div className="break-all font-mono text-[10.5px] leading-snug text-ink">
+                  {shortenPath(current.exe)}
+                </div>
+                <button
+                  data-testid="wizard-open-folder-btn"
+                  onClick={() => window.api?.openContainingDir(current.exe)}
+                  className="inline-flex items-center gap-1.5 rounded-md hairline px-2 h-6 text-[10.5px] text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]"
+                >
+                  <FolderOpen size={11} /> Open this folder
+                </button>
               </div>
             </div>
 
@@ -333,4 +425,26 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
       )}
     </Modal>
   );
+}
+
+function LauncherBtn({ label, onClick, testid }) {
+  return (
+    <button
+      data-testid={testid}
+      onClick={onClick}
+      className="inline-flex items-center gap-2 rounded-md hairline px-3 py-2 text-[11.5px] text-ink hover:text-[rgb(var(--accent))] hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)] transition-colors"
+    >
+      <Gamepad2 size={12} />
+      {label}
+    </button>
+  );
+}
+
+function shortenPath(p) {
+  if (!p) return '';
+  // Replace drive letter with simple form, keep last 3 segments
+  const parts = p.replace(/\\/g, '/').split('/').filter(Boolean);
+  if (parts.length <= 4) return p;
+  const tail = parts.slice(-4);
+  return tail.join(' / ');
 }

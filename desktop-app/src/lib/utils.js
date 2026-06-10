@@ -18,11 +18,12 @@ export const guessNameFromPath = (filePath) => {
 export const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 
 export const THEMES = [
-  { id: 'synthwave', label: 'Synthwave', swatch: '#ff2a8a' },
-  { id: 'midnight',  label: 'Midnight',  swatch: '#c4a56e' },
-  { id: 'daybreak',  label: 'Daybreak',  swatch: '#1c1c20' },
-  { id: 'ocean',     label: 'Ocean',     swatch: '#4ea8f0' },
-  { id: 'crimson',   label: 'Crimson',   swatch: '#dc263c' },
+  { id: 'synthwave',     label: 'Synthwave',      swatch: '#ff2a8a' },
+  { id: 'synthwave-day', label: 'Synthwave Day',  swatch: '#dc1e82' },
+  { id: 'midnight',      label: 'Midnight',       swatch: '#c4a56e' },
+  { id: 'daybreak',      label: 'Daybreak',       swatch: '#1c1c20' },
+  { id: 'ocean',         label: 'Ocean',          swatch: '#4ea8f0' },
+  { id: 'crimson',       label: 'Crimson',        swatch: '#dc263c' },
 ];
 
 export const CATEGORY_COLORS = [

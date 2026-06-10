@@ -2,9 +2,10 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play, RefreshCw, Calendar, Award, Building2, Globe, FolderOpen,
-  Tag, Sparkles, ChevronLeft, ChevronRight,
+  Tag, Sparkles, ChevronLeft, ChevronRight, Youtube,
 } from 'lucide-react';
 import { cn, colorFromId } from '../lib/utils';
+import { hoverThrottled, playLaunch } from '../lib/sound';
 
 /**
  * GameDetail — fully horizontal, "seamless" layout:
@@ -41,6 +42,7 @@ export default function GameDetail({
         onRevealFolder={onRevealFolder}
         onToggleCategory={onToggleCategory}
         fetching={fetching}
+        settings={settings}
       />
 
       <MetaStrip game={game} />
@@ -163,8 +165,10 @@ function Hero({ game, bannerBlend = 60, scanlinesEnabled = true }) {
   );
 }
 
-function openSearch(query) {
-  const url = 'https://www.google.com/search?q=' + encodeURIComponent(query);
+function openSearch(query, engine = 'google') {
+  const url = engine === 'youtube'
+    ? 'https://www.youtube.com/results?search_query=' + encodeURIComponent(query)
+    : 'https://www.google.com/search?q=' + encodeURIComponent(query);
   if (typeof window !== 'undefined' && window.api?.openExternal) window.api.openExternal(url);
   else window.open(url, '_blank');
 }
@@ -185,12 +189,23 @@ function ActionBar({ game, categories, onLaunch, onRefetch, onRevealFolder, onTo
         data-testid="detail-launch-btn"
         whileTap={{ scale: 0.95 }}
         whileHover={{ scale: 1.03 }}
-        onClick={() => onLaunch(game)}
+        onMouseEnter={() => { if (settings.soundsEnabled !== false) hoverThrottled(); }}
+        onClick={() => { if (settings.soundsEnabled !== false) playLaunch(); onLaunch(game); }}
         className="neon group inline-flex items-center gap-2 rounded-full bg-[rgb(var(--accent))] px-5 py-2 text-[13px] font-bold tracking-wide text-[rgb(var(--surface))]"
       >
         <Play size={14} className="transition-transform group-hover:translate-x-0.5" />
         LAUNCH
       </motion.button>
+
+      <button
+        data-testid="detail-youtube-btn"
+        onClick={() => openSearch(`${game.name} gameplay`, 'youtube')}
+        title="Search YouTube for gameplay"
+        className="inline-flex items-center gap-2 rounded-full hairline px-4 py-2 text-xs text-muted hover:text-[rgb(var(--accent-2))] hover:border-[rgb(var(--accent-2)/0.5)] transition-colors"
+      >
+        <Youtube size={13} />
+        YouTube
+      </button>
 
       <button
         data-testid="detail-refetch-btn"

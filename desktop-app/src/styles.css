@@ -20,6 +20,18 @@
   --grad-2: 36 8 60;
 }
 
+[data-theme='synthwave-day'] {
+  --ink: 30 18 60;
+  --muted: 110 100 145;
+  --surface: 250 244 255;
+  --panel: 255 252 255;
+  --border: 220 200 240;
+  --accent: 220 30 130;          /* magenta on light */
+  --accent-2: 0 170 220;         /* cyan */
+  --accent-soft: 250 220 240;
+  --hairline-glow: 220 30 130;
+}
+
 [data-theme='midnight'] {
   --ink: 235 235 240;
   --muted: 140 142 152;

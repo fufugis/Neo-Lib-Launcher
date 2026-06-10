@@ -222,6 +222,28 @@ export default function App() {
     setShowAdd(false);
     notify(`Added ${g.name}`);
   };
+  // Always adds to library.games regardless of current tab — used by wizard + launcher imports.
+  // Auto-creates a launcher category if the game came from a launcher import.
+  const addToGames = (data) => {
+    const launcherCats = {
+      steam: { id: '__launcher_steam__', name: 'Steam', colorId: 'cyan',   pinnedBottom: true, logoLabel: 'Steam' },
+      epic:  { id: '__launcher_epic__',  name: 'Epic Games', colorId: 'slate', pinnedBottom: true, logoLabel: 'Epic' },
+    };
+    const launcherCat = data.launcher ? launcherCats[data.launcher] : null;
+    const g = { id: uid(), categoryIds: [], addedAt: Date.now(), ...data };
+    if (launcherCat) {
+      g.categoryIds = Array.from(new Set([...(g.categoryIds || []), launcherCat.id]));
+    }
+    setLibrary((prev) => {
+      let cats = prev.categories || [];
+      if (launcherCat && !cats.find((c) => c.id === launcherCat.id)) {
+        cats = [...cats, launcherCat];
+      }
+      return { ...prev, categories: cats, games: [g, ...prev.games] };
+    });
+    notify(`Added ${g.name}`);
+    return g;
+  };
   const importMany = (entries) => {
     if (!entries.length) return;
     const newOnes = entries.map((e) => ({ id: uid(), categoryIds: [], addedAt: Date.now(), ...e }));
@@ -569,7 +591,7 @@ export default function App() {
       <WizardModal
         open={showWizard}
         onClose={() => setShowWizard(false)}
-        onImport={importMany}
+        onAccept={addToGames}
         onAddManual={() => setShowAdd(true)}
         geminiKey={settings.geminiKey || ''}
       />

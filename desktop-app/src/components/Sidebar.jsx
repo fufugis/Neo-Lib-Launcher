@@ -24,6 +24,7 @@ export default function Sidebar({
   games, categories, gameOrderByCategory, collapsed,
   unlockedCategories, search, selectedId, librarySize,
   mode, onSetMode,
+  iconPosition = 'left', rowSize = 44, catTextSize = 11, catGlow = 40,
   onSelect,
   onAddManual, onOpenWizard, onOpenSettings, onUpdateAll,
   onCreateCategory, onCategoryContext, onGameContext,
@@ -32,7 +33,13 @@ export default function Sidebar({
   onToggleCollapsed, onUnlockCategory,
   updatingAll,
 }) {
-  const size = sizeById(librarySize);
+  // size based on rowSize slider (in px)
+  const size = {
+    id: rowSize < 32 ? 'small' : rowSize > 60 ? 'big' : 'medium',
+    rowH: rowSize,
+    icon: Math.max(14, Math.round(rowSize * 0.72)),
+    font: Math.max(11, Math.min(16, Math.round(rowSize * 0.28))),
+  };
   const [libSettingsOpen, setLibSettingsOpen] = React.useState(false);
   const isTools = mode === 'tools';
 
@@ -60,9 +67,14 @@ export default function Sidebar({
     return list.filter((g) => (g.name || '').toLowerCase().includes(search.toLowerCase().trim()));
   };
 
-  // Pre-compute sections
+  // Pre-compute sections — pinnedBottom categories go to the end
+  const sortedCats = [...categories].sort((a, b) => {
+    const ap = a.pinnedBottom ? 1 : 0;
+    const bp = b.pinnedBottom ? 1 : 0;
+    return ap - bp;
+  });
   const sections = [
-    ...categories.map((c) => {
+    ...sortedCats.map((c) => {
       const isGhost = c.private && !unlockedCategories.includes(c.id);
       const list = isGhost ? [] : searchFilter(orderedGamesIn(c.id));
       return { id: c.id, category: c, isGhost, games: list, count: isGhost ? '🔒' : list.length };
@@ -353,9 +365,20 @@ function Section({
           {collapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
         </button>
 
-        {/* Color/lock indicator */}
+        {/* Color/lock indicator (or launcher logo text for pinned launcher cats) */}
         {section.isGhost ? (
           <Lock size={12} className="text-[rgb(var(--accent))] pulse-ghost" />
+        ) : c.logoLabel ? (
+          <span
+            className="shrink-0 rounded px-1 py-0.5 text-[8.5px] font-extrabold tracking-wider"
+            style={{
+              background: color,
+              color: '#0a0414',
+              boxShadow: `0 0 8px ${color}AA`,
+            }}
+          >
+            {c.logoLabel}
+          </span>
         ) : (
           <span
             className="h-2.5 w-2.5 shrink-0 rounded-full"
@@ -406,6 +429,7 @@ function Section({
                     key={g.id}
                     g={g}
                     size={size}
+                    iconPosition={iconPosition}
                     selected={selectedId === g.id}
                     indexInCat={idx}
                     sectionGames={section.games}
