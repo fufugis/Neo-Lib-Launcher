@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import {
   Plus, Wand2, Settings, RefreshCw, Trash2, Pencil, FolderOpen, MoreVertical,
   Lock, ChevronRight, ChevronDown, Tag, GripVertical, Sparkles, Terminal,
@@ -250,6 +250,7 @@ function LibrarySettingsPopover({
   onClose, onCreateCategory,
 }) {
   const ref = React.useRef(null);
+  const dragControls = useDragControls();
   React.useEffect(() => {
     const h = (e) => ref.current && !ref.current.contains(e.target) && onClose();
     document.addEventListener('mousedown', h);
@@ -259,6 +260,8 @@ function LibrarySettingsPopover({
     <motion.div
       ref={ref}
       drag
+      dragControls={dragControls}
+      dragListener={false}
       dragMomentum={false}
       dragElastic={0}
       initial={{ opacity: 0, y: -6, scale: 0.96 }}
@@ -266,11 +269,12 @@ function LibrarySettingsPopover({
       exit={{ opacity: 0, y: -6, scale: 0.96 }}
       transition={{ duration: 0.14 }}
       onMouseDown={(e) => e.stopPropagation()}
-      style={{ right: 0, top: '100%' }}
+      style={{ left: 0, top: '100%' }}
       className="absolute z-30 mt-1 w-72 max-w-[calc(100vw-32px)] max-h-[80vh] overflow-y-auto rounded-lg hairline glass shadow-2xl p-3 space-y-3"
       data-testid="library-settings-popover"
     >
       <div
+        onPointerDown={(e) => dragControls.start(e)}
         className="cursor-move -mt-1 -mx-1 mb-1 px-2 py-1 text-[9px] uppercase tracking-[0.22em] text-muted/80 flex items-center gap-1.5 select-none border-b border-[rgb(var(--border))]/60"
         title="Drag to move"
       >
@@ -596,6 +600,7 @@ function Section({
 function GameRow({
   g, size, selected, onClick, onContext, fromCatId, indexInCat,
   sectionGames, onReorderInCat, onMoveBetween, categories,
+  iconPosition = 'left',
 }) {
   const [menu, setMenu] = React.useState({ open: false, x: 0, y: 0 });
   const ref = React.useRef(null);
@@ -685,21 +690,23 @@ function GameRow({
         )}
       />
 
-      {/* Icon */}
-      <div
-        className="relative shrink-0 overflow-hidden rounded hairline bg-surface/70"
-        style={{ width: size.icon, height: size.icon }}
-      >
-        {g.icon ? (
-          <img src={g.icon} alt="" className="h-full w-full object-cover" />
-        ) : g.coverUrl ? (
-          <img src={g.coverUrl} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <div className="grid h-full w-full place-items-center text-[9px] text-muted">
-            {(g.name || '?').slice(0, 1).toUpperCase()}
-          </div>
-        )}
-      </div>
+      {/* Icon — position controlled by iconPosition setting (left | right | none) */}
+      {iconPosition !== 'none' && iconPosition !== 'right' && (
+        <div
+          className="relative shrink-0 overflow-hidden rounded hairline bg-surface/70"
+          style={{ width: size.icon, height: size.icon }}
+        >
+          {g.icon ? (
+            <img src={g.icon} alt="" className="h-full w-full object-cover" />
+          ) : g.coverUrl ? (
+            <img src={g.coverUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="grid h-full w-full place-items-center text-[9px] text-muted">
+              {(g.name || '?').slice(0, 1).toUpperCase()}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Name + meta */}
       <div className="min-w-0 flex-1">
@@ -725,6 +732,24 @@ function GameRow({
           </div>
         )}
       </div>
+
+      {/* Icon on right side */}
+      {iconPosition === 'right' && (
+        <div
+          className="relative shrink-0 overflow-hidden rounded hairline bg-surface/70"
+          style={{ width: size.icon, height: size.icon }}
+        >
+          {g.icon ? (
+            <img src={g.icon} alt="" className="h-full w-full object-cover" />
+          ) : g.coverUrl ? (
+            <img src={g.coverUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="grid h-full w-full place-items-center text-[9px] text-muted">
+              {(g.name || '?').slice(0, 1).toUpperCase()}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Hover menu trigger */}
       <button
@@ -758,7 +783,6 @@ function GameRow({
           <Divider />
           <Item icon={<Tag size={13} />} label="Manage categories…" onClick={() => { setMenu({ ...menu, open: false }); onContext('manage-categories'); }} testid={`game-ctx-cats-${g.id}`} />
           <Item icon={<FolderOpen size={13} />} label="Reveal in folder" onClick={() => { setMenu({ ...menu, open: false }); onContext('reveal'); }} testid={`game-ctx-reveal-${g.id}`} />
-          <Item icon={<FolderOpen size={13} />} label="Open containing directory" onClick={() => { setMenu({ ...menu, open: false }); onContext('open-dir'); }} testid={`game-ctx-open-dir-${g.id}`} />
           <Divider />
           <Item icon={<Trash2 size={13} />} label="Remove from library" danger onClick={() => { setMenu({ ...menu, open: false }); onContext('remove'); }} testid={`game-ctx-remove-${g.id}`} />
         </motion.div>,
@@ -791,9 +815,9 @@ function Divider() {
 /* ---------------- Category context menu ---------------- */
 export function CategoryContextMenu({ open, anchor, category, onClose, onAction }) {
   const ref = React.useRef(null);
+  const dragControls = useDragControls();
   React.useEffect(() => {
     if (!open) return undefined;
-    // Only close if the click target is OUTSIDE the menu
     const close = (e) => {
       if (ref.current && ref.current.contains(e.target)) return;
       onClose();
@@ -810,7 +834,6 @@ export function CategoryContextMenu({ open, anchor, category, onClose, onAction 
 
   const items = [
     { icon: <Pencil size={13} />, label: 'Rename / recolor', action: 'edit' },
-    { icon: <Palette size={13} />, label: 'Change color', action: 'recolor' },
     category.private
       ? { icon: <EyeOff size={13} />, label: 'Remove privacy', action: 'remove-private' }
       : { icon: <Lock size={13} />, label: 'Set as private (Ghost)…', action: 'set-private' },
@@ -824,6 +847,8 @@ export function CategoryContextMenu({ open, anchor, category, onClose, onAction 
     <motion.div
       ref={ref}
       drag
+      dragControls={dragControls}
+      dragListener={false}
       dragMomentum={false}
       dragElastic={0}
       initial={{ opacity: 0, scale: 0.96 }}
@@ -836,6 +861,7 @@ export function CategoryContextMenu({ open, anchor, category, onClose, onAction 
       className="w-56 overflow-hidden rounded-lg hairline glass shadow-2xl py-1"
     >
       <div
+        onPointerDown={(e) => dragControls.start(e)}
         className="cursor-move px-3 pt-1 pb-2 text-[10px] uppercase tracking-wider text-muted select-none flex items-center gap-1.5"
         title="Drag to move"
       >

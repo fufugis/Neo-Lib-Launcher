@@ -1,16 +1,17 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { X, GripHorizontal } from 'lucide-react';
 
 /**
  * Movable modal.
  * - Backdrop click closes
  * - ESC closes
- * - Title bar acts as a drag handle (Framer Motion drag)
+ * - Title bar acts as a drag handle (only the header pointer-downs start a drag)
  */
 export default function Modal({ open, onClose, title, children, wide, testid }) {
   const constraintsRef = React.useRef(null);
+  const dragControls = useDragControls();
 
   React.useEffect(() => {
     if (!open) return undefined;
@@ -42,6 +43,8 @@ export default function Modal({ open, onClose, title, children, wide, testid }) 
         >
           <motion.div
             drag
+            dragControls={dragControls}
+            dragListener={false}
             dragMomentum={false}
             dragElastic={0}
             dragConstraints={constraintsRef}
@@ -56,8 +59,9 @@ export default function Modal({ open, onClose, title, children, wide, testid }) 
               (wide ? 'max-w-3xl' : 'max-w-md')
             }
           >
-            {/* Drag handle / title bar */}
+            {/* Drag handle / title bar — only this starts a drag */}
             <div
+              onPointerDown={(e) => dragControls.start(e)}
               className="flex items-center justify-between border-b hairline px-5 py-3.5 cursor-move select-none"
               title="Drag to move"
             >
@@ -68,6 +72,7 @@ export default function Modal({ open, onClose, title, children, wide, testid }) 
               <button
                 data-testid="modal-close-btn"
                 onClick={onClose}
+                onPointerDown={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
                 title="Close (Esc)"
                 className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-surface hover:text-ink transition-colors"

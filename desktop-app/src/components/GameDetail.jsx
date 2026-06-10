@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play, RefreshCw, Calendar, Award, Building2, Globe, FolderOpen,
@@ -185,6 +186,7 @@ function openSearch(query, engine = 'google') {
 /* ---------- Action bar ---------- */
 function ActionBar({ game, categories, onLaunch, onRefetch, onRevealFolder, onToggleCategory, fetching, settings = {} }) {
   const [catOpen, setCatOpen] = React.useState(false);
+  const [catAnchor, setCatAnchor] = React.useState(null);
   const popRef = React.useRef(null);
   React.useEffect(() => {
     const close = (e) => popRef.current && !popRef.current.contains(e.target) && setCatOpen(false);
@@ -265,50 +267,55 @@ function ActionBar({ game, categories, onLaunch, onRefetch, onRevealFolder, onTo
         Locate
       </button>
 
-      {/* Add to category dropdown */}
+      {/* Add to category dropdown — portal'd to escape backdrop stacking context */}
       <div className="relative" ref={popRef}>
         <button
           data-testid="detail-category-btn"
-          onClick={() => setCatOpen((v) => !v)}
+          onClick={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            setCatAnchor({ x: r.left, y: r.bottom + 4 });
+            setCatOpen((v) => !v);
+          }}
           className="inline-flex items-center gap-2 rounded-full hairline px-4 py-2 text-xs text-muted hover:text-ink hover:border-accent/40 transition-colors"
         >
           <Tag size={13} />
           Categories
         </button>
-        <AnimatePresence>
-          {catOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: -6, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -6, scale: 0.96 }}
-              className="absolute left-0 top-full z-30 mt-1 w-60 overflow-hidden rounded-lg hairline glass p-1.5"
-            >
-              {categories.length === 0 && (
-                <div className="px-2 py-3 text-xs text-muted">No categories yet. Create one in the sidebar.</div>
-              )}
-              {categories.map((c) => {
-                const has = (game.categoryIds || []).includes(c.id);
-                return (
-                  <button
-                    key={c.id}
-                    data-testid={`detail-cat-toggle-${c.id}`}
-                    onClick={() => onToggleCategory(game, c.id)}
-                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-accent/10"
-                  >
-                    <span
-                      className="h-3 w-3 rounded-full"
-                      style={{ background: colorFromId(c.colorId) }}
-                    />
-                    <span className="flex-1 truncate">{c.name}</span>
-                    <span className={cn('text-[10px]', has ? 'text-[rgb(var(--accent))]' : 'text-muted/60')}>
-                      {has ? '✓' : ''}
-                    </span>
-                  </button>
-                );
-              })}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {catOpen && catAnchor && createPortal(
+          <motion.div
+            initial={{ opacity: 0, y: -6, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.96 }}
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{ position: 'fixed', top: catAnchor.y, left: catAnchor.x, zIndex: 1000 }}
+            className="w-60 overflow-hidden rounded-lg hairline glass shadow-2xl p-1.5"
+          >
+            {categories.length === 0 && (
+              <div className="px-2 py-3 text-xs text-muted">No categories yet. Create one in the sidebar.</div>
+            )}
+            {categories.map((c) => {
+              const has = (game.categoryIds || []).includes(c.id);
+              return (
+                <button
+                  key={c.id}
+                  data-testid={`detail-cat-toggle-${c.id}`}
+                  onClick={() => onToggleCategory(game, c.id)}
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-[rgb(var(--accent)/0.10)]"
+                >
+                  <span
+                    className="h-3 w-3 rounded-full"
+                    style={{ background: colorFromId(c.colorId) }}
+                  />
+                  <span className="flex-1 truncate">{c.name}</span>
+                  <span className={cn('text-[10px]', has ? 'text-[rgb(var(--accent))]' : 'text-muted/60')}>
+                    {has ? '✓' : ''}
+                  </span>
+                </button>
+              );
+            })}
+          </motion.div>,
+          document.body
+        )}
       </div>
 
       <div className="ml-auto flex items-center gap-2 text-[11px] text-muted">

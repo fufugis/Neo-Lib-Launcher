@@ -7,6 +7,7 @@ import ShowcaseStrip from './components/ShowcaseStrip';
 import SettingsModal from './components/SettingsModal';
 import AddGameModal from './components/AddGameModal';
 import WizardModal from './components/WizardModal';
+import PromptModal from './components/PromptModal';
 import CategoryModal from './components/CategoryModal';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin } from './lib/utils';
@@ -115,6 +116,23 @@ export default function App() {
   const [fetching, setFetching] = React.useState(false);
   const [updatingAll, setUpdatingAll] = React.useState(false);
   const [toast, setToast] = React.useState(null);
+
+  // Generic prompt modal (replaces window.prompt which Electron disables by default)
+  const [promptCfg, setPromptCfg] = React.useState({ open: false });
+  const askPrompt = ({ title, label, defaultValue = '', placeholder = '', multiline = false, confirmLabel = 'Save' }) =>
+    new Promise((resolve) => {
+      setPromptCfg({
+        open: true, title, label, defaultValue, placeholder, multiline, confirmLabel,
+        onSubmit: (v) => resolve(v),
+        onCancel: () => resolve(null),
+      });
+    });
+  const closePrompt = (cancelled) => {
+    setPromptCfg((p) => {
+      if (cancelled && p.onCancel) p.onCancel();
+      return { open: false };
+    });
+  };
 
   /* --- Load on mount --- */
   React.useEffect(() => {
@@ -230,7 +248,11 @@ export default function App() {
       epic:  { id: '__launcher_epic__',  name: 'Epic Games', colorId: 'slate', pinnedBottom: true, logoLabel: 'Epic' },
     };
     const launcherCat = data.launcher ? launcherCats[data.launcher] : null;
-    const g = { id: uid(), categoryIds: [], addedAt: Date.now(), ...data };
+    // FALLBACK: when the local .exe icon couldn't be extracted (common for sub-folder
+    // launchers like Cyberpunk's REDLauncher), use the fetched online artwork instead.
+    const onlineFallback = data.capsuleImage || data.headerImage || data.coverUrl || data.background || null;
+    const icon = data.icon || onlineFallback;
+    const g = { id: uid(), categoryIds: [], addedAt: Date.now(), ...data, icon };
     if (launcherCat) {
       g.categoryIds = Array.from(new Set([...(g.categoryIds || []), launcherCat.id]));
     }
@@ -440,7 +462,7 @@ export default function App() {
     setPinModal({ open: true, mode: 'unlock', category, error: '' });
   };
 
-  const handleCategoryAction = (action) => {
+  const handleCategoryAction = async (action) => {
     const c = catCtx.category;
     setCatCtx({ open: false, category: null, anchor: null });
     if (!c) return;
@@ -456,7 +478,15 @@ export default function App() {
         });
         setPinModal({ open: true, mode: 'remove', category: c, error: '' });
       } else {
-        if (confirm(`Delete "${c.name}"? Games stay in your library.`)) deleteCategory(c.id);
+        const typed = await askPrompt({
+          title: `Delete "${c.name}"?`,
+          label: `Type the category name to confirm (games stay in your library):`,
+          defaultValue: '',
+          placeholder: c.name,
+          confirmLabel: 'Delete',
+        });
+        if (typed && typed.trim() === c.name) deleteCategory(c.id);
+        else if (typed !== null) notify('Name did not match — deletion cancelled.');
       }
     } else if (action === 'up' || action === 'down') {
       setLibrary((prev) => {
@@ -488,15 +518,21 @@ export default function App() {
 
   /* --- Game right-click actions --- */
   const handleGameContext = async (action, g) => {
-    if (action === 'remove') return removeGame(g.id);
+    if (action === 'remove') {
+      const ok = await askPrompt({
+        title: 'Remove game',
+        label: `Type "${g.name}" to confirm removal from library (file stays on disk).`,
+        defaultValue: '',
+        placeholder: g.name,
+        confirmLabel: 'Remove',
+      });
+      if (ok && ok.trim() === g.name) removeGame(g.id);
+      else if (ok !== null) notify('Name did not match — removal cancelled.');
+      return;
+    }
     if (action === 'reveal') {
       if (isElectron) window.api.revealInFolder(g.exePath);
       else notify('Open: ' + g.exePath);
-      return;
-    }
-    if (action === 'open-dir') {
-      if (isElectron) window.api.openContainingDir(g.exePath);
-      else notify('Open dir: ' + g.exePath);
       return;
     }
     if (action === 'refetch') {
@@ -504,25 +540,49 @@ export default function App() {
       return;
     }
     if (action === 'research') {
-      const name = prompt('Search again for a different game (this will overwrite metadata):', g.name);
+      const name = await askPrompt({
+        title: 'Re-search by name',
+        label: 'New search query (will overwrite metadata):',
+        defaultValue: g.name || '',
+        placeholder: 'e.g. The Witcher 3',
+        confirmLabel: 'Search',
+      });
       if (name && name.trim()) {
         await refetchGame(g, { query: name.trim(), forceSearch: true, skipCurrentSource: false });
       }
       return;
     }
     if (action === 'rename') {
-      const name = prompt('New name:', g.name);
-      if (name) updateGame(g.id, { name });
+      const name = await askPrompt({
+        title: 'Rename game',
+        label: 'Display name',
+        defaultValue: g.name || '',
+        placeholder: 'Game title',
+        confirmLabel: 'Rename',
+      });
+      if (name && name.trim()) updateGame(g.id, { name: name.trim() });
       return;
     }
     if (action === 'args') {
-      const args = prompt('Launch arguments (passed to the exe):', g.launchArgs || '');
+      const args = await askPrompt({
+        title: 'Launch arguments',
+        label: 'Arguments passed to the executable',
+        defaultValue: g.launchArgs || '',
+        placeholder: '-fullscreen -dx11',
+        confirmLabel: 'Save',
+      });
       if (args !== null) updateGame(g.id, { launchArgs: args });
       return;
     }
     if (action === 'details') {
-      const cover = prompt('Cover image URL (leave empty to keep current):', g.coverUrl || '');
-      if (cover) updateGame(g.id, { coverUrl: cover });
+      const cover = await askPrompt({
+        title: 'Edit cover image',
+        label: 'Paste a cover image URL (leave blank to keep current)',
+        defaultValue: g.coverUrl || '',
+        placeholder: 'https://…/cover.jpg',
+        confirmLabel: 'Save',
+      });
+      if (cover && cover.trim()) updateGame(g.id, { coverUrl: cover.trim() });
       return;
     }
     if (action === 'manage-categories') {
@@ -647,6 +707,18 @@ export default function App() {
         category={catCtx.category}
         onClose={() => setCatCtx({ open: false, category: null, anchor: null })}
         onAction={handleCategoryAction}
+      />
+
+      <PromptModal
+        open={!!promptCfg.open}
+        title={promptCfg.title}
+        label={promptCfg.label}
+        defaultValue={promptCfg.defaultValue}
+        placeholder={promptCfg.placeholder}
+        multiline={promptCfg.multiline}
+        confirmLabel={promptCfg.confirmLabel}
+        onSubmit={(v) => { promptCfg.onSubmit && promptCfg.onSubmit(v); setPromptCfg({ open: false }); }}
+        onClose={() => closePrompt(true)}
       />
 
       <AnimatePresence>
