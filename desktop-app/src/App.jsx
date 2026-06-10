@@ -290,7 +290,16 @@ export default function App() {
     const query = opts.query || g.name || guessNameFromPath(g.exePath);
     const skip = [];
     if (opts.skipCurrentSource && g.source) skip.push(g.source);
-    const result = await window.api.fetchMetadata({ query, skipSources: skip, geminiKey: settings.geminiKey || '' });
+    // SAFETY: if game already has a Steam appid, lock to that appid so refetch can NEVER
+    // accidentally replace this game's data with another game's. User must explicitly
+    // request a "Re-search" (different query) to escape the lock.
+    const lockedAppid = (!opts.forceSearch && g.appid) ? g.appid : null;
+    const result = await window.api.fetchMetadata({
+      query,
+      skipSources: skip,
+      geminiKey: settings.geminiKey || '',
+      lockedAppid,
+    });
     if (!result) {
       setFetching(false);
       notify('No metadata found anywhere online.');
@@ -494,6 +503,13 @@ export default function App() {
       await refetchGame(g, { skipCurrentSource: true });
       return;
     }
+    if (action === 'research') {
+      const name = prompt('Search again for a different game (this will overwrite metadata):', g.name);
+      if (name && name.trim()) {
+        await refetchGame(g, { query: name.trim(), forceSearch: true, skipCurrentSource: false });
+      }
+      return;
+    }
     if (action === 'rename') {
       const name = prompt('New name:', g.name);
       if (name) updateGame(g.id, { name });
@@ -537,6 +553,14 @@ export default function App() {
           search={search}
           selectedId={currentSelectedId}
           librarySize={settings.librarySize || 'medium'}
+          rowSize={settings.rowSize ?? 44}
+          catTextSize={settings.catTextSize ?? 11}
+          catGlow={settings.catGlow ?? 40}
+          iconPosition={settings.iconPosition || 'left'}
+          onChangeRowSize={(v) => updateSetting({ rowSize: v })}
+          onChangeCatTextSize={(v) => updateSetting({ catTextSize: v })}
+          onChangeCatGlow={(v) => updateSetting({ catGlow: v })}
+          onChangeIconPosition={(v) => updateSetting({ iconPosition: v })}
           mode={settings.mode || 'library'}
           onSetMode={setMode}
           onSelect={setCurrentSelectedId}
@@ -641,6 +665,18 @@ export default function App() {
 }
 
 function BgAmbience({ theme, settings = {} }) {
+  if (theme === 'synthwave-day') {
+    if (settings.synthGridEnabled === false) return null;
+    const intensity = (settings.gridIntensity ?? 100) / 100;
+    return (
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden" style={{ opacity: intensity }}>
+        <div className="vapor-clouds" />
+        <div className="vapor-sun" />
+        <div className="vapor-floor" />
+        <div className="vapor-palms" />
+      </div>
+    );
+  }
   if (theme !== 'synthwave') return null;
   if (settings.synthGridEnabled === false) return null;
   const intensity = (settings.gridIntensity ?? 100) / 100;

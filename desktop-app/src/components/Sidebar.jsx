@@ -25,6 +25,7 @@ export default function Sidebar({
   unlockedCategories, search, selectedId, librarySize,
   mode, onSetMode,
   iconPosition = 'left', rowSize = 44, catTextSize = 11, catGlow = 40,
+  onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
   onSelect,
   onAddManual, onOpenWizard, onOpenSettings, onUpdateAll,
   onCreateCategory, onCategoryContext, onGameContext,
@@ -134,7 +135,15 @@ export default function Sidebar({
             {libSettingsOpen && (
               <LibrarySettingsPopover
                 librarySize={librarySize}
+                rowSize={rowSize}
+                catTextSize={catTextSize}
+                catGlow={catGlow}
+                iconPosition={iconPosition}
                 onSetLibrarySize={onSetLibrarySize}
+                onChangeRowSize={onChangeRowSize}
+                onChangeCatTextSize={onChangeCatTextSize}
+                onChangeCatGlow={onChangeCatGlow}
+                onChangeIconPosition={onChangeIconPosition}
                 onClose={() => setLibSettingsOpen(false)}
                 onCreateCategory={onCreateCategory}
               />
@@ -233,7 +242,11 @@ function TabPill({ label, icon, active, onClick, testid }) {
 }
 
 /* ---------------- Library settings popover ---------------- */
-function LibrarySettingsPopover({ librarySize, onSetLibrarySize, onClose, onCreateCategory }) {
+function LibrarySettingsPopover({
+  librarySize, rowSize = 44, catTextSize = 11, catGlow = 40, iconPosition = 'left',
+  onSetLibrarySize, onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
+  onClose, onCreateCategory,
+}) {
   const ref = React.useRef(null);
   React.useEffect(() => {
     const h = (e) => ref.current && !ref.current.contains(e.target) && onClose();
@@ -247,29 +260,83 @@ function LibrarySettingsPopover({ librarySize, onSetLibrarySize, onClose, onCrea
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -6, scale: 0.96 }}
       transition={{ duration: 0.14 }}
-      className="absolute right-0 top-full z-30 mt-1 w-60 overflow-hidden rounded-lg hairline glass shadow-2xl p-3 space-y-3"
+      className="absolute right-0 top-full z-30 mt-1 w-72 overflow-hidden rounded-lg hairline glass shadow-2xl p-3 space-y-3"
       data-testid="library-settings-popover"
     >
       <div>
-        <div className="mb-1.5 text-[10px] uppercase tracking-wider text-muted">Game row size</div>
+        <div className="mb-1.5 text-[10px] uppercase tracking-wider text-muted">Quick preset</div>
         <div className="grid grid-cols-3 gap-1">
-          {['small', 'medium', 'big'].map((s) => (
+          {[
+            { key: 'small', size: 26 },
+            { key: 'medium', size: 44 },
+            { key: 'big', size: 64 },
+          ].map((s) => (
             <button
-              key={s}
-              data-testid={`lib-size-${s}`}
-              onClick={() => { onSetLibrarySize(s); }}
+              key={s.key}
+              data-testid={`lib-size-${s.key}`}
+              onClick={() => { onSetLibrarySize(s.key); if (onChangeRowSize) onChangeRowSize(s.size); }}
               className={cn(
                 'rounded-md hairline py-1.5 text-[11px] capitalize transition-colors',
-                librarySize === s
+                librarySize === s.key
                   ? 'border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.12)] text-ink'
                   : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]'
               )}
             >
-              {s}
+              {s.key}
             </button>
           ))}
         </div>
       </div>
+
+      <PopSlider
+        label="Row size"
+        value={rowSize}
+        min={22}
+        max={80}
+        suffix="px"
+        onChange={onChangeRowSize}
+        testid="pop-row-size"
+      />
+      <PopSlider
+        label="Category text size"
+        value={catTextSize}
+        min={9}
+        max={16}
+        suffix="px"
+        onChange={onChangeCatTextSize}
+        testid="pop-cat-text-size"
+      />
+      <PopSlider
+        label="Category glow"
+        value={catGlow}
+        min={0}
+        max={100}
+        suffix="%"
+        onChange={onChangeCatGlow}
+        testid="pop-cat-glow"
+      />
+
+      <div>
+        <div className="mb-1.5 text-[10px] uppercase tracking-wider text-muted">Icon position</div>
+        <div className="grid grid-cols-3 gap-1">
+          {['left', 'right', 'none'].map((p) => (
+            <button
+              key={p}
+              data-testid={`pop-icon-pos-${p}`}
+              onClick={() => onChangeIconPosition && onChangeIconPosition(p)}
+              className={cn(
+                'rounded-md hairline py-1.5 text-[11px] capitalize transition-colors',
+                iconPosition === p
+                  ? 'border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.12)] text-ink'
+                  : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]'
+              )}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="h-px bg-[rgb(var(--border))]" />
       <button
         onClick={() => { onCreateCategory(); onClose(); }}
@@ -278,6 +345,26 @@ function LibrarySettingsPopover({ librarySize, onSetLibrarySize, onClose, onCrea
         <Plus size={13} className="text-[rgb(var(--accent))]" /> New category…
       </button>
     </motion.div>
+  );
+}
+
+function PopSlider({ label, value, min, max, suffix = '', onChange, testid }) {
+  return (
+    <div className="rounded-md hairline bg-surface/40 px-2.5 py-2">
+      <div className="mb-1 flex items-center justify-between">
+        <div className="text-[11px] text-ink/90">{label}</div>
+        <div className="text-[10.5px] text-[rgb(var(--accent-2))]">{value}{suffix}</div>
+      </div>
+      <input
+        type="range"
+        data-testid={testid}
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange && onChange(Number(e.target.value))}
+        className="w-full accent-[rgb(var(--accent))]"
+      />
+    </div>
   );
 }
 
@@ -339,6 +426,7 @@ function Section({
         onContextMenu={(e) => {
           if (isUncat) return;
           e.preventDefault();
+          e.stopPropagation();
           onCategoryContext(c, { x: e.clientX, y: e.clientY });
         }}
         onClick={() => {
@@ -402,6 +490,27 @@ function Section({
         <span className="rounded-full bg-panel/60 hairline px-1.5 py-0.5 text-[10px] text-muted">
           {section.count}
         </span>
+
+        {/* Kebab menu — guaranteed access to Rename / Set Private / Delete (alongside right-click) */}
+        {!isUncat && (
+          <button
+            data-testid={`section-menu-btn-${c.id}`}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const r = e.currentTarget.getBoundingClientRect();
+              onCategoryContext(c, { x: r.right - 8, y: r.bottom + 4 });
+            }}
+            title="Category options"
+            className={cn(
+              'ml-1 grid h-5 w-5 place-items-center rounded transition-colors',
+              'text-muted/70 hover:text-ink hover:bg-[rgb(var(--accent)/0.15)]',
+              hover ? 'opacity-100' : 'opacity-60'
+            )}
+          >
+            <MoreVertical size={12} />
+          </button>
+        )}
       </div>
 
       <AnimatePresence initial={false}>
@@ -610,7 +719,8 @@ function GameRow({
           style={{ position: 'fixed', top: menu.y, left: menu.x, zIndex: 200, width: 240 }}
           className="overflow-hidden rounded-lg hairline glass shadow-2xl py-1"
         >
-          <Item icon={<RefreshCw size={13} />} label="Re-obtain info online" onClick={() => { setMenu({ ...menu, open: false }); onContext('refetch'); }} testid={`game-ctx-refetch-${g.id}`} />
+          <Item icon={<RefreshCw size={13} />} label="Refresh info (this game)" onClick={() => { setMenu({ ...menu, open: false }); onContext('refetch'); }} testid={`game-ctx-refetch-${g.id}`} />
+          <Item icon={<Wand2 size={13} />} label="Re-search by name…" onClick={() => { setMenu({ ...menu, open: false }); onContext('research'); }} testid={`game-ctx-research-${g.id}`} />
           <Item icon={<Pencil size={13} />} label="Rename" onClick={() => { setMenu({ ...menu, open: false }); onContext('rename'); }} testid={`game-ctx-rename-${g.id}`} />
           <Item icon={<Terminal size={13} />} label="Edit launch args" onClick={() => { setMenu({ ...menu, open: false }); onContext('args'); }} testid={`game-ctx-args-${g.id}`} />
           <Item icon={<Info size={13} />} label="Details / edit cover" onClick={() => { setMenu({ ...menu, open: false }); onContext('details'); }} testid={`game-ctx-details-${g.id}`} />

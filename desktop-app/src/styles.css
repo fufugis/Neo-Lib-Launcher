@@ -20,16 +20,21 @@
   --grad-2: 36 8 60;
 }
 
+/* VAPORWAVE DAY — soft sunrise pastels, hot pink + electric cyan + deep indigo accents.
+   Light backdrop with creamy peach + lilac wash, kept readable; dark accents for punch.
+   Decorative graphics provided in styles.css via .vapor-sun / .vapor-palms. */
 [data-theme='synthwave-day'] {
-  --ink: 30 18 60;
-  --muted: 110 100 145;
-  --surface: 250 244 255;
-  --panel: 255 252 255;
-  --border: 220 200 240;
-  --accent: 220 30 130;          /* magenta on light */
-  --accent-2: 0 170 220;         /* cyan */
-  --accent-soft: 250 220 240;
-  --hairline-glow: 220 30 130;
+  --ink: 38 14 70;               /* deep indigo text */
+  --muted: 120 92 168;
+  --surface: 255 232 246;        /* peach-pink wash */
+  --panel: 255 244 252;          /* near-white pink */
+  --border: 240 178 220;
+  --accent: 255 0 144;           /* hot magenta */
+  --accent-2: 0 192 232;         /* electric cyan */
+  --accent-soft: 255 214 240;
+  --hairline-glow: 255 0 144;
+  --grad-1: 255 232 246;
+  --grad-2: 220 200 255;
 }
 
 [data-theme='midnight'] {
@@ -260,3 +265,116 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
   transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .tilt:hover { transform: translateY(-2px); }
+
+/* ============ Vaporwave Day decorative graphics ============ */
+/* A large sun behind the horizon, plus a gridded floor reaching toward it.
+   Decorative palm-tree silhouettes (pure CSS) flank the scene. */
+.vapor-sun {
+  position: absolute;
+  left: 50%;
+  top: 8%;
+  transform: translateX(-50%);
+  width: 520px;
+  height: 520px;
+  pointer-events: none;
+  border-radius: 9999px;
+  background: linear-gradient(180deg,
+    #ffd86b 0%, #ff7ab8 45%, #ff0090 75%, #b32a8c 100%
+  );
+  box-shadow:
+    0 0 90px rgba(255,128,200,0.55),
+    0 0 220px rgba(255,80,180,0.35);
+  /* horizontal slits to give that vaporwave sun effect */
+  mask-image:
+    linear-gradient(to bottom,
+      black 0%, black 38%,
+      transparent 41%, transparent 44%,
+      black 47%, black 52%,
+      transparent 55%, transparent 58%,
+      black 61%, black 66%,
+      transparent 69%, transparent 72%,
+      black 75%, black 100%
+    );
+  -webkit-mask-image:
+    linear-gradient(to bottom,
+      black 0%, black 38%,
+      transparent 41%, transparent 44%,
+      black 47%, black 52%,
+      transparent 55%, transparent 58%,
+      black 61%, black 66%,
+      transparent 69%, transparent 72%,
+      black 75%, black 100%
+    );
+  opacity: 0.85;
+  animation: vaporSunPulse 6s ease-in-out infinite;
+}
+@keyframes vaporSunPulse {
+  0%, 100% { filter: drop-shadow(0 0 30px rgba(255,128,200,0.4)); }
+  50%      { filter: drop-shadow(0 0 60px rgba(255,128,200,0.7)); }
+}
+
+.vapor-floor {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  bottom: -10%;
+  height: 65%;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 0, 144, 0.55) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 192, 232, 0.45) 1px, transparent 1px);
+  background-size: 70px 70px;
+  transform: perspective(700px) rotateX(62deg);
+  transform-origin: center top;
+  mask-image: linear-gradient(to bottom, transparent 0%, black 18%, black 70%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 18%, black 70%, transparent 100%);
+  animation: vaporFloorPan 14s linear infinite;
+  opacity: 0.55;
+}
+@keyframes vaporFloorPan {
+  0%   { background-position: 0 0, 0 0; }
+  100% { background-position: 0 70px, 70px 0; }
+}
+
+.vapor-clouds {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 380px 80px at 20% 18%, rgba(255,255,255,0.55), transparent 70%),
+    radial-gradient(ellipse 260px 60px at 78% 12%, rgba(255,255,255,0.45), transparent 70%),
+    radial-gradient(ellipse 200px 50px at 50% 28%, rgba(255,255,255,0.35), transparent 70%);
+  filter: blur(2px);
+}
+
+/* CSS palm tree silhouettes on left + right */
+.vapor-palms::before,
+.vapor-palms::after {
+  content: '';
+  position: absolute;
+  bottom: 8%;
+  width: 6px;
+  height: 35%;
+  background: linear-gradient(180deg, transparent, #1a0633 25%, #1a0633 100%);
+  border-radius: 50%;
+  box-shadow:
+    0 -8px 0 -1px #1a0633,
+    0 -14px 0 -1px #1a0633;
+}
+.vapor-palms::before { left: 6%; }
+.vapor-palms::after  { right: 6%; transform: scaleX(-1); }
+.vapor-palms {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+/* Palm fronds (using pseudo elements is limited; use a couple decorative spans) */
+.vapor-palm-frond {
+  position: absolute;
+  width: 90px;
+  height: 22px;
+  background: #1a0633;
+  border-radius: 50% 50% 50% 50% / 100% 100% 0 0;
+  transform-origin: 0 100%;
+  bottom: 38%;
+}

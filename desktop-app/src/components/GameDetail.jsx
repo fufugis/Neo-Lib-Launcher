@@ -20,6 +20,7 @@ export default function GameDetail({
   onToggleCategory, fetching, settings = {},
 }) {
   if (!game) return <EmptyState />;
+  const bg = game.background || game.headerImage || game.coverUrl;
   return (
     <motion.div
       key={game.id}
@@ -28,24 +29,64 @@ export default function GameDetail({
       transition={{ duration: 0.28 }}
       className="relative flex h-full flex-1 flex-col overflow-y-auto"
     >
-      <Hero
-        game={game}
-        bannerBlend={settings.bannerBlend ?? 60}
-        scanlinesEnabled={settings.scanlinesEnabled !== false}
-      />
+      {/* Unified hero section — banner image stretches from the very top down BEHIND
+          the title block, action bar AND meta strip, fading cleanly into the About
+          section below. The bars sit on top of the image with glass/blur. */}
+      <div className="relative isolate">
+        {/* Backdrop image — absolute, fills full hero area */}
+        {bg ? (
+          <motion.img
+            key={bg}
+            initial={{ scale: 1.06, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.9, ease: 'easeOut' }}
+            src={bg}
+            alt=""
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+          />
+        ) : (
+          <div className="pointer-events-none absolute inset-0">
+            <div className="synth-grid" />
+            <div className="synth-horizon" />
+          </div>
+        )}
+        {/* Top cutoff fade — image starts cleanly below titlebar */}
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-14"
+          style={{ background: 'linear-gradient(to bottom, rgb(var(--surface)) 0%, rgb(var(--surface)/0.6) 40%, transparent 100%)' }}
+        />
+        {/* Left vignette so title text is readable */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{ background: 'linear-gradient(to right, rgb(var(--surface)/0.85) 0%, rgb(var(--surface)/0.35) 35%, transparent 70%)' }}
+        />
+        {/* Bottom fade — image dissolves into About section */}
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-32"
+          style={{ background: 'linear-gradient(to bottom, transparent 0%, rgb(var(--surface)/0.7) 55%, rgb(var(--surface)) 100%)' }}
+        />
+        {/* Accent glow corner */}
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgb(var(--accent)/0.18),transparent_55%)]" />
+        {settings.scanlinesEnabled !== false && <div className="scanlines pointer-events-none absolute inset-0 opacity-30" />}
 
-      <ActionBar
-        game={game}
-        categories={categories}
-        onLaunch={onLaunch}
-        onRefetch={onRefetch}
-        onRevealFolder={onRevealFolder}
-        onToggleCategory={onToggleCategory}
-        fetching={fetching}
-        settings={settings}
-      />
+        {/* Hero text block */}
+        <HeroTitle game={game} />
 
-      <MetaStrip game={game} />
+        {/* Action bar — sits over backdrop, glass blur */}
+        <ActionBar
+          game={game}
+          categories={categories}
+          onLaunch={onLaunch}
+          onRefetch={onRefetch}
+          onRevealFolder={onRevealFolder}
+          onToggleCategory={onToggleCategory}
+          fetching={fetching}
+          settings={settings}
+        />
+
+        {/* Meta strip — sits over backdrop, glass blur */}
+        <MetaStrip game={game} />
+      </div>
 
       <div className="px-8 py-6 space-y-7">
         <section>
@@ -53,7 +94,7 @@ export default function GameDetail({
           <p className="max-w-4xl whitespace-pre-line text-[13.5px] leading-relaxed text-muted">
             {game.about ||
               game.shortDescription ||
-              'No description yet. Press “Re-fetch info” to pull metadata online.'}
+              'No description yet. Press "Refresh info" to pull metadata online.'}
           </p>
         </section>
 
@@ -74,52 +115,10 @@ export default function GameDetail({
   );
 }
 
-/* ---------- Hero ---------- */
-function Hero({ game, bannerBlend = 60, scanlinesEnabled = true }) {
-  const bg = game.background || game.headerImage || game.coverUrl;
-  // bannerBlend: 0 = no fade (solid image), 100 = fully blended into background
-  const t = Math.max(0, Math.min(100, bannerBlend)) / 100;
+/* ---------- Hero title block (text only, sits over backdrop) ---------- */
+function HeroTitle({ game }) {
   return (
-    <div className="relative isolate aspect-[16/5.5] w-full overflow-hidden">
-      {bg ? (
-        <motion.img
-          initial={{ scale: 1.08, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.9, ease: 'easeOut' }}
-          src={bg}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover"
-          style={{ opacity: 1 - t * 0.25 }}
-        />
-      ) : (
-        <div className="absolute inset-0">
-          <div className="synth-grid" />
-          <div className="synth-horizon" />
-        </div>
-      )}
-      {/* Layered gradients — strength scales with bannerBlend so the image dissolves into the UI */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background: `linear-gradient(to top, rgb(var(--surface)) ${10 + t * 25}%, transparent 100%)`,
-        }}
-      />
-      <div
-        className="absolute inset-0"
-        style={{
-          background: `linear-gradient(to right, rgb(var(--surface) / ${0.5 + t * 0.4}) 0%, transparent 55%)`,
-        }}
-      />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgb(var(--accent)/0.18),transparent_55%)]" />
-      {/* Top fade so the banner blends seamlessly into the title bar above */}
-      <div
-        className="absolute inset-x-0 top-0 h-12"
-        style={{
-          background: 'linear-gradient(to bottom, rgb(var(--surface)) 0%, transparent 100%)',
-        }}
-      />
-      {scanlinesEnabled && <div className="scanlines absolute inset-0 opacity-40" />}
-
+    <div className="relative aspect-[16/5] w-full">
       <div className="absolute inset-0 flex items-end px-8 pb-7">
         <div className="max-w-3xl">
           <motion.div
@@ -137,6 +136,7 @@ function Hero({ game, bannerBlend = 60, scanlinesEnabled = true }) {
             transition={{ delay: 0.1, type: 'spring', stiffness: 180 }}
             className="font-display text-[42px] font-extrabold leading-[1.05] tracking-tight neon-text"
             data-testid="detail-title"
+            style={{ textShadow: '0 2px 24px rgb(var(--surface) / 0.9), 0 0 18px rgb(var(--accent) / 0.4)' }}
           >
             {game.name}
           </motion.h1>
@@ -150,20 +150,29 @@ function Hero({ game, bannerBlend = 60, scanlinesEnabled = true }) {
               <button
                 key={g}
                 onClick={() => openSearch(`${g} games`)}
-                className="rounded-full hairline px-2.5 py-1 text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)] transition-colors"
-                style={{ borderColor: 'rgb(var(--accent) / 0.4)', color: 'rgb(var(--ink))' }}
+                className="rounded-full px-2.5 py-1 text-muted hover:text-ink transition-colors"
+                style={{
+                  borderWidth: 1,
+                  borderStyle: 'solid',
+                  borderColor: 'rgb(var(--accent) / 0.4)',
+                  backgroundColor: 'rgb(var(--surface) / 0.55)',
+                  backdropFilter: 'blur(6px)',
+                  color: 'rgb(var(--ink))',
+                }}
                 title={`Search "${g} games" on Google`}
               >
                 {g}
               </button>
             ))}
-            {game.releaseDate && <span className="text-muted/80">· {game.releaseDate}</span>}
+            {game.releaseDate && <span className="text-muted/90">· {game.releaseDate}</span>}
           </motion.div>
         </div>
       </div>
     </div>
   );
 }
+
+/* ---------- (Hero is now inlined in GameDetail as backdrop+HeroTitle) ---------- */
 
 function openSearch(query, engine = 'google') {
   const url = engine === 'youtube'
@@ -184,7 +193,7 @@ function ActionBar({ game, categories, onLaunch, onRefetch, onRevealFolder, onTo
   }, [catOpen]);
 
   return (
-    <div className="sticky top-0 z-10 -mt-px flex flex-wrap items-center gap-2 border-y hairline glass px-8 py-3">
+    <div className="relative z-10 flex flex-wrap items-center gap-2 border-y hairline px-8 py-3" style={{ backgroundColor: 'rgb(var(--surface) / 0.45)', backdropFilter: 'blur(14px) saturate(140%)' }}>
       <motion.button
         data-testid="detail-launch-btn"
         whileTap={{ scale: 0.95 }}
@@ -384,9 +393,9 @@ function MetaStrip({ game }) {
       ),
     });
   return (
-    <div className="grid grid-cols-2 gap-px border-b hairline bg-[rgb(var(--border))]/40 sm:grid-cols-3 lg:grid-cols-6">
+    <div className="relative z-10 grid grid-cols-2 gap-px border-b hairline sm:grid-cols-3 lg:grid-cols-6" style={{ backgroundColor: 'rgb(var(--border) / 0.35)' }}>
       {items.map((it) => (
-        <div key={it.label} className="bg-panel/40 px-4 py-3">
+        <div key={it.label} className="px-4 py-3" style={{ backgroundColor: 'rgb(var(--surface) / 0.55)', backdropFilter: 'blur(14px) saturate(140%)' }}>
           <div className="mb-1 flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted/90">
             <span className="text-[rgb(var(--accent))]">{it.icon}</span>
             {it.label}

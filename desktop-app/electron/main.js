@@ -739,7 +739,36 @@ If you cannot identify the game, set "name" to "" and return empty strings/array
 
 // ---------------- Unified metadata pipeline ---------------- //
 // Tries Steam → GOG → Gemini (if key) → Web scrape. Returns first usable result + source.
-ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey }) => {
+ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey, lockedAppid }) => {
+  // If a lockedAppid is provided, skip search entirely and just refresh that exact entry
+  if (lockedAppid) {
+    try {
+      const det = await httpGetJson(
+        `https://store.steampowered.com/api/appdetails?appids=${lockedAppid}&l=en&cc=us`
+      );
+      const entry = det && det[lockedAppid];
+      if (entry && entry.success) {
+        const d = entry.data;
+        return {
+          source: 'steam',
+          appid: lockedAppid,
+          name: d.name,
+          shortDescription: d.short_description,
+          about: stripHtml(d.about_the_game || '').slice(0, 1400),
+          headerImage: d.header_image,
+          capsuleImage: d.capsule_imagev5 || d.capsule_image,
+          background: d.background_raw || d.background,
+          screenshots: (d.screenshots || []).slice(0, 6).map((s) => s.path_full),
+          genres: (d.genres || []).map((g) => g.description),
+          developers: d.developers || [],
+          publishers: d.publishers || [],
+          releaseDate: d.release_date ? d.release_date.date : '',
+          metacritic: d.metacritic ? d.metacritic.score : null,
+          website: d.website || '',
+        };
+      }
+    } catch { /* fall through to normal search */ }
+  }
   const term = cleanSearchTerm(query);
   if (!term) return null;
 
