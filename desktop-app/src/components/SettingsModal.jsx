@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { THEMES } from '../lib/utils';
-import { SOUND_PACKS } from '../lib/sound';
+import { SOUND_PACKS, setSoundPack, playLaunch, playHover } from '../lib/sound';
 import { Check, Sparkles, Eye, EyeOff, Sliders, Power } from 'lucide-react';
 import Modal from './Modal';
 
@@ -83,7 +83,13 @@ export default function SettingsModal({ open, onClose, settings, setSettings }) 
                   <button
                     key={p.id}
                     data-testid={`sound-pack-${p.id}`}
-                    onClick={() => setKey({ soundPack: p.id })}
+                    onClick={() => {
+                      setKey({ soundPack: p.id });
+                      // Play a sample so user hears the choice immediately
+                      setSoundPack(p.id);
+                      playLaunch();
+                      setTimeout(() => playHover(), 250);
+                    }}
                     className={
                       'rounded-md hairline px-2 py-1.5 text-left text-[11px] transition-colors ' +
                       ((settings.soundPack || 'synthwave') === p.id

@@ -345,7 +345,7 @@ function LibrarySettingsPopover({
       <PopSlider
         label="Spacing between games"
         value={rowGap}
-        min={0}
+        min={-8}
         max={16}
         suffix="px"
         onChange={onChangeRowGap}
@@ -354,7 +354,7 @@ function LibrarySettingsPopover({
       <PopSlider
         label="Spacing under category header"
         value={catGap}
-        min={0}
+        min={-6}
         max={32}
         suffix="px"
         onChange={onChangeCatGap}
@@ -713,9 +713,15 @@ function GameRow({
       className={cn(
         'group relative flex cursor-pointer items-center gap-2.5 rounded-md transition-colors',
         selected ? 'bg-[rgb(var(--accent)/0.10)] text-ink' : 'text-muted hover:bg-panel/70 hover:text-ink',
-        isSmall ? 'px-1.5 py-1' : isBig ? 'px-2 py-2' : 'px-2 py-1.5'
+        isSmall ? 'px-1.5' : 'px-2'
       )}
-      style={{ minHeight: size.rowH, marginBottom: rowGap }}
+      style={{
+        minHeight: size.rowH,
+        marginBottom: rowGap,
+        // Compress vertical padding aggressively when gap is small or negative
+        paddingTop: Math.max(0, 6 + Math.min(0, rowGap) + (isBig ? 2 : 0)),
+        paddingBottom: Math.max(0, 6 + Math.min(0, rowGap) + (isBig ? 2 : 0)),
+      }}
     >
       {/* Selection bar */}
       <span

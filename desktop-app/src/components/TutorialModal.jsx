@@ -85,6 +85,25 @@ export default function TutorialModal({ open, onClose, onDontShowAgain }) {
   const step = STEPS[idx];
   const isLast = idx === STEPS.length - 1;
 
+  // Compute card position: next to the spotlight if there's one, else centred
+  const cardStyle = (() => {
+    if (!anchor) return { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' };
+    const cardW = 380, cardH = 280, gap = 18;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    // Prefer placing the card on the right of the spotlight; if it spills, switch sides
+    let left = anchor.x + anchor.w + gap;
+    let top  = anchor.y + anchor.h / 2 - cardH / 2;
+    if (left + cardW > vw - 16) left = anchor.x - cardW - gap;
+    if (left < 16) {
+      // Fall back to below the spotlight
+      left = Math.min(Math.max(16, anchor.x + anchor.w / 2 - cardW / 2), vw - cardW - 16);
+      top  = anchor.y + anchor.h + gap;
+    }
+    if (top + cardH > vh - 16) top = Math.max(16, vh - cardH - 16);
+    if (top < 16) top = 16;
+    return { left, top };
+  })();
+
   const close = () => {
     if (dontShow) onDontShowAgain?.();
     onClose?.();
@@ -97,7 +116,7 @@ export default function TutorialModal({ open, onClose, onDontShowAgain }) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[150] bg-black/55 backdrop-blur-[2px]"
+        className="fixed inset-0 z-[150] bg-black/20"
         data-testid="tutorial-modal"
       >
         {/* Spotlight on target */}
@@ -129,14 +148,15 @@ export default function TutorialModal({ open, onClose, onDontShowAgain }) {
           </motion.svg>
         )}
 
-        {/* Centred step card */}
+        {/* Centred step card → relocated next to spotlight */}
         <motion.div
           key={idx}
-          initial={{ y: 20, opacity: 0, scale: 0.97 }}
+          initial={{ y: 12, opacity: 0, scale: 0.97 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
-          exit={{ y: -10, opacity: 0 }}
+          exit={{ y: -8, opacity: 0 }}
           transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(440px,calc(100vw-32px))] rounded-2xl hairline glass shadow-2xl p-6"
+          style={{ position: 'absolute', width: 'min(380px, calc(100vw - 32px))', ...cardStyle }}
+          className="rounded-2xl hairline bg-panel/95 shadow-2xl p-5"
         >
           <button
             data-testid="tutorial-close"

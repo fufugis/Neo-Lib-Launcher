@@ -911,12 +911,40 @@ function BgAmbience({ theme, settings = {} }) {
     daybreak: 'amb-daybreak',
     ocean:    'amb-ocean',
     crimson:  'amb-crimson',
+    anime:    'amb-anime',
   }[theme];
   if (!ambClass) return null;
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden" style={{ opacity: intensity }}>
       <div className={ambClass} />
+      {theme === 'anime' && <Sakura count={18} />}
       {settings.particlesEnabled !== false && <Particles count={theme === 'crimson' ? 14 : 8} />}
+    </div>
+  );
+}
+
+function Sakura({ count = 18 }) {
+  const items = React.useMemo(() =>
+    Array.from({ length: count }).map((_, i) => ({
+      left: `${(i * 173) % 100}%`,
+      delay: `${(i * 1.7) % 14}s`,
+      duration: `${10 + (i % 6) * 3}s`,
+      scale: 0.6 + ((i % 5) * 0.18),
+    })),
+  [count]);
+  return (
+    <div className="sakura">
+      {items.map((p, i) => (
+        <span
+          key={i}
+          style={{
+            left: p.left,
+            animationDelay: p.delay,
+            animationDuration: p.duration,
+            transform: `scale(${p.scale})`,
+          }}
+        />
+      ))}
     </div>
   );
 }

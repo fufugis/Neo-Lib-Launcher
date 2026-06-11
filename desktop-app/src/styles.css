@@ -85,6 +85,20 @@
   --hairline-glow: 220 38 60;
 }
 
+/* ANIME — soft cherry-blossom palette with sakura petals + cute sparkles.
+   Deep plum text on a peach-cream backdrop, hot pink + sky cyan accents. */
+[data-theme='anime'] {
+  --ink: 70 30 60;
+  --muted: 162 120 152;
+  --surface: 255 240 246;
+  --panel: 255 248 252;
+  --border: 248 200 224;
+  --accent: 255 110 165;
+  --accent-2: 130 198 255;
+  --accent-soft: 255 220 236;
+  --hairline-glow: 255 110 165;
+}
+
 /* ========== Base ========== */
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; }
@@ -473,6 +487,51 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
   animation: embersUp 18s linear infinite;
 }
 @keyframes embersUp { 0% { background-position: 0 0; } 100% { background-position: 0 -240px; } }
+
+/* Anime — soft sakura petal drift + warm pink wash */
+.amb-anime {
+  position: absolute; inset: 0; pointer-events: none;
+}
+.amb-anime::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255,110,165,0.18), transparent 50%),
+    radial-gradient(circle at 82% 88%, rgba(130,198,255,0.12), transparent 55%),
+    radial-gradient(circle at 50% 50%, rgba(255,220,236,0.22), transparent 70%);
+}
+.amb-anime::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(ellipse 5px 3px at 50% 50%, rgba(255,110,165,0.55), transparent 70%);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse 70% 70% at 50% 30%, black, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 30%, black, transparent 80%);
+  opacity: 0.35;
+}
+/* Sakura petals — animated, drifting down with rotation */
+.sakura {
+  position: absolute; inset: 0; pointer-events: none; overflow: hidden;
+}
+.sakura span {
+  position: absolute;
+  top: -24px;
+  width: 14px;
+  height: 14px;
+  background: radial-gradient(circle at 40% 30%, #ffe1ee 0%, #ff9bcb 60%, #ff6ea8 100%);
+  /* Heart/petal shape via clip-path */
+  clip-path: path('M7 13 C 1 8, 1 3, 4 1 C 6 0, 7 2, 7 4 C 7 2, 8 0, 10 1 C 13 3, 13 8, 7 13 Z');
+  filter: drop-shadow(0 1px 2px rgba(255, 154, 200, 0.6));
+  opacity: 0;
+  animation: petalFall linear infinite;
+}
+@keyframes petalFall {
+  0%   { transform: translate(0, -20px) rotate(0deg);    opacity: 0; }
+  10%  { opacity: 0.9; }
+  50%  { transform: translate(20px, 50vh) rotate(180deg); opacity: 0.85; }
+  100% { transform: translate(-20px, 105vh) rotate(360deg); opacity: 0; }
+}
 
 /* ============================================================ */
 /* FLOATING PARTICLES — opt-in via .particles class               */

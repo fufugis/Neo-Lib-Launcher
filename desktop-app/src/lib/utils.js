@@ -20,6 +20,7 @@ export const uid = () => Math.random().toString(36).slice(2) + Date.now().toStri
 export const THEMES = [
   { id: 'synthwave',     label: 'Synthwave',      swatch: '#ff2a8a' },
   { id: 'synthwave-day', label: 'Vaporwave Day',  swatch: '#ff0090' },
+  { id: 'anime',         label: 'Anime',          swatch: '#ff8fb8' },
   { id: 'midnight',      label: 'Midnight',       swatch: '#c4a56e' },
   { id: 'daybreak',      label: 'Daybreak',       swatch: '#1c1c20' },
   { id: 'ocean',         label: 'Ocean',          swatch: '#4ea8f0' },

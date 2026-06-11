@@ -86,11 +86,17 @@ async function writeJson(filePath, data) {
 let mainWindow;
 
 function createWindow() {
+  const { screen } = require('electron');
+  const primary = screen.getPrimaryDisplay().workAreaSize;
+  // Start at 70% of the user's screen, centred
+  const w = Math.max(960, Math.round(primary.width * 0.70));
+  const h = Math.max(600, Math.round(primary.height * 0.70));
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    width: w,
+    height: h,
     minWidth: 960,
     minHeight: 600,
+    center: true,
     frame: false,
     backgroundColor: '#0a0a0c',
     title: 'NEO-LIB',
