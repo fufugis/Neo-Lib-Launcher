@@ -378,3 +378,199 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
   transform-origin: 0 100%;
   bottom: 38%;
 }
+
+/* ============================================================ */
+/* AMBIENT BACKGROUNDS PER THEME                                 */
+/* Each one is a subtle layered backdrop so themes never feel    */
+/* flat or text-on-white. Pulled in via <BgAmbience>.            */
+/* ============================================================ */
+
+/* Midnight — warm gold particles + corner radial */
+.amb-midnight {
+  position: absolute; inset: 0; pointer-events: none;
+}
+.amb-midnight::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 70vw 60vh at 12% 0%, rgba(196,165,110,0.10), transparent 60%),
+    radial-gradient(ellipse 70vw 60vh at 90% 100%, rgba(196,165,110,0.08), transparent 60%);
+}
+.amb-midnight::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(196,165,110,0.35) 1px, transparent 1.5px);
+  background-size: 36px 36px;
+  mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black, transparent 80%);
+  opacity: 0.18;
+  animation: starsPan 90s linear infinite;
+}
+@keyframes starsPan { 0% { background-position: 0 0; } 100% { background-position: 360px 360px; } }
+
+/* Daybreak — paper warmth + faint diagonal lines */
+.amb-daybreak {
+  position: absolute; inset: 0; pointer-events: none;
+}
+.amb-daybreak::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(circle at 80% 0%, rgba(222,65,130,0.06), transparent 50%),
+    radial-gradient(circle at 0% 100%, rgba(30,30,36,0.06), transparent 60%);
+}
+.amb-daybreak::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: repeating-linear-gradient(135deg, rgba(0,0,0,0.025) 0 1px, transparent 1px 24px);
+}
+
+/* Ocean — deep waves + soft bubbles */
+.amb-ocean {
+  position: absolute; inset: 0; pointer-events: none;
+}
+.amb-ocean::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 100vw 60vh at 50% -10%, rgba(78,168,240,0.18), transparent 60%),
+    radial-gradient(ellipse 80vw 70vh at 50% 110%, rgba(120,220,255,0.14), transparent 60%);
+}
+.amb-ocean::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 16px,
+      rgba(78,168,240,0.06) 16px 17px
+    );
+  mask-image: linear-gradient(180deg, transparent 0%, black 30%, black 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, black 30%, black 100%);
+  animation: oceanWaves 22s linear infinite;
+}
+@keyframes oceanWaves { 0% { background-position: 0 0; } 100% { background-position: 0 17px; } }
+
+/* Crimson — embers + smoke wash */
+.amb-crimson {
+  position: absolute; inset: 0; pointer-events: none;
+}
+.amb-crimson::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 90vw 60vh at 50% 110%, rgba(220,38,60,0.22), transparent 55%),
+    radial-gradient(ellipse 60vw 40vh at 50% -10%, rgba(80,14,22,0.5), transparent 60%);
+}
+.amb-crimson::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(255,90,110,0.45) 1px, transparent 1.5px);
+  background-size: 60px 60px;
+  mask-image: linear-gradient(0deg, black, transparent 70%);
+  -webkit-mask-image: linear-gradient(0deg, black, transparent 70%);
+  opacity: 0.5;
+  animation: embersUp 18s linear infinite;
+}
+@keyframes embersUp { 0% { background-position: 0 0; } 100% { background-position: 0 -240px; } }
+
+/* ============================================================ */
+/* FLOATING PARTICLES — opt-in via .particles class               */
+/* ============================================================ */
+.particles {
+  position: absolute; inset: 0; pointer-events: none;
+  overflow: hidden;
+}
+.particles span {
+  position: absolute;
+  display: block;
+  width: 3px;
+  height: 3px;
+  background: rgb(var(--accent));
+  border-radius: 9999px;
+  box-shadow: 0 0 8px rgb(var(--accent));
+  opacity: 0;
+  animation: floatUp 12s linear infinite;
+}
+@keyframes floatUp {
+  0%   { transform: translateY(110vh) translateX(0) scale(0.6); opacity: 0; }
+  10%  { opacity: 0.7; }
+  90%  { opacity: 0.4; }
+  100% { transform: translateY(-10vh) translateX(20px) scale(1); opacity: 0; }
+}
+
+/* ============================================================ */
+/* CRT BOOT ANIMATION — plays on app start (1.4s)                */
+/* ============================================================ */
+.crt-boot {
+  position: fixed; inset: 0; z-index: 9999;
+  pointer-events: none;
+  background: black;
+  animation: crtBoot 1.4s ease-out forwards;
+}
+.crt-boot::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 50%, rgba(255,255,255,0.95), transparent 70%);
+  animation: crtFlash 0.35s ease-out forwards;
+}
+.crt-boot::after {
+  content: '';
+  position: absolute; left: 0; right: 0; top: 50%;
+  height: 2px;
+  background: rgba(255,255,255,0.9);
+  box-shadow: 0 0 24px rgba(255,255,255,0.9), 0 0 80px rgba(255,255,255,0.5);
+  animation: crtScanLine 0.9s ease-out forwards;
+}
+@keyframes crtBoot {
+  0%   { opacity: 1; }
+  60%  { opacity: 1; }
+  100% { opacity: 0; visibility: hidden; }
+}
+@keyframes crtFlash {
+  0% { opacity: 0; transform: scaleY(0.01); }
+  20% { opacity: 1; transform: scaleY(1); }
+  100% { opacity: 0; }
+}
+@keyframes crtScanLine {
+  0%   { top: 50%; opacity: 1; }
+  40%  { top: 0%; height: 6px; opacity: 1; }
+  80%  { top: 100%; height: 100%; opacity: 0.2; }
+  100% { opacity: 0; }
+}
+
+/* ============================================================ */
+/* SHOWCASE — card flip on hover (subtle tilt + sheen)            */
+/* ============================================================ */
+.showcase-card {
+  transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 240ms ease;
+  transform-style: preserve-3d;
+  position: relative;
+}
+.showcase-card::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.18) 50%, transparent 70%);
+  opacity: 0;
+  transition: opacity 280ms ease;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  border-radius: inherit;
+}
+.showcase-card:hover {
+  transform: translateY(-4px) rotateY(-3deg) rotateX(3deg) scale(1.02);
+  box-shadow: 0 18px 40px -8px rgb(var(--accent) / 0.4);
+}
+.showcase-card:hover::after { opacity: 1; }
+
+/* ============================================================ */
+/* ANIMATED CATEGORY ICON HOVER                                   */
+/* ============================================================ */
+.cat-icon {
+  transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1), filter 200ms ease;
+}
+.group:hover .cat-icon {
+  transform: scale(1.18) rotate(-6deg);
+  filter: drop-shadow(0 0 6px currentColor);
+}

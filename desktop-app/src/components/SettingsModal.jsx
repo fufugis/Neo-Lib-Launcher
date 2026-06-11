@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { THEMES } from '../lib/utils';
+import { SOUND_PACKS } from '../lib/sound';
 import { Check, Sparkles, Eye, EyeOff, Sliders, Power } from 'lucide-react';
 import Modal from './Modal';
 
@@ -65,16 +66,56 @@ export default function SettingsModal({ open, onClose, settings, setSettings }) 
         </Section>
 
         {/* Library appearance — sliders moved to the Library popover (Sliders button next to Settings).
-            Only sound effects toggle remains here. */}
+            Sound effects + sound pack live here. */}
         <Section title="Sounds">
           <div className="space-y-3">
             <Toggle
-              label="Sound effects (Launch button)"
-              hint="Short modern blip on hover/click."
+              label="Enable UI sounds"
+              hint="Short blip on hover and launch."
               value={settings.soundsEnabled !== false}
               onChange={(v) => setKey({ soundsEnabled: v })}
               testid="opt-sounds"
             />
+            <div className="rounded-lg hairline bg-surface/40 px-3 py-2.5">
+              <div className="mb-2 text-[13px] font-medium">Sound pack</div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {SOUND_PACKS.map((p) => (
+                  <button
+                    key={p.id}
+                    data-testid={`sound-pack-${p.id}`}
+                    onClick={() => setKey({ soundPack: p.id })}
+                    className={
+                      'rounded-md hairline px-2 py-1.5 text-left text-[11px] transition-colors ' +
+                      ((settings.soundPack || 'synthwave') === p.id
+                        ? 'border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.12)] text-ink'
+                        : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]')
+                    }
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Section>
+
+        {/* Tutorial */}
+        <Section title="Onboarding">
+          <div className="space-y-3">
+            <Toggle
+              label="Show tutorial on every startup"
+              hint="If on, the welcome tour opens each time NEO-LIB launches."
+              value={settings.tutorialAlwaysShow === true}
+              onChange={(v) => setKey({ tutorialAlwaysShow: v })}
+              testid="opt-tutorial-always"
+            />
+            <button
+              data-testid="opt-tutorial-reopen"
+              onClick={() => { setKey({ tutorialSeen: false, tutorialAlwaysShow: settings.tutorialAlwaysShow }); onClose(); }}
+              className="w-full rounded-md hairline px-3 py-2 text-xs text-ink hover:bg-[rgb(var(--accent)/0.08)]"
+            >
+              Replay tutorial now
+            </button>
           </div>
         </Section>
 
@@ -108,6 +149,20 @@ export default function SettingsModal({ open, onClose, settings, setSettings }) 
               value={settings.scanlinesEnabled !== false}
               onChange={(v) => setKey({ scanlinesEnabled: v })}
               testid="opt-scanlines"
+            />
+            <Toggle
+              label="Floating particles"
+              hint="Soft accent-colored particles drift up behind the app."
+              value={settings.particlesEnabled !== false}
+              onChange={(v) => setKey({ particlesEnabled: v })}
+              testid="opt-particles"
+            />
+            <Toggle
+              label="CRT boot animation"
+              hint="Old-TV power-on flash on app start (1.4s)."
+              value={settings.crtBootEnabled !== false}
+              onChange={(v) => setKey({ crtBootEnabled: v })}
+              testid="opt-crt-boot"
             />
             <Slider
               label="Background grid intensity"

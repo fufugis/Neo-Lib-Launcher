@@ -8,9 +8,13 @@ import SettingsModal from './components/SettingsModal';
 import AddGameModal from './components/AddGameModal';
 import WizardModal from './components/WizardModal';
 import PromptModal from './components/PromptModal';
+import ConfirmModal from './components/ConfirmModal';
+import TroubleshootModal from './components/TroubleshootModal';
+import TutorialModal from './components/TutorialModal';
 import CategoryModal from './components/CategoryModal';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin } from './lib/utils';
+import { setSoundPack } from './lib/sound';
 
 const isElectron = typeof window !== 'undefined' && !!window.api;
 
@@ -133,6 +137,45 @@ export default function App() {
       return { open: false };
     });
   };
+
+  /* --- Sound pack: apply when settings change --- */
+  React.useEffect(() => {
+    setSoundPack(settings.soundsEnabled === false ? 'none' : (settings.soundPack || 'synthwave'));
+  }, [settings.soundsEnabled, settings.soundPack]);
+
+  /* --- CRT boot animation on first paint --- */
+  const [bootDone, setBootDone] = React.useState(false);
+  React.useEffect(() => {
+    const t = setTimeout(() => setBootDone(true), 1400);
+    return () => clearTimeout(t);
+  }, []);
+
+  /* --- Tutorial state (first-time popup) --- */
+  const [tutorialOpen, setTutorialOpen] = React.useState(false);
+  React.useEffect(() => {
+    // Open tutorial if user hasn't dismissed it AND setting allows
+    const seen = isElectron ? settings.tutorialSeen : (typeof localStorage !== 'undefined' && localStorage.getItem('neo-lib-tutorial-seen') === '1');
+    if (!seen || settings.tutorialAlwaysShow) {
+      // Slight delay so app + sidebar are rendered
+      const t = setTimeout(() => setTutorialOpen(true), 1500);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, [settings.tutorialSeen, settings.tutorialAlwaysShow]);
+
+  /* --- Troubleshoot state (smart refetch) --- */
+  const [troubleshoot, setTroubleshoot] = React.useState({ open: false, game: null });
+
+  /* --- Confirm dialog state --- */
+  const [confirmCfg, setConfirmCfg] = React.useState({ open: false });
+  const askConfirm = ({ title, message, confirmLabel = 'Yes', cancelLabel = 'No', destructive = false }) =>
+    new Promise((resolve) => {
+      setConfirmCfg({
+        open: true, title, message, confirmLabel, cancelLabel, destructive,
+        onConfirm: () => resolve(true),
+        onCancel: () => resolve(false),
+      });
+    });
 
   /* --- Load on mount --- */
   React.useEffect(() => {
@@ -519,15 +562,14 @@ export default function App() {
   /* --- Game right-click actions --- */
   const handleGameContext = async (action, g) => {
     if (action === 'remove') {
-      const ok = await askPrompt({
-        title: 'Remove game',
-        label: `Type "${g.name}" to confirm removal from library (file stays on disk).`,
-        defaultValue: '',
-        placeholder: g.name,
+      const ok = await askConfirm({
+        title: 'Remove game from library?',
+        message: `"${g.name}" will be removed from your library. The game files on disk are NOT touched — only this library entry is removed.`,
         confirmLabel: 'Remove',
+        cancelLabel: 'Cancel',
+        destructive: true,
       });
-      if (ok && ok.trim() === g.name) removeGame(g.id);
-      else if (ok !== null) notify('Name did not match — removal cancelled.');
+      if (ok) removeGame(g.id);
       return;
     }
     if (action === 'reveal') {
@@ -536,7 +578,8 @@ export default function App() {
       return;
     }
     if (action === 'refetch') {
-      await refetchGame(g, { skipCurrentSource: true });
+      // Open the Troubleshoot modal instead of immediately refetching
+      setTroubleshoot({ open: true, game: g });
       return;
     }
     if (action === 'research') {
@@ -591,6 +634,64 @@ export default function App() {
     }
   };
 
+  /* --- Troubleshoot actions (smart per-field refetch) --- */
+  const handleTroubleshoot = async ({ type }) => {
+    const g = troubleshoot.game;
+    if (!g) return;
+    if (type === 'research') {
+      setTroubleshoot({ open: false, game: null });
+      const name = await askPrompt({
+        title: 'Re-search by name',
+        label: 'Search for a different game (this will overwrite metadata):',
+        defaultValue: g.name,
+        confirmLabel: 'Search',
+      });
+      if (name && name.trim()) {
+        await refetchGame(g, { query: name.trim(), forceSearch: true });
+      }
+      return;
+    }
+    if (type === 'all-locked') {
+      setTroubleshoot({ open: false, game: null });
+      await refetchGame(g, { skipCurrentSource: true });
+      return;
+    }
+    // Surgical field refetch — fetch full metadata locked to current appid, then apply only the requested field
+    if (!isElectron) { notify('Re-fetch only works in the installed app.'); return; }
+    setFetching(true);
+    const result = await window.api.fetchMetadata({
+      query: g.name,
+      skipSources: [],
+      geminiKey: settings.geminiKey || '',
+      lockedAppid: g.appid || null,
+    });
+    if (!result) {
+      setFetching(false);
+      notify('No metadata found.');
+      return;
+    }
+    const patch = {};
+    if (type === 'icon') {
+      let coverUrl = result.capsuleImage || result.headerImage || null;
+      if (coverUrl && coverUrl.startsWith('http')) {
+        coverUrl = (await window.api.cacheImage(coverUrl, result.name)) || coverUrl;
+      }
+      patch.icon = coverUrl || g.icon;
+      patch.coverUrl = coverUrl || g.coverUrl;
+    } else if (type === 'description') {
+      patch.about = result.about || g.about;
+      patch.shortDescription = result.shortDescription || g.shortDescription;
+    } else if (type === 'screenshots') {
+      patch.screenshots = result.screenshots?.length ? result.screenshots : g.screenshots;
+    } else if (type === 'banner') {
+      patch.headerImage = result.headerImage || g.headerImage;
+      patch.background = result.background || g.background;
+    }
+    updateGame(g.id, patch);
+    setFetching(false);
+    notify(`Updated ${type}.`);
+  };
+
   /* --- Collapsed state --- */
   const toggleCollapsed = (id) =>
     updateSetting({ collapsed: { ...settings.collapsed, [id]: !settings.collapsed[id] } });
@@ -616,10 +717,14 @@ export default function App() {
           rowSize={settings.rowSize ?? 44}
           catTextSize={settings.catTextSize ?? 11}
           catGlow={settings.catGlow ?? 40}
+          rowGap={settings.rowGap ?? 2}
+          catGap={settings.catGap ?? 8}
           iconPosition={settings.iconPosition || 'left'}
           onChangeRowSize={(v) => updateSetting({ rowSize: v })}
           onChangeCatTextSize={(v) => updateSetting({ catTextSize: v })}
           onChangeCatGlow={(v) => updateSetting({ catGlow: v })}
+          onChangeRowGap={(v) => updateSetting({ rowGap: v })}
+          onChangeCatGap={(v) => updateSetting({ catGap: v })}
           onChangeIconPosition={(v) => updateSetting({ iconPosition: v })}
           mode={settings.mode || 'library'}
           onSetMode={setMode}
@@ -650,7 +755,7 @@ export default function App() {
                 fetching={fetching}
                 settings={settings}
                 onLaunch={launchGame}
-                onRefetch={(g) => refetchGame(g, { skipCurrentSource: true })}
+                onRefetch={(g) => setTroubleshoot({ open: true, game: g })}
                 onRevealFolder={(g) => (isElectron ? window.api.revealInFolder(g.exePath) : notify('Open: ' + g.exePath))}
                 onToggleCategory={toggleGameInCategory}
               />
@@ -721,6 +826,43 @@ export default function App() {
         onClose={() => closePrompt(true)}
       />
 
+      <ConfirmModal
+        open={!!confirmCfg.open}
+        title={confirmCfg.title}
+        message={confirmCfg.message}
+        confirmLabel={confirmCfg.confirmLabel}
+        cancelLabel={confirmCfg.cancelLabel}
+        destructive={confirmCfg.destructive}
+        onConfirm={() => { confirmCfg.onConfirm && confirmCfg.onConfirm(); }}
+        onClose={() => {
+          setConfirmCfg((p) => {
+            if (p.onCancel) p.onCancel();
+            return { open: false };
+          });
+        }}
+      />
+
+      <TroubleshootModal
+        open={troubleshoot.open}
+        game={troubleshoot.game}
+        busy={fetching}
+        onClose={() => setTroubleshoot({ open: false, game: null })}
+        onAction={handleTroubleshoot}
+      />
+
+      <TutorialModal
+        open={tutorialOpen}
+        onClose={() => setTutorialOpen(false)}
+        onDontShowAgain={() => {
+          updateSetting({ tutorialSeen: true, tutorialAlwaysShow: false });
+          if (!isElectron && typeof localStorage !== 'undefined') {
+            localStorage.setItem('neo-lib-tutorial-seen', '1');
+          }
+        }}
+      />
+
+      {!bootDone && settings.crtBootEnabled !== false && <div className="crt-boot" />}
+
       <AnimatePresence>
         {toast && (
           <motion.div
@@ -737,9 +879,11 @@ export default function App() {
 }
 
 function BgAmbience({ theme, settings = {} }) {
+  if (settings.synthGridEnabled === false) return null;
+  const intensity = (settings.gridIntensity ?? 100) / 100;
+
+  // Vaporwave Day — clouds + neon grid floor
   if (theme === 'synthwave-day') {
-    if (settings.synthGridEnabled === false) return null;
-    const intensity = (settings.gridIntensity ?? 100) / 100;
     return (
       <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden" style={{ opacity: intensity }}>
         <div className="vapor-clouds" />
@@ -747,17 +891,59 @@ function BgAmbience({ theme, settings = {} }) {
       </div>
     );
   }
-  if (theme !== 'synthwave') return null;
-  if (settings.synthGridEnabled === false) return null;
-  const intensity = (settings.gridIntensity ?? 100) / 100;
+  // Synthwave — grid + horizon + accent glow
+  if (theme === 'synthwave') {
+    return (
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden" style={{ opacity: intensity }}>
+        <div className="synth-grid" />
+        <div className="synth-horizon" />
+        <div
+          className="absolute -top-40 left-1/2 h-[60vh] w-[80vw] -translate-x-1/2 rounded-full opacity-30 blur-3xl"
+          style={{ background: 'radial-gradient(circle, rgb(var(--accent)/0.45), transparent 60%)' }}
+        />
+        {settings.particlesEnabled !== false && <Particles count={10} />}
+      </div>
+    );
+  }
+  // All other themes get their own subtle ambient backdrop
+  const ambClass = {
+    midnight: 'amb-midnight',
+    daybreak: 'amb-daybreak',
+    ocean:    'amb-ocean',
+    crimson:  'amb-crimson',
+  }[theme];
+  if (!ambClass) return null;
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden" style={{ opacity: intensity }}>
-      <div className="synth-grid" />
-      <div className="synth-horizon" />
-      <div
-        className="absolute -top-40 left-1/2 h-[60vh] w-[80vw] -translate-x-1/2 rounded-full opacity-30 blur-3xl"
-        style={{ background: 'radial-gradient(circle, rgb(var(--accent)/0.45), transparent 60%)' }}
-      />
+      <div className={ambClass} />
+      {settings.particlesEnabled !== false && <Particles count={theme === 'crimson' ? 14 : 8} />}
+    </div>
+  );
+}
+
+function Particles({ count = 10 }) {
+  // Pre-compute deterministic positions so they don't jump on re-render
+  const items = React.useMemo(() => {
+    return Array.from({ length: count }).map((_, i) => ({
+      left: `${(i * 173) % 100}%`,
+      delay: `${(i * 1.37) % 12}s`,
+      duration: `${10 + (i % 5) * 2}s`,
+      scale: 0.6 + ((i % 5) * 0.15),
+    }));
+  }, [count]);
+  return (
+    <div className="particles">
+      {items.map((p, i) => (
+        <span
+          key={i}
+          style={{
+            left: p.left,
+            animationDelay: p.delay,
+            animationDuration: p.duration,
+            transform: `scale(${p.scale})`,
+          }}
+        />
+      ))}
     </div>
   );
 }

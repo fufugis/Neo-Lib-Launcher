@@ -129,8 +129,8 @@ function Tile({ g, mode, selected, index, onClick }) {
       onClick={onClick}
       data-testid={`showcase-tile-${g.id}`}
       className={cn(
-        'group relative h-[88px] w-[158px] shrink-0 overflow-hidden rounded-lg hairline bg-surface/60 text-left transition-shadow',
-        selected ? 'ring-1 ring-[rgb(var(--accent))] shadow-[0_0_18px_-2px_rgb(var(--accent)/0.55)]' : 'hover:shadow-[0_0_14px_-3px_rgb(var(--accent-2)/0.5)]'
+        'showcase-card group relative h-[88px] w-[158px] shrink-0 overflow-hidden rounded-lg hairline bg-surface/60 text-left',
+        selected ? 'ring-1 ring-[rgb(var(--accent))] shadow-[0_0_18px_-2px_rgb(var(--accent)/0.55)]' : ''
       )}
     >
       {(g.coverUrl || g.headerImage) ? (

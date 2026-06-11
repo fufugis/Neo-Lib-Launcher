@@ -25,7 +25,9 @@ export default function Sidebar({
   unlockedCategories, search, selectedId, librarySize,
   mode, onSetMode,
   iconPosition = 'left', rowSize = 44, catTextSize = 11, catGlow = 40,
+  rowGap = 2, catGap = 8,
   onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
+  onChangeRowGap, onChangeCatGap,
   onSelect,
   onAddManual, onOpenWizard, onOpenSettings, onUpdateAll,
   onCreateCategory, onCategoryContext, onGameContext,
@@ -138,11 +140,15 @@ export default function Sidebar({
                 rowSize={rowSize}
                 catTextSize={catTextSize}
                 catGlow={catGlow}
+                rowGap={rowGap}
+                catGap={catGap}
                 iconPosition={iconPosition}
                 onSetLibrarySize={onSetLibrarySize}
                 onChangeRowSize={onChangeRowSize}
                 onChangeCatTextSize={onChangeCatTextSize}
                 onChangeCatGlow={onChangeCatGlow}
+                onChangeRowGap={onChangeRowGap}
+                onChangeCatGap={onChangeCatGap}
                 onChangeIconPosition={onChangeIconPosition}
                 onClose={() => setLibSettingsOpen(false)}
                 onCreateCategory={onCreateCategory}
@@ -178,6 +184,8 @@ export default function Sidebar({
             iconPosition={iconPosition}
             catTextSize={catTextSize}
             catGlow={catGlow}
+            rowGap={rowGap}
+            catGap={catGap}
             selectedId={selectedId}
             onSelect={onSelect}
             onContext={(action, payload) => onGameContext(action, payload.game, payload)}
@@ -246,7 +254,9 @@ function TabPill({ label, icon, active, onClick, testid }) {
 /* ---------------- Library settings popover ---------------- */
 function LibrarySettingsPopover({
   librarySize, rowSize = 44, catTextSize = 11, catGlow = 40, iconPosition = 'left',
+  rowGap = 2, catGap = 8,
   onSetLibrarySize, onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
+  onChangeRowGap, onChangeCatGap,
   onClose, onCreateCategory,
 }) {
   const ref = React.useRef(null);
@@ -332,6 +342,24 @@ function LibrarySettingsPopover({
         onChange={onChangeCatGlow}
         testid="pop-cat-glow"
       />
+      <PopSlider
+        label="Spacing between games"
+        value={rowGap}
+        min={0}
+        max={16}
+        suffix="px"
+        onChange={onChangeRowGap}
+        testid="pop-row-gap"
+      />
+      <PopSlider
+        label="Spacing under category header"
+        value={catGap}
+        min={0}
+        max={32}
+        suffix="px"
+        onChange={onChangeCatGap}
+        testid="pop-cat-gap"
+      />
 
       <div>
         <div className="mb-1.5 text-[10px] uppercase tracking-wider text-muted">Icon position</div>
@@ -391,7 +419,7 @@ function Section({
   onContext, onCategoryContext, onUnlockCategory, onToggleCollapsed,
   onMoveGameToCategory, onReorderGameInCategory, onReorderCategory,
   unlockedCategories, categories,
-  catTextSize = 11, catGlow = 40,
+  catTextSize = 11, catGlow = 40, rowGap = 2, catGap = 8,
 }) {
   const isUncat = section.id === '__uncat__';
   const c = section.category;
@@ -427,7 +455,7 @@ function Section({
   return (
     <div
       ref={sectionRef}
-      className="mb-1"
+      style={{ marginBottom: catGap }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       onDragOver={onSectionDragOver}
@@ -488,8 +516,14 @@ function Section({
           </span>
         ) : (
           <span
-            className="h-2.5 w-2.5 shrink-0 rounded-full"
-            style={{ background: color, boxShadow: `0 0 8px ${color}` }}
+            className="shrink-0 rounded-full cat-icon"
+            style={{
+              width: Math.round(catTextSize * 0.95),
+              height: Math.round(catTextSize * 0.95),
+              background: color,
+              boxShadow: `0 0 ${Math.round(8 + catGlow * 0.1)}px ${color}`,
+              color, // for filter:drop-shadow on hover
+            }}
           />
         )}
 
@@ -574,6 +608,7 @@ function Section({
                     g={g}
                     size={size}
                     iconPosition={iconPosition}
+                    rowGap={rowGap}
                     selected={selectedId === g.id}
                     indexInCat={idx}
                     sectionGames={section.games}
@@ -600,7 +635,7 @@ function Section({
 function GameRow({
   g, size, selected, onClick, onContext, fromCatId, indexInCat,
   sectionGames, onReorderInCat, onMoveBetween, categories,
-  iconPosition = 'left',
+  iconPosition = 'left', rowGap = 2,
 }) {
   const [menu, setMenu] = React.useState({ open: false, x: 0, y: 0 });
   const ref = React.useRef(null);
@@ -676,11 +711,11 @@ function GameRow({
       onClick={onClick}
       data-testid={`game-row-${g.id}`}
       className={cn(
-        'group relative mb-0.5 flex cursor-pointer items-center gap-2.5 rounded-md transition-colors',
+        'group relative flex cursor-pointer items-center gap-2.5 rounded-md transition-colors',
         selected ? 'bg-[rgb(var(--accent)/0.10)] text-ink' : 'text-muted hover:bg-panel/70 hover:text-ink',
         isSmall ? 'px-1.5 py-1' : isBig ? 'px-2 py-2' : 'px-2 py-1.5'
       )}
-      style={{ minHeight: size.rowH }}
+      style={{ minHeight: size.rowH, marginBottom: rowGap }}
     >
       {/* Selection bar */}
       <span
