@@ -191,6 +191,50 @@ export default function SettingsModal({ open, onClose, settings, setSettings }) 
         </Section>
 
         {/* App behaviour */}
+        <Section title="Deals & sponsored content">
+          <div className="space-y-3">
+            <Toggle
+              label="Show deals bar at the bottom"
+              hint="Rotates Epic free games and Steam top discounts. Pulled live, no tracking."
+              value={settings.dealsEnabled !== false}
+              onChange={(v) => setKey({ dealsEnabled: v, dealsBarHidden: false })}
+              testid="opt-deals"
+            />
+            <div className="rounded-lg hairline bg-surface/40 px-3 py-2.5 space-y-2">
+              <div className="text-[13px] font-medium">Affiliate IDs (optional)</div>
+              <p className="text-[10.5px] text-muted leading-relaxed">
+                If you sign up to an affiliate program (Awin / Fanatical / Humble Partner), paste your IDs here and all
+                deal links will be automatically wrapped. Earn a small commission on every deal users buy through NEO-LIB.
+                Leave blank for direct (non-affiliate) links.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <AffInput
+                  label="Awin Affiliate ID"
+                  value={settings.affiliate?.awinAffId || ''}
+                  onChange={(v) => setKey({ affiliate: { ...(settings.affiliate || {}), awinAffId: v } })}
+                  placeholder="e.g. 1234567"
+                  testid="aff-awinAffId"
+                />
+                <AffInput
+                  label="Awin Merchant ID (advertiser)"
+                  value={settings.affiliate?.awinMid || ''}
+                  onChange={(v) => setKey({ affiliate: { ...(settings.affiliate || {}), awinMid: v } })}
+                  placeholder="e.g. 17157 (Fanatical)"
+                  testid="aff-awinMid"
+                />
+              </div>
+              <AffInput
+                label="Custom URL template (advanced)"
+                value={settings.affiliate?.urlTemplate || ''}
+                onChange={(v) => setKey({ affiliate: { ...(settings.affiliate || {}), urlTemplate: v } })}
+                placeholder="https://example.com/track?aff=YOU&dest={URL}"
+                testid="aff-urlTemplate"
+              />
+            </div>
+          </div>
+        </Section>
+
+        {/* App behaviour */}
         <Section title="App behaviour">
           <div className="space-y-3">
             <Toggle
@@ -324,5 +368,22 @@ function Slider({ label, value, min, max, onChange, suffix = '', testid }) {
         className="w-full accent-[rgb(var(--accent))]"
       />
     </div>
+  );
+}
+
+
+function AffInput({ label, value, onChange, placeholder, testid }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[10.5px] uppercase tracking-wider text-muted/80">{label}</span>
+      <input
+        data-testid={testid}
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-md hairline bg-surface/60 px-2 py-1.5 text-[11px] text-ink outline-none focus:border-[rgb(var(--accent))]"
+      />
+    </label>
   );
 }

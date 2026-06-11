@@ -900,3 +900,72 @@ ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey,
   return null;
 });
 
+/* ============================================================ */
+/* DEALS — Epic free games + Steam specials                       */
+/* Cached in memory for 1 hour. No API keys required.             */
+/* ============================================================ */
+let DEALS_CACHE = { ts: 0, items: [] };
+
+ipcMain.handle('deals:fetch', async () => {
+  const ONE_HOUR = 60 * 60 * 1000;
+  if (Date.now() - DEALS_CACHE.ts < ONE_HOUR && DEALS_CACHE.items.length) {
+    return DEALS_CACHE.items;
+  }
+  const items = [];
+
+  // -- Epic free games (current + upcoming)
+  try {
+    const epic = await httpGetJson(
+      'https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=en-US&country=US&allowCountries=US'
+    );
+    const games = epic?.data?.Catalog?.searchStore?.elements || [];
+    for (const g of games) {
+      const promo = g?.promotions?.promotionalOffers?.[0]?.promotionalOffers?.[0];
+      if (!promo) continue;
+      const discount = promo.discountSetting?.discountPercentage;
+      // Epic uses discountPercentage 0 to mean "100% off" oddly; verify it's truly free
+      const isFree = discount === 0 || promo.discountSetting?.discountType === 'PERCENTAGE';
+      if (!isFree) continue;
+      const slug = g.productSlug || g.urlSlug || g.catalogNs?.mappings?.[0]?.pageSlug || '';
+      if (!slug) continue;
+      const image = (g.keyImages || []).find((k) => k.type === 'OfferImageWide' || k.type === 'DieselStoreFrontWide')?.url
+                  || (g.keyImages || [])[0]?.url;
+      items.push({
+        id: `epic-${g.id}`,
+        platform: 'epic',
+        title: g.title,
+        subtitle: 'Free this week · Epic Games',
+        priceText: 'FREE',
+        originalPrice: g.price?.totalPrice?.fmtPrice?.originalPrice || '',
+        image,
+        url: `https://store.epicgames.com/en-US/p/${slug}`,
+        endsAt: promo.endDate,
+      });
+    }
+  } catch (e) { /* offline / network failure — skip */ }
+
+  // -- Steam featured specials
+  try {
+    const sf = await httpGetJson('https://store.steampowered.com/api/featuredcategories?cc=us&l=en');
+    const specials = sf?.specials?.items || [];
+    for (const s of specials.slice(0, 8)) {
+      if (!s.discount_percent || s.discount_percent < 25) continue;
+      items.push({
+        id: `steam-${s.id}`,
+        platform: 'steam',
+        appid: s.id,
+        title: s.name,
+        subtitle: `-${s.discount_percent}% · Steam`,
+        priceText: `$${(s.final_price / 100).toFixed(2)}`,
+        originalPrice: `$${(s.original_price / 100).toFixed(2)}`,
+        image: s.large_capsule_image || s.header_image,
+        url: `https://store.steampowered.com/app/${s.id}`,
+        discount: s.discount_percent,
+      });
+    }
+  } catch (e) { /* skip */ }
+
+  DEALS_CACHE = { ts: Date.now(), items };
+  return items;
+});
+

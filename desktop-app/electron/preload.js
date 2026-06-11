@@ -49,4 +49,7 @@ contextBridge.exposeInMainWorld('api', {
   // launcher imports
   scanSteam: () => ipcRenderer.invoke('launcher:scan-steam'),
   scanEpic: () => ipcRenderer.invoke('launcher:scan-epic'),
+
+  // deals (Epic free + Steam specials)
+  fetchDeals: () => ipcRenderer.invoke('deals:fetch'),
 });

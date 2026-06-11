@@ -4,6 +4,7 @@ import TitleBar from './components/TitleBar';
 import Sidebar, { CategoryContextMenu } from './components/Sidebar';
 import GameDetail from './components/GameDetail';
 import ShowcaseStrip from './components/ShowcaseStrip';
+import DealsBar from './components/DealsBar';
 import SettingsModal from './components/SettingsModal';
 import AddGameModal from './components/AddGameModal';
 import WizardModal from './components/WizardModal';
@@ -770,10 +771,19 @@ export default function App() {
               setMode={(m) => updateSetting({ showcaseMode: m })}
               onSelect={setCurrentSelectedId}
               selectedId={currentSelectedId}
+              settings={settings}
             />
           )}
         </main>
       </div>
+
+      {/* Bottom deals bar — across the full window */}
+      {settings.dealsEnabled !== false && settings.dealsBarHidden !== true && (
+        <DealsBar
+          settings={settings}
+          onClose={() => updateSetting({ dealsBarHidden: true })}
+        />
+      )}
 
       {/* Modals */}
       <AddGameModal open={showAdd} onClose={() => setShowAdd(false)} onCreate={addGame} />
