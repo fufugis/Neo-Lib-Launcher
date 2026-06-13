@@ -74,9 +74,14 @@ async function readJson(filePath, fallback) {
     return fallback;
   }
 }
+// Atomic write: stage to .tmp then rename, so a killed process / power loss can't
+// corrupt the on-disk JSON (which previously caused settings to silently reset
+// — e.g. theme reverting to default on next launch).
 async function writeJson(filePath, data) {
   await fsp.mkdir(path.dirname(filePath), { recursive: true });
-  await fsp.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
+  const tmp = filePath + '.tmp';
+  await fsp.writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
+  await fsp.rename(tmp, filePath);
 }
 
 // ---------------- Window ---------------- //
@@ -146,7 +151,7 @@ ipcMain.handle('library:save', async (_e, data) => {
   return true;
 });
 ipcMain.handle('settings:load', async () =>
-  readJson(settingsFile(), { theme: 'midnight', firstRun: true })
+  readJson(settingsFile(), { theme: 'synthwave', firstRun: true })
 );
 ipcMain.handle('settings:save', async (_e, data) => {
   await writeJson(settingsFile(), data);

@@ -975,12 +975,14 @@ export default function App() {
           rowGap={settings.rowGap ?? 2}
           catGap={settings.catGap ?? 8}
           iconPosition={settings.iconPosition || 'left'}
+          showCategoryDot={settings.showCategoryDot !== false}
           onChangeRowSize={(v) => updateSetting({ rowSize: v })}
           onChangeCatTextSize={(v) => updateSetting({ catTextSize: v })}
           onChangeCatGlow={(v) => updateSetting({ catGlow: v })}
           onChangeRowGap={(v) => updateSetting({ rowGap: v })}
           onChangeCatGap={(v) => updateSetting({ catGap: v })}
           onChangeIconPosition={(v) => updateSetting({ iconPosition: v })}
+          onToggleCategoryDot={(v) => updateSetting({ showCategoryDot: v })}
           mode={settings.mode || 'library'}
           onSetMode={setMode}
           launcherFilter={launcherFilter}

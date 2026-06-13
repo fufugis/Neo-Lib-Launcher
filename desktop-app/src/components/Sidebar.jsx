@@ -28,8 +28,9 @@ export default function Sidebar({
   onSetLauncherFilter,
   iconPosition = 'left', rowSize = 44, catTextSize = 11, catGlow = 40,
   rowGap = 2, catGap = 8,
+  showCategoryDot = true,
   onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
-  onChangeRowGap, onChangeCatGap,
+  onChangeRowGap, onChangeCatGap, onToggleCategoryDot,
   onSelect,
   onAddManual, onOpenWizard, onOpenSettings, onUpdateAll,
   onCreateCategory, onCategoryContext, onGameContext,
@@ -204,6 +205,7 @@ export default function Sidebar({
                 rowGap={rowGap}
                 catGap={catGap}
                 iconPosition={iconPosition}
+                showCategoryDot={showCategoryDot}
                 onSetLibrarySize={onSetLibrarySize}
                 onChangeRowSize={onChangeRowSize}
                 onChangeCatTextSize={onChangeCatTextSize}
@@ -211,6 +213,7 @@ export default function Sidebar({
                 onChangeRowGap={onChangeRowGap}
                 onChangeCatGap={onChangeCatGap}
                 onChangeIconPosition={onChangeIconPosition}
+                onToggleCategoryDot={onToggleCategoryDot}
                 onClose={() => setLibSettingsOpen(false)}
                 onCreateCategory={onCreateCategory}
               />
@@ -263,6 +266,7 @@ export default function Sidebar({
         {twoRow ? (
           <TwoColumnSections sections={sections} commonProps={{
             collapsed, size, iconPosition, catTextSize, catGlow, rowGap, catGap, selectedId,
+            showCategoryDot,
             onSelect, onGameContext, onCategoryContext, onUnlockCategory, onToggleCollapsed,
             onMoveGameToCategory, onReorderGameInCategory, onReorderCategory,
             unlockedCategories, categories,
@@ -280,6 +284,7 @@ export default function Sidebar({
               catGlow={catGlow}
               rowGap={rowGap}
               catGap={catGap}
+              showCategoryDot={showCategoryDot}
               selectedId={selectedId}
               onSelect={onSelect}
               onContext={(action, payload) => onGameContext(action, payload.game, payload)}
@@ -355,6 +360,7 @@ function TwoColumnSections({ sections, commonProps }) {
 
 function SectionWrap({ s, idx, commonProps }) {
   const { collapsed, size, iconPosition, catTextSize, catGlow, rowGap, catGap, selectedId,
+    showCategoryDot,
     onSelect, onGameContext, onCategoryContext, onUnlockCategory, onToggleCollapsed,
     onMoveGameToCategory, onReorderGameInCategory, onReorderCategory,
     unlockedCategories, categories } = commonProps;
@@ -369,6 +375,7 @@ function SectionWrap({ s, idx, commonProps }) {
       catGlow={catGlow}
       rowGap={rowGap}
       catGap={catGap}
+      showCategoryDot={showCategoryDot}
       selectedId={selectedId}
       onSelect={onSelect}
       onContext={(action, payload) => onGameContext(action, payload.game, payload)}
@@ -449,9 +456,9 @@ function LauncherPill({ label, active, onClick, testid }) {
 /* ---------------- Library settings popover ---------------- */
 function LibrarySettingsPopover({
   librarySize, rowSize = 44, catTextSize = 11, catGlow = 40, iconPosition = 'left',
-  rowGap = 2, catGap = 8,
+  rowGap = 2, catGap = 8, showCategoryDot = true,
   onSetLibrarySize, onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
-  onChangeRowGap, onChangeCatGap,
+  onChangeRowGap, onChangeCatGap, onToggleCategoryDot,
   onClose, onCreateCategory,
 }) {
   const ref = React.useRef(null);
@@ -577,6 +584,33 @@ function LibrarySettingsPopover({
         </div>
       </div>
 
+      {/* Category dot toggle — hides the small colored category indicator next to genre/playtime */}
+      <button
+        data-testid="pop-toggle-cat-dot"
+        onClick={() => onToggleCategoryDot && onToggleCategoryDot(!showCategoryDot)}
+        className={cn(
+          'flex w-full items-center justify-between rounded-md hairline px-2.5 py-2 text-[11px] transition-colors',
+          showCategoryDot
+            ? 'border-[rgb(var(--accent)/0.5)] bg-[rgb(var(--accent)/0.08)] text-ink'
+            : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]'
+        )}
+        title="Toggle the small colored category dot shown beside each game's genre/playtime"
+      >
+        <span className="flex items-center gap-2">
+          <span
+            className="h-1.5 w-1.5 rounded-full"
+            style={{
+              background: showCategoryDot ? 'rgb(var(--accent))' : 'rgb(var(--muted))',
+              boxShadow: showCategoryDot ? '0 0 4px rgb(var(--accent))' : 'none',
+            }}
+          />
+          Category dot
+        </span>
+        <span className="text-[10px] uppercase tracking-wider">
+          {showCategoryDot ? 'shown' : 'hidden'}
+        </span>
+      </button>
+
       <div className="h-px bg-[rgb(var(--border))]" />
       <button
         onClick={() => { onCreateCategory(); onClose(); }}
@@ -615,6 +649,7 @@ function Section({
   onMoveGameToCategory, onReorderGameInCategory, onReorderCategory,
   unlockedCategories, categories,
   catTextSize = 11, catGlow = 40, rowGap = 2, catGap = 8,
+  showCategoryDot = true,
 }) {
   const isUncat = section.id === '__uncat__';
   const c = section.category;
@@ -804,6 +839,7 @@ function Section({
                     size={size}
                     iconPosition={iconPosition}
                     rowGap={rowGap}
+                    showCategoryDot={showCategoryDot}
                     selected={selectedId === g.id}
                     indexInCat={idx}
                     sectionGames={section.games}
@@ -830,7 +866,7 @@ function Section({
 function GameRow({
   g, size, selected, onClick, onContext, fromCatId, indexInCat,
   sectionGames, onReorderInCat, onMoveBetween, categories,
-  iconPosition = 'left', rowGap = 2,
+  iconPosition = 'left', rowGap = 2, showCategoryDot = true,
 }) {
   const [menu, setMenu] = React.useState({ open: false, x: 0, y: 0 });
   const ref = React.useRef(null);
@@ -951,7 +987,7 @@ function GameRow({
         </div>
         {!isSmall && (
           <div className="flex items-center gap-1.5 truncate text-[10.5px] text-muted">
-            {(g.categoryIds || []).slice(0, 3).map((cid) => {
+            {showCategoryDot && (g.categoryIds || []).slice(0, 3).map((cid) => {
               const cc = categories.find((x) => x.id === cid);
               if (!cc) return null;
               return (
