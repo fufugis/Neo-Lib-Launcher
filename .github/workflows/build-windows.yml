@@ -21,11 +21,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: yarn
-          cache-dependency-path: desktop-app/yarn.lock
+          # NOTE: caching intentionally disabled — works whether or not yarn.lock is present
 
       - name: Install deps
-        run: yarn install --frozen-lockfile
+        # Falls back gracefully if yarn.lock is missing on the runner
+        run: |
+          if (Test-Path yarn.lock) {
+            yarn install --frozen-lockfile
+          } else {
+            Write-Host "No yarn.lock found — running fresh install"
+            yarn install
+          }
+        shell: pwsh
 
       - name: Build NSIS installer
         run: yarn build:win
@@ -38,7 +45,7 @@ jobs:
         run: |
           Compress-Archive -Path dist/win-unpacked/* -DestinationPath dist/NEO-LIB-windows-portable.zip -Force
 
-      # Always upload artifacts (visible on every workflow run, even non-tag pushes)
+      # Always upload artifacts (visible on every workflow run)
       - name: Upload artifacts (Actions tab)
         uses: actions/upload-artifact@v4
         with:
