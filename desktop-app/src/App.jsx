@@ -882,6 +882,8 @@ export default function App() {
           launcherFilter={launcherFilter}
           onSetLauncherFilter={(v) => updateSetting({ launcherFilter: v })}
           onAutoSort={() => setAutoSortOpen(true)}
+          twoRow={!!settings.twoRow}
+          onToggleTwoRow={(v) => updateSetting({ twoRow: v })}
           sidebarWidth={sidebarWidth}
           onStartResize={startResize}
           onSelect={setCurrentSelectedId}

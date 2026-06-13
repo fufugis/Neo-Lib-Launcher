@@ -5,7 +5,7 @@ import {
   Plus, Wand2, Settings, RefreshCw, Trash2, Pencil, FolderOpen, MoreVertical,
   Lock, ChevronRight, ChevronDown, Tag, GripVertical, Sparkles, Terminal,
   Info, ArrowUp, ArrowDown, Palette, Eye, EyeOff, Sliders, Library as LibIcon,
-  Wrench,
+  Wrench, Columns,
 } from 'lucide-react';
 import { cn, colorFromId, sizeById } from '../lib/utils';
 
@@ -37,6 +37,7 @@ export default function Sidebar({
   onReorderGameInCategory, onReorderCategory,
   onToggleCollapsed, onUnlockCategory,
   onAutoSort,
+  twoRow = false, onToggleTwoRow,
   sidebarWidth = 320,
   onStartResize,
   updatingAll,
@@ -216,6 +217,19 @@ export default function Sidebar({
             )}
           </AnimatePresence>
         </div>
+        <button
+          data-testid="sidebar-tworow-btn"
+          onClick={() => onToggleTwoRow?.(!twoRow)}
+          title={twoRow ? 'Switch back to single column' : 'Two-column layout (categories never split)'}
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-md hairline px-2 h-7 text-xs transition-all',
+            twoRow
+              ? 'text-ink border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.12)]'
+              : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)]'
+          )}
+        >
+          <Columns size={13} className={twoRow ? 'text-[rgb(var(--accent))]' : 'text-[rgb(var(--accent))]'} />
+        </button>
         <SideBtn icon={<Settings size={14} />} onClick={onOpenSettings} testid="sidebar-settings-btn" />
       </div>
 
@@ -244,33 +258,42 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Tree */}
+      {/* Tree — single column or two-column (categories never split between columns) */}
       <div className="flex-1 overflow-y-auto px-2 pb-4" data-testid="sidebar-tree">
-        {sections.map((s, sectionIdx) => (
-          <Section
-            key={s.id}
-            section={s}
-            sectionIdx={sectionIdx}
-            collapsed={!!collapsed[s.id]}
-            size={size}
-            iconPosition={iconPosition}
-            catTextSize={catTextSize}
-            catGlow={catGlow}
-            rowGap={rowGap}
-            catGap={catGap}
-            selectedId={selectedId}
-            onSelect={onSelect}
-            onContext={(action, payload) => onGameContext(action, payload.game, payload)}
-            onCategoryContext={(category, anchor) => onCategoryContext(category, anchor)}
-            onUnlockCategory={() => onUnlockCategory(s.category)}
-            onToggleCollapsed={() => onToggleCollapsed(s.id)}
-            onMoveGameToCategory={onMoveGameToCategory}
-            onReorderGameInCategory={onReorderGameInCategory}
-            onReorderCategory={onReorderCategory}
-            unlockedCategories={unlockedCategories}
-            categories={categories}
-          />
-        ))}
+        {twoRow ? (
+          <TwoColumnSections sections={sections} commonProps={{
+            collapsed, size, iconPosition, catTextSize, catGlow, rowGap, catGap, selectedId,
+            onSelect, onGameContext, onCategoryContext, onUnlockCategory, onToggleCollapsed,
+            onMoveGameToCategory, onReorderGameInCategory, onReorderCategory,
+            unlockedCategories, categories,
+          }} />
+        ) : (
+          sections.map((s, sectionIdx) => (
+            <Section
+              key={s.id}
+              section={s}
+              sectionIdx={sectionIdx}
+              collapsed={!!collapsed[s.id]}
+              size={size}
+              iconPosition={iconPosition}
+              catTextSize={catTextSize}
+              catGlow={catGlow}
+              rowGap={rowGap}
+              catGap={catGap}
+              selectedId={selectedId}
+              onSelect={onSelect}
+              onContext={(action, payload) => onGameContext(action, payload.game, payload)}
+              onCategoryContext={(category, anchor) => onCategoryContext(category, anchor)}
+              onUnlockCategory={() => onUnlockCategory(s.category)}
+              onToggleCollapsed={() => onToggleCollapsed(s.id)}
+              onMoveGameToCategory={onMoveGameToCategory}
+              onReorderGameInCategory={onReorderGameInCategory}
+              onReorderCategory={onReorderCategory}
+              unlockedCategories={unlockedCategories}
+              categories={categories}
+            />
+          ))
+        )}
         {games.length === 0 && (
           <div className="mt-8 px-4 text-center text-xs text-muted">
             No games yet. Add one or run the Wizard.
@@ -278,6 +301,86 @@ export default function Sidebar({
         )}
       </div>
     </aside>
+  );
+}
+
+/**
+ * TwoColumnSections — splits sections into two side-by-side columns such that:
+ *   - No category is split across columns
+ *   - Both columns are roughly balanced by estimated rendered height
+ * Estimation uses: catHeader (≈ catTextSize + 18) + games*(rowSize+rowGap) + catGap.
+ */
+function TwoColumnSections({ sections, commonProps }) {
+  const { size, catTextSize, rowGap, catGap } = commonProps;
+  // Estimate each section's height
+  const heights = sections.map((s) => {
+    const header = (catTextSize || 11) + 22;
+    const rows = (s.games?.length || 0) * (size.rowH + (rowGap || 0));
+    return header + rows + (catGap || 8);
+  });
+  const total = heights.reduce((a, b) => a + b, 0);
+  const target = total / 2;
+  let acc = 0;
+  let splitAt = sections.length;
+  for (let i = 0; i < sections.length; i++) {
+    // Decide BEFORE adding this section whether it should go in col 2.
+    // If col1 already crossed target, push remaining to col 2.
+    if (acc >= target && i > 0) {
+      splitAt = i;
+      break;
+    }
+    // If adding this section would overshoot target more than NOT adding, stop here.
+    const afterAdd = acc + heights[i];
+    if (afterAdd > target && acc > target * 0.5 && i > 0) {
+      splitAt = i;
+      break;
+    }
+    acc += heights[i];
+  }
+  const colA = sections.slice(0, splitAt);
+  const colB = sections.slice(splitAt);
+  // If everything fits in col1, fall back to single column
+  if (colB.length === 0) {
+    return sections.map((s, idx) => (
+      <SectionWrap key={s.id} s={s} idx={idx} commonProps={commonProps} />
+    ));
+  }
+  return (
+    <div className="grid grid-cols-2 gap-2" data-testid="sidebar-twocol">
+      <div>{colA.map((s, idx) => <SectionWrap key={s.id} s={s} idx={idx} commonProps={commonProps} />)}</div>
+      <div>{colB.map((s, idx) => <SectionWrap key={s.id} s={s} idx={idx + colA.length} commonProps={commonProps} />)}</div>
+    </div>
+  );
+}
+
+function SectionWrap({ s, idx, commonProps }) {
+  const { collapsed, size, iconPosition, catTextSize, catGlow, rowGap, catGap, selectedId,
+    onSelect, onGameContext, onCategoryContext, onUnlockCategory, onToggleCollapsed,
+    onMoveGameToCategory, onReorderGameInCategory, onReorderCategory,
+    unlockedCategories, categories } = commonProps;
+  return (
+    <Section
+      section={s}
+      sectionIdx={idx}
+      collapsed={!!collapsed[s.id]}
+      size={size}
+      iconPosition={iconPosition}
+      catTextSize={catTextSize}
+      catGlow={catGlow}
+      rowGap={rowGap}
+      catGap={catGap}
+      selectedId={selectedId}
+      onSelect={onSelect}
+      onContext={(action, payload) => onGameContext(action, payload.game, payload)}
+      onCategoryContext={(category, anchor) => onCategoryContext(category, anchor)}
+      onUnlockCategory={() => onUnlockCategory(s.category)}
+      onToggleCollapsed={() => onToggleCollapsed(s.id)}
+      onMoveGameToCategory={onMoveGameToCategory}
+      onReorderGameInCategory={onReorderGameInCategory}
+      onReorderCategory={onReorderCategory}
+      unlockedCategories={unlockedCategories}
+      categories={categories}
+    />
   );
 }
 
