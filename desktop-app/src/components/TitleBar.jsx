@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Minus, Square, X, Triangle } from 'lucide-react';
+import { Minus, Square, X } from 'lucide-react';
 
 export default function TitleBar({ search, setSearch }) {
   return (
@@ -42,17 +42,19 @@ function Logo() {
   return (
     <div className="flex items-center gap-2">
       <motion.div
-        initial={{ y: -2, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ type: 'spring', stiffness: 220, damping: 18 }}
-        className="relative grid h-6 w-6 place-items-center"
+        initial={{ scale: 0.6, opacity: 0, rotate: -8 }}
+        animate={{ scale: 1, opacity: 1, rotate: 0 }}
+        transition={{ type: 'spring', stiffness: 220, damping: 16 }}
+        className="relative grid h-7 w-7 place-items-center"
+        title="NEO-LIB"
       >
-        <Triangle
-          size={14}
-          strokeWidth={2.5}
-          className="text-[rgb(var(--accent))] drop-shadow-[0_0_6px_rgb(var(--accent)/0.7)]"
+        <img
+          src="./app-icon.png"
+          alt="NEO-LIB"
+          className="h-7 w-7 rounded-md object-cover drop-shadow-[0_0_8px_rgb(var(--accent)/0.55)]"
+          draggable={false}
         />
-        <span className="absolute inset-0 rounded-full bg-[rgb(var(--accent)/0.18)] blur-md" />
+        <span className="pointer-events-none absolute inset-0 rounded-md bg-[rgb(var(--accent)/0.18)] blur-md -z-10" />
       </motion.div>
       <span className="font-display text-[12.5px] font-extrabold tracking-[0.32em] neon-text">
         NEO<span className="text-[rgb(var(--accent-2))] neon-text-cyan">·</span>LIB
