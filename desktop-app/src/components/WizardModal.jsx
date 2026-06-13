@@ -29,6 +29,16 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
   const [skipSources, setSkipSources] = React.useState([]);
   const [launcherStatus, setLauncherStatus] = React.useState('');
 
+  // Exclude paths during scan — common launcher folders + custom
+  const [skipLaunchers, setSkipLaunchers] = React.useState({
+    steam: true, epic: true, ea: true, gog: true, ubisoft: false, riot: false,
+  });
+  const [customExcludes, setCustomExcludes] = React.useState([]);
+  const addExclude = async () => {
+    const p = await window.api?.pickFolder?.();
+    if (p) setCustomExcludes((cs) => Array.from(new Set([...cs, p])));
+  };
+
   const notifyTodo = (name) =>
     setLauncherStatus(`${name} integration is on the roadmap — for now use "Choose folder" below and point it at your ${name} install directory.`);
 
@@ -113,7 +123,17 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
     if (!root) return;
     setStep(2);
     setBusy(true);
-    const found = (await window.api?.scanDirectory(root)) || [];
+    const excludes = [
+      ...customExcludes,
+      // Common launcher directory name fragments — main process filters paths containing any of these
+      ...(skipLaunchers.steam   ? ['steamapps', 'Steam\\steamapps', '/Steam/steamapps'] : []),
+      ...(skipLaunchers.epic    ? ['Epic Games', 'EpicGamesLauncher'] : []),
+      ...(skipLaunchers.ea      ? ['EA Games', 'Origin Games', 'EA Desktop'] : []),
+      ...(skipLaunchers.gog     ? ['GOG Galaxy', 'GOG.com'] : []),
+      ...(skipLaunchers.ubisoft ? ['Ubisoft', 'Ubisoft Game Launcher'] : []),
+      ...(skipLaunchers.riot    ? ['Riot Games'] : []),
+    ];
+    const found = (await window.api?.scanDirectory(root, excludes)) || [];
     setCandidates(found);
     setBusy(false);
     if (found.length === 0) setStep(4);
@@ -243,6 +263,58 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
           {/* Manual folder pick */}
           <div className="rounded-lg hairline bg-surface/50 p-4">
             <div className="mb-2 text-[10px] uppercase tracking-wider text-muted">…or scan a folder / drive</div>
+
+            {/* Exclude paths */}
+            <div className="mb-3 rounded-md hairline bg-panel/40 px-3 py-2">
+              <div className="mb-1.5 flex items-center justify-between">
+                <div className="text-[10.5px] uppercase tracking-wider text-muted">Skip these paths during scan</div>
+                <button
+                  data-testid="wizard-add-exclude"
+                  onClick={addExclude}
+                  className="text-[10px] text-[rgb(var(--accent))] hover:underline"
+                >
+                  + Add path
+                </button>
+              </div>
+              <div className="space-y-1">
+                {[
+                  { key: 'steam', label: 'Steam library folders (use launcher import instead)' },
+                  { key: 'epic',  label: 'Epic Games install folder' },
+                  { key: 'ea',    label: 'EA App / Origin Games folder' },
+                  { key: 'gog',   label: 'GOG Galaxy install folder' },
+                  { key: 'ubisoft', label: 'Ubisoft Game Launcher folder' },
+                  { key: 'riot', label: 'Riot Games folder' },
+                ].map((opt) => (
+                  <label key={opt.key} className="flex items-center gap-2 text-[11px] text-muted cursor-pointer hover:text-ink">
+                    <input
+                      type="checkbox"
+                      data-testid={`wizard-skip-${opt.key}`}
+                      checked={!!skipLaunchers[opt.key]}
+                      onChange={(e) => setSkipLaunchers((s) => ({ ...s, [opt.key]: e.target.checked }))}
+                      className="accent-[rgb(var(--accent))]"
+                    />
+                    {opt.label}
+                  </label>
+                ))}
+              </div>
+              {customExcludes.length > 0 && (
+                <div className="mt-2 space-y-1 border-t hairline pt-2">
+                  {customExcludes.map((p, i) => (
+                    <div key={i} className="flex items-center gap-2 text-[10.5px] font-mono text-muted">
+                      <span className="flex-1 truncate">{p}</span>
+                      <button
+                        data-testid={`wizard-remove-exclude-${i}`}
+                        onClick={() => setCustomExcludes((cs) => cs.filter((_, j) => j !== i))}
+                        className="text-muted/60 hover:text-red-400"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="flex items-center gap-3">
               <div className="min-w-0 flex-1 truncate text-sm">
                 {root || <span className="text-muted">No folder selected</span>}

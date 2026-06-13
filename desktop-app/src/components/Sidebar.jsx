@@ -314,7 +314,7 @@ function TabPill({ label, icon, active, onClick, testid, big = false }) {
       {active && (
         <motion.span
           layoutId="tab-underline"
-          className="absolute -bottom-0.5 left-3 right-3 h-[2px] rounded-full"
+          className="pointer-events-none absolute -bottom-0.5 left-3 right-3 h-[2px] rounded-full"
           style={{
             background:
               'linear-gradient(90deg, transparent, rgb(var(--accent)) 50%, transparent)',

@@ -228,19 +228,29 @@ export default function App() {
     setDetectedLauncher(null);
     if (!key) return;
     try {
-      let games = [];
-      if (key === 'steam')  games = await window.api.scanSteam();
-      else if (key === 'epic') games = await window.api.scanEpic();
+      let resp = null;
+      if (key === 'steam')  resp = await window.api.scanSteam();
+      else if (key === 'epic') resp = await window.api.scanEpic();
       else { notify(`${key} import isn't wired yet — coming soon.`); return; }
-      for (const it of games || []) {
+      if (!resp || resp.ok === false) {
+        notify(`Import failed: ${resp?.error || 'No games found.'}`);
+        return;
+      }
+      const items = resp.items || [];
+      if (items.length === 0) { notify(`No installed ${key} games found.`); return; }
+      let added = 0;
+      for (const it of items) {
         addToGames({
           name: it.name,
-          exePath: it.exe,
+          exePath: it.exe || it.installdir,
           appid: it.appid,
-          launcher: key,
+          launcher: key,         // critical: marks the game for the launcher filter
+          source: key,
+          launchUrl: it.launchUrl,
         });
+        added += 1;
       }
-      notify(`Imported ${games?.length || 0} games from ${key}.`);
+      notify(`Imported ${added} games from ${key}.`);
     } catch (e) {
       notify('Import failed: ' + (e?.message || e));
     }
@@ -824,15 +834,18 @@ export default function App() {
     updateSetting({ collapsed: { ...settings.collapsed, [id]: !settings.collapsed[id] } });
 
   // Launcher filter (All/Steam/Epic/EA/GOG/Other) — only used on Library tab
+  // Uses g.launcher exclusively. g.source (Steam API, GOG API) is metadata-origin
+  // and intentionally NOT considered here — a manually-added game whose metadata
+  // was fetched from Steam is NOT a Steam-launcher game.
   const launcherFilter = settings.launcherFilter || 'all';
   const visibleGames = React.useMemo(() => {
     if (isTools || launcherFilter === 'all') return currentItems;
     return currentItems.filter((g) => {
-      const src = (g.launcher || g.source || '').toLowerCase();
+      const launcher = (g.launcher || '').toLowerCase();
       if (launcherFilter === 'other') {
-        return !['steam', 'epic', 'ea', 'gog', 'curated'].some((k) => src.includes(k));
+        return !['steam', 'epic', 'ea', 'gog', 'ubisoft', 'battlenet', 'riot', 'rockstar'].includes(launcher);
       }
-      return src.includes(launcherFilter);
+      return launcher === launcherFilter;
     });
   }, [currentItems, isTools, launcherFilter]);
   const selected = currentItems.find((g) => g.id === currentSelectedId) || null;

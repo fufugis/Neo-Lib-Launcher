@@ -237,8 +237,13 @@ function isLikelyGameExe(filename) {
   return true;
 }
 
-async function walkDir(dir, depth, maxDepth, accum, maxFiles) {
+async function walkDir(dir, depth, maxDepth, accum, maxFiles, excludes = []) {
   if (depth > maxDepth || accum.length >= maxFiles) return;
+  // Check excludes: if any exclude fragment appears in the current path, skip
+  if (excludes.length > 0) {
+    const lower = dir.toLowerCase();
+    if (excludes.some((ex) => ex && lower.includes(ex.toLowerCase()))) return;
+  }
   let entries;
   try {
     entries = await fsp.readdir(dir, { withFileTypes: true });
@@ -251,7 +256,7 @@ async function walkDir(dir, depth, maxDepth, accum, maxFiles) {
     if (entry.isDirectory()) {
       const skip = ['$recycle.bin', 'system volume information', 'windows', 'program files (x86)\\windows defender'];
       if (skip.includes(entry.name.toLowerCase())) continue;
-      await walkDir(full, depth + 1, maxDepth, accum, maxFiles);
+      await walkDir(full, depth + 1, maxDepth, accum, maxFiles, excludes);
     } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.exe')) {
       if (isLikelyGameExe(entry.name)) {
         accum.push(full);
@@ -260,10 +265,10 @@ async function walkDir(dir, depth, maxDepth, accum, maxFiles) {
   }
 }
 
-ipcMain.handle('scan:directory', async (_e, root) => {
+ipcMain.handle('scan:directory', async (_e, root, excludes = []) => {
   if (!root) return [];
   const found = [];
-  await walkDir(root, 0, 5, found, 1500);
+  await walkDir(root, 0, 5, found, 1500, excludes);
 
   // Group exes by their top-level folder under root and pick the most likely candidate.
   const grouped = new Map();
@@ -526,7 +531,7 @@ function defaultSteamPath() {
 
 ipcMain.handle('launcher:scan-steam', async () => {
   const steamPath = defaultSteamPath();
-  if (!steamPath) return { ok: false, error: 'Steam install not found.' };
+  if (!steamPath) return { ok: false, error: 'Steam install not found.', items: [] };
   const libraries = readSteamLibraryFolders(steamPath);
   const found = [];
   for (const lib of libraries) {
@@ -540,18 +545,48 @@ ipcMain.handle('launcher:scan-steam', async () => {
           const m = parseAcfManifest(text);
           if (!m.appid || !m.name) continue;
           // Heuristic: skip Steamworks Common Redistributables / Tools
-          if (/^(Steamworks Common|Proton |Steam Linux Runtime)/i.test(m.name)) continue;
+          if (/^(Steamworks Common|Proton |Steam Linux Runtime|Steam Linux|Steam Audio)/i.test(m.name)) continue;
           const installdir = path.join(sa, 'common', m.installdir);
+          // Best-effort: find a primary .exe inside the install dir for launching directly.
+          // (We still prefer `steam://run/{appid}` for launching, but we expose the exe so
+          //  NEO-LIB can extract an icon + treat it like any other game.)
+          let exe = null;
+          try {
+            const findExe = (dir, depth = 0) => {
+              if (depth > 2 || !dir) return null;
+              for (const name of fs.readdirSync(dir)) {
+                const full = path.join(dir, name);
+                let stat;
+                try { stat = fs.statSync(full); } catch { continue; }
+                if (stat.isFile() && name.toLowerCase().endsWith('.exe')) {
+                  const lower = name.toLowerCase();
+                  // Skip helper exes
+                  if (lower.includes('unins') || lower.includes('crash') || lower.includes('vc_redist')
+                      || lower.includes('directx') || lower.includes('redist')) continue;
+                  return full;
+                }
+                if (stat.isDirectory()) {
+                  const r = findExe(full, depth + 1);
+                  if (r) return r;
+                }
+              }
+              return null;
+            };
+            exe = findExe(installdir);
+          } catch { /* ignore */ }
           found.push({
             appid: m.appid,
             name: m.name,
+            exe: exe || installdir,   // fall back to dir; launch will use steam:// URL anyway
             installdir,
             buildid: m.buildid,
             launchUrl: `steam://run/${m.appid}`,
+            launcher: 'steam',
+            source: 'steam',
           });
-        } catch {}
+        } catch { /* skip manifest */ }
       }
-    } catch {}
+    } catch { /* skip lib */ }
   }
   return { ok: true, items: found, source: 'steam' };
 });

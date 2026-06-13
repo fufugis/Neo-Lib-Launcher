@@ -192,8 +192,9 @@ export default function SettingsModal({ open, onClose, settings, setSettings }) 
           </div>
         </Section>
 
-        {/* App behaviour */}
-        <Section title="Deals & sponsored content">
+        {/* Deals — sponsored content visibility (no public-facing affiliate fields here;
+            affiliate IDs are baked at build time in `src/lib/affiliateConfig.js`) */}
+        <Section title="Deals">
           <div className="space-y-3">
             <Toggle
               label="Show deals bar at the bottom"
@@ -202,51 +203,6 @@ export default function SettingsModal({ open, onClose, settings, setSettings }) 
               onChange={(v) => setKey({ dealsEnabled: v, dealsBarHidden: false })}
               testid="opt-deals"
             />
-            <div className="rounded-lg hairline bg-surface/40 px-3 py-2.5 space-y-2">
-              <div className="text-[13px] font-medium">Affiliate IDs (optional)</div>
-              <p className="text-[10.5px] text-muted leading-relaxed">
-                If you sign up to an affiliate program (Awin / Fanatical / Humble Partner), paste your IDs here and all
-                deal links will be automatically wrapped. Earn a small commission on every deal users buy through NEO-LIB.
-                Leave blank for direct (non-affiliate) links.
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <AffInput
-                  label="Awin Affiliate ID"
-                  value={settings.affiliate?.awinAffId || ''}
-                  onChange={(v) => setKey({ affiliate: { ...(settings.affiliate || {}), awinAffId: v } })}
-                  placeholder="e.g. 1234567"
-                  testid="aff-awinAffId"
-                />
-                <AffInput
-                  label="Awin Merchant ID (advertiser)"
-                  value={settings.affiliate?.awinMid || ''}
-                  onChange={(v) => setKey({ affiliate: { ...(settings.affiliate || {}), awinMid: v } })}
-                  placeholder="e.g. 17157 (Fanatical)"
-                  testid="aff-awinMid"
-                />
-                <AffInput
-                  label="Humble Partner ID"
-                  value={settings.affiliate?.humbleId || ''}
-                  onChange={(v) => setKey({ affiliate: { ...(settings.affiliate || {}), humbleId: v } })}
-                  placeholder="e.g. 8518905"
-                  testid="aff-humbleId"
-                />
-                <AffInput
-                  label="Skimlinks ID (auto-affiliate)"
-                  value={settings.affiliate?.skimlinksId || ''}
-                  onChange={(v) => setKey({ affiliate: { ...(settings.affiliate || {}), skimlinksId: v } })}
-                  placeholder="e.g. 12345X"
-                  testid="aff-skimlinksId"
-                />
-              </div>
-              <AffInput
-                label="Custom URL template (advanced)"
-                value={settings.affiliate?.urlTemplate || ''}
-                onChange={(v) => setKey({ affiliate: { ...(settings.affiliate || {}), urlTemplate: v } })}
-                placeholder="https://example.com/track?aff=YOU&dest={URL}"
-                testid="aff-urlTemplate"
-              />
-            </div>
           </div>
         </Section>
 
@@ -346,7 +302,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings }) 
               >
                 Buy me a coffee
               </button>
-              <img src={qrUrl} alt="Donate QR" className="h-20 w-20 rounded-md bg-white p-1" />
+              <img src={qrUrl} alt="Donate QR" className="h-36 w-36 rounded-md bg-white p-1.5" />
             </div>
           </div>
         </Section>
@@ -424,18 +380,3 @@ function Slider({ label, value, min, max, onChange, suffix = '', testid }) {
 }
 
 
-function AffInput({ label, value, onChange, placeholder, testid }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[10.5px] uppercase tracking-wider text-muted/80">{label}</span>
-      <input
-        data-testid={testid}
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full rounded-md hairline bg-surface/60 px-2 py-1.5 text-[11px] text-ink outline-none focus:border-[rgb(var(--accent))]"
-      />
-    </label>
-  );
-}

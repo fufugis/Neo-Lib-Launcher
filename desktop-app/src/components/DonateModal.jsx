@@ -66,11 +66,11 @@ export default function DonateModal({ open, onClose }) {
         <div className="-mt-2 text-center text-[10px] text-muted">Powered by PayPal · cards accepted</div>
 
         {/* QR */}
-        <div className="rounded-lg hairline bg-white p-4 flex items-center gap-4">
-          <img src={qrUrl} alt="Donate QR" className="h-32 w-32 shrink-0" />
-          <div className="text-[12px] leading-relaxed text-black/85">
-            <div className="font-bold mb-1">Or scan the QR with your phone</div>
-            <div className="text-black/60">Opens PayPal checkout directly.</div>
+        <div className="rounded-lg hairline bg-white p-4 flex flex-col items-center gap-3">
+          <img src={qrUrl} alt="Donate QR" className="h-56 w-56" />
+          <div className="text-center text-[12px] leading-relaxed text-black/85">
+            <div className="font-bold mb-0.5">Or scan with your phone</div>
+            <div className="text-black/60 text-[10.5px]">Opens PayPal checkout directly.</div>
           </div>
         </div>
 
