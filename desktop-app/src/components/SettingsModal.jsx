@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { THEMES } from '../lib/utils';
 import { SOUND_PACKS, setSoundPack, playLaunch, playHover } from '../lib/sound';
-import { Check, Sparkles, Eye, EyeOff, Sliders, Power, Heart } from 'lucide-react';
+import { Check, Sparkles, Eye, EyeOff, Sliders, Power, Heart, DownloadCloud } from 'lucide-react';
 import Modal from './Modal';
 import { DONATE_PAYPAL_URL } from './DonateModal';
 import qrUrl from '../assets/donate-qr.png';
@@ -269,6 +269,19 @@ export default function SettingsModal({ open, onClose, settings, setSettings }) 
             NEO-LIB v1.0. Local-first. Metadata sourced from Steam, GOG, DuckDuckGo and Google.
             Library data lives in <span className="font-mono text-ink">%APPDATA%/NEO-LIB</span>.
           </p>
+          <button
+            data-testid="settings-check-updates-btn"
+            onClick={() => {
+              const url = 'https://github.com/fufugis/Neo-Lib-Launcher/releases/latest';
+              if (window.api?.openExternal) window.api.openExternal(url);
+              else window.open(url, '_blank');
+            }}
+            className="mt-3 inline-flex items-center gap-2 rounded-md hairline px-3 h-8 text-[12px] text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.6)] hover:bg-[rgb(var(--accent)/0.08)] transition-all"
+            title="Opens the latest release page on GitHub"
+          >
+            <DownloadCloud size={13} className="text-[rgb(var(--accent))]" />
+            Check for updates
+          </button>
         </Section>
 
         {/* Support & credits */}
