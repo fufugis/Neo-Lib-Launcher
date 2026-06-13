@@ -196,23 +196,98 @@ export default function App() {
 
   /* --- Launcher detector --- */
   const [detectedLauncher, setDetectedLauncher] = React.useState(null);
+  // Track in-flight silent imports so the polling loop doesn't double-fire
+  const silentImportInFlight = React.useRef({});
   React.useEffect(() => {
     if (!isElectron || !window.api?.detectLaunchers) return undefined;
     if (settings.launcherDetectEnabled === false) return undefined;
     let cancelled = false;
     const dismissed = settings.launcherDetectDismissed || {};
     const askLater = settings.launcherAskLater || {};
+    const autoImport = settings.launcherAutoImport || {};
+
+    const LAUNCHER_LABELS = { steam: 'Steam', epic: 'Epic Games', ea: 'EA', gog: 'GOG' };
+
+    // Silent diff-and-import for launchers the user previously approved.
+    // Adds only NEW games (by appid or exePath), auto-refetches metadata, shows one toast.
+    const silentImport = async (key) => {
+      if (silentImportInFlight.current[key]) return;
+      silentImportInFlight.current[key] = true;
+      try {
+        let resp = null;
+        if (key === 'steam') resp = await window.api.scanSteam();
+        else if (key === 'epic') resp = await window.api.scanEpic();
+        else return;
+        if (cancelled || !resp || !resp.items) return;
+
+        // Read current library through setState callback to avoid stale closure
+        let newGames = [];
+        const launcherCats = {
+          steam: { id: '__launcher_steam__', name: 'Steam', colorId: 'cyan', pinnedBottom: true, logoLabel: 'Steam' },
+          epic:  { id: '__launcher_epic__',  name: 'Epic Games', colorId: 'slate', pinnedBottom: true, logoLabel: 'Epic' },
+        };
+        const launcherCat = launcherCats[key];
+
+        setLibrary((prev) => {
+          const existing = new Set();
+          (prev.games || []).forEach((g) => {
+            if (g.appid) existing.add(`appid:${g.appid}`);
+            if (g.exePath) existing.add(`exe:${g.exePath.toLowerCase()}`);
+          });
+          const toAdd = (resp.items || []).filter((it) => {
+            if (it.appid && existing.has(`appid:${it.appid}`)) return false;
+            const exe = (it.exe || it.installdir || '').toLowerCase();
+            if (exe && existing.has(`exe:${exe}`)) return false;
+            return true;
+          });
+          if (toAdd.length === 0) return prev;
+          newGames = toAdd.map((it) => ({
+            id: uid(),
+            name: it.name,
+            exePath: it.exe || it.installdir,
+            appid: it.appid,
+            launcher: key,
+            source: key,
+            launchUrl: it.launchUrl,
+            categoryIds: launcherCat ? [launcherCat.id] : [],
+            addedAt: Date.now(),
+          }));
+          let cats = prev.categories || [];
+          if (launcherCat && !cats.find((c) => c.id === launcherCat.id)) {
+            cats = [...cats, launcherCat];
+          }
+          return { ...prev, categories: cats, games: [...newGames, ...prev.games] };
+        });
+
+        if (cancelled || newGames.length === 0) return;
+        const label = LAUNCHER_LABELS[key] || key;
+        notify(`NEO-LIB detected ${newGames.length} new install${newGames.length !== 1 ? 's' : ''} on ${label} — now imported into NEO-LIB.`);
+
+        // Auto-refetch metadata for each new game (sequential, in the background)
+        for (const g of newGames) {
+          if (cancelled) return;
+          try { await refetchGameRef.current?.(g); } catch { /* ignore */ }
+        }
+      } catch { /* offline / scan failed — ignore */ }
+      finally {
+        silentImportInFlight.current[key] = false;
+      }
+    };
 
     const tick = async () => {
       try {
         const status = await window.api.detectLaunchers();
         if (cancelled) return;
-        // Find first running launcher that isn't dismissed and not in cooldown
         for (const [key, isRunning] of Object.entries(status)) {
           if (!isRunning) continue;
+          // Already approved → silent auto-import path (no modal, ever)
+          if (autoImport[key] === true) {
+            silentImport(key);
+            continue;
+          }
           if (dismissed[key]) continue;
           const later = askLater[key];
-          if (later && Date.now() - later < 24 * 60 * 60 * 1000) continue; // 24h cooldown
+          if (later && Date.now() - later < 24 * 60 * 60 * 1000) continue;
           setDetectedLauncher(key);
           return;
         }
@@ -221,12 +296,16 @@ export default function App() {
     tick();
     const t = setInterval(tick, 5 * 60 * 1000); // every 5 minutes
     return () => { cancelled = true; clearInterval(t); };
-  }, [settings.launcherDetectEnabled, settings.launcherDetectDismissed, settings.launcherAskLater]);
+  }, [settings.launcherDetectEnabled, settings.launcherDetectDismissed, settings.launcherAskLater, settings.launcherAutoImport]);
 
   const importDetectedLauncher = async () => {
     const key = detectedLauncher;
     setDetectedLauncher(null);
     if (!key) return;
+    // Remember the user's "Yes" — from now on this launcher imports silently in the background
+    updateSetting({
+      launcherAutoImport: { ...(settings.launcherAutoImport || {}), [key]: true },
+    });
     try {
       let resp = null;
       if (key === 'steam')  resp = await window.api.scanSteam();
@@ -238,9 +317,9 @@ export default function App() {
       }
       const items = resp.items || [];
       if (items.length === 0) { notify(`No installed ${key} games found.`); return; }
-      let added = 0;
+      const added = [];
       for (const it of items) {
-        addToGames({
+        const g = addToGames({
           name: it.name,
           exePath: it.exe || it.installdir,
           appid: it.appid,
@@ -248,9 +327,13 @@ export default function App() {
           source: key,
           launchUrl: it.launchUrl,
         });
-        added += 1;
+        if (g) added.push(g);
       }
-      notify(`Imported ${added} games from ${key}.`);
+      notify(`Imported ${added.length} games from ${key} — fetching metadata…`);
+      // Auto-refetch metadata for all imported games in the background
+      for (const g of added) {
+        try { await refetchGame(g); } catch { /* ignore */ }
+      }
     } catch (e) {
       notify('Import failed: ' + (e?.message || e));
     }
@@ -285,7 +368,16 @@ export default function App() {
         const cleanSettings = { ...s };
         if (!s.categoriesCollapsedDefault) cleanSettings.collapsed = {};
         setSettings((prev) => ({ ...prev, ...cleanSettings }));
-        if (lib.games?.[0]) setSelectedId(lib.games[0].id);
+        // Privacy: never auto-select a game inside a private category on startup.
+        // If the first non-private game doesn't exist, leave selection empty.
+        const privateCatIds = new Set(
+          (lib.categories || []).filter((c) => c.private).map((c) => c.id)
+        );
+        const firstVisible = (lib.games || []).find((g) => {
+          const cats = g.categoryIds || [];
+          return !cats.some((cid) => privateCatIds.has(cid));
+        });
+        if (firstVisible) setSelectedId(firstVisible.id);
 
         // Wire playtime tracking event
         window.api.onGameExited(({ gameId, seconds }) => {
@@ -337,7 +429,14 @@ export default function App() {
     setSettings(next);
     if (isElectron) window.api.saveSettings(next);
   };
-  const updateSetting = (patch) => persistSettings({ ...settings, ...patch });
+  // Functional update — safe against rapid back-to-back calls (e.g. two onClicks in the same handler)
+  const updateSetting = (patch) => {
+    setSettings((prev) => {
+      const next = { ...prev, ...patch };
+      if (isElectron) window.api.saveSettings(next);
+      return next;
+    });
+  };
 
   const notify = (msg) => {
     setToast(msg);
@@ -439,6 +538,9 @@ export default function App() {
   };
 
   /* --- Metadata --- */
+  // Ref to expose refetchGame to background callers (e.g. silentImport in the
+  // launcher polling effect) without retriggering the effect on every render.
+  const refetchGameRef = React.useRef(null);
   const refetchGame = async (g, opts = {}) => {
     if (!isElectron) { notify('Re-fetch only works in the installed app.'); return null; }
     setFetching(true);
@@ -495,6 +597,8 @@ export default function App() {
     setUpdatingAll(false);
     notify('All refreshed.');
   };
+  // Keep ref in sync so background callers always invoke the latest refetchGame
+  React.useEffect(() => { refetchGameRef.current = refetchGame; });
 
   /* --- Categories --- */
   const createCategory = (data) => {
