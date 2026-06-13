@@ -1,0 +1,62 @@
+name: build-windows
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write   # required for action-gh-release to upload assets
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: desktop-app/yarn.lock
+
+      - name: Install deps
+        run: yarn install --frozen-lockfile
+
+      - name: Build NSIS installer
+        run: yarn build:win
+
+      - name: Build portable folder
+        run: npx electron-builder --win --dir --x64
+
+      - name: Zip portable folder
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/win-unpacked/* -DestinationPath dist/NEO-LIB-windows-portable.zip -Force
+
+      # Always upload artifacts (visible on every workflow run, even non-tag pushes)
+      - name: Upload artifacts (Actions tab)
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEO-LIB-Windows
+          path: |
+            desktop-app/dist/*.exe
+            desktop-app/dist/NEO-LIB-windows-portable.zip
+
+      # Attach installer + portable zip directly to the GitHub Release page.
+      # Only runs when the workflow was triggered by a tag push (v*).
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            desktop-app/dist/*.exe
+            desktop-app/dist/NEO-LIB-windows-portable.zip
+          fail_on_unmatched_files: false
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
