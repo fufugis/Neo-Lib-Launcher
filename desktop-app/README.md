@@ -1,56 +1,75 @@
-# Game Library
+# NEO-LIB
 
-A minimal, modern, native-feeling Windows desktop app for managing your installed games.
-Frameless window, four themes (Midnight, Daybreak, Ocean, Crimson), Steam-powered metadata,
-icon extraction from `.exe` files, and a guided **Auto-import Wizard** that scans a folder
-for installed games.
+> A synthwave-flavored, portable Windows game library — scans your launchers,
+> fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
+> stays out of your way.
 
-> 100% offline browsing & launching. The internet is used **only** when you press
-> **Add Game / Wizard / Re-fetch / Update all** to look up metadata.
+![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
 ---
 
-## Features
+## What it is
 
-- **Left sidebar**: searchable list of games with their .exe icon
-- **Right detail pane**: hero image, screenshots, description, genres, release date, dev/publisher
-- **Manual add**: pick a game's `.exe`, auto-searches Steam, lets you pick the correct match
-- **Wizard**: scan a folder/drive → review each detected game (with cover preview) → accept or skip
-- **Right-click → Re-obtain info online**: re-searches Steam, skipping the previously chosen match so it "tries differently"
-- **Global "Update all"** button: refresh metadata for every game in your library
-- **Themes**: Midnight (default), Daybreak (light), Ocean (deep blue), Crimson (red/black noir)
-- **No API keys, no cloud sync, no accounts.** Library JSON lives in `%APPDATA%/GameLibrary/`
+NEO-LIB is a **fully portable** desktop app (Electron + React + Vite) that
+unifies every game on your PC into one neon-lit interface — no accounts, no
+cloud, no telemetry. Your library lives in a single JSON file under
+`%APPDATA%\NEO-LIB\`.
+
+It launches games via their original executable, so Steam / Epic / EA App /
+GOG Galaxy overlays, achievements, and cloud saves keep working exactly as
+before.
 
 ---
 
-## Build the Windows installer
+## Highlights
 
-You need Node.js 18+ and Yarn (or npm) on Windows.
+- **5 dynamic themes** — Synthwave, Midnight, Ocean, Crimson, Anime — each
+  with its own ambient particle background.
+- **Smart Wizard** — pick folders, drives, or whole launcher install roots;
+  exclusion paths supported; back-button at every step.
+- **Auto-detect launchers** — Steam, Epic, EA App, GOG, Ubisoft, Battle.net,
+  Riot, Xbox/MS Store. Inactive launchers are dimmed.
+- **Launcher tabs** — filter the sidebar by store (All / Steam / Epic / EA /
+  GOG / Other).
+- **Two-Row layout** — toggle dense double-column view; categories never
+  split between columns.
+- **Smart Auto-Sort** — one click and your library is bucketed into Recently
+  Played, Long Games, Quick Sessions, AAA, Indie, Hidden Gems.
+- **Granular Troubleshoot panel** — when a Steam/Epic/GOG fetch fails, pick
+  another match without re-running the full Wizard.
+- **Resizable sidebar** with thick drag handle + dynamic sliders for row
+  size, category text size, glow intensity, spacing.
+- **Live Deals strip** — Epic Free Games + Steam Featured Deals, refreshed
+  on launch. Optional Affiliate routing benefits the developer.
+- **PayPal donations** — "Buy me a coffee" modal with QR + direct link.
+- **Sound packs** — subtle UI clicks for the synthwave purists.
+
+---
+
+## Install (end users)
+
+1. Download `NEO-LIB-windows-portable.zip` from the latest release.
+2. Extract anywhere — even a USB stick.
+3. Run `NEO-LIB.exe`.
+
+No installer, no registry writes, no admin rights. Delete the folder to
+uninstall.
+
+---
+
+## Build from source (developers)
+
+Requirements: Node.js 18+, Yarn, Windows 10/11.
 
 ```bash
-# 1. install deps
+cd desktop-app
 yarn install
-# or: npm install
-
-# 2. build the installer (.exe + desktop shortcut)
-yarn build:win
+yarn build:win   # → dist/NEO-LIB-Setup-x.y.z.exe (NSIS installer)
+yarn dev         # hot-reload dev mode (Vite + Electron)
 ```
 
-Output → `dist/GameLibrary-Setup-1.0.0.exe`
-
-When you run that installer:
-- creates a Start-menu entry
-- creates a **desktop shortcut**
-- lets you pick the install location
-- launches the app on finish
-
-### Development (hot-reload)
-
-```bash
-yarn dev
-```
-
-Runs Vite on `localhost:5173` and Electron pointing at it.
+The portable build script in `package.json` (`build:portable`) produces a
+self-contained folder you can zip and ship.
 
 ---
 
@@ -59,43 +78,80 @@ Runs Vite on `localhost:5173` and Electron pointing at it.
 ```
 desktop-app/
 ├── electron/
-│   ├── main.js          # Main process (IPC, file ops, Steam API, scanner)
-│   └── preload.js       # Exposes window.api safely to the renderer
+│   ├── main.js              # Main process (IPC, scanners, deals, scrapers)
+│   └── preload.js           # Context bridge → window.api
 ├── src/
-│   ├── App.jsx
-│   ├── main.jsx
-│   ├── styles.css
-│   ├── components/      # TitleBar, Sidebar, GameDetail, modals
-│   └── lib/utils.js
-├── index.html
-├── package.json         # includes electron-builder config (NSIS, desktop shortcut)
-├── tailwind.config.js
-├── vite.config.js
-└── build/               # Place icon.ico / icon.png here before packaging
+│   ├── App.jsx              # Root state, modals, persistence
+│   ├── styles.css           # Themes + animations + particle fields
+│   ├── components/
+│   │   ├── Sidebar.jsx          # Tree, tabs, launcher filter, two-row
+│   │   ├── GameDetail.jsx       # Right info pane
+│   │   ├── ShowcaseStrip.jsx    # Deals + recently played
+│   │   ├── WizardModal.jsx      # Folder scanner + exclusions
+│   │   ├── AutoSortModal.jsx    # Smart category builder
+│   │   ├── TroubleshootModal.jsx# Per-source refetch UI
+│   │   ├── DonateModal.jsx      # PayPal QR & link
+│   │   └── SettingsModal.jsx    # User preferences
+│   └── lib/
+│       ├── utils.js
+│       ├── sound.js
+│       ├── deals.js             # Affiliate URL wrapper
+│       └── affiliateConfig.js   # Build-time IDs (DO NOT COMMIT CHANGES)
+├── build/                   # icon.ico, installer assets
+├── package.json
+└── vite.config.js
 ```
 
 ---
 
-## Where data is stored
+## Data location
 
-- `library.json` → list of games + their metadata
-- `settings.json` → theme preference
-- `covers/` → downloaded Steam cover art
+All user data is stored locally:
 
-All inside `%APPDATA%/GameLibrary/` (e.g. `C:\Users\<you>\AppData\Roaming\GameLibrary`).
+```
+%APPDATA%\NEO-LIB\
+   library.json   ← games, categories, tools, settings
+   covers\        ← downloaded cover art
+   sounds\        ← optional sound packs
+```
 
----
-
-## Notes about metadata
-
-Metadata is fetched from the **public Steam Store catalog** (`store.steampowered.com/api/...`).
-No API key is required. Most PC games (Steam, GOG, Epic, standalone) get matched as long as
-the folder/exe name resembles the title. If a match is wrong, right-click the entry → **Re-obtain info online**
-to retry with the next-best result.
+Wipe these to factory-reset.
 
 ---
 
-## Icon
+## Monetization & affiliates (transparent)
 
-A default `build/icon.ico` is included as a placeholder. Replace it with your own 256×256
-multi-resolution `.ico` file for a custom installer icon.
+NEO-LIB is free. Maintenance is funded by:
+
+- **Affiliate-tagged deal links** — when the Deals strip shows a sale on
+  Humble / Fanatical / Steam, clicking it routes through the developer's
+  affiliate ID. Identifiers are baked into the build (`affiliateConfig.js`)
+  and **not editable from the UI**. Tampering with them in redistributed
+  builds violates the license (see `LICENSE`).
+- **Voluntary donations** — the "Support" button opens a PayPal QR / link
+  modal. Donations go to the developer; nothing is unlocked or gated behind
+  payment.
+
+No data leaves your machine except direct, on-demand HTTP requests to
+public store APIs (Steam, Epic, GOG) for metadata, and the deal feeds on
+app start.
+
+---
+
+## Roadmap
+
+- [ ] Cloud sync via GitHub Gist (opt-in, encrypted)
+- [ ] Steam manifest reading — show actual build IDs + "updated X days ago"
+- [ ] Keyboard shortcuts overlay (press `?`)
+- [ ] Split bloated `App.jsx` / `Sidebar.jsx` into hooks
+
+---
+
+## License
+
+**Proprietary — All Rights Reserved.** See [`LICENSE`](./LICENSE).
+
+Source is published for transparency and study. Redistribution, repackaging,
+or stripping of affiliate/donation links is prohibited.
+
+For commercial licensing or partnership: contact the author.

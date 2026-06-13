@@ -1,0 +1,62 @@
+NEO-LIB — Proprietary Software License
+Copyright (c) 2026 KenLun. All Rights Reserved.
+
+1. Grant of Use
+   KenLun ("the Author") grants you ("the User") a personal, non-exclusive,
+   non-transferable, revocable license to download, install, and run the
+   compiled NEO-LIB application ("the Software") on personal computing
+   devices you own or control, solely for your private, non-commercial use.
+
+2. Restrictions
+   You may NOT, in whole or in part, without prior written permission of
+   the Author:
+     (a) copy, redistribute, sublicense, sell, rent, lease, or host the
+         Software, its installers, or its binary builds;
+     (b) modify, adapt, translate, reverse engineer, decompile, disassemble,
+         or otherwise attempt to derive the source code, except to the extent
+         such activity is expressly permitted by applicable law;
+     (c) remove, obscure, replace, or alter any copyright notices, branding,
+         affiliate identifiers, monetization links, donation links, deal
+         banners, or telemetry inside the Software;
+     (d) use the Software, its name, or its assets to promote, advertise,
+         or build derivative products, paid or unpaid;
+     (e) bundle the Software with other software, malware, adware, miners,
+         or any unauthorized third-party code.
+
+3. Source Code
+   The source code in this repository is published for transparency,
+   personal study, and contribution-review purposes ONLY. Publication of
+   the source code does NOT constitute an open-source license. No rights
+   are granted to redistribute, repackage, or commercialize the source or
+   any build produced from it.
+
+4. Contributions
+   By submitting a pull request, issue, patch, or any other contribution,
+   you irrevocably assign all rights, title, and interest in that
+   contribution to the Author, and confirm that you have the right to do so.
+
+5. Monetization & Affiliate Disclosure
+   The Software may surface third-party deals, affiliate-tagged store links,
+   and voluntary donation prompts. The corresponding affiliate identifiers
+   belong exclusively to the Author. Attempts to substitute, strip, or
+   redirect these identifiers in modified builds are strictly prohibited.
+
+6. No Warranty
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN NO EVENT SHALL
+   THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING
+   FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+   DEALINGS IN THE SOFTWARE.
+
+7. Termination
+   This license terminates automatically if you breach any of its terms.
+   Upon termination you must cease all use of the Software and destroy all
+   copies in your possession.
+
+8. Governing Law
+   This license is governed by the laws applicable to the Author's primary
+   place of residence, without regard to conflict-of-law principles.
+
+For commercial licensing, redistribution rights, or partnership inquiries,
+contact the Author directly.

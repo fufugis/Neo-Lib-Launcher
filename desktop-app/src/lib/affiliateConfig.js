@@ -15,11 +15,13 @@ export const AFFILIATE_CONFIG = {
   awinAffId: '',          // e.g. '1234567'
   awinMid:   '',          // e.g. '17157'  (Fanatical merchant id)
 
-  // Humble Partner — you submitted ID 8518905; activates once Humble approves your application
+  // Humble Partner — submitted ID 8518905; activates once Humble approves your application
   humbleId:  '8518905',
 
-  // Skimlinks (auto-affiliate across hundreds of stores) — paste once approved
-  skimlinksId: '',        // e.g. '12345X'
+  // Skimlinks (auto-affiliate across hundreds of stores).
+  // Format: '<publisherId>X<siteId>' — e.g. '304685X1792871'
+  // Until Skimlinks approves the request, redirects still work but won't pay out.
+  skimlinksId: '304685X1792871',
 
   // Generic affiliate URL wrapper (advanced, optional)
   urlTemplate: '',        // e.g. 'https://example.com/track?aff=YOU&dest={URL}'
