@@ -84,3 +84,9 @@ desktop-app/node_modules/electron/dist/electron
 desktop-app/dist/NEO-LIB-windows-portable.zip
 desktop-app/dist/win-unpacked/NEO-LIB.exe
 desktop-app/dist/NEO-LIB/NEO-LIB.exe
+.env
+.env.*
+*.env
+credentials.json
+*.key
+.credentials
