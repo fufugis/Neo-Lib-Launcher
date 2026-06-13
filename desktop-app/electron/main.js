@@ -24,21 +24,18 @@ async function ensureDirs() {
 }
 
 // ---------------- HTTP helpers ---------------- //
-function httpGetJson(url) {
+function httpGetJson(url, timeoutMs = 7000) {
   return new Promise((resolve, reject) => {
-    https
-      .get(url, { headers: { 'User-Agent': 'GameLibrary/1.0' } }, (res) => {
-        let body = '';
-        res.on('data', (chunk) => (body += chunk));
-        res.on('end', () => {
-          try {
-            resolve(JSON.parse(body));
-          } catch (e) {
-            reject(e);
-          }
-        });
-      })
-      .on('error', reject);
+    const req = https.get(url, { headers: { 'User-Agent': 'GameLibrary/1.0' } }, (res) => {
+      let body = '';
+      res.on('data', (chunk) => (body += chunk));
+      res.on('end', () => {
+        try { resolve(JSON.parse(body)); }
+        catch (e) { reject(e); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(timeoutMs, () => { req.destroy(new Error('timeout')); });
   });
 }
 
@@ -744,7 +741,113 @@ If you cannot identify the game, set "name" to "" and return empty strings/array
 });
 
 // ---------------- Unified metadata pipeline ---------------- //
-// Tries Steam → GOG → Gemini (if key) → Web scrape. Returns first usable result + source.
+// Tries Hardcoded → Steam → Epic → GOG → Gemini (if key) → Web scrape.
+
+/* Hardcoded entries for popular launcher-exclusives that Steam search misses.
+   Keys are normalized (lowercased, alphanumeric only). */
+const LAUNCHER_EXCLUSIVES = {
+  leagueoflegends: {
+    source: 'curated', name: 'League of Legends',
+    shortDescription: '5v5 MOBA from Riot Games — pick a champion, push lanes, destroy the enemy Nexus.',
+    about: 'League of Legends is a team-based strategy game where two teams of five powerful champions face off to destroy the other\'s base. Choose from over 140 champions to make epic plays, secure kills, and take down towers as you battle your way to victory.',
+    headerImage: 'https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Lux_0.jpg',
+    capsuleImage: 'https://upload.wikimedia.org/wikipedia/en/7/77/League_of_Legends_2019_vector.svg',
+    background: 'https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Lux_0.jpg',
+    screenshots: [],
+    genres: ['MOBA', 'Multiplayer', 'Free to play'],
+    developers: ['Riot Games'], publishers: ['Riot Games'],
+    releaseDate: '27 Oct, 2009', website: 'https://www.leagueoflegends.com/',
+  },
+  fortnite: {
+    source: 'curated', name: 'Fortnite',
+    shortDescription: 'Battle royale, build mode, and ever-changing seasons from Epic Games.',
+    about: 'Drop in, gear up, and build to win. Fortnite is a free-to-play Battle Royale, Build Mode, Zero Build, Save the World, and Creative experience from Epic Games.',
+    headerImage: 'https://cdn2.unrealengine.com/social-image-chapter4-s3-3840x2160-d35912cc25ad.jpg',
+    capsuleImage: 'https://cdn2.unrealengine.com/social-image-chapter4-s3-3840x2160-d35912cc25ad.jpg',
+    background: 'https://cdn2.unrealengine.com/social-image-chapter4-s3-3840x2160-d35912cc25ad.jpg',
+    screenshots: [],
+    genres: ['Battle Royale', 'Shooter', 'Free to play'],
+    developers: ['Epic Games'], publishers: ['Epic Games'],
+    releaseDate: '21 Jul, 2017', website: 'https://www.fortnite.com/',
+  },
+  valorant: {
+    source: 'curated', name: 'VALORANT',
+    shortDescription: '5v5 character-based tactical shooter from Riot Games.',
+    about: 'VALORANT is a free-to-play 5v5 character-based tactical shooter where precise gunplay meets unique agent abilities. Plant the spike, defuse the spike, take out the enemy team.',
+    headerImage: 'https://images.contentstack.io/v3/assets/bltb6530b271fddd0b1/blt8edf9a45a36b7547/65d77a01d4d6fb1f1ec1336c/Val_Banner_HomePage_2160x1080.jpg',
+    capsuleImage: 'https://images.contentstack.io/v3/assets/bltb6530b271fddd0b1/blt8edf9a45a36b7547/65d77a01d4d6fb1f1ec1336c/Val_Banner_HomePage_2160x1080.jpg',
+    background: 'https://images.contentstack.io/v3/assets/bltb6530b271fddd0b1/blt8edf9a45a36b7547/65d77a01d4d6fb1f1ec1336c/Val_Banner_HomePage_2160x1080.jpg',
+    screenshots: [],
+    genres: ['FPS', 'Tactical', 'Multiplayer', 'Free to play'],
+    developers: ['Riot Games'], publishers: ['Riot Games'],
+    releaseDate: '2 Jun, 2020', website: 'https://playvalorant.com/',
+  },
+  minecraft: {
+    source: 'curated', name: 'Minecraft',
+    shortDescription: 'Sandbox build/survive game. Explore, mine, craft, and build.',
+    about: 'Minecraft is a game about placing blocks and going on adventures. Build anything you can imagine in Creative, or survive against mobs in Survival mode.',
+    headerImage: 'https://www.minecraft.net/content/dam/games/minecraft/key-art/Vanilla_KeyArt_LandscapeStandard_2.jpg',
+    capsuleImage: 'https://www.minecraft.net/content/dam/games/minecraft/key-art/Vanilla_KeyArt_LandscapeStandard_2.jpg',
+    background: 'https://www.minecraft.net/content/dam/games/minecraft/key-art/Vanilla_KeyArt_LandscapeStandard_2.jpg',
+    screenshots: [],
+    genres: ['Sandbox', 'Survival', 'Adventure'],
+    developers: ['Mojang Studios'], publishers: ['Mojang Studios'],
+    releaseDate: '18 Nov, 2011', website: 'https://www.minecraft.net/',
+  },
+  hearthstone: {
+    source: 'curated', name: 'Hearthstone',
+    shortDescription: 'Free-to-play digital collectible card game from Blizzard.',
+    about: 'Hearthstone is a fast-paced strategy card game from Blizzard Entertainment. Collect powerful cards and build winning decks.',
+    headerImage: 'https://bnetcmsus-a.akamaihd.net/cms/blog_header/g8/G8KZJ50BIWEH1601590315476.jpg',
+    capsuleImage: 'https://bnetcmsus-a.akamaihd.net/cms/blog_header/g8/G8KZJ50BIWEH1601590315476.jpg',
+    background: 'https://bnetcmsus-a.akamaihd.net/cms/blog_header/g8/G8KZJ50BIWEH1601590315476.jpg',
+    screenshots: [],
+    genres: ['Card Game', 'Strategy', 'Free to play'],
+    developers: ['Blizzard Entertainment'], publishers: ['Blizzard Entertainment'],
+    releaseDate: '11 Mar, 2014', website: 'https://hearthstone.blizzard.com/',
+  },
+  overwatch2: {
+    source: 'curated', name: 'Overwatch 2',
+    shortDescription: 'Team-based 5v5 hero shooter from Blizzard.',
+    about: 'Overwatch 2 is a free-to-play, team-based hero shooter set in an optimistic future.',
+    headerImage: 'https://bnetcmsus-a.akamaihd.net/cms/blog_header/hf/HFM7HQH36JHN1664468506340.jpg',
+    capsuleImage: 'https://bnetcmsus-a.akamaihd.net/cms/blog_header/hf/HFM7HQH36JHN1664468506340.jpg',
+    background: 'https://bnetcmsus-a.akamaihd.net/cms/blog_header/hf/HFM7HQH36JHN1664468506340.jpg',
+    screenshots: [],
+    genres: ['FPS', 'Hero Shooter', 'Multiplayer', 'Free to play'],
+    developers: ['Blizzard Entertainment'], publishers: ['Blizzard Entertainment'],
+    releaseDate: '4 Oct, 2022', website: 'https://overwatch.blizzard.com/',
+  },
+  worldofwarcraft: {
+    source: 'curated', name: 'World of Warcraft',
+    shortDescription: 'The flagship Blizzard MMORPG. Quest, raid, and PVP across Azeroth.',
+    about: 'World of Warcraft is a massively multiplayer online role-playing game (MMORPG) released in 2004 by Blizzard Entertainment.',
+    headerImage: 'https://bnetcmsus-a.akamaihd.net/cms/blog_header/hd/HD4OWHBP10G31694555921858.jpg',
+    capsuleImage: 'https://bnetcmsus-a.akamaihd.net/cms/blog_header/hd/HD4OWHBP10G31694555921858.jpg',
+    background: 'https://bnetcmsus-a.akamaihd.net/cms/blog_header/hd/HD4OWHBP10G31694555921858.jpg',
+    screenshots: [],
+    genres: ['MMORPG', 'RPG'],
+    developers: ['Blizzard Entertainment'], publishers: ['Blizzard Entertainment'],
+    releaseDate: '23 Nov, 2004', website: 'https://worldofwarcraft.blizzard.com/',
+  },
+  apexlegends: {
+    source: 'curated', name: 'Apex Legends',
+    shortDescription: 'Free-to-play hero battle royale from Respawn / EA.',
+    about: 'Apex Legends is a free-to-play hero shooter where legendary characters with powerful abilities team up to battle for fame & fortune.',
+    headerImage: 'https://media.contentapi.ea.com/content/dam/apex-legends/common/season19-ignite/keyart-16x9.jpg',
+    capsuleImage: 'https://media.contentapi.ea.com/content/dam/apex-legends/common/season19-ignite/keyart-16x9.jpg',
+    background: 'https://media.contentapi.ea.com/content/dam/apex-legends/common/season19-ignite/keyart-16x9.jpg',
+    screenshots: [],
+    genres: ['Battle Royale', 'FPS', 'Free to play'],
+    developers: ['Respawn Entertainment'], publishers: ['Electronic Arts'],
+    releaseDate: '4 Feb, 2019', website: 'https://www.ea.com/games/apex-legends',
+  },
+};
+function curatedMatch(query) {
+  const k = (query || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return LAUNCHER_EXCLUSIVES[k] || null;
+}
+
 ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey, lockedAppid }) => {
   // If a lockedAppid is provided, skip search entirely and just refresh that exact entry
   if (lockedAppid) {
@@ -777,6 +880,10 @@ ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey,
   }
   const term = cleanSearchTerm(query);
   if (!term) return null;
+
+  // 0. Curated launcher-exclusives (LoL, Fortnite, Valorant, Minecraft, etc.) — instant, no network
+  const curated = curatedMatch(term);
+  if (curated) return curated;
 
   // 1. Steam
   if (!skipSources.includes('steam')) {
@@ -905,6 +1012,31 @@ ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey,
 /* Cached in memory for 1 hour. No API keys required.             */
 /* ============================================================ */
 let DEALS_CACHE = { ts: 0, items: [] };
+
+/* ============================================================ */
+/* LAUNCHER DETECTOR — checks if Steam/Epic/EA/etc are running    */
+/* via tasklist. Called from renderer every few minutes.          */
+/* ============================================================ */
+ipcMain.handle('launcher:detect', async () => {
+  const { exec } = require('child_process');
+  return new Promise((resolve) => {
+    if (process.platform !== 'win32') return resolve({});
+    exec('tasklist /FO CSV /NH', { maxBuffer: 4 * 1024 * 1024 }, (err, stdout) => {
+      if (err) return resolve({});
+      const lc = (stdout || '').toLowerCase();
+      resolve({
+        steam:    lc.includes('steam.exe'),
+        epic:     lc.includes('epicgameslauncher.exe'),
+        ea:       lc.includes('ea.exe') || lc.includes('eadesktop.exe') || lc.includes('eaapp.exe'),
+        ubisoft:  lc.includes('upc.exe') || lc.includes('uplay.exe'),
+        gog:      lc.includes('galaxyclient.exe'),
+        battlenet:lc.includes('battle.net.exe') || lc.includes('agent.exe'),
+        riot:     lc.includes('riotclientservices.exe'),
+        rockstar: lc.includes('rockstargameslauncher.exe') || lc.includes('rockstargames.launcher.exe'),
+      });
+    });
+  });
+});
 
 ipcMain.handle('deals:fetch', async () => {
   const ONE_HOUR = 60 * 60 * 1000;

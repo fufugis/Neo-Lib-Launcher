@@ -2,7 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FolderSearch, Loader2, Check, X as XIcon, RefreshCw, ChevronRight, Sparkles,
-  Search, ArrowRight, PlusCircle, FolderOpen, Gamepad2,
+  Search, ArrowRight, ArrowLeft, PlusCircle, FolderOpen, Gamepad2,
 } from 'lucide-react';
 import Modal from './Modal';
 import { guessNameFromPath } from '../lib/utils';
@@ -189,6 +189,14 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
 
   const skipCurrent = () => advance();
 
+  const goBack = () => {
+    if (cursor > 0) {
+      setCursor(cursor - 1);
+      // remove the most recently accepted/skipped entry from accepted if it matches
+      setAccepted((a) => a.slice(0, -1));
+    }
+  };
+
   const advance = () => {
     const next = cursor + 1;
     if (next >= candidates.length) {
@@ -369,14 +377,28 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
             </div>
           </div>
 
-          <div className="mt-5 flex items-center justify-between">
-            <button
-              data-testid="wizard-skip-btn"
-              onClick={skipCurrent}
-              className="inline-flex items-center gap-2 rounded-full hairline px-4 py-2 text-xs text-muted hover:text-ink"
-            >
-              <XIcon size={13} /> Skip
-            </button>
+          <div className="mt-5 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <button
+                data-testid="wizard-back-btn"
+                disabled={cursor === 0}
+                onClick={goBack}
+                className="inline-flex items-center gap-2 rounded-full hairline px-4 py-2 text-xs text-muted hover:text-ink disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Go back to the previous candidate"
+              >
+                <ArrowLeft size={13} /> Back
+              </button>
+              <button
+                data-testid="wizard-skip-btn"
+                onClick={skipCurrent}
+                className="inline-flex items-center gap-2 rounded-full hairline px-4 py-2 text-xs text-muted hover:text-ink"
+              >
+                <XIcon size={13} /> Skip
+              </button>
+            </div>
+            <div className="text-[10px] text-muted/70">
+              {cursor + 1} / {candidates.length}
+            </div>
             <button
               data-testid="wizard-accept-btn"
               onClick={acceptCurrent}

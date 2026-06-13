@@ -2,8 +2,10 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { THEMES } from '../lib/utils';
 import { SOUND_PACKS, setSoundPack, playLaunch, playHover } from '../lib/sound';
-import { Check, Sparkles, Eye, EyeOff, Sliders, Power } from 'lucide-react';
+import { Check, Sparkles, Eye, EyeOff, Sliders, Power, Heart } from 'lucide-react';
 import Modal from './Modal';
+import { DONATE_PAYPAL_URL } from './DonateModal';
+import qrUrl from '../assets/donate-qr.png';
 
 export default function SettingsModal({ open, onClose, settings, setSettings }) {
   const setKey = (patch) => setSettings({ ...settings, ...patch });
@@ -222,6 +224,20 @@ export default function SettingsModal({ open, onClose, settings, setSettings }) 
                   placeholder="e.g. 17157 (Fanatical)"
                   testid="aff-awinMid"
                 />
+                <AffInput
+                  label="Humble Partner ID"
+                  value={settings.affiliate?.humbleId || ''}
+                  onChange={(v) => setKey({ affiliate: { ...(settings.affiliate || {}), humbleId: v } })}
+                  placeholder="e.g. 8518905"
+                  testid="aff-humbleId"
+                />
+                <AffInput
+                  label="Skimlinks ID (auto-affiliate)"
+                  value={settings.affiliate?.skimlinksId || ''}
+                  onChange={(v) => setKey({ affiliate: { ...(settings.affiliate || {}), skimlinksId: v } })}
+                  placeholder="e.g. 12345X"
+                  testid="aff-skimlinksId"
+                />
               </div>
               <AffInput
                 label="Custom URL template (advanced)"
@@ -297,6 +313,42 @@ export default function SettingsModal({ open, onClose, settings, setSettings }) 
             NEO-LIB v1.0. Local-first. Metadata sourced from Steam, GOG, DuckDuckGo and Google.
             Library data lives in <span className="font-mono text-ink">%APPDATA%/NEO-LIB</span>.
           </p>
+        </Section>
+
+        {/* Support & credits */}
+        <Section title="Support NEO-LIB">
+          <div className="rounded-lg hairline bg-surface/40 p-4 space-y-3">
+            <div className="flex items-center gap-2 text-[13px]">
+              <Heart size={14} className="text-[rgb(var(--accent))]" />
+              <span>Made with care by <span className="text-ink font-semibold">KenLun</span></span>
+            </div>
+            <p className="text-[11.5px] text-muted leading-relaxed">
+              NEO-LIB is free and ad-light. If it&apos;s saved you time, consider buying me a coffee — it directly funds future updates.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                data-testid="settings-donate-btn"
+                onClick={() => { window.api?.openExternal ? window.api.openExternal(DONATE_PAYPAL_URL) : window.open(DONATE_PAYPAL_URL, '_blank'); }}
+                className="font-bold text-black hover:opacity-90 transition-opacity"
+                style={{
+                  background: '#FFD140',
+                  borderRadius: '0.25rem',
+                  padding: '0 1.5rem',
+                  height: '2.25rem',
+                  fontFamily: '"Helvetica Neue",Arial,sans-serif',
+                  fontSize: '0.875rem',
+                  border: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  cursor: 'pointer',
+                }}
+              >
+                Buy me a coffee
+              </button>
+              <img src={qrUrl} alt="Donate QR" className="h-20 w-20 rounded-md bg-white p-1" />
+            </div>
+          </div>
         </Section>
 
         <div className="flex justify-end pt-1">

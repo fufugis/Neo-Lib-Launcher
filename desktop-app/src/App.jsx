@@ -5,9 +5,12 @@ import Sidebar, { CategoryContextMenu } from './components/Sidebar';
 import GameDetail from './components/GameDetail';
 import ShowcaseStrip from './components/ShowcaseStrip';
 import DealsBar from './components/DealsBar';
+import DonateModal from './components/DonateModal';
+import LauncherDetectModal from './components/LauncherDetectModal';
 import SettingsModal from './components/SettingsModal';
 import AddGameModal from './components/AddGameModal';
 import WizardModal from './components/WizardModal';
+import AutoSortModal from './components/AutoSortModal';
 import PromptModal from './components/PromptModal';
 import ConfirmModal from './components/ConfirmModal';
 import TroubleshootModal from './components/TroubleshootModal';
@@ -139,6 +142,24 @@ export default function App() {
     });
   };
 
+  /* --- Sidebar resize --- */
+  const sidebarWidth = settings.sidebarWidth || 320;
+  const startResize = (e) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = sidebarWidth;
+    const onMove = (ev) => {
+      const w = Math.max(220, Math.min(640, startW + (ev.clientX - startX)));
+      updateSetting({ sidebarWidth: w });
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
   /* --- Sound pack: apply when settings change --- */
   React.useEffect(() => {
     setSoundPack(settings.soundsEnabled === false ? 'none' : (settings.soundPack || 'synthwave'));
@@ -166,6 +187,64 @@ export default function App() {
 
   /* --- Troubleshoot state (smart refetch) --- */
   const [troubleshoot, setTroubleshoot] = React.useState({ open: false, game: null });
+
+  /* --- Auto-sort state --- */
+  const [autoSortOpen, setAutoSortOpen] = React.useState(false);
+
+  /* --- Donate modal --- */
+  const [donateOpen, setDonateOpen] = React.useState(false);
+
+  /* --- Launcher detector --- */
+  const [detectedLauncher, setDetectedLauncher] = React.useState(null);
+  React.useEffect(() => {
+    if (!isElectron || !window.api?.detectLaunchers) return undefined;
+    if (settings.launcherDetectEnabled === false) return undefined;
+    let cancelled = false;
+    const dismissed = settings.launcherDetectDismissed || {};
+    const askLater = settings.launcherAskLater || {};
+
+    const tick = async () => {
+      try {
+        const status = await window.api.detectLaunchers();
+        if (cancelled) return;
+        // Find first running launcher that isn't dismissed and not in cooldown
+        for (const [key, isRunning] of Object.entries(status)) {
+          if (!isRunning) continue;
+          if (dismissed[key]) continue;
+          const later = askLater[key];
+          if (later && Date.now() - later < 24 * 60 * 60 * 1000) continue; // 24h cooldown
+          setDetectedLauncher(key);
+          return;
+        }
+      } catch { /* offline or non-Windows — ignore */ }
+    };
+    tick();
+    const t = setInterval(tick, 5 * 60 * 1000); // every 5 minutes
+    return () => { cancelled = true; clearInterval(t); };
+  }, [settings.launcherDetectEnabled, settings.launcherDetectDismissed, settings.launcherAskLater]);
+
+  const importDetectedLauncher = async () => {
+    const key = detectedLauncher;
+    setDetectedLauncher(null);
+    if (!key) return;
+    try {
+      let games = [];
+      if (key === 'steam')  games = await window.api.scanSteam();
+      else if (key === 'epic') games = await window.api.scanEpic();
+      else { notify(`${key} import isn't wired yet — coming soon.`); return; }
+      for (const it of games || []) {
+        addToGames({
+          name: it.name,
+          exePath: it.exe,
+          appid: it.appid,
+          launcher: key,
+        });
+      }
+      notify(`Imported ${games?.length || 0} games from ${key}.`);
+    } catch (e) {
+      notify('Import failed: ' + (e?.message || e));
+    }
+  };
 
   /* --- Confirm dialog state --- */
   const [confirmCfg, setConfirmCfg] = React.useState({ open: false });
@@ -560,6 +639,53 @@ export default function App() {
     }
   };
 
+  /* --- Auto-sort: create missing default categories, then tag games into them --- */
+  const handleAutoSortApply = (defaultCats, assignments) => {
+    setLibrary((prev) => {
+      const existingCats = prev[sliceK.cats] || [];
+      const newCats = [...existingCats];
+      const nameToCat = {};
+      // Pre-populate map with existing cats by name (case-insensitive)
+      for (const c of existingCats) nameToCat[c.name.toLowerCase()] = c;
+      // Create any missing default categories
+      for (const d of defaultCats) {
+        if (!nameToCat[d.name.toLowerCase()]) {
+          const c = { id: uid(), name: d.name, colorId: d.colorId, private: false };
+          newCats.push(c);
+          nameToCat[d.name.toLowerCase()] = c;
+        }
+      }
+      // Tag each game into the matched categories (no removal)
+      const games = (prev[sliceK.items] || []).map((g) => {
+        const ass = assignments.find((a) => a.id === g.id);
+        if (!ass || ass.cats.length === 0) return g;
+        const existing = new Set(g.categoryIds || []);
+        for (const catName of ass.cats) {
+          const c = nameToCat[catName.toLowerCase()];
+          if (c) existing.add(c.id);
+        }
+        return { ...g, categoryIds: Array.from(existing) };
+      });
+      return {
+        ...prev,
+        [sliceK.cats]: newCats,
+        [sliceK.items]: games,
+      };
+    });
+    notify('Auto-sort applied');
+  };
+
+  const refetchMissingGenres = async (g) => {
+    if (!isElectron) return;
+    const result = await window.api.fetchMetadata({
+      query: g.name,
+      skipSources: [],
+      geminiKey: settings.geminiKey || '',
+      lockedAppid: g.appid || null,
+    });
+    if (result?.genres?.length) updateGame(g.id, { genres: result.genres });
+  };
+
   /* --- Game right-click actions --- */
   const handleGameContext = async (action, g) => {
     if (action === 'remove') {
@@ -697,7 +823,18 @@ export default function App() {
   const toggleCollapsed = (id) =>
     updateSetting({ collapsed: { ...settings.collapsed, [id]: !settings.collapsed[id] } });
 
-  const visibleGames = currentItems;
+  // Launcher filter (All/Steam/Epic/EA/GOG/Other) — only used on Library tab
+  const launcherFilter = settings.launcherFilter || 'all';
+  const visibleGames = React.useMemo(() => {
+    if (isTools || launcherFilter === 'all') return currentItems;
+    return currentItems.filter((g) => {
+      const src = (g.launcher || g.source || '').toLowerCase();
+      if (launcherFilter === 'other') {
+        return !['steam', 'epic', 'ea', 'gog', 'curated'].some((k) => src.includes(k));
+      }
+      return src.includes(launcherFilter);
+    });
+  }, [currentItems, isTools, launcherFilter]);
   const selected = currentItems.find((g) => g.id === currentSelectedId) || null;
 
   return (
@@ -707,7 +844,7 @@ export default function App() {
 
       <div className="relative z-10 flex min-h-0 flex-1">
         <Sidebar
-          games={currentItems}
+          games={visibleGames}
           categories={currentCats}
           gameOrderByCategory={currentOrder}
           collapsed={settings.collapsed || {}}
@@ -729,6 +866,11 @@ export default function App() {
           onChangeIconPosition={(v) => updateSetting({ iconPosition: v })}
           mode={settings.mode || 'library'}
           onSetMode={setMode}
+          launcherFilter={launcherFilter}
+          onSetLauncherFilter={(v) => updateSetting({ launcherFilter: v })}
+          onAutoSort={() => setAutoSortOpen(true)}
+          sidebarWidth={sidebarWidth}
+          onStartResize={startResize}
           onSelect={setCurrentSelectedId}
           onAddManual={() => setShowAdd(true)}
           onOpenWizard={() => setShowWizard(true)}
@@ -778,11 +920,29 @@ export default function App() {
       </div>
 
       {/* Bottom deals bar — across the full window */}
-      {settings.dealsEnabled !== false && settings.dealsBarHidden !== true && (
+      {settings.dealsEnabled !== false && settings.dealsBarHidden !== true ? (
         <DealsBar
           settings={settings}
           onClose={() => updateSetting({ dealsBarHidden: true })}
+          onDonate={() => setDonateOpen(true)}
         />
+      ) : (
+        <div
+          className="relative z-20 flex h-7 shrink-0 items-center justify-between border-t hairline px-4 text-[10.5px] text-muted/80"
+          style={{ backgroundColor: 'rgb(var(--surface) / 0.9)' }}
+          data-testid="credits-bar"
+        >
+          <span>NEO-LIB · made by <span className="text-ink font-semibold">KenLun</span></span>
+          <button
+            data-testid="credits-bar-donate"
+            onClick={() => setDonateOpen(true)}
+            className="flex items-center gap-1 rounded-full px-2 h-5 text-[10px] font-bold transition-colors"
+            style={{ background: '#FFD140', color: '#000' }}
+            title="Buy KenLun a coffee"
+          >
+            ☕ Tip
+          </button>
+        </div>
       )}
 
       {/* Modals */}
@@ -869,6 +1029,38 @@ export default function App() {
             localStorage.setItem('neo-lib-tutorial-seen', '1');
           }
         }}
+      />
+
+      <AutoSortModal
+        open={autoSortOpen}
+        games={visibleGames}
+        categories={currentCats}
+        onClose={() => setAutoSortOpen(false)}
+        onApply={handleAutoSortApply}
+        onRefetchMissing={refetchMissingGenres}
+      />
+
+      <DonateModal open={donateOpen} onClose={() => setDonateOpen(false)} />
+
+      <LauncherDetectModal
+        open={!!detectedLauncher}
+        launcher={detectedLauncher}
+        onImport={importDetectedLauncher}
+        onSkip={(forever) => {
+          if (forever) {
+            updateSetting({
+              launcherDetectDismissed: { ...(settings.launcherDetectDismissed || {}), [detectedLauncher]: true },
+            });
+          }
+          setDetectedLauncher(null);
+        }}
+        onLater={() => {
+          updateSetting({
+            launcherAskLater: { ...(settings.launcherAskLater || {}), [detectedLauncher]: Date.now() },
+          });
+          setDetectedLauncher(null);
+        }}
+        onClose={() => setDetectedLauncher(null)}
       />
 
       {!bootDone && settings.crtBootEnabled !== false && <div className="crt-boot" />}

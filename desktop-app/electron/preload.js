@@ -52,4 +52,7 @@ contextBridge.exposeInMainWorld('api', {
 
   // deals (Epic free + Steam specials)
   fetchDeals: () => ipcRenderer.invoke('deals:fetch'),
+
+  // launcher process detection
+  detectLaunchers: () => ipcRenderer.invoke('launcher:detect'),
 });

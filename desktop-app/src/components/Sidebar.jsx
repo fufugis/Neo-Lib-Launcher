@@ -24,6 +24,8 @@ export default function Sidebar({
   games, categories, gameOrderByCategory, collapsed,
   unlockedCategories, search, selectedId, librarySize,
   mode, onSetMode,
+  launcherFilter = 'all',
+  onSetLauncherFilter,
   iconPosition = 'left', rowSize = 44, catTextSize = 11, catGlow = 40,
   rowGap = 2, catGap = 8,
   onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
@@ -34,6 +36,9 @@ export default function Sidebar({
   onSetLibrarySize, onMoveGameToCategory,
   onReorderGameInCategory, onReorderCategory,
   onToggleCollapsed, onUnlockCategory,
+  onAutoSort,
+  sidebarWidth = 320,
+  onStartResize,
   updatingAll,
 }) {
   // size based on rowSize slider (in px)
@@ -92,15 +97,27 @@ export default function Sidebar({
   ];
 
   return (
-    <aside className="relative flex h-full w-[320px] shrink-0 flex-col border-r hairline bg-panel/40">
-      {/* Tab bar — Library / Tools */}
+    <aside
+      className="relative flex h-full shrink-0 flex-col border-r hairline bg-panel/40"
+      style={{ width: sidebarWidth }}
+    >
+      {/* Resize handle on right edge */}
+      <div
+        data-testid="sidebar-resize-handle"
+        onMouseDown={onStartResize}
+        title="Drag to resize sidebar"
+        className="absolute right-0 top-0 z-30 h-full w-1.5 cursor-col-resize hover:bg-[rgb(var(--accent)/0.4)] transition-colors"
+        style={{ touchAction: 'none' }}
+      />
+      {/* Tab bar — Library / Tools (primary) */}
       <div className="flex items-center gap-1 p-2 pb-0">
         <TabPill
           label="Library"
           icon={<LibIcon size={12} />}
           active={mode !== 'tools'}
-          onClick={() => onSetMode('library')}
+          onClick={() => { onSetMode('library'); onSetLauncherFilter?.('all'); }}
           testid="tab-library"
+          big
         />
         <TabPill
           label="Tools"
@@ -108,8 +125,51 @@ export default function Sidebar({
           active={mode === 'tools'}
           onClick={() => onSetMode('tools')}
           testid="tab-tools"
+          big
         />
       </div>
+
+      {/* Secondary launcher filter row — only on Library tab */}
+      {mode !== 'tools' && (
+        <div className="flex items-center gap-1 px-2 pt-1.5 overflow-x-auto" data-testid="launcher-pane-row">
+          <LauncherPill
+            label="All"
+            active={(launcherFilter || 'all') === 'all'}
+            onClick={() => onSetLauncherFilter?.('all')}
+            testid="lp-all"
+          />
+          <LauncherPill
+            label="Steam"
+            active={launcherFilter === 'steam'}
+            onClick={() => onSetLauncherFilter?.('steam')}
+            testid="lp-steam"
+          />
+          <LauncherPill
+            label="Epic"
+            active={launcherFilter === 'epic'}
+            onClick={() => onSetLauncherFilter?.('epic')}
+            testid="lp-epic"
+          />
+          <LauncherPill
+            label="EA"
+            active={launcherFilter === 'ea'}
+            onClick={() => onSetLauncherFilter?.('ea')}
+            testid="lp-ea"
+          />
+          <LauncherPill
+            label="GOG"
+            active={launcherFilter === 'gog'}
+            onClick={() => onSetLauncherFilter?.('gog')}
+            testid="lp-gog"
+          />
+          <LauncherPill
+            label="Other"
+            active={launcherFilter === 'other'}
+            onClick={() => onSetLauncherFilter?.('other')}
+            testid="lp-other"
+          />
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="flex items-center gap-1.5 p-3 pt-2">
@@ -163,13 +223,25 @@ export default function Sidebar({
         <span className="text-[10px] uppercase tracking-[0.28em] text-muted">
           {isTools ? 'Tools' : 'Library'}
         </span>
-        <button
-          data-testid="category-new-btn"
-          onClick={onCreateCategory}
-          className="inline-flex items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)]"
-        >
+        <div className="flex items-center gap-1.5">
+          {!isTools && onAutoSort && (
+            <button
+              data-testid="sidebar-autosort-btn"
+              onClick={onAutoSort}
+              title="Smart auto-sort into 6 default categories"
+              className="inline-flex items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] text-[rgb(var(--accent-2))] hover:text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)]"
+            >
+              <Wand2 size={10} /> Auto-sort
+            </button>
+          )}
+          <button
+            data-testid="category-new-btn"
+            onClick={onCreateCategory}
+            className="inline-flex items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)]"
+          >
           <Plus size={11} /> New category
         </button>
+        </div>
       </div>
 
       {/* Tree */}
@@ -223,15 +295,17 @@ function SideBtn({ icon, label, onClick, testid, title }) {
   );
 }
 
-function TabPill({ label, icon, active, onClick, testid }) {
+function TabPill({ label, icon, active, onClick, testid, big = false }) {
   return (
     <button
       data-testid={testid}
       onClick={onClick}
       className={cn(
-        'group relative inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 h-8 text-[11px] font-bold uppercase tracking-[0.22em] transition-all',
+        'group relative inline-flex flex-1 items-center justify-center gap-1.5 rounded-md transition-all',
+        big ? 'px-3 h-10 text-[12.5px]' : 'px-3 h-8 text-[11px]',
+        'font-bold uppercase tracking-[0.22em]',
         active
-          ? 'text-ink bg-[rgb(var(--accent)/0.12)] hairline border-[rgb(var(--accent)/0.6)] shadow-[0_0_12px_-3px_rgb(var(--accent)/0.55)]'
+          ? 'text-ink bg-[rgb(var(--accent)/0.18)] hairline border-[rgb(var(--accent)/0.85)] shadow-[0_0_18px_-4px_rgb(var(--accent)/0.7)]'
           : 'text-muted hover:text-ink hover:bg-panel/60'
       )}
     >
@@ -240,13 +314,31 @@ function TabPill({ label, icon, active, onClick, testid }) {
       {active && (
         <motion.span
           layoutId="tab-underline"
-          className="absolute -bottom-0.5 left-3 right-3 h-px"
+          className="absolute -bottom-0.5 left-3 right-3 h-[2px] rounded-full"
           style={{
             background:
               'linear-gradient(90deg, transparent, rgb(var(--accent)) 50%, transparent)',
+            boxShadow: '0 0 8px rgb(var(--accent))',
           }}
         />
       )}
+    </button>
+  );
+}
+
+function LauncherPill({ label, active, onClick, testid }) {
+  return (
+    <button
+      data-testid={testid}
+      onClick={onClick}
+      className={cn(
+        'relative shrink-0 inline-flex items-center justify-center px-2.5 h-6 rounded-full text-[10px] font-semibold tracking-wide transition-all',
+        active
+          ? 'bg-[rgb(var(--accent-2)/0.18)] text-ink hairline border-[rgb(var(--accent-2)/0.7)] shadow-[0_0_8px_-2px_rgb(var(--accent-2)/0.55)]'
+          : 'text-muted/80 hover:text-ink hover:bg-panel/50 hairline border-transparent'
+      )}
+    >
+      {label}
     </button>
   );
 }

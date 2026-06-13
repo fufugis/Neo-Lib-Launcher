@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Tag, ExternalLink } from 'lucide-react';
+import { X, Tag, ExternalLink, Heart } from 'lucide-react';
 import { wrapDealUrl } from '../lib/deals';
 
 /**
@@ -9,7 +9,7 @@ import { wrapDealUrl } from '../lib/deals';
  * Affiliate ID (if set in Settings) is automatically wrapped into the link.
  * The bar is dismissible per-session; user can re-enable it from Settings.
  */
-export default function DealsBar({ settings = {}, onClose }) {
+export default function DealsBar({ settings = {}, onClose, onDonate }) {
   const [items, setItems] = React.useState([]);
   const [idx, setIdx] = React.useState(0);
 
@@ -103,6 +103,16 @@ export default function DealsBar({ settings = {}, onClose }) {
           />
         ))}
       </div>
+
+      <button
+        data-testid="deals-bar-donate"
+        onClick={onDonate}
+        title="Buy KenLun a coffee — support NEO-LIB"
+        className="flex items-center gap-1 rounded-full px-2.5 h-7 text-[10.5px] font-bold transition-colors"
+        style={{ background: '#FFD140', color: '#000' }}
+      >
+        <Heart size={11} fill="#000" /> Tip
+      </button>
 
       <button
         data-testid="deals-bar-close"

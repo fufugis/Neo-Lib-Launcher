@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Synthwave sun gradient -->
+    <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#FFE16A"/>
+      <stop offset="45%"  stop-color="#FF6BA8"/>
+      <stop offset="80%"  stop-color="#FF1F8F"/>
+      <stop offset="100%" stop-color="#7A1C8A"/>
+    </linearGradient>
+    <!-- Sky/horizon gradient -->
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#0B0420"/>
+      <stop offset="55%"  stop-color="#1B0840"/>
+      <stop offset="100%" stop-color="#3C0E66"/>
+    </linearGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1A002C"/>
+      <stop offset="100%" stop-color="#03000A"/>
+    </linearGradient>
+    <!-- Sun horizontal slits mask -->
+    <mask id="sunslits">
+      <rect x="0" y="0" width="512" height="512" fill="white"/>
+      <rect x="0" y="248" width="512" height="6" fill="black"/>
+      <rect x="0" y="260" width="512" height="5" fill="black"/>
+      <rect x="0" y="272" width="512" height="4" fill="black"/>
+      <rect x="0" y="282" width="512" height="3" fill="black"/>
+    </mask>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Rounded square frame -->
+  <rect x="0" y="0" width="512" height="512" rx="96" ry="96" fill="url(#sky)"/>
+
+  <!-- Sun -->
+  <circle cx="256" cy="220" r="120" fill="url(#sun)" mask="url(#sunslits)" filter="url(#glow)"/>
+
+  <!-- Horizon line glow -->
+  <rect x="0" y="298" width="512" height="2" fill="#FF1F8F" opacity="0.85"/>
+  <rect x="0" y="296" width="512" height="6" fill="#FF1F8F" opacity="0.18"/>
+
+  <!-- Perspective grid floor -->
+  <g fill="none" stroke="#FF1F8F" stroke-width="1.6" opacity="0.95">
+    <!-- Horizontal lines -->
+    <line x1="0"   y1="320" x2="512" y2="320"/>
+    <line x1="-20" y1="340" x2="532" y2="340"/>
+    <line x1="-60" y1="365" x2="572" y2="365"/>
+    <line x1="-120" y1="395" x2="632" y2="395"/>
+    <line x1="-200" y1="430" x2="712" y2="430"/>
+    <line x1="-310" y1="475" x2="822" y2="475"/>
+    <!-- Vanishing-point vertical rays -->
+    <line x1="256" y1="298" x2="-200" y2="512"/>
+    <line x1="256" y1="298" x2="-40"  y2="512"/>
+    <line x1="256" y1="298" x2="120"  y2="512"/>
+    <line x1="256" y1="298" x2="256"  y2="512"/>
+    <line x1="256" y1="298" x2="392"  y2="512"/>
+    <line x1="256" y1="298" x2="552"  y2="512"/>
+    <line x1="256" y1="298" x2="712"  y2="512"/>
+  </g>
+
+  <!-- Cyan secondary glow on horizon -->
+  <ellipse cx="256" cy="298" rx="180" ry="14" fill="#22E0FF" opacity="0.55" filter="url(#glow)"/>
+
+  <!-- N monogram top-left (subtle) -->
+  <g opacity="0.95">
+    <text x="74" y="124" font-family="'Audiowide', 'Orbitron', sans-serif" font-weight="900"
+          font-size="84" fill="#FF1F8F" filter="url(#glow)">N</text>
+  </g>
+</svg>

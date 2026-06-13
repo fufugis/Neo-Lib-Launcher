@@ -56,15 +56,15 @@ export default function GameDetail({
           className="pointer-events-none absolute inset-x-0 top-0 h-14"
           style={{ background: 'linear-gradient(to bottom, rgb(var(--surface)) 0%, rgb(var(--surface)/0.6) 40%, transparent 100%)' }}
         />
-        {/* Left vignette so title text is readable */}
+        {/* Left vignette so title text is readable — darker, more focused */}
         <div
           className="pointer-events-none absolute inset-0"
-          style={{ background: 'linear-gradient(to right, rgb(var(--surface)/0.85) 0%, rgb(var(--surface)/0.35) 35%, transparent 70%)' }}
+          style={{ background: 'linear-gradient(to right, rgb(var(--surface)/0.92) 0%, rgb(var(--surface)/0.55) 30%, transparent 65%)' }}
         />
-        {/* Bottom fade — image dissolves into About section */}
+        {/* Bottom fade — image dissolves into ActionBar/MetaStrip+About below it */}
         <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-32"
-          style={{ background: 'linear-gradient(to bottom, transparent 0%, rgb(var(--surface)/0.7) 55%, rgb(var(--surface)) 100%)' }}
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-24"
+          style={{ background: 'linear-gradient(to bottom, transparent 0%, rgb(var(--surface)/0.78) 55%, rgb(var(--surface)) 100%)' }}
         />
         {/* Accent glow corner */}
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgb(var(--accent)/0.18),transparent_55%)]" />
@@ -119,25 +119,25 @@ export default function GameDetail({
 /* ---------- Hero title block (text only, sits over backdrop) ---------- */
 function HeroTitle({ game }) {
   return (
-    <div className="relative aspect-[16/5] w-full">
-      <div className="absolute inset-0 flex items-end px-8 pb-7">
+    <div className="relative aspect-[16/3.2] w-full">
+      <div className="absolute inset-0 flex items-end px-8 pb-3">
         <div className="max-w-3xl">
           <motion.div
             initial={{ y: 8, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.05 }}
-            className="mb-3 flex items-center gap-2 text-[10px] uppercase tracking-[0.32em] text-[rgb(var(--accent-2))] neon-text-cyan"
+            className="mb-1.5 flex items-center gap-2 text-[9.5px] uppercase tracking-[0.32em] text-[rgb(var(--accent-2))] neon-text-cyan"
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-[rgb(var(--accent-2))]" />
+            <span className="h-1 w-1 rounded-full bg-[rgb(var(--accent-2))]" />
             Now viewing
           </motion.div>
           <motion.h1
             initial={{ y: 12, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.1, type: 'spring', stiffness: 180 }}
-            className="font-display text-[42px] font-extrabold leading-[1.05] tracking-tight neon-text"
+            className="font-display text-[34px] font-extrabold leading-[1.02] tracking-tight neon-text"
             data-testid="detail-title"
-            style={{ textShadow: '0 2px 24px rgb(var(--surface) / 0.9), 0 0 18px rgb(var(--accent) / 0.4)' }}
+            style={{ textShadow: '0 2px 24px rgb(var(--surface) / 0.95), 0 0 18px rgb(var(--accent) / 0.4)' }}
           >
             {game.name}
           </motion.h1>
@@ -145,13 +145,13 @@ function HeroTitle({ game }) {
             initial={{ y: 10, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.18 }}
-            className="mt-3 flex flex-wrap items-center gap-2 text-[11px]"
+            className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10.5px]"
           >
             {(game.genres || []).slice(0, 5).map((g) => (
               <button
                 key={g}
                 onClick={() => openSearch(`${g} games`)}
-                className="rounded-full px-2.5 py-1 text-muted hover:text-ink transition-colors"
+                className="rounded-full px-2 py-0.5 text-muted hover:text-ink transition-colors"
                 style={{
                   borderWidth: 1,
                   borderStyle: 'solid',
