@@ -12,8 +12,8 @@
  */
 export const AFFILIATE_CONFIG = {
   // Awin / Fanatical / GMG — paste once approved
-  awinAffId: '',          // e.g. '1234567'
-  awinMid:   '',          // e.g. '17157'  (Fanatical merchant id)
+  awinAffId: '2935955',     // your Awin publisher ID
+  awinMid:   '',            // per-merchant ID — populate ONCE per store you join (Fanatical=18809, GMG=10825, etc.)
 
   // Humble Partner — submitted ID 8518905; activates once Humble approves your application
   humbleId:  '8518905',

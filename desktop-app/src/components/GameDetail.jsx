@@ -24,6 +24,35 @@ export default function GameDetail({
   const bg = game.background || game.headerImage || game.coverUrl;
   // Hero parallax — subtle 3D tilt as mouse moves over the hero. CSS-only, no rerenders.
   const heroRef = React.useRef(null);
+  // Hero auto-brighten — sample the loaded image's average luminance. If it's
+  // too dark to read text against, apply a CSS brightness/contrast lift on the
+  // <img> AND a darker scrim on top. Avoids the "Cyberpunk poster" problem
+  // where a near-black banner makes the title invisible.
+  const [heroFilter, setHeroFilter] = React.useState(null);
+  const onHeroLoad = React.useCallback((e) => {
+    const img = e.currentTarget;
+    try {
+      const cv = document.createElement('canvas');
+      const W = (cv.width = 16);
+      const H = (cv.height = 16);
+      const ctx = cv.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0, W, H);
+      const d = ctx.getImageData(0, 0, W, H).data;
+      let sum = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        // Rec. 709 luminance
+        sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+      }
+      const avg = sum / (W * H); // 0..255
+      // Below 70 → too dark; lift brightness/contrast.
+      // Below 45 → very dark; stronger lift.
+      if (avg < 45) setHeroFilter('brightness(1.45) contrast(1.08) saturate(1.1)');
+      else if (avg < 70) setHeroFilter('brightness(1.22) contrast(1.05)');
+      else if (avg > 200) setHeroFilter('brightness(0.92) contrast(1.04)'); // ultra-bright covers (white anime keyart) get a tiny dim so text reads
+      else setHeroFilter(null);
+    } catch { /* CORS or tainted canvas — skip silently */ }
+  }, []);
   const onHeroMove = React.useCallback((e) => {
     const el = heroRef.current;
     if (!el) return;
@@ -71,6 +100,8 @@ export default function GameDetail({
             transition={{ duration: 0.9, ease: 'easeOut' }}
             src={bg}
             alt=""
+            crossOrigin="anonymous"
+            onLoad={onHeroLoad}
             className="hero-parallax pointer-events-none absolute inset-0 h-full w-full object-cover"
             style={{
               transform:
@@ -78,6 +109,7 @@ export default function GameDetail({
                 'rotateX(var(--hero-rx, 0deg)) ' +
                 'rotateY(var(--hero-ry, 0deg)) ' +
                 'translate3d(var(--hero-tx, 0px), var(--hero-ty, 0px), 0)',
+              filter: heroFilter || undefined,
             }}
           />
         ) : (

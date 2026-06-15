@@ -2,7 +2,7 @@
 
 > A synthwave-flavored, **fully portable Windows game library** that unifies every game on your PC — Steam, Epic, EA App, GOG, standalone — into one neon-lit interface. No accounts. No cloud. No telemetry.
 
-![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.0.8-1a1a2e) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.0.9-1a1a2e) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
 ---
 
@@ -55,7 +55,18 @@ Library + settings live at `%APPDATA%\NEO-LIB\`. Delete that folder to factory-r
 
 ## 📜 Patch notes
 
-### v1.0.8 — Pinned games, auto-update, smarter refetch *(current)*
+### v1.0.9 — Crash fix · stronger fetcher · anime overhaul · hero auto-brighten *(current)*
+- **🔴 Fixed:** Right-clicking a game no longer blanks the entire app. Root cause was a missing `isPinned` prop in the game-row context menu (introduced in v1.0.8 prep) → `ReferenceError` crashed the whole React tree.
+- **New:** 🎨 **Anime theme overhaul.** Replaced the old soft-sakura pastel palette with a bold modern anime aesthetic: deep magenta + electric blue + neon green on dark indigo void, plus a new diagonal "speed lines" ambient pattern (very Jujutsu Kaisen / Demon Slayer). Distinctively different from Vaporwave-Day now.
+- **New:** 🌒 **Smart hero auto-brighten.** Loaded hero banners are sampled (16×16 luminance read via canvas) and if too dark → automatic `brightness(1.22–1.45)` + contrast lift is applied so titles always stay readable. Ultra-bright covers (white anime keyart) get a tiny dim. Cyberpunk-poster style problem solved.
+- **New:** 🔍 **Much stronger metadata fetcher** — added FOUR new sources:
+  - **DLsite** (`RJ#####` / `VJ#####` / `BJ#####` code lookup) — deterministic 100%-precision match for Japanese indie / RPG-Maker / RenPy games. Folder names like "Lust Room RJ01450973" resolve instantly.
+  - **VNDB** (visual novel database) — authoritative public API for VN metadata.
+  - **Ryuugames** — covers + descriptions for adult-VN releases that nothing else indexes.
+  - New chain: **DLsite-code → curated → Steam → GOG → itch.io → VNDB → Gemini → Ryuugames → Web×6-variants**
+- **New:** 💸 **Instant Gaming affiliate routing live.** Any instant-gaming.com URL in the deals strip now appends `?igr=gamer-1485e8f` (3% commission). Awin publisher ID `2935955` is also baked in — activates per-merchant as you join Fanatical/GMG/etc.
+
+### v1.0.8 — Pinned games, auto-update, smarter refetch
 - **New:** 📌 **Pinned games strip.** Right-click any game → "Pin to top (max 5)". A new full-width strip lives above all categories — works in both single-column AND two-row layouts (always stays full-width above the column split). Pinned games show as 7px-tall pill cards with icon + name.
 - **New:** 🆕 **Auto-update checker.** On launch, NEO-LIB pings the GitHub releases API and shows a gradient "v1.0.X" pill in the title bar if a newer release exists. Click → opens the release page. Cached for 6 hours so we don't hammer GitHub. Pill auto-hides when you're on the latest.
 - **Improved:** ☑️ **Category-dot toggle now also hides the genre/playtime row** under each game name. One toggle, two visual cleanups — significantly denser library.

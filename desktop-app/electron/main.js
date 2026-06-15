@@ -767,6 +767,122 @@ async function itchSearch(term) {
 }
 
 /**
+ * DLsite / Japanese indie — match RJ##### / VJ##### / RE##### codes.
+ * Many Japanese RPG-Maker / Renpy games ship with their DLsite code in the
+ * folder name (e.g. "Lust Room RJ01450973"). We extract the code and look
+ * up the canonical product page directly. This is the single highest-hit
+ * source for east-asian indie titles.
+ */
+function extractDLsiteCode(term) {
+  const m = (term || '').match(/\b(R[EJ]|VJ|BJ)\d{4,9}\b/i);
+  return m ? m[0].toUpperCase() : null;
+}
+async function dlsiteLookup(code) {
+  if (!code) return null;
+  // English maniax site has cleaner HTML + safe-for-work-aware metadata
+  const url = `https://www.dlsite.com/maniax/work/=/product_id/${code}.html`;
+  try {
+    const html = await httpGetText(url);
+    const title  = (html.match(/<meta property="og:title" content="([^"]+)"/) || [])[1] || '';
+    const desc   = (html.match(/<meta property="og:description" content="([^"]+)"/) || [])[1] || '';
+    const image  = (html.match(/<meta property="og:image" content="([^"]+)"/) || [])[1] || '';
+    if (!title) return null;
+    const maker  =
+      (html.match(/itemprop="brand"[^>]*>[\s\S]*?<a[^>]*>([^<]+)<\/a>/) || [])[1] ||
+      (html.match(/class="maker_name"[^>]*>[\s\S]*?<a[^>]*>([^<]+)<\/a>/) || [])[1] || '';
+    return {
+      source: 'dlsite',
+      name: title.trim(),
+      shortDescription: desc.trim().slice(0, 240),
+      about: desc.trim(),
+      headerImage: image,
+      capsuleImage: image,
+      background: image,
+      screenshots: [],
+      genres: ['Visual Novel'],
+      developers: maker ? [maker.trim()] : [],
+      publishers: maker ? [maker.trim()] : [],
+      releaseDate: '',
+      website: url,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * VNDB — visual novel DB (the authoritative source for VN metadata).
+ * Public Kana API: https://api.vndb.org/kana
+ * No key required for basic queries.
+ */
+async function vndbLookup(term) {
+  try {
+    const body = {
+      filters: ['search', '=', term],
+      fields: 'title, image.url, description, released, developers.name, screenshots.url',
+      results: 3,
+    };
+    const data = await httpPostJson('https://api.vndb.org/kana/vn', body);
+    if (!data?.results?.length) return null;
+    const top = data.results[0];
+    return {
+      source: 'vndb',
+      name: top.title,
+      shortDescription: (top.description || '').replace(/\[.*?\]/g, '').slice(0, 240),
+      about: (top.description || '').replace(/\[.*?\]/g, ''),
+      headerImage: top.image?.url || '',
+      capsuleImage: top.image?.url || '',
+      background: top.image?.url || '',
+      screenshots: (top.screenshots || []).map((s) => s.url).slice(0, 6),
+      genres: ['Visual Novel'],
+      developers: (top.developers || []).map((d) => d.name).slice(0, 3),
+      publishers: [],
+      releaseDate: top.released || '',
+      website: `https://vndb.org/v${top.id || ''}`,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Ryuugames — popular adult-VN repackager. Many indie titles only have
+ * findable cover/description here when DLsite is JP-locked or itch lacks them.
+ */
+async function ryuugamesSearch(term) {
+  try {
+    const url = `https://www.ryuugames.com/?s=${encodeURIComponent(term)}`;
+    const html = await httpGetText(url);
+    // Each post: <h2 class="post-title"><a href="..." title="...">TITLE</a></h2>
+    const m = html.match(/<h2[^>]*post-title[^>]*>\s*<a[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>/);
+    if (!m) return null;
+    const pageUrl = m[1];
+    const title   = m[2].replace(/<[^>]+>/g, '').trim();
+    // Visit the post itself to grab the cover image + description.
+    const page = await httpGetText(pageUrl);
+    const cover = (page.match(/<meta property="og:image" content="([^"]+)"/) || [])[1] || '';
+    const desc  = (page.match(/<meta property="og:description" content="([^"]+)"/) || [])[1] || '';
+    return {
+      source: 'ryuugames',
+      name: cleanTitle(title) || term,
+      shortDescription: desc,
+      about: desc,
+      headerImage: cover,
+      capsuleImage: cover,
+      background: cover,
+      screenshots: [],
+      genres: ['Visual Novel'],
+      developers: [],
+      publishers: [],
+      releaseDate: '',
+      website: pageUrl,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Fetch a single itch.io game page and pull out cover, description, creator.
  */
 async function itchDetails(pageUrl) {
@@ -1006,7 +1122,19 @@ ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey,
   const term = cleanSearchTerm(query);
   if (!term) return null;
 
-  // 0. Curated launcher-exclusives (LoL, Fortnite, Valorant, Minecraft, etc.) — instant, no network
+  // 0a. DLsite RJ-code / VJ-code match — deterministic, instant high-quality
+  // hit for Japanese indie / RPG-Maker / RenPy games. Many users name their
+  // folders with the code (e.g. "Lust Room RJ01450973") which makes this a
+  // 100%-precision lookup with no false positives.
+  if (!skipSources.includes('dlsite')) {
+    const code = extractDLsiteCode(query);
+    if (code) {
+      const hit = await dlsiteLookup(code);
+      if (hit) return hit;
+    }
+  }
+
+  // 0b. Curated launcher-exclusives (LoL, Fortnite, Valorant, Minecraft, etc.) — instant, no network
   const curated = curatedMatch(term);
   if (curated) return curated;
 
@@ -1123,6 +1251,12 @@ ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey,
     } catch {}
   }
 
+  // 3b. VNDB — authoritative source for visual novels (huge metadata DB).
+  if (!skipSources.includes('vndb')) {
+    const hit = await vndbLookup(term);
+    if (hit) return hit;
+  }
+
   // 4. Gemini (if user key provided)
   if (!skipSources.includes('gemini') && geminiKey) {
     try {
@@ -1144,7 +1278,14 @@ ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey,
     } catch {}
   }
 
-  // 5. Web fallback (DuckDuckGo → Google) — tries the full term first, then
+  // 5. Ryuugames — adult-VN repackager. Sometimes the only place an obscure
+  //    indie game has a clean cover + description findable on the open web.
+  if (!skipSources.includes('ryuugames')) {
+    const hit = await ryuugamesSearch(term);
+    if (hit) return hit;
+  }
+
+  // 6. Web fallback (DuckDuckGo → Google) — tries the full term first, then
   //    progressively simplified variants. Many indie games have parenthetical
   //    version tags / build numbers in their folder names that throw off search.
   const variants = [term];
