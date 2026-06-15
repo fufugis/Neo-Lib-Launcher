@@ -733,6 +733,65 @@ async function googleScrape(term) {
   }
 }
 
+/**
+ * itch.io scrape — public search results page.
+ * itch.io powers a huge chunk of indie / py / RPG-Maker / experimental games
+ * that never make it to Steam or GOG. We scrape the .game_cell anchors which
+ * carry the cover thumb, title, and creator inline.
+ */
+async function itchSearch(term) {
+  const url = `https://itch.io/search?q=${encodeURIComponent(term)}`;
+  try {
+    const html = await httpGetText(url);
+    const results = [];
+    // Each game card contains: <a class="game_link" href="..."><img data-lazy_src="..." alt="..."/>...</a>
+    const re = /<a class="title game_link"[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>[\s\S]{0,800}?(?:data-background_image="([^"]+)"|class="lazy_loaded" src="([^"]+)")/g;
+    let m;
+    while ((m = re.exec(html)) && results.length < 8) {
+      const link = m[1];
+      const title = m[2].replace(/<[^>]+>/g, '').trim();
+      const img = m[3] || m[4] || '';
+      results.push({ url: link, title, image: img });
+    }
+    // Fallback simpler regex if the first didn't match the current itch HTML structure
+    if (results.length === 0) {
+      const re2 = /<a class="title game_link"[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>/g;
+      while ((m = re2.exec(html)) && results.length < 8) {
+        results.push({ url: m[1], title: m[2].trim(), image: '' });
+      }
+    }
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Fetch a single itch.io game page and pull out cover, description, creator.
+ */
+async function itchDetails(pageUrl) {
+  try {
+    const html = await httpGetText(pageUrl);
+    const cover =
+      (html.match(/<meta property="og:image" content="([^"]+)"/) || [])[1] || '';
+    const desc =
+      (html.match(/<meta property="og:description" content="([^"]+)"/) || [])[1] || '';
+    const title =
+      (html.match(/<meta property="og:title" content="([^"]+)"/) || [])[1] || '';
+    // Creator slug from URL: https://USER.itch.io/GAME
+    const userMatch = pageUrl.match(/https?:\/\/([^.]+)\.itch\.io/);
+    const developer = userMatch ? userMatch[1] : '';
+    // Extract up to 4 screenshot URLs from the page's gallery
+    const shots = [];
+    const reShot = /href="([^"]+\.(?:png|jpg|jpeg|webp|gif))"[^>]*class="screenshot/g;
+    let sm;
+    while ((sm = reShot.exec(html)) && shots.length < 6) shots.push(sm[1]);
+    return { title, cover, desc, developer, shots };
+  } catch {
+    return null;
+  }
+}
+
 ipcMain.handle('web:search', async (_e, query) => {
   const term = cleanSearchTerm(query);
   if (!term) return { results: [], synthesized: null };
@@ -1019,7 +1078,52 @@ ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey,
     } catch {}
   }
 
-  // 3. Gemini (if user key provided)
+  // 3. itch.io — critical for indie / Python / RPG-Maker / experimental games
+  // that never make it to Steam or GOG. Scraped from the public search page.
+  if (!skipSources.includes('itch')) {
+    try {
+      const hits = await itchSearch(term);
+      if (hits.length > 0) {
+        const top = pickBestMatch(term, hits, 'title') || hits[0];
+        const det = await itchDetails(top.url);
+        if (det) {
+          return {
+            source: 'itch',
+            name: det.title || top.title,
+            shortDescription: det.desc,
+            about: det.desc,
+            headerImage: det.cover || top.image,
+            capsuleImage: det.cover || top.image,
+            background: det.cover || top.image,
+            screenshots: det.shots,
+            genres: ['Indie'],
+            developers: det.developer ? [det.developer] : [],
+            publishers: det.developer ? [det.developer] : [],
+            releaseDate: '',
+            website: top.url,
+          };
+        }
+        // Even without details we have a basic match
+        return {
+          source: 'itch',
+          name: top.title,
+          shortDescription: '',
+          about: '',
+          headerImage: top.image,
+          capsuleImage: top.image,
+          background: top.image,
+          screenshots: [],
+          genres: ['Indie'],
+          developers: [],
+          publishers: [],
+          releaseDate: '',
+          website: top.url,
+        };
+      }
+    } catch {}
+  }
+
+  // 4. Gemini (if user key provided)
   if (!skipSources.includes('gemini') && geminiKey) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${encodeURIComponent(geminiKey)}`;
@@ -1040,35 +1144,50 @@ ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey,
     } catch {}
   }
 
-  // 4. Web fallback (DuckDuckGo → Google)
-  try {
-    let webResults = await ddgSearch(term);
-    if (webResults.length === 0) webResults = await googleScrape(term);
-    if (webResults.length > 0) {
-      const top = webResults[0];
-      const yearMatch = (top.snippet + ' ' + top.title).match(/\b(19|20)\d{2}\b/);
-      const text = (top.snippet + ' ' + top.title).toLowerCase();
-      const genreKeywords = [
-        'RPG', 'action', 'adventure', 'puzzle', 'platformer', 'shooter', 'strategy',
-        'simulation', 'roguelike', 'rogue-like', 'horror', 'survival', 'racing', 'sports',
-        'fighting', 'metroidvania', 'visual novel', 'sandbox', 'open-world', 'indie',
-      ];
-      const genres = Array.from(new Set(genreKeywords.filter((k) => text.includes(k.toLowerCase()))))
-        .map((g) => g.replace(/\b\w/g, (c) => c.toUpperCase()));
-      return {
-        source: 'web',
-        name: cleanTitle(top.title) || term,
-        shortDescription: top.snippet,
-        about: top.snippet,
-        screenshots: [],
-        genres,
-        developers: [],
-        publishers: [],
-        releaseDate: yearMatch ? yearMatch[0] : '',
-        website: top.url || '',
-      };
-    }
-  } catch {}
+  // 5. Web fallback (DuckDuckGo → Google) — tries the full term first, then
+  //    progressively simplified variants. Many indie games have parenthetical
+  //    version tags / build numbers in their folder names that throw off search.
+  const variants = [term];
+  const simpler = term
+    .replace(/[\(\[].*?[\)\]]/g, '')      // strip "(v1.2)" / "[demo]"
+    .replace(/\b(?:v?\d+(?:\.\d+)+|build\s*\d+|demo|alpha|beta)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (simpler && simpler !== term && simpler.length >= 3) variants.push(simpler);
+  // Last-resort: drop everything after the first 3 words
+  const words = simpler.split(/\s+/).filter(Boolean);
+  if (words.length > 3) variants.push(words.slice(0, 3).join(' '));
+
+  for (const v of variants) {
+    try {
+      let webResults = await ddgSearch(v);
+      if (webResults.length === 0) webResults = await googleScrape(v);
+      if (webResults.length > 0) {
+        const top = webResults[0];
+        const yearMatch = (top.snippet + ' ' + top.title).match(/\b(19|20)\d{2}\b/);
+        const text = (top.snippet + ' ' + top.title).toLowerCase();
+        const genreKeywords = [
+          'RPG', 'action', 'adventure', 'puzzle', 'platformer', 'shooter', 'strategy',
+          'simulation', 'roguelike', 'rogue-like', 'horror', 'survival', 'racing', 'sports',
+          'fighting', 'metroidvania', 'visual novel', 'sandbox', 'open-world', 'indie',
+        ];
+        const genres = Array.from(new Set(genreKeywords.filter((k) => text.includes(k.toLowerCase()))))
+          .map((g) => g.replace(/\b\w/g, (c) => c.toUpperCase()));
+        return {
+          source: 'web',
+          name: cleanTitle(top.title) || v,
+          shortDescription: top.snippet,
+          about: top.snippet,
+          screenshots: [],
+          genres,
+          developers: [],
+          publishers: [],
+          releaseDate: yearMatch ? yearMatch[0] : '',
+          website: top.url || '',
+        };
+      }
+    } catch {}
+  }
 
   return null;
 });

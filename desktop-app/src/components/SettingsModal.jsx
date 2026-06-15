@@ -266,7 +266,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings }) 
 
         <Section title="About">
           <p className="text-xs text-muted leading-relaxed">
-            NEO-LIB v1.0.6. Local-first. Metadata sourced from Steam, GOG, DuckDuckGo and Google.
+            NEO-LIB v1.0.7. Local-first. Metadata sourced from Steam, GOG, itch.io, DuckDuckGo and Google.
             Library data lives in <span className="font-mono text-ink">%APPDATA%/NEO-LIB</span>.
           </p>
           <button

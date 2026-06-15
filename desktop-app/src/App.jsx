@@ -207,6 +207,7 @@ export default function App() {
 
   /* --- Drag-drop overlay state --- */
   const [dragOver, setDragOver] = React.useState(false);
+  const [wizardPrefillRoot, setWizardPrefillRoot] = React.useState('');
 
   /* --- Launcher detector --- */
   const [detectedLauncher, setDetectedLauncher] = React.useState(null);
@@ -677,10 +678,22 @@ export default function App() {
 
   const refetchAll = async () => {
     if (currentItems.length === 0) return;
+    // Skip games the user manually edited — we don't want bulk refetch clobbering
+    // hand-tuned itch.io / indie metadata. They can still refetch individually.
+    const targets = currentItems.filter((g) => !g.manualOverride);
+    const skipped = currentItems.length - targets.length;
+    if (targets.length === 0) {
+      notify(`All ${currentItems.length} games are manually overridden — nothing to refresh.`);
+      return;
+    }
     setUpdatingAll(true);
-    for (const g of currentItems) await refetchGame(g);
+    for (const g of targets) await refetchGame(g);
     setUpdatingAll(false);
-    notify('All refreshed.');
+    notify(
+      skipped > 0
+        ? `Refreshed ${targets.length} · skipped ${skipped} manual override${skipped !== 1 ? 's' : ''}`
+        : 'All refreshed.'
+    );
   };
   // Keep ref in sync so background callers always invoke the latest refetchGame
   React.useEffect(() => { refetchGameRef.current = refetchGame; });
@@ -1156,10 +1169,11 @@ export default function App() {
       <AddGameModal open={showAdd} onClose={() => setShowAdd(false)} onCreate={addGame} />
       <WizardModal
         open={showWizard}
-        onClose={() => setShowWizard(false)}
+        onClose={() => { setShowWizard(false); setWizardPrefillRoot(''); }}
         onAccept={addToGames}
         onAddManual={() => setShowAdd(true)}
         existingExePaths={(library.games || []).map((g) => g.exePath).filter(Boolean)}
+        prefilledRoot={wizardPrefillRoot}
         geminiKey={settings.geminiKey || ''}
       />
       <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} settings={settings} setSettings={persistSettings} />

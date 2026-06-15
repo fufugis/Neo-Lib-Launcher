@@ -15,7 +15,7 @@ import { guessNameFromPath } from '../lib/utils';
  *     - Accept / Skip / Re-search (with custom query, skips current source)
  *  4. Done → option to add more manually
  */
-export default function WizardModal({ open, onClose, onImport, onAccept, onAddManual, geminiKey, existingExePaths = [] }) {
+export default function WizardModal({ open, onClose, onImport, onAccept, onAddManual, geminiKey, existingExePaths = [], prefilledRoot = '' }) {
   const [step, setStep] = React.useState(1);
   const [root, setRoot] = React.useState('');
   const [candidates, setCandidates] = React.useState([]);
@@ -106,8 +106,12 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
       setCurrent(null); setResult(null); setIcon(null); setBusy(false);
       setAccepted([]); setQueryOverride(''); setSkipSources([]); setLauncherStatus('');
       setSkippedExisting(0);
+    } else if (prefilledRoot) {
+      // Drag-drop opened the Wizard with a specific folder — skip the picker step
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRoot(prefilledRoot);
     }
-  }, [open]);
+  }, [open, prefilledRoot]);
 
   React.useEffect(() => {
     if (step !== 3) return;
