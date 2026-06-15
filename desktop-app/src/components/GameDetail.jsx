@@ -79,14 +79,16 @@ export default function GameDetail({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.28 }}
-      className="relative flex h-full flex-1 flex-col overflow-y-auto"
+      className="relative flex h-full flex-1 flex-col overflow-hidden"
     >
       {/* Unified hero section — banner image stretches from the very top down BEHIND
           the title block, action bar AND meta strip, fading cleanly into the About
-          section below. The bars sit on top of the image with glass/blur. */}
+          section below. The bars sit on top of the image with glass/blur.
+          Height reduced by ~35% (aspect 16:2.1 vs old 16:3.2) so the two
+          content panels below get more room. */}
       <div
         ref={heroRef}
-        className="relative isolate"
+        className="relative isolate shrink-0"
         onMouseMove={onHeroMove}
         onMouseLeave={onHeroLeave}
         style={{ perspective: '1200px' }}
@@ -156,37 +158,118 @@ export default function GameDetail({
         <MetaStrip game={game} />
       </div>
 
-      <div className="px-8 py-6 space-y-7">
-        <section>
+      <div className="grid flex-1 min-h-0 grid-cols-[1.4fr_1fr] gap-4 px-6 py-5">
+        {/* LEFT — scrollable text panel (About + meta footer) */}
+        <section
+          className="min-h-0 overflow-y-auto rounded-lg hairline bg-panel/30 px-5 py-4"
+          data-testid="game-text-panel"
+        >
           <h3 className="mb-3 text-[10px] uppercase tracking-[0.28em] text-muted">About</h3>
-          <p className="max-w-4xl whitespace-pre-line text-[13.5px] leading-relaxed text-muted">
+          <p className="whitespace-pre-line text-[13.5px] leading-relaxed text-muted">
             {game.about ||
               game.shortDescription ||
               'No description yet. Press "Refresh info" to pull metadata online.'}
           </p>
+
+          {(game.developers?.length || game.publishers?.length || game.releaseDate || game.website) && (
+            <div className="mt-5 grid grid-cols-2 gap-2 text-[11px]">
+              {game.developers?.length > 0 && (
+                <MetaCell label="Developer" value={game.developers.join(', ')} />
+              )}
+              {game.publishers?.length > 0 && (
+                <MetaCell label="Publisher" value={game.publishers.join(', ')} />
+              )}
+              {game.releaseDate && <MetaCell label="Released" value={game.releaseDate} />}
+              {game.metacritic && <MetaCell label="Metacritic" value={String(game.metacritic)} />}
+            </div>
+          )}
+
+          <div className="mt-5 text-[10.5px] text-muted/70 break-all font-mono">
+            {game.exePath}
+            {game.appid && <span className="block mt-0.5">Steam App ID · {game.appid}</span>}
+            {game.source && <span className="block mt-0.5">Source · {game.source}</span>}
+          </div>
         </section>
 
-        {game.screenshots && game.screenshots.length > 0 && (
-          <section>
-            <h3 className="mb-3 text-[10px] uppercase tracking-[0.28em] text-muted">Screenshots</h3>
-            <ScreenshotStrip shots={game.screenshots} />
-          </section>
-        )}
-
-        <section className="text-[11px] text-muted/80">
-          <span className="font-mono break-all">{game.exePath}</span>
-          {game.appid && <span> · Steam {game.appid}</span>}
-          {game.source && <span> · Source: {game.source}</span>}
+        {/* RIGHT — gallery: one big shot + clickable thumbnail strip */}
+        <section
+          className="flex min-h-0 flex-col gap-2 rounded-lg hairline bg-panel/30 p-3"
+          data-testid="game-gallery-panel"
+        >
+          <GalleryBox shots={game.screenshots || []} />
         </section>
       </div>
     </motion.div>
   );
 }
 
+function MetaCell({ label, value }) {
+  return (
+    <div className="rounded-md hairline bg-surface/40 px-2.5 py-1.5">
+      <div className="text-[9px] uppercase tracking-wider text-muted/70">{label}</div>
+      <div className="truncate text-ink">{value}</div>
+    </div>
+  );
+}
+
+function GalleryBox({ shots }) {
+  const [active, setActive] = React.useState(0);
+  React.useEffect(() => { setActive(0); }, [shots?.length]);
+  if (!shots || shots.length === 0) {
+    return (
+      <div className="grid h-full w-full place-items-center rounded-md hairline bg-surface/30 text-muted/60">
+        <div className="flex flex-col items-center gap-1 text-[11px]">
+          <span className="text-[24px] opacity-50">⚐</span>
+          <span>No screenshots yet</span>
+          <span className="text-[10px] opacity-70">Refresh info or paste URLs in Edit Metadata</span>
+        </div>
+      </div>
+    );
+  }
+  const current = shots[active] || shots[0];
+  return (
+    <>
+      {/* Big preview */}
+      <div className="relative flex-1 min-h-0 overflow-hidden rounded-md hairline bg-surface/40">
+        <motion.img
+          key={current}
+          initial={{ opacity: 0, scale: 1.02 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.35 }}
+          src={current}
+          alt=""
+          className="h-full w-full object-cover"
+          data-testid="gallery-main"
+        />
+      </div>
+      {/* Thumbnail strip — clickable to swap */}
+      {shots.length > 1 && (
+        <div className="flex shrink-0 gap-1.5 overflow-x-auto pb-0.5">
+          {shots.map((s, i) => (
+            <button
+              key={s + i}
+              onClick={() => setActive(i)}
+              data-testid={`gallery-thumb-${i}`}
+              className={cn(
+                'group relative h-14 w-24 shrink-0 overflow-hidden rounded-md transition-all',
+                i === active
+                  ? 'ring-2 ring-[rgb(var(--accent))] ring-offset-1 ring-offset-[rgb(var(--surface))] opacity-100'
+                  : 'opacity-55 hover:opacity-90'
+              )}
+            >
+              <img src={s} alt="" className="h-full w-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 /* ---------- Hero title block (text only, sits over backdrop) ---------- */
 function HeroTitle({ game }) {
   return (
-    <div className="relative aspect-[16/3.2] w-full">
+    <div className="relative aspect-[16/2.1] w-full">
       <div className="absolute inset-0 flex items-end px-8 pb-3">
         <div className="max-w-3xl">
           <motion.div

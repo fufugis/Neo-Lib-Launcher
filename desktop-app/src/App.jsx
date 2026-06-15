@@ -18,10 +18,11 @@ import TutorialModal from './components/TutorialModal';
 import CategoryModal from './components/CategoryModal';
 import Confetti from './components/Confetti';
 import EditMetadataModal from './components/EditMetadataModal';
+import AcceptMetadataModal from './components/AcceptMetadataModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.0.9';
+const APP_VERSION = '1.1.0';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin } from './lib/utils';
 import { setSoundPack } from './lib/sound';
@@ -212,6 +213,9 @@ export default function App() {
   /* --- Auto-update checker (GitHub releases API) --- */
   const [updateInfo, setUpdateInfo] = React.useState(null);
 
+  /* --- Accept-before-add modal (preview proposed metadata before applying) --- */
+  const [acceptPreview, setAcceptPreview] = React.useState({ open: false, game: null, proposed: null, busy: false });
+
   /* --- Drag-drop overlay state --- */
   const [dragOver, setDragOver] = React.useState(false);
   const [wizardPrefillRoot, setWizardPrefillRoot] = React.useState('');
@@ -288,7 +292,7 @@ export default function App() {
         // Auto-refetch metadata for each new game (sequential, in the background)
         for (const g of newGames) {
           if (cancelled) return;
-          try { await refetchGameRef.current?.(g); } catch { /* ignore */ }
+          try { await refetchGameRef.current?.(g, { silent: true, autoApply: true }); } catch { /* ignore */ }
         }
       } catch { /* offline / scan failed — ignore */ }
       finally {
@@ -354,7 +358,7 @@ export default function App() {
       notify(`Imported ${added.length} games from ${key} — fetching metadata…`);
       // Auto-refetch metadata for all imported games in the background
       for (const g of added) {
-        try { await refetchGame(g); } catch { /* ignore */ }
+        try { await refetchGame(g, { silent: true, autoApply: true }); } catch { /* ignore */ }
       }
     } catch (e) {
       notify('Import failed: ' + (e?.message || e));
@@ -669,12 +673,17 @@ export default function App() {
       geminiKey: settings.geminiKey || '',
       lockedAppid,
     });
+    // Accept-before-add: when called interactively (not silent), open the Accept
+    // modal so the user can compare current vs proposed metadata before it's
+    // applied. The modal will call onAccept(patch) to commit, or onTryAgain()
+    // to re-search with a different name.
+    if (!opts.silent && !opts.autoApply) {
+      setFetching(false);
+      setAcceptPreview({ open: true, game: g, proposed: result, busy: false });
+      return result;
+    }
     if (!result) {
       setFetching(false);
-      // Smart fallback: when refetch can't find anything, automatically open the
-      // Troubleshoot modal so the user can immediately try a different search term,
-      // edit metadata manually, or accept a curated alternative — instead of just
-      // being shown a "no metadata found" toast and dead-ending.
       if (!opts.silent) {
         notify(`No match for "${query}" — opening Troubleshoot…`);
         setTroubleshoot({ open: true, game: g });
@@ -690,7 +699,6 @@ export default function App() {
       appid: result.appid || g.appid,
       source: result.source,
       coverUrl: coverUrl || g.coverUrl,
-      // Icon fallback: if the game has no .exe icon, use the capsule/header so it's not just a letter
       icon: g.icon || coverUrl || result.capsuleImage || result.headerImage || null,
       headerImage: result.headerImage || g.headerImage,
       background: result.background || g.background,
@@ -709,6 +717,20 @@ export default function App() {
     return result;
   };
 
+  // Apply a previewed metadata patch (called from AcceptMetadataModal).
+  const applyAcceptedMetadata = async (g, patch) => {
+    let coverUrl = patch.capsuleImage || patch.headerImage || patch.coverUrl || null;
+    if (coverUrl && coverUrl.startsWith('http')) {
+      coverUrl = (await window.api.cacheImage(coverUrl, patch.name)) || coverUrl;
+    }
+    updateGame(g.id, {
+      ...patch,
+      coverUrl: coverUrl || g.coverUrl,
+      icon: g.icon || coverUrl || patch.headerImage || null,
+    });
+    notify(`Updated · ${patch.name || g.name} (via ${patch.source || 'manual'})`);
+  };
+
   const refetchAll = async () => {
     if (currentItems.length === 0) return;
     // Skip games the user manually edited — we don't want bulk refetch clobbering
@@ -720,7 +742,7 @@ export default function App() {
       return;
     }
     setUpdatingAll(true);
-    for (const g of targets) await refetchGame(g);
+    for (const g of targets) await refetchGame(g, { autoApply: true });
     setUpdatingAll(false);
     notify(
       skipped > 0
@@ -1298,6 +1320,32 @@ export default function App() {
           if (!editMetaGame) return;
           updateGame(editMetaGame.id, patch);
           notify(`Saved · ${patch.name || editMetaGame.name}`);
+        }}
+      />
+
+      <AcceptMetadataModal
+        open={acceptPreview.open}
+        game={acceptPreview.game}
+        proposed={acceptPreview.proposed}
+        busy={acceptPreview.busy}
+        onClose={() => setAcceptPreview({ open: false, game: null, proposed: null, busy: false })}
+        onAccept={(patch) => {
+          const g = acceptPreview.game;
+          setAcceptPreview({ open: false, game: null, proposed: null, busy: false });
+          if (g) applyAcceptedMetadata(g, patch);
+        }}
+        onTryAgain={async (newName) => {
+          const g = acceptPreview.game;
+          if (!g) return;
+          setAcceptPreview((p) => ({ ...p, busy: true }));
+          const result = await window.api.fetchMetadata({
+            query: newName,
+            skipSources: [],
+            geminiKey: settings.geminiKey || '',
+            // Force-search bypasses the appid lock — we want to allow finding a totally different game
+            lockedAppid: null,
+          });
+          setAcceptPreview({ open: true, game: g, proposed: result, busy: false });
         }}
       />
 

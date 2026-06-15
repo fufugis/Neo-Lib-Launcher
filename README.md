@@ -2,7 +2,7 @@
 
 > A synthwave-flavored, **fully portable Windows game library** that unifies every game on your PC — Steam, Epic, EA App, GOG, standalone — into one neon-lit interface. No accounts. No cloud. No telemetry.
 
-![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.0.9-1a1a2e) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.1.0-1a1a2e) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
 ---
 
@@ -55,7 +55,19 @@ Library + settings live at `%APPDATA%\NEO-LIB\`. Delete that folder to factory-r
 
 ## 📜 Patch notes
 
-### v1.0.9 — Crash fix · stronger fetcher · anime overhaul · hero auto-brighten *(current)*
+### v1.1.0 — GameDetail rework + accept-before-add preview *(current)*
+- **New:** 🖼️ **GameDetail layout redesign.** Hero banner shrunk by ~35% (aspect 16:2.1 vs old 16:3.2) to free up vertical space. Below the hero is now a true two-pane layout:
+  - **Left pane (scrollable)** — About text + Developer/Publisher/Released/Metacritic cells + executable path footer. Has its own scroll independent of the page.
+  - **Right pane (gallery)** — One big screenshot preview that swaps when you click any thumbnail below. Active thumb gets an accent ring + offset, inactive thumbs dim to 55% opacity. Smooth motion fade on swap.
+  - Both panes have `bg-panel/30` glass cards with hairlines so they feel like proper boxes.
+- **New:** ✅ **Accept-before-add modal.** Right-clicking → "Refresh info" no longer silently overwrites your game's metadata. Instead, NEO-LIB opens a side-by-side preview showing **current vs proposed** values for name / release / developer / publisher / genres / description / hero banner / screenshots. Differing fields glow with an accent ring. Three actions:
+  - **Accept** — applies the patch
+  - **Try again with a different name** — re-runs the fetcher with whatever you type (great for indie games NEO-LIB matched to the wrong title)
+  - **Cancel** — leaves your current data untouched
+  - Plus an **Open source** button if the result has a `website` (opens DLsite / itch / Steam page in your browser)
+- **Bulk refetches** ("Refresh all" + silent launcher auto-import) still apply without prompting — only interactive single-game refetches show the modal.
+
+### v1.0.9 — Crash fix · stronger fetcher · anime overhaul · hero auto-brighten
 - **🔴 Fixed:** Right-clicking a game no longer blanks the entire app. Root cause was a missing `isPinned` prop in the game-row context menu (introduced in v1.0.8 prep) → `ReferenceError` crashed the whole React tree.
 - **New:** 🎨 **Anime theme overhaul.** Replaced the old soft-sakura pastel palette with a bold modern anime aesthetic: deep magenta + electric blue + neon green on dark indigo void, plus a new diagonal "speed lines" ambient pattern (very Jujutsu Kaisen / Demon Slayer). Distinctively different from Vaporwave-Day now.
 - **New:** 🌒 **Smart hero auto-brighten.** Loaded hero banners are sampled (16×16 luminance read via canvas) and if too dark → automatic `brightness(1.22–1.45)` + contrast lift is applied so titles always stay readable. Ultra-bright covers (white anime keyart) get a tiny dim. Cyberpunk-poster style problem solved.
