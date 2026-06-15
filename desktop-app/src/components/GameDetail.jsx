@@ -22,6 +22,28 @@ export default function GameDetail({
 }) {
   if (!game) return <EmptyState />;
   const bg = game.background || game.headerImage || game.coverUrl;
+  // Hero parallax — subtle 3D tilt as mouse moves over the hero. CSS-only, no rerenders.
+  const heroRef = React.useRef(null);
+  const onHeroMove = React.useCallback((e) => {
+    const el = heroRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width - 0.5;   // -0.5 .. 0.5
+    const y = (e.clientY - r.top) / r.height - 0.5;
+    // Max ±4° tilt + 4px shift — gentle, not nauseating
+    el.style.setProperty('--hero-rx', `${(-y * 4).toFixed(2)}deg`);
+    el.style.setProperty('--hero-ry', `${(x * 4).toFixed(2)}deg`);
+    el.style.setProperty('--hero-tx', `${(x * 4).toFixed(1)}px`);
+    el.style.setProperty('--hero-ty', `${(y * 4).toFixed(1)}px`);
+  }, []);
+  const onHeroLeave = React.useCallback(() => {
+    const el = heroRef.current;
+    if (!el) return;
+    el.style.setProperty('--hero-rx', '0deg');
+    el.style.setProperty('--hero-ry', '0deg');
+    el.style.setProperty('--hero-tx', '0px');
+    el.style.setProperty('--hero-ty', '0px');
+  }, []);
   return (
     <motion.div
       key={game.id}
@@ -33,7 +55,13 @@ export default function GameDetail({
       {/* Unified hero section — banner image stretches from the very top down BEHIND
           the title block, action bar AND meta strip, fading cleanly into the About
           section below. The bars sit on top of the image with glass/blur. */}
-      <div className="relative isolate">
+      <div
+        ref={heroRef}
+        className="relative isolate"
+        onMouseMove={onHeroMove}
+        onMouseLeave={onHeroLeave}
+        style={{ perspective: '1200px' }}
+      >
         {/* Backdrop image — absolute, fills full hero area */}
         {bg ? (
           <motion.img
@@ -43,7 +71,14 @@ export default function GameDetail({
             transition={{ duration: 0.9, ease: 'easeOut' }}
             src={bg}
             alt=""
-            className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+            className="hero-parallax pointer-events-none absolute inset-0 h-full w-full object-cover"
+            style={{
+              transform:
+                'perspective(1200px) ' +
+                'rotateX(var(--hero-rx, 0deg)) ' +
+                'rotateY(var(--hero-ry, 0deg)) ' +
+                'translate3d(var(--hero-tx, 0px), var(--hero-ty, 0px), 0)',
+            }}
           />
         ) : (
           <div className="pointer-events-none absolute inset-0">

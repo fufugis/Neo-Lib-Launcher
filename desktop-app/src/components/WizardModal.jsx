@@ -15,10 +15,11 @@ import { guessNameFromPath } from '../lib/utils';
  *     - Accept / Skip / Re-search (with custom query, skips current source)
  *  4. Done → option to add more manually
  */
-export default function WizardModal({ open, onClose, onImport, onAccept, onAddManual, geminiKey }) {
+export default function WizardModal({ open, onClose, onImport, onAccept, onAddManual, geminiKey, existingExePaths = [] }) {
   const [step, setStep] = React.useState(1);
   const [root, setRoot] = React.useState('');
   const [candidates, setCandidates] = React.useState([]);
+  const [skippedExisting, setSkippedExisting] = React.useState(0);
   const [cursor, setCursor] = React.useState(0);
   const [current, setCurrent] = React.useState(null);
   const [result, setResult] = React.useState(null);
@@ -104,6 +105,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
       setStep(1); setRoot(''); setCandidates([]); setCursor(0);
       setCurrent(null); setResult(null); setIcon(null); setBusy(false);
       setAccepted([]); setQueryOverride(''); setSkipSources([]); setLauncherStatus('');
+      setSkippedExisting(0);
     }
   }, [open]);
 
@@ -134,9 +136,14 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
       ...(skipLaunchers.riot    ? ['Riot Games'] : []),
     ];
     const found = (await window.api?.scanDirectory(root, excludes)) || [];
-    setCandidates(found);
+    // De-dupe: filter out games already in the library (by exePath, case-insensitive)
+    const known = new Set((existingExePaths || []).map((p) => (p || '').toLowerCase()));
+    const fresh = found.filter((cand) => !known.has((cand.exe || '').toLowerCase()));
+    const skippedCount = found.length - fresh.length;
+    setSkippedExisting(skippedCount);
+    setCandidates(fresh);
     setBusy(false);
-    if (found.length === 0) setStep(4);
+    if (fresh.length === 0) setStep(4);
     else setStep(3);
   };
 
@@ -144,9 +151,11 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
     setBusy(true);
     setResult(null);
     setSkipSources([]);
-    setQueryOverride('');
-    setCurrent(cand);
     const guess = cand.folderName || guessNameFromPath(cand.exe);
+    // Pre-fill the "Re-search" input with the exe-derived name so users with itch.io / indie
+    // games that don't match can immediately tweak the name instead of staring at a blank box.
+    setQueryOverride(guess);
+    setCurrent(cand);
     const ico = await window.api?.extractIcon(cand.exe);
     setIcon(ico);
     const r = await window.api?.fetchMetadata({ query: guess, skipSources: [], geminiKey });
@@ -352,7 +361,18 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
       {step === 3 && current && (
         <div className="p-5">
           <div className="mb-4 flex items-center justify-between text-[11px] text-muted">
-            <span>Reviewing <span className="text-ink">{cursor + 1}</span> of {candidates.length}</span>
+            <span className="flex items-center gap-2">
+              <span>Reviewing <span className="text-ink">{cursor + 1}</span> of {candidates.length}</span>
+              {skippedExisting > 0 && (
+                <span
+                  className="rounded-full px-2 py-0.5 text-[10px] hairline bg-panel/60"
+                  title="These games were already in your library — silently skipped"
+                  data-testid="wizard-skipped-existing"
+                >
+                  {skippedExisting} already imported · skipped
+                </span>
+              )}
+            </span>
             <span>Accepted: {accepted.length}</span>
           </div>
 
@@ -497,6 +517,11 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
             Imported <span className="text-ink font-medium">{accepted.length}</span> game{accepted.length !== 1 && 's'}.
             {candidates.length > accepted.length && (
               <> Some weren&apos;t identified — you can add the rest manually below.</>
+            )}
+            {skippedExisting > 0 && (
+              <div className="mt-2 text-[11px] text-muted/80">
+                Skipped <span className="text-ink">{skippedExisting}</span> already in your library.
+              </div>
             )}
           </div>
           <div className="flex items-center justify-center gap-2 pt-2">

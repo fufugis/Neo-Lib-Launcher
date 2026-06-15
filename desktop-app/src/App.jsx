@@ -956,6 +956,8 @@ export default function App() {
 
   return (
     <div className="relative flex h-screen w-screen flex-col bg-surface text-ink">
+      {/* Window edge glow — soft inner halo around the frameless window (Riot/Discord style) */}
+      <div className="window-edge-glow" aria-hidden="true" />
       <BgAmbience theme={settings.theme} settings={settings} />
       <TitleBar search={search} setSearch={setSearch} />
 
@@ -1057,11 +1059,16 @@ export default function App() {
           <button
             data-testid="credits-bar-donate"
             onClick={() => setDonateOpen(true)}
-            className="flex items-center gap-1 rounded-full px-2 h-5 text-[10px] font-bold transition-colors"
-            style={{ background: '#FFD140', color: '#000' }}
-            title="Buy KenLun a coffee"
+            className="donate-pulse group flex items-center gap-1.5 rounded-full px-3 h-7 text-[11px] font-bold transition-all hover:scale-105 hover:brightness-110"
+            style={{
+              background: 'linear-gradient(135deg, #FFD140 0%, #FFB400 100%)',
+              color: '#000',
+              boxShadow: '0 0 14px -2px rgba(255, 209, 64, 0.55)',
+            }}
+            title="Buy KenLun a coffee — directly funds NEO-LIB updates"
           >
-            ☕ Tip
+            <span className="transition-transform group-hover:rotate-12">☕</span>
+            Buy me a coffee
           </button>
         </div>
       )}
@@ -1073,6 +1080,7 @@ export default function App() {
         onClose={() => setShowWizard(false)}
         onAccept={addToGames}
         onAddManual={() => setShowAdd(true)}
+        existingExePaths={(library.games || []).map((g) => g.exePath).filter(Boolean)}
         geminiKey={settings.geminiKey || ''}
       />
       <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} settings={settings} setSettings={persistSettings} />
