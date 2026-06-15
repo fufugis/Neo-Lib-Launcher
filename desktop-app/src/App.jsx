@@ -627,6 +627,12 @@ export default function App() {
         [sliceK.order]: order,
       };
     });
+    // Clean up the pinned-games list if this game was pinned
+    if ((settings.pinnedGameIds || []).includes(id)) {
+      updateSetting({
+        pinnedGameIds: (settings.pinnedGameIds || []).filter((x) => x !== id),
+      });
+    }
     if (currentSelectedId === id) setCurrentSelectedId(null);
     notify(isTools ? 'Tool removed' : 'Game removed');
   };
@@ -1094,7 +1100,13 @@ export default function App() {
       {/* Window edge glow — soft inner halo around the frameless window (Riot/Discord style) */}
       <div className="window-edge-glow" aria-hidden="true" />
       <BgAmbience theme={settings.theme} settings={settings} />
-      <TitleBar search={search} setSearch={setSearch} />
+      <TitleBar
+        search={search}
+        setSearch={setSearch}
+        updateAvailable={updateInfo?.available || false}
+        latestVersion={updateInfo?.latestVersion || ''}
+        onClickUpdate={openReleasesPage}
+      />
 
       <div className="relative z-10 flex min-h-0 flex-1">
         <Sidebar
@@ -1113,6 +1125,7 @@ export default function App() {
           catGap={settings.catGap ?? 8}
           iconPosition={settings.iconPosition || 'left'}
           showCategoryDot={settings.showCategoryDot !== false}
+          pinnedIds={settings.pinnedGameIds || []}
           onChangeRowSize={(v) => updateSetting({ rowSize: v })}
           onChangeCatTextSize={(v) => updateSetting({ catTextSize: v })}
           onChangeCatGlow={(v) => updateSetting({ catGlow: v })}

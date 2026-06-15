@@ -1148,15 +1148,22 @@ ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey,
   //    progressively simplified variants. Many indie games have parenthetical
   //    version tags / build numbers in their folder names that throw off search.
   const variants = [term];
+  // Many indie folder names have parenthetical version/build tags that throw
+  // off search. Strip them as a first refinement.
   const simpler = term
     .replace(/[\(\[].*?[\)\]]/g, '')      // strip "(v1.2)" / "[demo]"
     .replace(/\b(?:v?\d+(?:\.\d+)+|build\s*\d+|demo|alpha|beta)\b/gi, '')
     .replace(/\s+/g, ' ')
     .trim();
   if (simpler && simpler !== term && simpler.length >= 3) variants.push(simpler);
-  // Last-resort: drop everything after the first 3 words
+  // First 3 words — drops trailing junk like "RJ01450973" or build hashes
   const words = simpler.split(/\s+/).filter(Boolean);
   if (words.length > 3) variants.push(words.slice(0, 3).join(' '));
+  // Add explicit "game" suffix variants — Google/DDG often return much better
+  // results when "game" is explicitly in the query for ambiguous indie titles.
+  variants.push(term + ' game');
+  if (simpler && simpler !== term) variants.push(simpler + ' game');
+  if (words.length > 3) variants.push(words.slice(0, 3).join(' ') + ' game');
 
   for (const v of variants) {
     try {

@@ -2,7 +2,7 @@
 
 > A synthwave-flavored, **fully portable Windows game library** that unifies every game on your PC — Steam, Epic, EA App, GOG, standalone — into one neon-lit interface. No accounts. No cloud. No telemetry.
 
-![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.0.7-1a1a2e) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.0.8-1a1a2e) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
 ---
 
@@ -55,7 +55,13 @@ Library + settings live at `%APPDATA%\NEO-LIB\`. Delete that folder to factory-r
 
 ## 📜 Patch notes
 
-### v1.0.7 — itch.io support + smarter refetch *(current)*
+### v1.0.8 — Pinned games, auto-update, smarter refetch *(current)*
+- **New:** 📌 **Pinned games strip.** Right-click any game → "Pin to top (max 5)". A new full-width strip lives above all categories — works in both single-column AND two-row layouts (always stays full-width above the column split). Pinned games show as 7px-tall pill cards with icon + name.
+- **New:** 🆕 **Auto-update checker.** On launch, NEO-LIB pings the GitHub releases API and shows a gradient "v1.0.X" pill in the title bar if a newer release exists. Click → opens the release page. Cached for 6 hours so we don't hammer GitHub. Pill auto-hides when you're on the latest.
+- **Improved:** ☑️ **Category-dot toggle now also hides the genre/playtime row** under each game name. One toggle, two visual cleanups — significantly denser library.
+- **Improved:** 🔍 **Smarter refetch fallback.** When metadata search returns nothing, NEO-LIB now opens the Troubleshoot modal automatically instead of dead-ending on a toast. Web fallback also tries 6 search variants (original / cleaned / first-3-words / each + " game" suffix) before giving up — many more obscure indie games will resolve.
+
+### v1.0.7 — itch.io support + smarter refetch
 - **New:** 🎨 **itch.io is now a first-class metadata source.** When Steam and GOG can't find a match, NEO-LIB scrapes itch.io's search → grabs the top game's cover, description, creator, and screenshots. Critical for indie / Python / RPG-Maker / experimental games. Marked with `source: 'itch'`.
 - **New:** Web fallback now tries up to **3 progressively-simplified search variants** instead of giving up after the first attempt. Strips `(v1.2)`, `[demo]`, `build 47`, alpha/beta tags from folder names, then falls back to the first 3 words. Far fewer "no results" failures.
 - **New:** 🛡️ **"Refresh all" skips manually-edited games.** Anything saved via the new Edit Metadata modal (marked `manualOverride: true`) is protected from being clobbered by bulk refetches. Toast tells you how many were skipped. You can still refetch them individually if you change your mind.

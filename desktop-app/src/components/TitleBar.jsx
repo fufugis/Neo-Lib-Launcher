@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Minus, Square, X } from 'lucide-react';
+import { Minus, Square, X, DownloadCloud } from 'lucide-react';
 
-export default function TitleBar({ search, setSearch }) {
+export default function TitleBar({ search, setSearch, updateAvailable, latestVersion, onClickUpdate }) {
   return (
     <div
       className="titlebar-drag relative z-50 flex h-11 items-center gap-3 border-b hairline glass px-3"
@@ -22,6 +22,26 @@ export default function TitleBar({ search, setSearch }) {
       </div>
 
       <div className="flex-1" />
+
+      {/* Update available pill — only shown when GitHub releases reports a newer tag */}
+      {updateAvailable && (
+        <motion.button
+          data-testid="titlebar-update-pill"
+          onClick={onClickUpdate}
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="titlebar-nodrag flex items-center gap-1.5 rounded-full px-2.5 h-6 text-[10.5px] font-bold transition-all hover:scale-[1.04]"
+          style={{
+            background: 'linear-gradient(135deg, rgb(var(--accent)) 0%, rgb(var(--accent-2)) 100%)',
+            color: 'rgb(var(--surface))',
+            boxShadow: '0 0 12px -2px rgb(var(--accent) / 0.7)',
+          }}
+          title={`Update available — click to open the v${latestVersion} release on GitHub`}
+        >
+          <DownloadCloud size={11} />
+          v{latestVersion}
+        </motion.button>
+      )}
 
       <div className="titlebar-nodrag flex items-center">
         <WinBtn onClick={() => window.api?.minimize()} testid="titlebar-min">
