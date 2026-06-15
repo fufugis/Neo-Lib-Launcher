@@ -2,7 +2,7 @@
 
 > A synthwave-flavored, **fully portable Windows game library** that unifies every game on your PC — Steam, Epic, EA App, GOG, standalone — into one neon-lit interface. No accounts. No cloud. No telemetry.
 
-![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.0.5-1a1a2e) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.0.6-1a1a2e) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
 ---
 
@@ -55,7 +55,12 @@ Library + settings live at `%APPDATA%\NEO-LIB\`. Delete that folder to factory-r
 
 ## 📜 Patch notes
 
-### v1.0.5 — Polish round 1 *(current)*
+### v1.0.6 — Confetti, drag-drop & manual metadata override *(current)*
+- **New:** 🎉 Theme-aware sparkle bursts fire when you add a game, finish the Wizard, or run Auto-sort. ~32 particles with directional spread + gravity, colored from the live accent CSS vars — every theme has its own vibe.
+- **New:** 📥 **Drag-drop installer.** Drop any `.exe`, `.bat`, `.cmd`, `.lnk` (Windows shortcut), or folder right onto the NEO-LIB window. Files instant-add with auto icon extraction. `.lnk` files resolve to their real target. Folders open the Wizard. Beautiful neon "Drop to add" overlay shows while dragging.
+- **New:** 🎨 **Manual metadata override modal.** Right-click any game → "Details / edit cover" now opens a full editor for name, **icon (file picker)**, cover, hero image, background, description, genres, devs, publishers, release date, website, metacritic, **and screenshots** (one URL per line). Critical for itch.io / indie / Python games where Steam/Epic/GOG can't find a match. Saved games are marked `manualOverride: true` so future bulk refetches don't overwrite your edits.
+
+### v1.0.5 — Polish round 1
 - **New:** Subtle window edge glow — soft accent-colored inner halo around the frameless window (Riot/Discord-style premium feel). Auto-dims on light themes.
 - **New:** Theme switching now cross-fades smoothly over 560ms instead of snapping. Ambient particle layer fades along with it.
 - **Polished:** "Buy me a coffee" button — bigger, gradient gold, gentle pulse every 4s, hover lifts + spins the ☕. Pulse stops on hover so it never feels nagging.

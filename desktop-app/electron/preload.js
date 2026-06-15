@@ -18,6 +18,10 @@ contextBridge.exposeInMainWorld('api', {
   // dialogs
   pickExe: () => ipcRenderer.invoke('dialog:pickExe'),
   pickDirectory: () => ipcRenderer.invoke('dialog:pickDirectory'),
+  pickImage: () => ipcRenderer.invoke('dialog:pickImage'),
+
+  // shortcuts
+  resolveLnk: (lnkPath) => ipcRenderer.invoke('shell:resolveLnk', lnkPath),
 
   // exe
   extractIcon: (exePath) => ipcRenderer.invoke('exe:icon', exePath),

@@ -178,6 +178,32 @@ ipcMain.handle('dialog:pickDirectory', async () => {
   return result.filePaths[0];
 });
 
+// Image picker — used by the "Edit metadata" modal for icon/cover/hero overrides.
+// Returns a file:// URL the renderer can drop straight into <img src=…>.
+ipcMain.handle('dialog:pickImage', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Pick an image (icon / cover / hero)',
+    properties: ['openFile'],
+    filters: [
+      { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'ico'] },
+    ],
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  const p = result.filePaths[0];
+  return { path: p, url: 'file://' + p.replace(/\\/g, '/') };
+});
+
+// Resolve a Windows .lnk shortcut to its underlying target (.exe) so users
+// can drag desktop shortcuts onto the app and have them work.
+ipcMain.handle('shell:resolveLnk', async (_e, lnkPath) => {
+  try {
+    const info = shell.readShortcutLink(lnkPath);
+    return { ok: true, target: info?.target || null, args: info?.args || '' };
+  } catch (err) {
+    return { ok: false, error: err?.message || String(err) };
+  }
+});
+
 // ---------------- IPC: Exe icon extraction ---------------- //
 ipcMain.handle('exe:icon', async (_e, exePath) => {
   try {

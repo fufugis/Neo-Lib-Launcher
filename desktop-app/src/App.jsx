@@ -16,6 +16,8 @@ import ConfirmModal from './components/ConfirmModal';
 import TroubleshootModal from './components/TroubleshootModal';
 import TutorialModal from './components/TutorialModal';
 import CategoryModal from './components/CategoryModal';
+import Confetti from './components/Confetti';
+import EditMetadataModal from './components/EditMetadataModal';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin } from './lib/utils';
 import { setSoundPack } from './lib/sound';
@@ -193,6 +195,18 @@ export default function App() {
 
   /* --- Donate modal --- */
   const [donateOpen, setDonateOpen] = React.useState(false);
+
+  /* --- Confetti & sparkle bursts (theme-aware) --- */
+  const [confetti, setConfetti] = React.useState({ key: 0, label: '', origin: null });
+  const fireConfetti = React.useCallback((label = '', origin = null) => {
+    setConfetti({ key: Date.now(), label, origin });
+  }, []);
+
+  /* --- Edit metadata modal (manual override for itch.io / indie games) --- */
+  const [editMetaGame, setEditMetaGame] = React.useState(null);
+
+  /* --- Drag-drop overlay state --- */
+  const [dragOver, setDragOver] = React.useState(false);
 
   /* --- Launcher detector --- */
   const [detectedLauncher, setDetectedLauncher] = React.useState(null);
@@ -418,6 +432,75 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', settings.theme || 'synthwave');
   }, [settings.theme]);
 
+  /* ----- Drag-drop .exe / .lnk / folder onto the app window ----- */
+  React.useEffect(() => {
+    if (!isElectron) return undefined;
+    let leaveTimer;
+    const onDragEnter = (e) => {
+      e.preventDefault();
+      clearTimeout(leaveTimer);
+      if (e.dataTransfer?.types?.includes('Files')) setDragOver(true);
+    };
+    const onDragOver = (e) => {
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    };
+    const onDragLeave = (e) => {
+      e.preventDefault();
+      // Only hide overlay when leaving the window entirely (debounced)
+      leaveTimer = setTimeout(() => setDragOver(false), 80);
+    };
+    const onDrop = async (e) => {
+      e.preventDefault();
+      clearTimeout(leaveTimer);
+      setDragOver(false);
+      const files = Array.from(e.dataTransfer?.files || []);
+      if (!files.length) return;
+      let added = 0;
+      for (const f of files) {
+        const p = f.path;
+        if (!p) continue;
+        const lower = p.toLowerCase();
+        // .lnk → resolve to underlying target
+        if (lower.endsWith('.lnk') && window.api?.resolveLnk) {
+          const r = await window.api.resolveLnk(p);
+          if (r?.ok && r.target) {
+            addToGames({ name: guessNameFromPath(r.target), exePath: r.target, launchArgs: r.args || '' });
+            added += 1;
+            continue;
+          }
+        }
+        // .exe / .bat / .cmd → add directly
+        if (/\.(exe|bat|cmd)$/i.test(p)) {
+          const ico = await window.api?.extractIcon?.(p);
+          addToGames({ name: guessNameFromPath(p), exePath: p, icon: ico });
+          added += 1;
+          continue;
+        }
+        // Folder → open Wizard prefilled with this root
+        // (best-effort: f.path on Electron returns the folder path when a folder is dropped)
+        if (!/\.\w{1,5}$/.test(p)) {
+          // Heuristic: no file extension → treat as folder. Open wizard.
+          setShowWizard(true);
+          // Note: we don't have a "pre-fill wizard root" prop — user will pick the folder.
+          notify(`Folder detected — open Wizard and pick: ${p}`);
+        }
+      }
+      if (added > 0) notify(`Added ${added} game${added !== 1 ? 's' : ''} via drag-drop`);
+    };
+    window.addEventListener('dragenter', onDragEnter);
+    window.addEventListener('dragover', onDragOver);
+    window.addEventListener('dragleave', onDragLeave);
+    window.addEventListener('drop', onDrop);
+    return () => {
+      window.removeEventListener('dragenter', onDragEnter);
+      window.removeEventListener('dragover', onDragOver);
+      window.removeEventListener('dragleave', onDragLeave);
+      window.removeEventListener('drop', onDrop);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Persist whenever library changes (after initial load)
   const skipPersist = React.useRef(true);
   React.useEffect(() => {
@@ -496,6 +579,7 @@ export default function App() {
       return { ...prev, categories: cats, games: [g, ...prev.games] };
     });
     notify(`Added ${g.name}`);
+    fireConfetti('Added · ' + g.name);
     return g;
   };
   const importMany = (entries) => {
@@ -504,6 +588,7 @@ export default function App() {
     setLibrary((prev) => ({ ...prev, games: [...newOnes, ...prev.games] })); // wizard always imports games
     setSelectedId(newOnes[0].id);
     notify(`Imported ${newOnes.length} game${newOnes.length !== 1 ? 's' : ''}`);
+    fireConfetti(`+${newOnes.length} games`);
   };
   const updateGame = (id, patch) => {
     setLibrary((prev) => ({
@@ -787,6 +872,7 @@ export default function App() {
       };
     });
     notify('Auto-sort applied');
+    fireConfetti('Auto-sort complete');
   };
 
   const refetchMissingGenres = async (g) => {
@@ -859,14 +945,7 @@ export default function App() {
       return;
     }
     if (action === 'details') {
-      const cover = await askPrompt({
-        title: 'Edit cover image',
-        label: 'Paste a cover image URL (leave blank to keep current)',
-        defaultValue: g.coverUrl || '',
-        placeholder: 'https://…/cover.jpg',
-        confirmLabel: 'Save',
-      });
-      if (cover && cover.trim()) updateGame(g.id, { coverUrl: cover.trim() });
+      setEditMetaGame(g);
       return;
     }
     if (action === 'manage-categories') {
@@ -1140,6 +1219,64 @@ export default function App() {
           });
         }}
       />
+
+      <EditMetadataModal
+        open={!!editMetaGame}
+        game={editMetaGame}
+        onClose={() => setEditMetaGame(null)}
+        onSave={(patch) => {
+          if (!editMetaGame) return;
+          updateGame(editMetaGame.id, patch);
+          notify(`Saved · ${patch.name || editMetaGame.name}`);
+        }}
+      />
+
+      {/* Theme-aware confetti — bumps key when fired, auto-cleans */}
+      <Confetti triggerKey={confetti.key} label={confetti.label} origin={confetti.origin} />
+
+      {/* Drag-drop overlay — neon "Drop to add" banner appears when files are over the window */}
+      <AnimatePresence>
+        {dragOver && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="pointer-events-none fixed inset-0 z-[400] grid place-items-center"
+            data-testid="drop-overlay"
+          >
+            <div
+              className="absolute inset-2 rounded-2xl"
+              style={{
+                background: 'rgb(var(--surface) / 0.55)',
+                backdropFilter: 'blur(8px)',
+                border: '2px dashed rgb(var(--accent) / 0.85)',
+                boxShadow: 'inset 0 0 120px -20px rgb(var(--accent) / 0.55), 0 0 60px rgb(var(--accent) / 0.4)',
+              }}
+            />
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: [0.95, 1.02, 0.98, 1.0] }}
+              transition={{ duration: 0.7, repeat: Infinity }}
+              className="relative flex flex-col items-center gap-3"
+            >
+              <div className="text-5xl">✨</div>
+              <div
+                className="font-display text-2xl font-extrabold uppercase tracking-[0.32em]"
+                style={{
+                  color: 'rgb(var(--ink))',
+                  textShadow: '0 0 12px rgb(var(--accent)), 0 0 24px rgb(var(--accent) / 0.6)',
+                }}
+              >
+                Drop to add
+              </div>
+              <div className="text-xs text-muted">
+                .exe · .lnk · or a folder (opens the Wizard)
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <TroubleshootModal
         open={troubleshoot.open}
