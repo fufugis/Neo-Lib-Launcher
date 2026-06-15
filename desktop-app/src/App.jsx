@@ -18,6 +18,10 @@ import TutorialModal from './components/TutorialModal';
 import CategoryModal from './components/CategoryModal';
 import Confetti from './components/Confetti';
 import EditMetadataModal from './components/EditMetadataModal';
+import { checkForUpdates } from './lib/updateChecker';
+
+// Read app version once — used by the update checker for comparison.
+const APP_VERSION = '1.0.8';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin } from './lib/utils';
 import { setSoundPack } from './lib/sound';
@@ -204,6 +208,9 @@ export default function App() {
 
   /* --- Edit metadata modal (manual override for itch.io / indie games) --- */
   const [editMetaGame, setEditMetaGame] = React.useState(null);
+
+  /* --- Auto-update checker (GitHub releases API) --- */
+  const [updateInfo, setUpdateInfo] = React.useState(null);
 
   /* --- Drag-drop overlay state --- */
   const [dragOver, setDragOver] = React.useState(false);
@@ -433,6 +440,21 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', settings.theme || 'synthwave');
   }, [settings.theme]);
 
+  /* ----- Auto-update checker (GitHub releases API) ----- */
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const info = await checkForUpdates(APP_VERSION);
+      if (!cancelled) setUpdateInfo(info);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  const openReleasesPage = () => {
+    const url = updateInfo?.releaseUrl || 'https://github.com/fufugis/Neo-Lib-Launcher/releases/latest';
+    if (window.api?.openExternal) window.api.openExternal(url);
+    else window.open(url, '_blank');
+  };
+
   /* ----- Drag-drop .exe / .lnk / folder onto the app window ----- */
   React.useEffect(() => {
     if (!isElectron) return undefined;
@@ -478,13 +500,11 @@ export default function App() {
           added += 1;
           continue;
         }
-        // Folder → open Wizard prefilled with this root
-        // (best-effort: f.path on Electron returns the folder path when a folder is dropped)
+        // Folder → open Wizard pre-filled with this root
         if (!/\.\w{1,5}$/.test(p)) {
-          // Heuristic: no file extension → treat as folder. Open wizard.
+          setWizardPrefillRoot(p);
           setShowWizard(true);
-          // Note: we don't have a "pre-fill wizard root" prop — user will pick the folder.
-          notify(`Folder detected — open Wizard and pick: ${p}`);
+          notify(`Folder dropped — Wizard ready at ${p}`);
         }
       }
       if (added > 0) notify(`Added ${added} game${added !== 1 ? 's' : ''} via drag-drop`);
@@ -645,7 +665,14 @@ export default function App() {
     });
     if (!result) {
       setFetching(false);
-      notify('No metadata found anywhere online.');
+      // Smart fallback: when refetch can't find anything, automatically open the
+      // Troubleshoot modal so the user can immediately try a different search term,
+      // edit metadata manually, or accept a curated alternative — instead of just
+      // being shown a "no metadata found" toast and dead-ending.
+      if (!opts.silent) {
+        notify(`No match for "${query}" — opening Troubleshoot…`);
+        setTroubleshoot({ open: true, game: g });
+      }
       return null;
     }
     let coverUrl = result.capsuleImage || result.headerImage || null;
@@ -901,6 +928,22 @@ export default function App() {
 
   /* --- Game right-click actions --- */
   const handleGameContext = async (action, g) => {
+    if (action === 'pin' || action === 'unpin') {
+      const current = settings.pinnedGameIds || [];
+      if (action === 'pin') {
+        if (current.includes(g.id)) return;
+        if (current.length >= 5) {
+          notify('Max 5 pinned — unpin one first.');
+          return;
+        }
+        updateSetting({ pinnedGameIds: [...current, g.id] });
+        notify(`📌 Pinned ${g.name}`);
+      } else {
+        updateSetting({ pinnedGameIds: current.filter((id) => id !== g.id) });
+        notify(`Unpinned ${g.name}`);
+      }
+      return;
+    }
     if (action === 'remove') {
       const ok = await askConfirm({
         title: 'Remove game from library?',

@@ -5,7 +5,7 @@ import {
   Plus, Wand2, Settings, RefreshCw, Trash2, Pencil, FolderOpen, MoreVertical,
   Lock, ChevronRight, ChevronDown, Tag, GripVertical, Sparkles, Terminal,
   Info, ArrowUp, ArrowDown, Palette, Eye, EyeOff, Sliders, Library as LibIcon,
-  Wrench, Columns,
+  Wrench, Columns, Pin, PinOff, X as XIcon,
 } from 'lucide-react';
 import { cn, colorFromId, sizeById } from '../lib/utils';
 
@@ -29,6 +29,7 @@ export default function Sidebar({
   iconPosition = 'left', rowSize = 44, catTextSize = 11, catGlow = 40,
   rowGap = 2, catGap = 8,
   showCategoryDot = true,
+  pinnedIds = [],
   onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
   onChangeRowGap, onChangeCatGap, onToggleCategoryDot,
   onSelect,
@@ -52,6 +53,11 @@ export default function Sidebar({
   };
   const [libSettingsOpen, setLibSettingsOpen] = React.useState(false);
   const isTools = mode === 'tools';
+  const pinnedIdsSet = React.useMemo(() => new Set(pinnedIds || []), [pinnedIds]);
+
+  // Library reference used by the PinnedStrip (it pulls full game objects by id).
+  // We keep it as a plain object since we only need it inside the render.
+  const library = { games };
 
   // Build per-category game lists honoring per-category ordering
   const orderedGamesIn = (catId) => {
@@ -263,10 +269,17 @@ export default function Sidebar({
 
       {/* Tree — single column or two-column (categories never split between columns) */}
       <div className="flex-1 overflow-y-auto px-2 pb-4" data-testid="sidebar-tree">
+        {/* Pinned strip — full-width, sits above all categories in both single & two-row modes */}
+        <PinnedStrip
+          games={(library.games || []).filter((g) => pinnedIdsSet.has(g.id))}
+          selectedId={selectedId}
+          onSelect={onSelect}
+          onContext={onGameContext}
+        />
         {twoRow ? (
           <TwoColumnSections sections={sections} commonProps={{
             collapsed, size, iconPosition, catTextSize, catGlow, rowGap, catGap, selectedId,
-            showCategoryDot,
+            showCategoryDot, pinnedIdsSet,
             onSelect, onGameContext, onCategoryContext, onUnlockCategory, onToggleCollapsed,
             onMoveGameToCategory, onReorderGameInCategory, onReorderCategory,
             unlockedCategories, categories,
@@ -285,6 +298,7 @@ export default function Sidebar({
               rowGap={rowGap}
               catGap={catGap}
               showCategoryDot={showCategoryDot}
+              pinnedIdsSet={pinnedIdsSet}
               selectedId={selectedId}
               onSelect={onSelect}
               onContext={(action, payload) => onGameContext(action, payload.game, payload)}
@@ -361,6 +375,7 @@ function TwoColumnSections({ sections, commonProps }) {
 function SectionWrap({ s, idx, commonProps }) {
   const { collapsed, size, iconPosition, catTextSize, catGlow, rowGap, catGap, selectedId,
     showCategoryDot,
+    pinnedIdsSet,
     onSelect, onGameContext, onCategoryContext, onUnlockCategory, onToggleCollapsed,
     onMoveGameToCategory, onReorderGameInCategory, onReorderCategory,
     unlockedCategories, categories } = commonProps;
@@ -376,6 +391,7 @@ function SectionWrap({ s, idx, commonProps }) {
       rowGap={rowGap}
       catGap={catGap}
       showCategoryDot={showCategoryDot}
+      pinnedIdsSet={pinnedIdsSet}
       selectedId={selectedId}
       onSelect={onSelect}
       onContext={(action, payload) => onGameContext(action, payload.game, payload)}
@@ -650,6 +666,7 @@ function Section({
   unlockedCategories, categories,
   catTextSize = 11, catGlow = 40, rowGap = 2, catGap = 8,
   showCategoryDot = true,
+  pinnedIdsSet = new Set(),
 }) {
   const isUncat = section.id === '__uncat__';
   const c = section.category;
@@ -840,6 +857,7 @@ function Section({
                     iconPosition={iconPosition}
                     rowGap={rowGap}
                     showCategoryDot={showCategoryDot}
+                    isPinned={pinnedIdsSet.has(g.id)}
                     selected={selectedId === g.id}
                     indexInCat={idx}
                     sectionGames={section.games}
@@ -985,9 +1003,10 @@ function GameRow({
         <div className={cn('truncate font-medium', `text-[${size.font}px]`)} style={{ fontSize: size.font }}>
           {g.name || 'Untitled'}
         </div>
-        {!isSmall && (
+        {/* Genre/meta strip + category dots — hidden as a unit when "Category dot" is off */}
+        {!isSmall && showCategoryDot && (
           <div className="flex items-center gap-1.5 truncate text-[10.5px] text-muted">
-            {showCategoryDot && (g.categoryIds || []).slice(0, 3).map((cid) => {
+            {(g.categoryIds || []).slice(0, 3).map((cid) => {
               const cc = categories.find((x) => x.id === cid);
               if (!cc) return null;
               return (
@@ -1049,6 +1068,14 @@ function GameRow({
         >
           <Item icon={<RefreshCw size={13} />} label="Refresh info (this game)" onClick={() => { setMenu({ ...menu, open: false }); onContext('refetch'); }} testid={`game-ctx-refetch-${g.id}`} />
           <Item icon={<Wand2 size={13} />} label="Re-search by name…" onClick={() => { setMenu({ ...menu, open: false }); onContext('research'); }} testid={`game-ctx-research-${g.id}`} />
+          <Divider />
+          <Item
+            icon={isPinned ? <PinOff size={13} /> : <Pin size={13} />}
+            label={isPinned ? 'Unpin from top' : 'Pin to top (max 5)'}
+            onClick={() => { setMenu({ ...menu, open: false }); onContext(isPinned ? 'unpin' : 'pin'); }}
+            testid={`game-ctx-pin-${g.id}`}
+          />
+          <Divider />
           <Item icon={<Pencil size={13} />} label="Rename" onClick={() => { setMenu({ ...menu, open: false }); onContext('rename'); }} testid={`game-ctx-rename-${g.id}`} />
           <Item icon={<Terminal size={13} />} label="Edit launch args" onClick={() => { setMenu({ ...menu, open: false }); onContext('args'); }} testid={`game-ctx-args-${g.id}`} />
           <Item icon={<Info size={13} />} label="Details / edit cover" onClick={() => { setMenu({ ...menu, open: false }); onContext('details'); }} testid={`game-ctx-details-${g.id}`} />
@@ -1155,5 +1182,62 @@ export function CategoryContextMenu({ open, anchor, category, onClose, onAction 
       )}
     </motion.div>,
     document.body
+  );
+}
+
+
+/* ---------------- Pinned strip ---------------- */
+/**
+ * PinnedStrip — horizontal row of pinned games shown above ALL categories.
+ * Stays full-width above both columns in two-row mode (it's rendered outside
+ * the column-split logic). Max 5 enforced by App.jsx on pin action.
+ */
+function PinnedStrip({ games, selectedId, onSelect, onContext }) {
+  if (!games || games.length === 0) return null;
+  return (
+    <div
+      className="mb-2 mt-1 rounded-md hairline bg-panel/40 px-2 py-1.5"
+      data-testid="pinned-strip"
+    >
+      <div className="mb-1 flex items-center justify-between px-1">
+        <div className="flex items-center gap-1.5 text-[9.5px] uppercase tracking-[0.22em] text-muted">
+          <Pin size={9} className="text-[rgb(var(--accent))]" />
+          Pinned
+        </div>
+        <div className="text-[9px] text-muted/60">{games.length}/5</div>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {games.map((g) => (
+          <button
+            key={g.id}
+            data-testid={`pinned-tile-${g.id}`}
+            onClick={() => onSelect(g.id)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              onContext('open-menu', g, { x: e.clientX, y: e.clientY });
+            }}
+            className={cn(
+              'group relative flex items-center gap-1.5 rounded-md px-2 h-7 text-[10.5px] font-medium transition-all',
+              selectedId === g.id
+                ? 'bg-[rgb(var(--accent)/0.18)] text-ink shadow-[inset_0_0_0_1px_rgb(var(--accent)/0.55)]'
+                : 'bg-surface/40 text-muted hover:text-ink hover:bg-[rgb(var(--accent)/0.10)]'
+            )}
+            style={{ maxWidth: 140 }}
+            title={g.name}
+          >
+            <span className="h-4 w-4 shrink-0 overflow-hidden rounded-sm hairline bg-surface/60">
+              {(g.icon || g.coverUrl) ? (
+                <img src={g.icon || g.coverUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <span className="grid h-full w-full place-items-center text-[7px] text-muted">
+                  {(g.name || '?').slice(0, 1).toUpperCase()}
+                </span>
+              )}
+            </span>
+            <span className="truncate">{g.name}</span>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
