@@ -22,6 +22,12 @@ export function wrapDealUrl(url, _affiliate /* legacy arg, ignored */) {
     return `${url}${sep}partner=${a.humbleId}`;
   }
 
+  // 1b. Instant Gaming — direct partner program, 3% per sale.
+  if (a.instantGamingId && url.includes('instant-gaming.com')) {
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}igr=${a.instantGamingId}`;
+  }
+
   // 2. Awin (Fanatical / GMG / etc): wrap via cread.php
   if (a.awinAffId && a.awinMid) {
     return `https://www.awin1.com/cread.php?awinmid=${a.awinMid}&awinaffid=${a.awinAffId}&ued=${encodeURIComponent(url)}`;

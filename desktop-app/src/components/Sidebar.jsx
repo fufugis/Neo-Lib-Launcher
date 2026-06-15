@@ -884,7 +884,7 @@ function Section({
 function GameRow({
   g, size, selected, onClick, onContext, fromCatId, indexInCat,
   sectionGames, onReorderInCat, onMoveBetween, categories,
-  iconPosition = 'left', rowGap = 2, showCategoryDot = true,
+  iconPosition = 'left', rowGap = 2, showCategoryDot = true, isPinned = false,
 }) {
   const [menu, setMenu] = React.useState({ open: false, x: 0, y: 0 });
   const ref = React.useRef(null);

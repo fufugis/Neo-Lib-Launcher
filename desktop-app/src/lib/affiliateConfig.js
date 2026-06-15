@@ -23,6 +23,10 @@ export const AFFILIATE_CONFIG = {
   // Until Skimlinks approves the request, redirects still work but won't pay out.
   skimlinksId: '304685X1792871',
 
+  // Instant Gaming — direct partner ID (3% commission).
+  // Format: 'gamer-XXXXXXXX'. Any instant-gaming.com URL gets `?igr=<id>` appended.
+  instantGamingId: 'gamer-1485e8f',
+
   // Generic affiliate URL wrapper (advanced, optional)
   urlTemplate: '',        // e.g. 'https://example.com/track?aff=YOU&dest={URL}'
 };
