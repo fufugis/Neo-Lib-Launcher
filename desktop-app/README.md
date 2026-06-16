@@ -45,26 +45,40 @@ before.
 
 ## Highlights
 
-- **5 dynamic themes** — Synthwave, Midnight, Ocean, Crimson, Anime — each
-  with its own ambient particle background.
-- **Smart Wizard** — pick folders, drives, or whole launcher install roots;
-  exclusion paths supported; back-button at every step.
+- **6 dynamic themes** — Synthwave, Midnight, Ocean, Crimson, Anime, Mint
+  Garden (grouped Dark / Bright). Each with its own ambient particle field,
+  sound pack, and optional CRT boot animation.
+- **Smart Wizard** — pick folders, drives, or whole launcher install roots.
+  Fast (5-deep) and **Deep Scan** (10-deep, 5000 files) for nested setups.
+  Exclusion paths supported; back-button at every step.
 - **Auto-detect launchers** — Steam, Epic, EA App, GOG, Ubisoft, Battle.net,
-  Riot, Xbox/MS Store. Inactive launchers are dimmed.
+  Riot, Xbox / MS Store. Inactive launchers are dimmed.
+- **Drag-drop** `.exe` / `.lnk` / **folders** onto the window — single files
+  add instantly, folders open the Wizard and auto-scan.
+- **Accept-before-add** metadata preview — pick exactly which fields (cover /
+  description / genres / screenshots / dev / publisher / …) to apply, with
+  All / Only changed / None presets.
+- **Edit Metadata** form — manual override with local `file://` image pickers.
 - **Launcher tabs** — filter the sidebar by store (All / Steam / Epic / EA /
   GOG / Other).
-- **Two-Row layout** — toggle dense double-column view; categories never
-  split between columns.
-- **Smart Auto-Sort** — one click and your library is bucketed into Recently
-  Played, Long Games, Quick Sessions, AAA, Indie, Hidden Gems.
-- **Granular Troubleshoot panel** — when a Steam/Epic/GOG fetch fails, pick
-  another match without re-running the full Wizard.
-- **Resizable sidebar** with thick drag handle + dynamic sliders for row
-  size, category text size, glow intensity, spacing.
-- **Live Deals strip** — Epic Free Games + Steam Featured Deals, refreshed
-  on launch. Optional Affiliate routing benefits the developer.
+- **Pinned Games strip** + **Two-Row dense layout** + **resizable sidebar**.
+- **Smart Auto-Sort** — bucket your library into Recently Played, Long Games,
+  Quick Sessions, AAA, Indie, Hidden Gems with one click.
+- **Granular Troubleshoot panel** — refetch from a specific source when one
+  fails, without re-running the full Wizard.
+- **Live Deals strip** — Epic Free Games + Steam discounts + Instant Gaming
+  hot deals, refreshed on launch. Affiliate-tagged so it helps fund updates.
+  "All N" pill opens a full-grid popover; **Featured deal banner** above the
+  bar showcases one IG hot deal at a time.
+- **Close-to-tray mode** — hide NEO-LIB to the system tray (next to the
+  clock) instead of quitting. Right-click tray = Show / Quit.
+- **Auto-updater pill** in the title bar — checks GitHub Releases and shows
+  when a new version is out.
+- **"What's new" toast** — auto-shows once after each update so you actually
+  see what changed.
+- **Per-game ambient backdrop** — selected game's hero image subtly tints
+  the theme behind it. Optional.
 - **PayPal donations** — "Buy me a coffee" modal with QR + direct link.
-- **Sound packs** — subtle UI clicks for the synthwave purists.
 
 ---
 
