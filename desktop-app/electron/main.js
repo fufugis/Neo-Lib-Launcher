@@ -296,10 +296,14 @@ async function walkDir(dir, depth, maxDepth, accum, maxFiles, excludes = []) {
   }
 }
 
-ipcMain.handle('scan:directory', async (_e, root, excludes = []) => {
+ipcMain.handle('scan:directory', async (_e, root, excludes = [], options = {}) => {
   if (!root) return [];
   const found = [];
-  await walkDir(root, 0, 5, found, 1500, excludes);
+  // Fast (default): 5 levels deep, up to 1500 files. Deep: 10 levels, up to 5000.
+  const deep = options && options.deep === true;
+  const maxDepth = deep ? 10 : 5;
+  const maxFiles = deep ? 5000 : 1500;
+  await walkDir(root, 0, maxDepth, found, maxFiles, excludes);
 
   // Group exes by their top-level folder under root and pick the most likely candidate.
   const grouped = new Map();

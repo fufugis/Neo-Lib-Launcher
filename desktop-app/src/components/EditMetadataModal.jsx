@@ -69,7 +69,7 @@ export default function EditMetadataModal({ open, game, onClose, onSave }) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[210] grid place-items-center bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
+        onDoubleClick={onClose}
         data-testid="edit-metadata-overlay"
       >
         <motion.div

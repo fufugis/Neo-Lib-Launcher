@@ -18,13 +18,16 @@ export const guessNameFromPath = (filePath) => {
 export const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 
 export const THEMES = [
-  { id: 'synthwave',     label: 'Synthwave',      swatch: '#ff2a8a' },
-  { id: 'synthwave-day', label: 'Vaporwave Day',  swatch: '#ff0090' },
-  { id: 'anime',         label: 'Anime',          swatch: '#ff8fb8' },
-  { id: 'midnight',      label: 'Midnight',       swatch: '#c4a56e' },
-  { id: 'daybreak',      label: 'Daybreak',       swatch: '#1c1c20' },
-  { id: 'ocean',         label: 'Ocean',          swatch: '#4ea8f0' },
-  { id: 'crimson',       label: 'Crimson',        swatch: '#dc263c' },
+  // Dark themes
+  { id: 'synthwave',     label: 'Synthwave',      swatch: '#ff2a8a', tone: 'dark' },
+  { id: 'anime',         label: 'Anime',          swatch: '#e81ea8', tone: 'dark' },
+  { id: 'midnight',      label: 'Midnight',       swatch: '#c4a56e', tone: 'dark' },
+  { id: 'ocean',         label: 'Ocean',          swatch: '#4ea8f0', tone: 'dark' },
+  { id: 'crimson',       label: 'Crimson',        swatch: '#dc263c', tone: 'dark' },
+  // Bright themes
+  { id: 'synthwave-day', label: 'Vaporwave Day',  swatch: '#ff0090', tone: 'bright' },
+  { id: 'daybreak',      label: 'Daybreak',       swatch: '#1c1c20', tone: 'bright' },
+  { id: 'mint',          label: 'Mint Garden',    swatch: '#34c98a', tone: 'bright' },
 ];
 
 export const CATEGORY_COLORS = [

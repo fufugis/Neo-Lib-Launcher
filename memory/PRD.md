@@ -1,70 +1,62 @@
-# NEO-LIB — Standalone Windows Desktop Game Library
+# NEO-LIB — Product Requirements
 
-## Original Problem Statement
-> Standalone Windows game library app (Steam-like). Left side: games list with .exe icons.
-> Right side: preview/info pane. Wizard scans drives for installed games. Global button to
-> auto-update metadata online. Multiple themes (dark, light, synthwave). Modern, minimal,
-> animated. Installer with desktop shortcut. Fully offline-capable, lightweight, quick startup.
+## Original problem statement
+Standalone Windows Game Library app (NEO-LIB). Massive UX/UI refinements,
+advanced customization, integrated metadata fetching, auto-sorting categories,
+and a non-intrusive monetization system (Deals banners via Affiliate links).
 
-## Architecture / Tech Stack
-- **Electron 33** + **Vite + React 18** + **TailwindCSS** + **Framer Motion** + **lucide-react**
-- Frameless custom title bar; renderer in `dist-renderer/`, main process in `electron/`
-- **electron-builder** with NSIS target (GitHub Actions for full builds; cloud builds use `--dir` portable)
-- Metadata: multi-source (Steam → GOG → Gemini → DuckDuckGo scrape). No keys required by default.
-- Game data: JSON in `%APPDATA%/NEO-LIB/library.json` + cached covers
-- Exe icons extracted via Electron's `app.getFileIcon`, fallback to Steam capsule
+## Architecture
+- Electron + React + Vite. Fully portable.
+- Library data: `%APPDATA%\NEO-LIB\library.json` (flat JSON).
+- CI: GitHub Actions builds NSIS `.exe` + portable `.zip` on tag push.
+- Main process scrapers: Steam, GOG, itch, DLsite, VNDB, Ryuugames, DuckDuckGo, Gemini fallback.
 
-## Core Features (implemented)
-- [x] Frameless titlebar with min/max/close + global search
-- [x] Sidebar tree (categories) with drag-and-drop reordering, collapse/expand
-- [x] Detail pane: hero, screenshots carousel, about, genres, devs, publishers, release, metacritic
-- [x] Manual Add Game + Wizard (drive scan with per-game review)
-- [x] Right-click context menus (via React Portals — z-index safe)
-- [x] Global Update All button + per-game Re-fetch
-- [x] Multiple themes including Synthwave + Synthwave Day, Midnight, Daybreak, Ocean, Crimson
-- [x] Categories (multi-category per game, color tags, drag-drop)
-- [x] Ghost (private/PIN-protected) categories
-- [x] Library vs Tools tabs at top
-- [x] Showcase strip (recently played / added)
-- [x] Playtime tracking via process monitoring
-- [x] Launcher imports (Steam / EA / Epic) — pinned to bottom with launcher logos
-- [x] Dynamic UI sliders (row size, category text size, glow intensity, icon position)
-- [x] Hover sounds + Launch sound effect
-- [x] YouTube gameplay search button
-- [x] Clickable genre/developer/publisher tags (search online)
-- [x] Wizard incremental saving (no data loss on early exit)
-- [x] **Patch Notes hotlink** (Steam news page if appid, else Google search) — 2026-02
-- [x] **Mods hotlink** to Nexus Mods search — 2026-02
+## Version 1.1.1 — Feb 16, 2026
+**Polish & QoL batch shipped this session:**
+- Per-game ambient backdrop toggle (Settings → Visual effects). When ON, the
+  selected game's hero image is rendered as a subtle blurred wash behind the
+  theme's ambient layer.
+- Wizard **Deep Scan** toggle (Fast default 5-deep/1500 files vs Deep 10-deep/5000 files),
+  visible in Wizard Step 1.
+- Drop-folder auto-scan — dropping a folder onto the window now opens Wizard
+  AND auto-triggers the scan (250ms delay).
+- Selective metadata accept — AcceptMetadataModal now has per-field checkboxes
+  (Name, Image, Description, Genres, Developer, Publisher, Release, Screenshots)
+  with quick "All / Only changed / None" presets. Only ticked fields are written.
+- Version strings bumped across `package.json`, `SettingsModal`, `README.md`.
 
-## Build / Delivery
-- Source: `/app/desktop-app/`
-- Cloud env produces **portable ZIP** (`dist/NEO-LIB-windows-portable.zip`, ~111 MB)
-- Download endpoint: `GET /api/download/neolib-portable`
-- For full NSIS installer: user runs `npm run build:win` on Windows machine, or GitHub Actions
-- Detailed steps in `INSTALL.md`
+## What was already implemented (prior sessions)
+- Drag-drop `.exe`/`.lnk` (single files added directly).
+- AcceptMetadataModal (preview-before-write).
+- EditMetadataModal (manual override with `file://` pickers).
+- Dual-pane GameDetail (text + screenshots gallery).
+- 6 themes (Synthwave / Midnight / Ocean / Crimson / Anime / Mint Garden) grouped by Dark/Bright.
+- DynamicsCompressorNode-normalized UI sounds, sound packs.
+- Pinned Games strip + Library tabs (Steam/Epic/EA/GOG/Other).
+- Smart Auto-Sort categories.
+- Live deals strip with Affiliate routing (Instant Gaming, Awin Humble/Fanatical/Superbox).
+- GitHub Releases update checker pill in TitleBar.
+- Modal double-click-to-close (replaces single-click).
+- CRT boot animation, particles, sparkles, scanlines.
 
-## 2026-02 Session — Patch Notes / Mods / Auto-update Feasibility
-Decision: lightweight hotlink approach (no UI for full integration).
-- Patch Notes button → opens Steam news page (`/news/app/{appid}`) or Google search fallback
-- Mods button → opens Nexus Mods search for game name
-- Vortex integration deferred; user is on Vortex but full mod-manager rewrite is out of scope
-- Auto-update: app is intended public release, but currently no code-signing cert. Deferred.
+## Roadmap / Backlog
 
-## Backlog / Next Iterations
 ### P1
-- **Steam manifest parsing** for actual `buildid` + last-updated timestamp (display in detail pane)
-- **Vortex detection**: scan `%APPDATA%\Vortex\{gameId}\mods\` → show mod count badge per game
-- **Manual update-check banner**: ping GitHub Releases API on startup, show "v1.x available" toast
-- **GitHub Actions release pipeline** producing signed NSIS installer
-- Code-signing certificate procurement (~$300/year) for silent auto-updates
+- [ ] PC Tuner Wizard — diagnostic for running overlays, GPU acceleration, Xbox Game Bar, heavy CPU/GPU background tasks.
+- [ ] Keyboard shortcuts overlay (press `?`).
 
 ### P2
-- Custom cover image upload (drag/drop or paste URL)
-- Backup/restore library JSON via Settings
-- "Last played" sort option
-- Refactor `App.jsx` (650+ lines) into `useLibrary`, `useCategories`, `useDragDrop` hooks
+- [ ] Steam manifest reading — show actual build IDs + "updated X days ago".
+- [ ] Cloud sync via GitHub Gist (opt-in, encrypted).
+- [ ] Refactor `App.jsx` (~1600 lines) and `electron/main.js` (~1400 lines) into hooks/modules.
 
-## Build Environment Notes
-- Container is **ARM64 Linux**: cannot build NSIS installer (32-bit toolchain incompatible)
-- Portable `--dir` build via electron-builder works
-- Final `.exe` installer requires Windows machine or GitHub Actions runner
+## Versioning rule
+Every git push bumps `+0.0.1` across:
+- `desktop-app/package.json`
+- `desktop-app/src/components/SettingsModal.jsx` (About line)
+- `desktop-app/README.md` (badge + Latest section)
+
+## Test notes
+- No `.exe` testing locally — instruct user to push + tag (e.g., `v1.1.1`) so CI builds.
+- Vite `yarn dev` for UI checks. Some features (Electron IPC) won't fire in the browser.
+- Pre-existing lint warnings: 5 errors in `App.jsx` (react-hooks/immutability) and 1 in `GameDetail.jsx` (set-state-in-effect) — not introduced this session.

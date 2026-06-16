@@ -29,42 +29,52 @@ export default function SettingsModal({ open, onClose, settings, setSettings }) 
   return (
     <Modal open={open} onClose={onClose} title="Settings" wide testid="settings-modal">
       <div className="p-5 space-y-6">
-        {/* Themes */}
+        {/* Themes — grouped by tone (dark vs bright) */}
         <Section title="Theme">
-          <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
-            {THEMES.map((t) => (
-              <motion.button
-                key={t.id}
-                data-testid={`theme-${t.id}`}
-                whileHover={{ y: -2 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => setKey({ theme: t.id })}
-                className={
-                  'group relative flex items-center gap-3 rounded-lg hairline p-3 text-left transition-all ' +
-                  (settings.theme === t.id
-                    ? 'border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.08)]'
-                    : 'hover:border-[rgb(var(--accent)/0.4)]')
-                }
-              >
-                <span
-                  className="h-8 w-8 rounded-md border border-white/10 shadow"
-                  style={{ background: t.swatch, boxShadow: `0 0 12px ${t.swatch}55` }}
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium">{t.label}</div>
-                  <div className="text-[11px] text-muted capitalize">{t.id}</div>
-                </div>
-                {settings.theme === t.id && (
-                  <motion.span
-                    layoutId="theme-check"
-                    className="grid h-5 w-5 place-items-center rounded-full bg-[rgb(var(--accent))] text-[rgb(var(--surface))]"
+          {[
+            { tone: 'dark',   label: 'Dark themes' },
+            { tone: 'bright', label: 'Bright themes' },
+          ].map((group) => (
+            <div key={group.tone} className="mb-3 last:mb-0">
+              <div className="mb-1.5 text-[10px] uppercase tracking-[0.22em] text-muted/80">
+                {group.label}
+              </div>
+              <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+                {THEMES.filter((t) => t.tone === group.tone).map((t) => (
+                  <motion.button
+                    key={t.id}
+                    data-testid={`theme-${t.id}`}
+                    whileHover={{ y: -2 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => setKey({ theme: t.id })}
+                    className={
+                      'group relative flex items-center gap-3 rounded-lg hairline p-3 text-left transition-all ' +
+                      (settings.theme === t.id
+                        ? 'border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.08)]'
+                        : 'hover:border-[rgb(var(--accent)/0.4)]')
+                    }
                   >
-                    <Check size={11} strokeWidth={3} />
-                  </motion.span>
-                )}
-              </motion.button>
-            ))}
-          </div>
+                    <span
+                      className="h-8 w-8 rounded-md border border-white/10 shadow"
+                      style={{ background: t.swatch, boxShadow: `0 0 12px ${t.swatch}55` }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium">{t.label}</div>
+                      <div className="text-[11px] text-muted capitalize">{t.id}</div>
+                    </div>
+                    {settings.theme === t.id && (
+                      <motion.span
+                        layoutId="theme-check"
+                        className="grid h-5 w-5 place-items-center rounded-full bg-[rgb(var(--accent))] text-[rgb(var(--surface))]"
+                      >
+                        <Check size={11} strokeWidth={3} />
+                      </motion.span>
+                    )}
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+          ))}
         </Section>
 
         {/* Library appearance — sliders moved to the Library popover (Sliders button next to Settings).
@@ -164,6 +174,13 @@ export default function SettingsModal({ open, onClose, settings, setSettings }) 
               value={settings.particlesEnabled !== false}
               onChange={(v) => setKey({ particlesEnabled: v })}
               testid="opt-particles"
+            />
+            <Toggle
+              label="Per-game ambient backdrop"
+              hint="Tints the background with the selected game's hero image (subtle wash, never overwhelms the theme)."
+              value={!!settings.perGameBg}
+              onChange={(v) => setKey({ perGameBg: v })}
+              testid="opt-per-game-bg"
             />
             <Toggle
               label="CRT boot animation"
@@ -266,7 +283,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings }) 
 
         <Section title="About">
           <p className="text-xs text-muted leading-relaxed">
-            NEO-LIB v1.1.0. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
+            NEO-LIB v1.1.1. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
             Library data lives in <span className="font-mono text-ink">%APPDATA%/NEO-LIB</span>.
           </p>
           <button
@@ -334,11 +351,22 @@ export default function SettingsModal({ open, onClose, settings, setSettings }) 
   );
 }
 
-function Section({ title, children }) {
+function Section({ title, hint, children }) {
   return (
     <section>
-      <h3 className="mb-3 font-display text-[13px] font-bold uppercase tracking-[0.18em] text-ink border-l-2 border-[rgb(var(--accent))] pl-3 neon-text">
+      <h3
+        className="group mb-2 inline-flex items-center gap-1.5 font-display text-[11px] font-bold uppercase tracking-[0.20em] text-muted/90 border-l-2 border-[rgb(var(--accent))] pl-2 transition-colors hover:text-ink"
+        title={hint || ''}
+      >
         {title}
+        {hint && (
+          <span
+            className="ml-0.5 grid h-3.5 w-3.5 place-items-center rounded-full text-[8.5px] font-bold opacity-0 group-hover:opacity-100 transition-opacity hairline bg-panel/60 text-[rgb(var(--accent))]"
+            aria-hidden
+          >
+            ?
+          </span>
+        )}
       </h3>
       {children}
     </section>
@@ -347,10 +375,12 @@ function Section({ title, children }) {
 
 function Toggle({ label, hint, value, onChange, testid }) {
   return (
-    <label className="flex cursor-pointer items-center gap-3 rounded-lg hairline bg-surface/40 px-3 py-2.5 hover:border-[rgb(var(--accent)/0.4)] transition-colors">
+    <label
+      className="flex cursor-pointer items-center gap-3 rounded-lg hairline bg-surface/40 px-3 py-2 hover:border-[rgb(var(--accent)/0.4)] transition-colors"
+      title={hint || ''}
+    >
       <div className="min-w-0 flex-1">
-        <div className="text-[13px] font-medium">{label}</div>
-        {hint && <div className="text-[11px] text-muted">{hint}</div>}
+        <div className="text-[12px] font-medium leading-tight">{label}</div>
       </div>
       <button
         type="button"

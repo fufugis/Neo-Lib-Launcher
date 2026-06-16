@@ -1,6 +1,7 @@
 // Tiny WebAudio-based UI sounds — no asset files needed.
 // Multiple "sound packs" with the same surface API.
 let ctx = null;
+let master = null;
 function getCtx() {
   if (typeof window === 'undefined') return null;
   if (!ctx) {
@@ -9,12 +10,40 @@ function getCtx() {
   }
   return ctx;
 }
+// Master chain — compressor + gain. All sounds route through this so volumes
+// are normalized across packs (no more chimes that are too loud / too quiet).
+function getMaster() {
+  const ac = getCtx();
+  if (!ac) return null;
+  if (!master) {
+    const comp = ac.createDynamicsCompressor();
+    comp.threshold.value = -22;
+    comp.knee.value = 30;
+    comp.ratio.value = 6;
+    comp.attack.value = 0.003;
+    comp.release.value = 0.25;
+    const g = ac.createGain();
+    g.gain.value = 0.85; // global pad so chimes don't bite
+    comp.connect(g).connect(ac.destination);
+    master = comp;
+  }
+  return master;
+}
 function envelope(g, ac, attack, release, peak = 0.18) {
+  // Normalize peaks into a tighter band so quiet packs match loud ones.
+  // Anything below 0.10 is lifted to 0.10; anything above 0.20 is capped at 0.20.
+  const normPeak = Math.max(0.10, Math.min(0.20, peak));
   const t = ac.currentTime;
   g.gain.cancelScheduledValues(t);
   g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(peak, t + attack);
+  g.gain.exponentialRampToValueAtTime(normPeak, t + attack);
   g.gain.exponentialRampToValueAtTime(0.0001, t + attack + release);
+}
+// Helper that routes any oscillator+gain chain through the normalized master.
+function connectMaster(g, ac) {
+  const m = getMaster();
+  if (m) g.connect(m);
+  else g.connect(ac.destination);
 }
 
 /* ---------- Sound pack: synthwave ---------- */
@@ -25,7 +54,8 @@ const PACK_SYNTHWAVE = {
     o.type = 'sine';
     o.frequency.value = 720;
     o.frequency.exponentialRampToValueAtTime(880, ac.currentTime + 0.06);
-    o.connect(g).connect(ac.destination);
+    o.connect(g);
+    connectMaster(g, ac);
     envelope(g, ac, 0.005, 0.09, 0.07);
     o.start(); o.stop(ac.currentTime + 0.12);
   },
@@ -35,7 +65,8 @@ const PACK_SYNTHWAVE = {
     o.type = 'triangle';
     o.frequency.setValueAtTime(220, ac.currentTime);
     o.frequency.exponentialRampToValueAtTime(660, ac.currentTime + 0.18);
-    o.connect(g).connect(ac.destination);
+    o.connect(g);
+    connectMaster(g, ac);
     envelope(g, ac, 0.005, 0.25, 0.14);
     o.start(); o.stop(ac.currentTime + 0.3);
   },
@@ -48,7 +79,8 @@ const PACK_ARCADE = {
     const o = ac.createOscillator(), g = ac.createGain();
     o.type = 'square';
     o.frequency.value = 1200;
-    o.connect(g).connect(ac.destination);
+    o.connect(g);
+    connectMaster(g, ac);
     envelope(g, ac, 0.001, 0.04, 0.04);
     o.start(); o.stop(ac.currentTime + 0.06);
   },
@@ -59,7 +91,8 @@ const PACK_ARCADE = {
       const o = ac.createOscillator(), g = ac.createGain();
       o.type = 'square';
       o.frequency.value = freq;
-      o.connect(g).connect(ac.destination);
+      o.connect(g);
+    connectMaster(g, ac);
       const start = ac.currentTime + i * 0.06;
       g.gain.setValueAtTime(0.0001, start);
       g.gain.exponentialRampToValueAtTime(0.12, start + 0.003);
@@ -77,7 +110,8 @@ const PACK_MINIMAL = {
     const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2200;
     o.type = 'sine';
     o.frequency.value = 1800;
-    o.connect(lp).connect(g).connect(ac.destination);
+    o.connect(lp).connect(g);
+    connectMaster(g, ac);
     envelope(g, ac, 0.001, 0.03, 0.025);
     o.start(); o.stop(ac.currentTime + 0.05);
   },
@@ -88,7 +122,8 @@ const PACK_MINIMAL = {
     o.type = 'sine';
     o.frequency.setValueAtTime(540, ac.currentTime);
     o.frequency.exponentialRampToValueAtTime(720, ac.currentTime + 0.08);
-    o.connect(lp).connect(g).connect(ac.destination);
+    o.connect(lp).connect(g);
+    connectMaster(g, ac);
     envelope(g, ac, 0.004, 0.14, 0.08);
     o.start(); o.stop(ac.currentTime + 0.18);
   },
@@ -103,7 +138,8 @@ const PACK_SCIFI = {
     o.frequency.setValueAtTime(440, ac.currentTime);
     o.frequency.exponentialRampToValueAtTime(1760, ac.currentTime + 0.07);
     const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1200; bp.Q.value = 6;
-    o.connect(bp).connect(g).connect(ac.destination);
+    o.connect(bp).connect(g);
+    connectMaster(g, ac);
     envelope(g, ac, 0.002, 0.08, 0.06);
     o.start(); o.stop(ac.currentTime + 0.1);
   },
@@ -114,7 +150,8 @@ const PACK_SCIFI = {
     o.type = 'sawtooth';
     o.frequency.setValueAtTime(110, ac.currentTime);
     o.frequency.exponentialRampToValueAtTime(880, ac.currentTime + 0.22);
-    o.connect(bp).connect(g).connect(ac.destination);
+    o.connect(bp).connect(g);
+    connectMaster(g, ac);
     envelope(g, ac, 0.003, 0.3, 0.12);
     o.start(); o.stop(ac.currentTime + 0.35);
   },

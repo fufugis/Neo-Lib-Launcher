@@ -13,7 +13,8 @@
 export const AFFILIATE_CONFIG = {
   // Awin / Fanatical / GMG — paste once approved
   awinAffId: '2935955',     // your Awin publisher ID
-  awinMid:   '',            // per-merchant ID — populate ONCE per store you join (Fanatical=18809, GMG=10825, etc.)
+  awinMid:   '81755',       // currently set to Superbox (TV boxes — not gaming, but the only Awin merchant approved so far).
+                            // Replace with Fanatical=18809 / GMG=10825 / etc. once a gaming merchant approves.
 
   // Humble Partner — submitted ID 8518905; activates once Humble approves your application
   humbleId:  '8518905',

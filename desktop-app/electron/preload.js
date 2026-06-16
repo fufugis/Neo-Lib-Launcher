@@ -29,7 +29,7 @@ contextBridge.exposeInMainWorld('api', {
   onGameExited: (cb) => ipcRenderer.on('game:exited', (_e, info) => cb(info)),
 
   // scan
-  scanDirectory: (root, excludes) => ipcRenderer.invoke('scan:directory', root, excludes),
+  scanDirectory: (root, excludes, options) => ipcRenderer.invoke('scan:directory', root, excludes, options),
 
   // steam
   searchSteam: (q) => ipcRenderer.invoke('steam:search', q),

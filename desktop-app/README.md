@@ -4,7 +4,16 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.1.1-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+
+### Latest — v1.1.1 (Polish & QoL)
+- Selective metadata accept — pick exactly which fields (image, description, genres…) replace existing ones.
+- Wizard **Deep Scan** toggle — Fast (default, 5-deep) or Deep (10-deep, more files) for nested folder structures.
+- Drop a folder onto the window → Wizard now **auto-runs** the scan.
+- Optional per-game ambient backdrop — tints the background with the selected hero image.
+- Bright "Mint Garden" theme, grouped Dark/Bright themes in Settings.
+- Modal backdrop closes are now **double-click** to prevent accidental dismissal.
+- Sound effects volume normalized via a dynamics compressor.
 
 ---
 

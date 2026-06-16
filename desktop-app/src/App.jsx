@@ -219,6 +219,7 @@ export default function App() {
   /* --- Drag-drop overlay state --- */
   const [dragOver, setDragOver] = React.useState(false);
   const [wizardPrefillRoot, setWizardPrefillRoot] = React.useState('');
+  const [wizardAutoScan, setWizardAutoScan] = React.useState(false);
 
   /* --- Launcher detector --- */
   const [detectedLauncher, setDetectedLauncher] = React.useState(null);
@@ -504,11 +505,12 @@ export default function App() {
           added += 1;
           continue;
         }
-        // Folder → open Wizard pre-filled with this root
+        // Folder → open Wizard pre-filled with this root and auto-trigger the scan
         if (!/\.\w{1,5}$/.test(p)) {
           setWizardPrefillRoot(p);
+          setWizardAutoScan(true);
           setShowWizard(true);
-          notify(`Folder dropped — Wizard ready at ${p}`);
+          notify(`Folder dropped — scanning ${p}`);
         }
       }
       if (added > 0) notify(`Added ${added} game${added !== 1 ? 's' : ''} via drag-drop`);
@@ -1121,7 +1123,7 @@ export default function App() {
     <div className="relative flex h-screen w-screen flex-col bg-surface text-ink">
       {/* Window edge glow — soft inner halo around the frameless window (Riot/Discord style) */}
       <div className="window-edge-glow" aria-hidden="true" />
-      <BgAmbience theme={settings.theme} settings={settings} />
+      <BgAmbience theme={settings.theme} settings={settings} game={selected} />
       <TitleBar
         search={search}
         setSearch={setSearch}
@@ -1247,11 +1249,12 @@ export default function App() {
       <AddGameModal open={showAdd} onClose={() => setShowAdd(false)} onCreate={addGame} />
       <WizardModal
         open={showWizard}
-        onClose={() => { setShowWizard(false); setWizardPrefillRoot(''); }}
+        onClose={() => { setShowWizard(false); setWizardPrefillRoot(''); setWizardAutoScan(false); }}
         onAccept={addToGames}
         onAddManual={() => setShowAdd(true)}
         existingExePaths={(library.games || []).map((g) => g.exePath).filter(Boolean)}
         prefilledRoot={wizardPrefillRoot}
+        autoScan={wizardAutoScan}
         geminiKey={settings.geminiKey || ''}
       />
       <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} settings={settings} setSettings={persistSettings} />
@@ -1464,31 +1467,58 @@ export default function App() {
   );
 }
 
-function BgAmbience({ theme, settings = {} }) {
+function BgAmbience({ theme, settings = {}, game = null }) {
   if (settings.synthGridEnabled === false) return null;
   const intensity = (settings.gridIntensity ?? 100) / 100;
+  // Per-game custom backdrop — when settings.perGameBg is on, the currently selected
+  // game's hero is rendered as a giant blurred wash behind the ambient. Subtle,
+  // additive, never overwhelms the theme.
+  const gameBg = settings.perGameBg && game ? (game.background || game.headerImage || game.coverUrl) : null;
+  const gameBgLayer = gameBg ? (
+    <motion.div
+      key={gameBg}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 0.22 }}
+      transition={{ duration: 0.9 }}
+      aria-hidden
+      className="pointer-events-none fixed inset-0 z-0"
+      style={{
+        backgroundImage: `url(${gameBg})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        filter: 'blur(40px) saturate(1.15)',
+        mixBlendMode: 'overlay',
+      }}
+    />
+  ) : null;
 
   // Vaporwave Day — clouds + neon grid floor
   if (theme === 'synthwave-day') {
     return (
-      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden" style={{ opacity: intensity }}>
-        <div className="vapor-clouds" />
-        <div className="vapor-floor" />
-      </div>
+      <>
+        {gameBgLayer}
+        <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden" style={{ opacity: intensity }}>
+          <div className="vapor-clouds" />
+          <div className="vapor-floor" />
+        </div>
+      </>
     );
   }
   // Synthwave — grid + horizon + accent glow
   if (theme === 'synthwave') {
     return (
-      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden" style={{ opacity: intensity }}>
-        <div className="synth-grid" />
-        <div className="synth-horizon" />
-        <div
-          className="absolute -top-40 left-1/2 h-[60vh] w-[80vw] -translate-x-1/2 rounded-full opacity-30 blur-3xl"
-          style={{ background: 'radial-gradient(circle, rgb(var(--accent)/0.45), transparent 60%)' }}
-        />
-        {settings.particlesEnabled !== false && <Particles count={10} />}
-      </div>
+      <>
+        {gameBgLayer}
+        <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden" style={{ opacity: intensity }}>
+          <div className="synth-grid" />
+          <div className="synth-horizon" />
+          <div
+            className="absolute -top-40 left-1/2 h-[60vh] w-[80vw] -translate-x-1/2 rounded-full opacity-30 blur-3xl"
+            style={{ background: 'radial-gradient(circle, rgb(var(--accent)/0.45), transparent 60%)' }}
+          />
+          {settings.particlesEnabled !== false && <Particles count={10} />}
+        </div>
+      </>
     );
   }
   // All other themes get their own subtle ambient backdrop
@@ -1498,6 +1528,7 @@ function BgAmbience({ theme, settings = {} }) {
     ocean:    'amb-ocean',
     crimson:  'amb-crimson',
     anime:    'amb-anime',
+    mint:     'amb-mint',
   }[theme];
   if (!ambClass) return null;
   return (

@@ -171,18 +171,26 @@ export default function GameDetail({
               'No description yet. Press "Refresh info" to pull metadata online.'}
           </p>
 
-          {(game.developers?.length || game.publishers?.length || game.releaseDate || game.website) && (
-            <div className="mt-5 grid grid-cols-2 gap-2 text-[11px]">
-              {game.developers?.length > 0 && (
-                <MetaCell label="Developer" value={game.developers.join(', ')} />
-              )}
-              {game.publishers?.length > 0 && (
-                <MetaCell label="Publisher" value={game.publishers.join(', ')} />
-              )}
-              {game.releaseDate && <MetaCell label="Released" value={game.releaseDate} />}
-              {game.metacritic && <MetaCell label="Metacritic" value={String(game.metacritic)} />}
-            </div>
-          )}
+          {(() => {
+            // Only render meta cells that actually have data — prevents the
+            // big-gaps problem on games where most fields are empty.
+            const cells = [];
+            if (game.developers?.length) cells.push(['Developer', game.developers.join(', ')]);
+            if (game.publishers?.length && game.publishers.join() !== (game.developers || []).join()) {
+              cells.push(['Publisher', game.publishers.join(', ')]);
+            }
+            if (game.releaseDate) cells.push(['Released', game.releaseDate]);
+            if (game.metacritic) cells.push(['Metacritic', String(game.metacritic)]);
+            if (game.website) cells.push(['Website', game.website]);
+            if (cells.length === 0) return null;
+            return (
+              <div className="mt-5 grid grid-cols-2 gap-2 text-[11px]">
+                {cells.map(([label, value]) => (
+                  <MetaCell key={label} label={label} value={value} />
+                ))}
+              </div>
+            );
+          })()}
 
           <div className="mt-5 text-[10.5px] text-muted/70 break-all font-mono">
             {game.exePath}

@@ -15,7 +15,7 @@ import { guessNameFromPath } from '../lib/utils';
  *     - Accept / Skip / Re-search (with custom query, skips current source)
  *  4. Done → option to add more manually
  */
-export default function WizardModal({ open, onClose, onImport, onAccept, onAddManual, geminiKey, existingExePaths = [], prefilledRoot = '' }) {
+export default function WizardModal({ open, onClose, onImport, onAccept, onAddManual, geminiKey, existingExePaths = [], prefilledRoot = '', autoScan = false }) {
   const [step, setStep] = React.useState(1);
   const [root, setRoot] = React.useState('');
   const [candidates, setCandidates] = React.useState([]);
@@ -29,6 +29,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
   const [queryOverride, setQueryOverride] = React.useState('');
   const [skipSources, setSkipSources] = React.useState([]);
   const [launcherStatus, setLauncherStatus] = React.useState('');
+  const [scanDepth, setScanDepth] = React.useState('fast'); // 'fast' | 'deep'
 
   // Exclude paths during scan — common launcher folders + custom
   const [skipLaunchers, setSkipLaunchers] = React.useState({
@@ -113,6 +114,20 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
     }
   }, [open, prefilledRoot]);
 
+  // Auto-scan when the wizard was triggered by a folder drop with autoScan=true
+  const autoScanTriggered = React.useRef(false);
+  React.useEffect(() => {
+    if (!open) { autoScanTriggered.current = false; return; }
+    if (autoScan && root && step === 1 && !autoScanTriggered.current) {
+      autoScanTriggered.current = true;
+      // Small delay so the user sees what's happening before the modal switches to "Scanning…"
+      const t = setTimeout(() => { startScan(); }, 250);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, autoScan, root, step]);
+
   React.useEffect(() => {
     if (step !== 3) return;
     if (candidates.length === 0 || cursor >= candidates.length) return;
@@ -139,7 +154,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
       ...(skipLaunchers.ubisoft ? ['Ubisoft', 'Ubisoft Game Launcher'] : []),
       ...(skipLaunchers.riot    ? ['Riot Games'] : []),
     ];
-    const found = (await window.api?.scanDirectory(root, excludes)) || [];
+    const found = (await window.api?.scanDirectory(root, excludes, { deep: scanDepth === 'deep' })) || [];
     // De-dupe: filter out games already in the library (by exePath, case-insensitive)
     const known = new Set((existingExePaths || []).map((p) => (p || '').toLowerCase()));
     const fresh = found.filter((cand) => !known.has((cand.exe || '').toLowerCase()));
@@ -339,6 +354,44 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
               >
                 <FolderSearch size={13} /> Choose…
               </button>
+            </div>
+
+            {/* Scan depth — Fast (default) vs Deep */}
+            <div className="mt-3 rounded-md hairline bg-panel/40 px-3 py-2">
+              <div className="mb-1.5 flex items-center justify-between">
+                <div className="text-[10.5px] uppercase tracking-wider text-muted">Scan depth</div>
+                <span className="text-[10px] text-muted/70">
+                  {scanDepth === 'fast' ? 'Fast · 5 levels · up to 1500 files' : 'Deep · 10 levels · up to 5000 files'}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  data-testid="wizard-scan-fast"
+                  onClick={() => setScanDepth('fast')}
+                  className={
+                    'rounded-md hairline px-2 py-1.5 text-left text-[11.5px] transition-colors ' +
+                    (scanDepth === 'fast'
+                      ? 'border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.12)] text-ink'
+                      : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]')
+                  }
+                >
+                  <div className="font-semibold">Fast scan</div>
+                  <div className="text-[10px] text-muted">Good for most game folders. Recommended.</div>
+                </button>
+                <button
+                  data-testid="wizard-scan-deep"
+                  onClick={() => setScanDepth('deep')}
+                  className={
+                    'rounded-md hairline px-2 py-1.5 text-left text-[11.5px] transition-colors ' +
+                    (scanDepth === 'deep'
+                      ? 'border-[rgb(var(--accent-2)/0.7)] bg-[rgb(var(--accent-2)/0.12)] text-ink'
+                      : 'text-muted hover:text-ink hover:border-[rgb(var(--accent-2)/0.4)]')
+                  }
+                >
+                  <div className="font-semibold">Deep scan</div>
+                  <div className="text-[10px] text-muted">For nested or modded folder structures. Slower.</div>
+                </button>
+              </div>
             </div>
           </div>
           <div className="flex justify-end">
