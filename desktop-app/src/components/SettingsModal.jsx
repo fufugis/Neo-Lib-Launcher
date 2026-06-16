@@ -7,7 +7,7 @@ import Modal from './Modal';
 import { DONATE_PAYPAL_URL } from './DonateModal';
 import qrUrl from '../assets/donate-qr.png';
 
-export default function SettingsModal({ open, onClose, settings, setSettings }) {
+export default function SettingsModal({ open, onClose, settings, setSettings, onShowChangelog }) {
   const setKey = (patch) => setSettings({ ...settings, ...patch });
   const [showKey, setShowKey] = React.useState(false);
   const [autoStart, setAutoStart] = React.useState(false);
@@ -283,22 +283,35 @@ export default function SettingsModal({ open, onClose, settings, setSettings }) 
 
         <Section title="About">
           <p className="text-xs text-muted leading-relaxed">
-            NEO-LIB v1.1.1. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
+            NEO-LIB v1.1.2. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
             Library data lives in <span className="font-mono text-ink">%APPDATA%/NEO-LIB</span>.
           </p>
-          <button
-            data-testid="settings-check-updates-btn"
-            onClick={() => {
-              const url = 'https://github.com/fufugis/Neo-Lib-Launcher/releases/latest';
-              if (window.api?.openExternal) window.api.openExternal(url);
-              else window.open(url, '_blank');
-            }}
-            className="mt-3 inline-flex items-center gap-2 rounded-md hairline px-3 h-8 text-[12px] text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.6)] hover:bg-[rgb(var(--accent)/0.08)] transition-all"
-            title="Opens the latest release page on GitHub"
-          >
-            <DownloadCloud size={13} className="text-[rgb(var(--accent))]" />
-            Check for updates
-          </button>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              data-testid="settings-check-updates-btn"
+              onClick={() => {
+                const url = 'https://github.com/fufugis/Neo-Lib-Launcher/releases/latest';
+                if (window.api?.openExternal) window.api.openExternal(url);
+                else window.open(url, '_blank');
+              }}
+              className="inline-flex items-center gap-2 rounded-md hairline px-3 h-8 text-[12px] text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.6)] hover:bg-[rgb(var(--accent)/0.08)] transition-all"
+              title="Opens the latest release page on GitHub"
+            >
+              <DownloadCloud size={13} className="text-[rgb(var(--accent))]" />
+              Check for updates
+            </button>
+            {onShowChangelog && (
+              <button
+                data-testid="settings-show-changelog-btn"
+                onClick={() => { onClose(); onShowChangelog(); }}
+                className="inline-flex items-center gap-2 rounded-md hairline px-3 h-8 text-[12px] text-muted hover:text-ink hover:border-[rgb(var(--accent-2)/0.6)] hover:bg-[rgb(var(--accent-2)/0.08)] transition-all"
+                title="See what changed in the latest releases"
+              >
+                <Sparkles size={13} className="text-[rgb(var(--accent-2))]" />
+                What&apos;s new
+              </button>
+            )}
+          </div>
         </Section>
 
         {/* Support & credits */}

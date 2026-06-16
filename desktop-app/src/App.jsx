@@ -19,10 +19,11 @@ import CategoryModal from './components/CategoryModal';
 import Confetti from './components/Confetti';
 import EditMetadataModal from './components/EditMetadataModal';
 import AcceptMetadataModal from './components/AcceptMetadataModal';
+import ChangelogModal from './components/ChangelogModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.1.2';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin } from './lib/utils';
 import { setSoundPack } from './lib/sound';
@@ -213,6 +214,9 @@ export default function App() {
   /* --- Auto-update checker (GitHub releases API) --- */
   const [updateInfo, setUpdateInfo] = React.useState(null);
 
+  /* --- "What's new" changelog modal — shown once per installed version --- */
+  const [changelogOpen, setChangelogOpen] = React.useState(false);
+
   /* --- Accept-before-add modal (preview proposed metadata before applying) --- */
   const [acceptPreview, setAcceptPreview] = React.useState({ open: false, game: null, proposed: null, busy: false });
 
@@ -395,6 +399,15 @@ export default function App() {
         const cleanSettings = { ...s };
         if (!s.categoriesCollapsedDefault) cleanSettings.collapsed = {};
         setSettings((prev) => ({ ...prev, ...cleanSettings }));
+
+        // "What's new" toast — show once per installed version. First-ever
+        // run sets the version silently so the tutorial owns the welcome moment.
+        if (!s.lastSeenVersion) {
+          window.api.saveSettings({ ...s, lastSeenVersion: APP_VERSION });
+        } else if (s.lastSeenVersion !== APP_VERSION) {
+          // Slight delay so it doesn't collide with the tutorial / CRT boot.
+          setTimeout(() => setChangelogOpen(true), 2200);
+        }
         // Privacy: never auto-select a game inside a private category on startup.
         // If the first non-private game doesn't exist, leave selection empty.
         const privateCatIds = new Set(
@@ -1257,7 +1270,19 @@ export default function App() {
         autoScan={wizardAutoScan}
         geminiKey={settings.geminiKey || ''}
       />
-      <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} settings={settings} setSettings={persistSettings} />
+      <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} settings={settings} setSettings={persistSettings} onShowChangelog={() => setChangelogOpen(true)} />
+      <ChangelogModal
+        open={changelogOpen}
+        currentVersion={APP_VERSION}
+        lastSeenVersion={settings.lastSeenVersion}
+        onClose={() => {
+          setChangelogOpen(false);
+          // Persist so we don't show it again for this version
+          if (settings.lastSeenVersion !== APP_VERSION) {
+            updateSetting({ lastSeenVersion: APP_VERSION });
+          }
+        }}
+      />
       <CategoryModal
         open={catModal.open}
         initial={catModal.initial}

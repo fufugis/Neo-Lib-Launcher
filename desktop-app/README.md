@@ -4,9 +4,13 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.1.1-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.1.2-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.1.1 (Polish & QoL)
+### Latest — v1.1.2 (What's new toast)
+- **"What's new" modal** auto-shows once after each update so you actually see what changed. Manual replay via Settings → About → "What's new".
+- Settings About reworked with side-by-side "Check for updates" + "What's new" buttons.
+
+### v1.1.1 (Polish & QoL)
 - Selective metadata accept — pick exactly which fields (image, description, genres…) replace existing ones.
 - Wizard **Deep Scan** toggle — Fast (default, 5-deep) or Deep (10-deep, more files) for nested folder structures.
 - Drop a folder onto the window → Wizard now **auto-runs** the scan.
