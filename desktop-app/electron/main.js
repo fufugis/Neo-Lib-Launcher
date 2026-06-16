@@ -1417,8 +1417,9 @@ ipcMain.handle('deals:fetch', async () => {
   try {
     const sf = await httpGetJson('https://store.steampowered.com/api/featuredcategories?cc=us&l=en');
     const specials = sf?.specials?.items || [];
-    for (const s of specials.slice(0, 8)) {
-      if (!s.discount_percent || s.discount_percent < 25) continue;
+    // Expanded supply: up to 15 entries (was 8) and threshold lowered to 20% (was 25%).
+    for (const s of specials.slice(0, 15)) {
+      if (!s.discount_percent || s.discount_percent < 20) continue;
       items.push({
         id: `steam-${s.id}`,
         platform: 'steam',
@@ -1433,6 +1434,35 @@ ipcMain.handle('deals:fetch', async () => {
       });
     }
   } catch (e) { /* skip */ }
+
+  // -- Instant Gaming hot deals (paying affiliate via igr= partner code in deals.js wrapper)
+  // Lightweight regex scrape — IG's HTML has been stable for years. If their markup ever
+  // changes, this block silently yields zero items and the other sources keep working.
+  try {
+    const html = await httpGetText('https://www.instant-gaming.com/en/?type=hotdeal&sort=hot');
+    const reItem = /<a[^>]*class="[^"]*cover[^"]*"[^>]*href="(\/en\/[^"]+)"[\s\S]*?<picture[^>]*>[\s\S]*?<img[^>]*src="([^"]+)"[\s\S]*?<\/a>[\s\S]*?<div[^>]*class="[^"]*name[^"]*"[^>]*>([^<]+)<[\s\S]*?<div[^>]*class="[^"]*price[^"]*"[^>]*>([^<]+)<[\s\S]*?<div[^>]*class="[^"]*discount[^"]*"[^>]*>([^<]+)</g;
+    let m;
+    let count = 0;
+    const fallbackUrls = new Set();
+    while ((m = reItem.exec(html)) !== null && count < 12) {
+      const [, hrefPath, image, title, price, discount] = m;
+      if (!hrefPath || !title) continue;
+      if (fallbackUrls.has(hrefPath)) continue;
+      fallbackUrls.add(hrefPath);
+      items.push({
+        id: `ig-${count}-${hrefPath.replace(/\W+/g, '').slice(0, 24)}`,
+        platform: 'instant-gaming',
+        title: title.trim(),
+        subtitle: `${(discount || '').trim()} · Instant Gaming`,
+        priceText: (price || '').trim() || '—',
+        originalPrice: '',
+        image: image.startsWith('http') ? image : `https:${image}`,
+        url: `https://www.instant-gaming.com${hrefPath}`,
+        discount: parseInt(String(discount || '').replace(/[^0-9-]/g, ''), 10) || 0,
+      });
+      count += 1;
+    }
+  } catch (e) { /* IG unreachable — keep the other deals */ }
 
   DEALS_CACHE = { ts: Date.now(), items };
   return items;

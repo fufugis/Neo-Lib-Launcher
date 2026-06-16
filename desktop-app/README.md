@@ -4,9 +4,14 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.1.2-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.1.3-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.1.2 (What's new toast)
+### Latest — v1.1.3 (More deals, still subtle)
+- **Instant Gaming hot deals** now appear in the rotation — routes through your affiliate code (the paying source).
+- **Steam specials expanded** from 8 → 15 entries, threshold lowered to ≥20% off.
+- New **"All N" pill** in the deals bar opens a popover with every deal at once. Hidden until clicked → bar stays minimal.
+
+### v1.1.2 (What's new toast)
 - **"What's new" modal** auto-shows once after each update so you actually see what changed. Manual replay via Settings → About → "What's new".
 - Settings About reworked with side-by-side "Check for updates" + "What's new" buttons.
 

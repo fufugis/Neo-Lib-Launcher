@@ -15,6 +15,15 @@ import { Sparkles, Check, X } from 'lucide-react';
 
 export const CHANGELOG = [
   {
+    version: '1.1.3',
+    title: 'More deals, still subtle',
+    items: [
+      'Instant Gaming hot deals now appear in the rotation — routes through your affiliate code (the paying source).',
+      'Steam specials expanded from 8 to 15 entries, threshold lowered to 20% off.',
+      'New "All N" pill in the deals bar — opens a tidy popover with every current deal at a glance. Hidden until you click it.',
+    ],
+  },
+  {
     version: '1.1.2',
     title: 'What\u2019s new toast + small polish',
     items: [
