@@ -5,6 +5,7 @@ import Sidebar, { CategoryContextMenu } from './components/Sidebar';
 import GameDetail from './components/GameDetail';
 import ShowcaseStrip from './components/ShowcaseStrip';
 import DealsBar from './components/DealsBar';
+import FeaturedDealBanner from './components/FeaturedDealBanner';
 import DonateModal from './components/DonateModal';
 import LauncherDetectModal from './components/LauncherDetectModal';
 import SettingsModal from './components/SettingsModal';
@@ -23,7 +24,7 @@ import ChangelogModal from './components/ChangelogModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.1.3';
+const APP_VERSION = '1.1.4';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin } from './lib/utils';
 import { setSoundPack } from './lib/sound';
@@ -1226,6 +1227,18 @@ export default function App() {
           )}
         </main>
       </div>
+
+      {/* Featured deal banner — sits above the rotating DealsBar.
+          Only shown when deals are enabled, the featured slot isn't dismissed,
+          and the user opted into the visible banner (default ON for new users). */}
+      {settings.dealsEnabled !== false
+        && settings.featuredBannerEnabled !== false
+        && settings.featuredBannerHidden !== true && (
+        <FeaturedDealBanner
+          settings={settings}
+          onDismiss={() => updateSetting({ featuredBannerHidden: true })}
+        />
+      )}
 
       {/* Bottom deals bar — across the full window */}
       {settings.dealsEnabled !== false && settings.dealsBarHidden !== true ? (

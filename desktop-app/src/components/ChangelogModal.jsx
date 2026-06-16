@@ -15,6 +15,15 @@ import { Sparkles, Check, X } from 'lucide-react';
 
 export const CHANGELOG = [
   {
+    version: '1.1.4',
+    title: 'Tray mode + Featured banner',
+    items: [
+      'Close-to-tray — toggle in Settings → App behaviour. The X button hides NEO-LIB to the system tray (next to the clock) instead of quitting. Right-click the tray icon to fully quit.',
+      'Featured deal banner — a slim sponsored card above the deals bar that rotates through Instant Gaming hot deals. Dismissible separately; re-enable in Settings → Deals.',
+      'Steam-deal supply expanded earlier (15 entries, ≥20% off) carried over.',
+    ],
+  },
+  {
     version: '1.1.3',
     title: 'More deals, still subtle',
     items: [

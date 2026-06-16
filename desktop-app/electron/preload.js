@@ -48,6 +48,7 @@ contextBridge.exposeInMainWorld('api', {
   revealInFolder: (p) => ipcRenderer.invoke('app:revealInFolder', p),
   openContainingDir: (p) => ipcRenderer.invoke('app:openContainingDir', p),
   setAutoStart: (v) => ipcRenderer.invoke('app:setAutoStart', v),
+  setMinimizeToTray: (v) => ipcRenderer.invoke('app:setMinimizeToTray', v),
   getAutoStart: () => ipcRenderer.invoke('app:getAutoStart'),
 
   // launcher imports

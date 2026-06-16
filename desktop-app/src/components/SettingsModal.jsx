@@ -215,10 +215,17 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
           <div className="space-y-3">
             <Toggle
               label="Show deals bar at the bottom"
-              hint="Rotates Epic free games and Steam top discounts. Pulled live, no tracking."
+              hint="Rotates Epic free games, Steam discounts, and Instant Gaming hot deals. Pulled live, no tracking."
               value={settings.dealsEnabled !== false}
               onChange={(v) => setKey({ dealsEnabled: v, dealsBarHidden: false })}
               testid="opt-deals"
+            />
+            <Toggle
+              label="Show featured deal banner"
+              hint="A slim sponsored card above the deals bar. Rotates through Instant Gaming hot deals (paying affiliate)."
+              value={settings.featuredBannerEnabled !== false}
+              onChange={(v) => setKey({ featuredBannerEnabled: v, featuredBannerHidden: false })}
+              testid="opt-featured-banner"
             />
           </div>
         </Section>
@@ -232,6 +239,16 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
               value={autoStart}
               onChange={toggleAutoStart}
               testid="opt-autostart"
+            />
+            <Toggle
+              label="Close to system tray"
+              hint="When ON, the X button hides NEO-LIB to the system tray (next to the clock) instead of quitting. Right-click the tray icon to fully quit."
+              value={!!settings.minimizeToTray}
+              onChange={(v) => {
+                setKey({ minimizeToTray: v });
+                if (window.api?.setMinimizeToTray) window.api.setMinimizeToTray(v);
+              }}
+              testid="opt-minimize-tray"
             />
             <Toggle
               label="Confirm before removing games"
@@ -283,7 +300,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
 
         <Section title="About">
           <p className="text-xs text-muted leading-relaxed">
-            NEO-LIB v1.1.3. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
+            NEO-LIB v1.1.4. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
             Library data lives in <span className="font-mono text-ink">%APPDATA%/NEO-LIB</span>.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">

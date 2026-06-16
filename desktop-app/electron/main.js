@@ -4,7 +4,7 @@
  * - Provides IPC for file picker, exe icon extraction, drive scan,
  *   Steam Store metadata fetch, and game launching.
  */
-const { app, BrowserWindow, ipcMain, dialog, shell, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, nativeImage, Tray, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const fsp = require('fs/promises');
@@ -86,6 +86,57 @@ async function writeJson(filePath, data) {
 
 // ---------------- Window ---------------- //
 let mainWindow;
+let tray = null;
+let isQuitting = false;
+
+// Read the persisted setting synchronously so the close handler knows the
+// user's preference even before the renderer wires up.
+function shouldMinimizeToTray() {
+  try {
+    const raw = fs.readFileSync(settingsFile(), 'utf-8');
+    const s = JSON.parse(raw);
+    return s && s.minimizeToTray === true;
+  } catch { return false; }
+}
+
+function buildTray() {
+  if (tray) return tray;
+  try {
+    const iconPath = path.join(__dirname, '..', 'build', 'icon.png');
+    const img = nativeImage.createFromPath(iconPath);
+    const trayImg = img.isEmpty() ? nativeImage.createEmpty() : img.resize({ width: 16, height: 16 });
+    tray = new Tray(trayImg);
+    tray.setToolTip('NEO-LIB');
+    const menu = Menu.buildFromTemplate([
+      {
+        label: 'Show NEO-LIB',
+        click: () => {
+          if (!mainWindow) createWindow();
+          else { mainWindow.show(); mainWindow.focus(); }
+        },
+      },
+      { type: 'separator' },
+      {
+        label: 'Quit NEO-LIB',
+        click: () => { isQuitting = true; app.quit(); },
+      },
+    ]);
+    tray.setContextMenu(menu);
+    tray.on('click', () => {
+      if (!mainWindow) { createWindow(); return; }
+      if (mainWindow.isVisible()) mainWindow.hide();
+      else { mainWindow.show(); mainWindow.focus(); }
+    });
+  } catch { tray = null; }
+  return tray;
+}
+
+function destroyTray() {
+  if (tray) {
+    try { tray.destroy(); } catch { /* ignore */ }
+    tray = null;
+  }
+}
 
 function createWindow() {
   const { screen } = require('electron');
@@ -120,18 +171,43 @@ function createWindow() {
 
   mainWindow.on('maximize', () => mainWindow.webContents.send('window:maximized', true));
   mainWindow.on('unmaximize', () => mainWindow.webContents.send('window:maximized', false));
+
+  // Close-to-tray — if the setting is on and the user isn't quitting via the
+  // tray menu, hide the window instead of closing it.
+  mainWindow.on('close', (e) => {
+    if (isQuitting) return;
+    if (!shouldMinimizeToTray()) return;
+    e.preventDefault();
+    mainWindow.hide();
+    buildTray();
+  });
 }
+
+app.on('before-quit', () => { isQuitting = true; });
 
 app.whenReady().then(async () => {
   await ensureDirs();
   createWindow();
+  // Pre-build the tray icon if the user opted in — they expect it to be
+  // available immediately, not only after they close the window for the first time.
+  if (shouldMinimizeToTray()) buildTray();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
 app.on('window-all-closed', () => {
+  // If the user opted into tray mode, the window may have been hidden — don't
+  // quit the process. Otherwise, behave normally (quit on non-macOS).
+  if (shouldMinimizeToTray()) return;
   if (process.platform !== 'darwin') app.quit();
+});
+
+// IPC for the renderer to toggle tray mode live, without restarting.
+ipcMain.handle('app:setMinimizeToTray', async (_e, enabled) => {
+  if (enabled) buildTray();
+  else destroyTray();
+  return enabled;
 });
 
 // ---------------- IPC: Window controls ---------------- //
