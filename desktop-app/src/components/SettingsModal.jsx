@@ -300,7 +300,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
 
         <Section title="About">
           <p className="text-xs text-muted leading-relaxed">
-            NEO-LIB v1.1.4. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
+            NEO-LIB v1.1.5. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
             Library data lives in <span className="font-mono text-ink">%APPDATA%/NEO-LIB</span>.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -385,17 +385,19 @@ function Section({ title, hint, children }) {
   return (
     <section>
       <h3
-        className="group mb-2 inline-flex items-center gap-1.5 font-display text-[11px] font-bold uppercase tracking-[0.20em] text-muted/90 border-l-2 border-[rgb(var(--accent))] pl-2 transition-colors hover:text-ink"
-        title={hint || ''}
+        className="neo-tooltip-trigger group relative mb-2 inline-flex items-center gap-1.5 font-display text-[11px] font-bold uppercase tracking-[0.20em] text-muted/90 border-l-2 border-[rgb(var(--accent))] pl-2 transition-colors hover:text-ink"
       >
         {title}
         {hint && (
-          <span
-            className="ml-0.5 grid h-3.5 w-3.5 place-items-center rounded-full text-[8.5px] font-bold opacity-0 group-hover:opacity-100 transition-opacity hairline bg-panel/60 text-[rgb(var(--accent))]"
-            aria-hidden
-          >
-            ?
-          </span>
+          <>
+            <span
+              className="ml-0.5 grid h-3.5 w-3.5 place-items-center rounded-full text-[8.5px] font-bold opacity-0 group-hover:opacity-100 transition-opacity hairline bg-panel/60 text-[rgb(var(--accent))]"
+              aria-hidden
+            >
+              ?
+            </span>
+            <span className="neo-tooltip" role="tooltip">{hint}</span>
+          </>
         )}
       </h3>
       {children}
@@ -405,10 +407,7 @@ function Section({ title, hint, children }) {
 
 function Toggle({ label, hint, value, onChange, testid }) {
   return (
-    <label
-      className="flex cursor-pointer items-center gap-3 rounded-lg hairline bg-surface/40 px-3 py-2 hover:border-[rgb(var(--accent)/0.4)] transition-colors"
-      title={hint || ''}
-    >
+    <label className="neo-tooltip-trigger relative flex cursor-pointer items-center gap-3 rounded-lg hairline bg-surface/40 px-3 py-2 hover:border-[rgb(var(--accent)/0.4)] transition-colors">
       <div className="min-w-0 flex-1">
         <div className="text-[12px] font-medium leading-tight">{label}</div>
       </div>
@@ -426,6 +425,7 @@ function Toggle({ label, hint, value, onChange, testid }) {
           style={{ left: value ? '18px' : '2px' }}
         />
       </button>
+      {hint && <span className="neo-tooltip" role="tooltip">{hint}</span>}
     </label>
   );
 }

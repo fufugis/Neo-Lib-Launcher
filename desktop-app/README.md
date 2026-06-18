@@ -4,9 +4,15 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.1.4-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.1.5-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.1.4 (Tray mode + Featured banner)
+### Latest — v1.1.5 (UI polish & visibility)
+- **Current version** now shown directly in the title bar — no Settings dive needed.
+- **Update pill blinks** gently so you never miss a new release.
+- **Settings tooltips redesigned** — bigger, white card with dark text, offset below the cursor so it never overlaps your reading.
+- **Modal backdrop blur softened** — opens feel less heavy.
+
+### v1.1.4 (Tray mode + Featured banner)
 - **Close to system tray** — toggle in Settings → App behaviour. The X button now hides NEO-LIB next to the clock instead of quitting. Right-click the tray icon to fully quit.
 - **Featured deal banner** — slim sponsored card above the deals bar, rotates through Instant Gaming hot deals. Dismissible; re-enable in Settings → Deals.
 

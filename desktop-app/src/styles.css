@@ -790,3 +790,69 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
   animation: donatePulse 4s ease-in-out infinite;
 }
 .donate-pulse:hover { animation: none; }
+
+/* ---- Update pill blink (titlebar) ----
+   Keeps the "Update available" pill gently pulsing so the user
+   never misses a new release. Uses both glow + scale for the eye. */
+@keyframes updatePulse {
+  0%, 100% {
+    box-shadow: 0 0 12px -2px rgb(var(--accent) / 0.7);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 22px 2px rgb(var(--accent) / 0.95), 0 0 36px -4px rgb(var(--accent-2) / 0.75);
+    transform: scale(1.06);
+  }
+}
+.update-pulse {
+  animation: updatePulse 1.6s ease-in-out infinite;
+}
+
+/* ---- Stylish info tooltip (used in Settings ? bubble) ----
+   White card with dark text, offset below + to the right of the
+   trigger so the cursor never overlaps the first words. */
+.neo-tooltip {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 18px;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-4px) scale(0.96);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  min-width: 220px;
+  max-width: 340px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(252, 252, 254, 0.97);
+  color: #1a1a24;
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 500;
+  box-shadow:
+    0 12px 40px -8px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.5),
+    0 0 24px -4px rgb(var(--accent) / 0.35);
+  white-space: normal;
+}
+.neo-tooltip::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 18px;
+  width: 12px;
+  height: 12px;
+  background: rgba(252, 252, 254, 0.97);
+  transform: rotate(45deg);
+  border-radius: 2px;
+  box-shadow: -1px -1px 0 0 rgba(255, 255, 255, 0.5);
+}
+.neo-tooltip-trigger {
+  position: relative;
+}
+.neo-tooltip-trigger:hover > .neo-tooltip,
+.neo-tooltip-trigger:focus-within > .neo-tooltip {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+

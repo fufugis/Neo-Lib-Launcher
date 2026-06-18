@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Minus, Square, X, DownloadCloud } from 'lucide-react';
 
-export default function TitleBar({ search, setSearch, updateAvailable, latestVersion, onClickUpdate }) {
+export default function TitleBar({ search, setSearch, currentVersion, updateAvailable, latestVersion, onClickUpdate }) {
   return (
     <div
       className="titlebar-drag relative z-50 flex h-11 items-center gap-3 border-b hairline glass px-3"
@@ -10,7 +10,18 @@ export default function TitleBar({ search, setSearch, updateAvailable, latestVer
     >
       <Logo />
 
-      <div className="titlebar-nodrag relative ml-4 flex-1 max-w-md">
+      {/* Current version pill — always visible so users know what they're on */}
+      {currentVersion && (
+        <span
+          data-testid="titlebar-current-version"
+          className="titlebar-nodrag inline-flex items-center gap-1 rounded-full hairline px-2 h-5 text-[10px] font-mono text-muted/80 bg-panel/40"
+          title={`Current version v${currentVersion}`}
+        >
+          v{currentVersion}
+        </span>
+      )}
+
+      <div className="titlebar-nodrag relative ml-2 flex-1 max-w-md">
         <input
           data-testid="library-search-input"
           value={search}
@@ -23,18 +34,18 @@ export default function TitleBar({ search, setSearch, updateAvailable, latestVer
 
       <div className="flex-1" />
 
-      {/* Update available pill — only shown when GitHub releases reports a newer tag */}
+      {/* Update available pill — only shown when GitHub releases reports a newer tag.
+          The custom `update-pulse` class keeps it gently blinking so it's hard to miss. */}
       {updateAvailable && (
         <motion.button
           data-testid="titlebar-update-pill"
           onClick={onClickUpdate}
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
-          className="titlebar-nodrag flex items-center gap-1.5 rounded-full px-2.5 h-6 text-[10.5px] font-bold transition-all hover:scale-[1.04]"
+          className="titlebar-nodrag update-pulse flex items-center gap-1.5 rounded-full px-2.5 h-6 text-[10.5px] font-bold transition-all hover:scale-[1.04]"
           style={{
             background: 'linear-gradient(135deg, rgb(var(--accent)) 0%, rgb(var(--accent-2)) 100%)',
             color: 'rgb(var(--surface))',
-            boxShadow: '0 0 12px -2px rgb(var(--accent) / 0.7)',
           }}
           title={`Update available — click to open the v${latestVersion} release on GitHub`}
         >

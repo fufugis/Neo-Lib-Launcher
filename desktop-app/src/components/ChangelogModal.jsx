@@ -15,6 +15,16 @@ import { Sparkles, Check, X } from 'lucide-react';
 
 export const CHANGELOG = [
   {
+    version: '1.1.5',
+    title: 'UI polish & visibility',
+    items: [
+      'Current app version is now visible in the title bar (no need to dig into Settings).',
+      'Update-available pill in the title bar gently pulses so you never miss a new release.',
+      'Settings tooltips redesigned — bigger, white card with dark text, positioned below the cursor so it never overlaps your reading.',
+      'Modal backdrop blur softened — opens feel less heavy.',
+    ],
+  },
+  {
     version: '1.1.4',
     title: 'Tray mode + Featured banner',
     items: [
