@@ -15,6 +15,14 @@ import { Sparkles, Check, X } from 'lucide-react';
 
 export const CHANGELOG = [
   {
+    version: '1.1.8',
+    title: 'Customize button + Discord status',
+    items: [
+      'New eye-catching "Customize" button on every game detail page — opens a single panel for custom cover, icon, hero, background, screenshots, description, and a custom .exe path or launch arguments.',
+      'Discord Rich Presence — when you launch a game through NEO-LIB, your Discord status reads "Playing <game> · via NEO-LIB". Toggleable in Settings → App behaviour. Needs Discord desktop running.',
+    ],
+  },
+  {
     version: '1.1.7',
     title: 'Themes, layout & window memory',
     items: [

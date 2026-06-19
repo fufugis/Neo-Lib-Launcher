@@ -62,17 +62,30 @@ jobs:
           Write-Host "Renderer OK"
         shell: pwsh
 
+      - name: Bake Discord App ID into build (if secret is set)
+        if: env.NEOLIB_DISCORD_APP_ID != ''
+        shell: pwsh
+        env:
+          NEOLIB_DISCORD_APP_ID: ${{ secrets.NEOLIB_DISCORD_APP_ID }}
+        run: |
+          $id = $env:NEOLIB_DISCORD_APP_ID
+          $content = "module.exports = { DISCORD_APP_ID: '" + $id + "' };"
+          Set-Content -Path electron/discord-config.js -Value $content -Encoding UTF8
+          Write-Host "Discord App ID baked into electron/discord-config.js"
+
       - name: Build NSIS installer (verbose)
         # `--publish never` prevents electron-builder from trying to talk to GH releases
         # mid-build (we attach assets via action-gh-release in a later step instead).
         run: npx --no-install electron-builder --win --x64 --publish never
         env:
           DEBUG: electron-builder
+          NEOLIB_DISCORD_APP_ID: ${{ secrets.NEOLIB_DISCORD_APP_ID }}
 
       - name: Build portable folder (verbose)
         run: npx --no-install electron-builder --win --dir --x64 --publish never
         env:
           DEBUG: electron-builder
+          NEOLIB_DISCORD_APP_ID: ${{ secrets.NEOLIB_DISCORD_APP_ID }}
 
       - name: List dist contents (debug)
         run: |

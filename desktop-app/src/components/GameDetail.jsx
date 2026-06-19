@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play, RefreshCw, Calendar, Award, Building2, Globe, FolderOpen,
-  Tag, Sparkles, ChevronLeft, ChevronRight, Youtube, FileText, Wrench,
+  Tag, Sparkles, ChevronLeft, ChevronRight, Youtube, FileText, Wrench, Wand2,
 } from 'lucide-react';
 import { cn, colorFromId } from '../lib/utils';
 import { hoverThrottled, playLaunch } from '../lib/sound';
@@ -18,7 +18,7 @@ import { hoverThrottled, playLaunch } from '../lib/sound';
  */
 export default function GameDetail({
   game, categories, onLaunch, onRefetch, onRevealFolder,
-  onToggleCategory, fetching, settings = {},
+  onToggleCategory, onCustomize, fetching, settings = {},
 }) {
   if (!game) return <EmptyState />;
   const bg = game.background || game.headerImage || game.coverUrl;
@@ -150,6 +150,7 @@ export default function GameDetail({
           onRefetch={onRefetch}
           onRevealFolder={onRevealFolder}
           onToggleCategory={onToggleCategory}
+          onCustomize={onCustomize}
           fetching={fetching}
           settings={settings}
         />
@@ -342,7 +343,7 @@ function openSearch(query, engine = 'google') {
 }
 
 /* ---------- Action bar ---------- */
-function ActionBar({ game, categories, onLaunch, onRefetch, onRevealFolder, onToggleCategory, fetching, settings = {} }) {
+function ActionBar({ game, categories, onLaunch, onRefetch, onRevealFolder, onToggleCategory, onCustomize, fetching, settings = {} }) {
   const [catOpen, setCatOpen] = React.useState(false);
   const [catAnchor, setCatAnchor] = React.useState(null);
   const popRef = React.useRef(null);
@@ -404,6 +405,20 @@ function ActionBar({ game, categories, onLaunch, onRefetch, onRevealFolder, onTo
       >
         <Wrench size={13} />
         Mods
+      </button>
+
+      <button
+        data-testid="detail-customize-btn"
+        onClick={() => onCustomize?.(game)}
+        title="Set custom cover, icon, screenshots, description, or .exe path"
+        className="group inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold text-[rgb(var(--surface))] transition-all hover:scale-[1.04]"
+        style={{
+          backgroundImage: 'linear-gradient(135deg, rgb(var(--accent-2)) 0%, rgb(var(--accent)) 100%)',
+          boxShadow: '0 0 14px -3px rgb(var(--accent) / 0.55)',
+        }}
+      >
+        <Wand2 size={13} className="transition-transform group-hover:rotate-12" />
+        Customize
       </button>
 
       <button

@@ -49,6 +49,8 @@ contextBridge.exposeInMainWorld('api', {
   openContainingDir: (p) => ipcRenderer.invoke('app:openContainingDir', p),
   setAutoStart: (v) => ipcRenderer.invoke('app:setAutoStart', v),
   setMinimizeToTray: (v) => ipcRenderer.invoke('app:setMinimizeToTray', v),
+  setDiscordRpc: (v) => ipcRenderer.invoke('app:setDiscordRpc', v),
+  discordRpcStatus: () => ipcRenderer.invoke('app:discordRpcStatus'),
   getAutoStart: () => ipcRenderer.invoke('app:getAutoStart'),
 
   // launcher imports

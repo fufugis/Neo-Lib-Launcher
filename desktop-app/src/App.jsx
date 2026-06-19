@@ -24,7 +24,7 @@ import ChangelogModal from './components/ChangelogModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.1.7';
+const APP_VERSION = '1.1.8';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin } from './lib/utils';
 import { setSoundPack } from './lib/sound';
@@ -681,7 +681,7 @@ export default function App() {
       return;
     }
     const res = await window.api.launchGame({
-      exePath: g.exePath, launchArgs: g.launchArgs || '', gameId: g.id,
+      exePath: g.exePath, launchArgs: g.launchArgs || '', gameId: g.id, name: g.name,
     });
     if (!res.ok) notify('Launch failed: ' + (res.error || ''));
     else notify(`Launching ${g.name}…`);
@@ -1231,6 +1231,7 @@ export default function App() {
                 onRefetch={(g) => setTroubleshoot({ open: true, game: g })}
                 onRevealFolder={(g) => (isElectron ? window.api.revealInFolder(g.exePath) : notify('Open: ' + g.exePath))}
                 onToggleCategory={toggleGameInCategory}
+                onCustomize={(g) => setEditMetaGame(g)}
               />
             </AnimatePresence>
           </div>

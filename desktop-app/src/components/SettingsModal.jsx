@@ -252,6 +252,16 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
               testid="opt-minimize-tray"
             />
             <Toggle
+              label="Show in Discord status"
+              hint="When you launch a game through NEO-LIB, your Discord status reads 'Playing <game name> · via NEO-LIB'. Needs Discord desktop running. (Requires NEO-LIB's Discord Application ID to be configured in the build — see README.)"
+              value={settings.discordRpcEnabled !== false}
+              onChange={(v) => {
+                setKey({ discordRpcEnabled: v });
+                if (window.api?.setDiscordRpc) window.api.setDiscordRpc(v);
+              }}
+              testid="opt-discord-rpc"
+            />
+            <Toggle
               label="Confirm before removing games"
               hint="Show a dialog when deleting a library entry."
               value={settings.confirmRemove !== false}
@@ -301,7 +311,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
 
         <Section title="About">
           <p className="text-xs text-muted leading-relaxed">
-            NEO-LIB v1.1.7. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
+            NEO-LIB v1.1.8. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
             Library data lives in <span className="font-mono text-ink">%APPDATA%/NEO-LIB</span>.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">

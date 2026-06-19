@@ -11,6 +11,22 @@ const fsp = require('fs/promises');
 const { spawn } = require('child_process');
 const https = require('https');
 
+// ---- Optional Discord Rich Presence (loaded lazily so the build never crashes
+// if discord-rpc fails to install on a runner that doesn't ship Discord) ----
+let RPC = null;
+try { RPC = require('discord-rpc'); } catch { RPC = null; }
+
+// Public NEO-LIB Discord Application ID. Loaded from electron/discord-config.js
+// which the GitHub Actions workflow overwrites at build time using the
+// `NEOLIB_DISCORD_APP_ID` repository secret. Empty = RPC disabled silently.
+let DISCORD_APP_ID = '';
+try {
+  // eslint-disable-next-line global-require
+  DISCORD_APP_ID = require('./discord-config').DISCORD_APP_ID || '';
+} catch { DISCORD_APP_ID = ''; }
+// Env var still wins (handy for `set NEOLIB_DISCORD_APP_ID=... && yarn dev`)
+if (process.env.NEOLIB_DISCORD_APP_ID) DISCORD_APP_ID = process.env.NEOLIB_DISCORD_APP_ID;
+
 const isDev = process.env.NODE_ENV === 'development';
 
 // ---------------- Paths ---------------- //
@@ -342,7 +358,7 @@ ipcMain.handle('exe:icon', async (_e, exePath) => {
 // ---------------- IPC: Launch game ---------------- //
 const runningGames = new Map(); // exePath -> { startedAt }
 
-ipcMain.handle('game:launch', async (_e, { exePath, launchArgs, gameId } = {}) => {
+ipcMain.handle('game:launch', async (_e, { exePath, launchArgs, gameId, name } = {}) => {
   if (!exePath || typeof exePath !== 'string') {
     return { ok: false, error: 'No exePath provided' };
   }
@@ -358,14 +374,17 @@ ipcMain.handle('game:launch', async (_e, { exePath, launchArgs, gameId } = {}) =
       });
       const startedAt = Date.now();
       runningGames.set(gameId || exePath, { startedAt });
+      // Discord RPC — set the rich activity for the game we just launched
+      setDiscordActivity({ name, startedAt });
       child.on('exit', () => {
         const seconds = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
         runningGames.delete(gameId || exePath);
+        clearDiscordActivity();
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('game:exited', { gameId, exePath, seconds });
         }
       });
-      child.on('error', () => runningGames.delete(gameId || exePath));
+      child.on('error', () => { runningGames.delete(gameId || exePath); clearDiscordActivity(); });
       child.unref();
       return { ok: true };
     }
@@ -375,6 +394,85 @@ ipcMain.handle('game:launch', async (_e, { exePath, launchArgs, gameId } = {}) =
     return { ok: false, error: String(e) };
   }
 });
+
+// ---------------- Discord Rich Presence ---------------- //
+// Lazy-connected. Only attempts to connect when the user has the setting ON
+// AND a game launches. If Discord isn't running, fails silently. Reconnects
+// automatically on next game launch.
+let discordClient = null;
+let discordReady = false;
+let discordConnecting = false;
+function ensureDiscord() {
+  if (!RPC || !DISCORD_APP_ID) return null;
+  if (discordReady && discordClient) return discordClient;
+  if (discordConnecting) return null;
+  if (!isDiscordRpcEnabled()) return null;
+  try {
+    discordConnecting = true;
+    const c = new RPC.Client({ transport: 'ipc' });
+    c.on('ready', () => { discordReady = true; });
+    c.on('disconnected', () => { discordReady = false; discordClient = null; });
+    c.login({ clientId: DISCORD_APP_ID }).catch(() => {
+      discordClient = null; discordReady = false;
+    }).finally(() => { discordConnecting = false; });
+    discordClient = c;
+    return c;
+  } catch {
+    discordConnecting = false;
+    return null;
+  }
+}
+function isDiscordRpcEnabled() {
+  try {
+    const raw = fs.readFileSync(settingsFile(), 'utf-8');
+    const s = JSON.parse(raw);
+    return s && s.discordRpcEnabled !== false; // default ON when an APP_ID is set
+  } catch { return true; }
+}
+function setDiscordActivity({ name, startedAt }) {
+  if (!RPC || !DISCORD_APP_ID || !isDiscordRpcEnabled()) return;
+  const c = ensureDiscord();
+  if (!c) return;
+  // Discord requires the client to be ready before setActivity. Retry once
+  // 1.5 s after connect attempt — by then the IPC handshake is complete.
+  const apply = () => {
+    if (!discordReady || !discordClient) return;
+    try {
+      discordClient.setActivity({
+        details: name || 'Playing a game',
+        state: 'via NEO-LIB',
+        startTimestamp: Math.floor((startedAt || Date.now()) / 1000),
+        largeImageKey: 'neolib_logo',
+        largeImageText: 'NEO-LIB · portable game library',
+        instance: false,
+      }).catch(() => { /* ignore */ });
+    } catch { /* ignore */ }
+  };
+  if (discordReady) apply();
+  else setTimeout(apply, 1500);
+}
+function clearDiscordActivity() {
+  if (!discordClient || !discordReady) return;
+  try { discordClient.clearActivity().catch(() => {}); } catch { /* ignore */ }
+}
+// Live toggle from the renderer
+ipcMain.handle('app:setDiscordRpc', async (_e, enabled) => {
+  if (!enabled) {
+    clearDiscordActivity();
+    if (discordClient) {
+      try { discordClient.destroy(); } catch { /* ignore */ }
+      discordClient = null; discordReady = false;
+    }
+  }
+  return { ok: true, hasAppId: !!DISCORD_APP_ID };
+});
+// Expose whether RPC is even configured (for the Settings toggle to know if
+// it's a no-op until KenLun pastes an Application ID).
+ipcMain.handle('app:discordRpcStatus', async () => ({
+  hasAppId: !!DISCORD_APP_ID,
+  installed: !!RPC,
+  ready: !!discordReady,
+}));
 
 // ---------------- IPC: Drive scanner ---------------- //
 const NOISE_KEYWORDS = [

@@ -38,6 +38,12 @@ export default function EditMetadataModal({ open, game, onClose, onSave }) {
     if (r?.url) set(field, r.url);
   };
 
+  const pickExeFor = async () => {
+    if (!isElectron || !window.api?.pickExe) return;
+    const r = await window.api.pickExe();
+    if (r?.exePath) set('exePath', r.exePath);
+  };
+
   const submit = () => {
     const patch = {
       name: form.name.trim() || game.name,
@@ -54,6 +60,11 @@ export default function EditMetadataModal({ open, game, onClose, onSave }) {
       website: form.website.trim(),
       metacritic: form.metacritic ? Number(form.metacritic) || null : null,
       screenshots: splitLines(form.screenshots),
+      // Launch overrides — only patched if changed from the original
+      ...(form.exePath.trim() && form.exePath.trim() !== (game.exePath || '')
+        ? { exePath: form.exePath.trim() } : {}),
+      ...(form.launchArgs !== (game.launchArgs || '')
+        ? { launchArgs: form.launchArgs } : {}),
       // Mark as manually edited so future "Refresh all" / silent refetch doesn't overwrite
       manualOverride: true,
       source: 'manual',
@@ -248,6 +259,38 @@ export default function EditMetadataModal({ open, game, onClose, onSave }) {
                   className={cn(inputCls, 'h-auto py-2 font-mono text-[11px] resize-y')}
                 />
               </Field>
+
+              {/* Custom EXE path — overrides the launcher's default. Lets users
+                  point NEO-LIB at a wrapper script, a portable build inside a
+                  subfolder, etc. without re-importing the game. */}
+              <Field label="Custom .exe path (overrides launch target)" testid="meta-exe">
+                <div className="flex gap-2">
+                  <input
+                    data-testid="meta-exe-input"
+                    value={form.exePath}
+                    onChange={(e) => set('exePath', e.target.value)}
+                    placeholder={game.exePath || 'C:\\Games\\YourGame.exe'}
+                    className={cn(inputCls, 'flex-1 font-mono text-[11px]')}
+                  />
+                  <button
+                    data-testid="meta-exe-pick"
+                    onClick={pickExeFor}
+                    className="inline-flex items-center gap-1.5 rounded-md hairline px-3 h-9 text-[11px] text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)] transition-colors"
+                  >
+                    <Upload size={12} /> Choose…
+                  </button>
+                </div>
+              </Field>
+
+              <Field label="Launch arguments (optional)" testid="meta-args">
+                <input
+                  data-testid="meta-args-input"
+                  value={form.launchArgs}
+                  onChange={(e) => set('launchArgs', e.target.value)}
+                  placeholder="--windowed -no-intro"
+                  className={cn(inputCls, 'font-mono text-[11px]')}
+                />
+              </Field>
             </div>
           </div>
 
@@ -354,6 +397,8 @@ function emptyForm(g) {
     website: g.website || '',
     metacritic: g.metacritic ?? '',
     screenshots: (g.screenshots || []).join('\n'),
+    exePath: g.exePath || '',
+    launchArgs: g.launchArgs || '',
   };
 }
 

@@ -4,9 +4,20 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.1.7-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.1.8-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.1.7 (Themes, layout & window memory)
+### Latest — v1.1.8 (Customize button + Discord status)
+- New eye-catching **Customize** button on every game detail page → single panel for custom **cover / icon / hero / background / screenshots / description**, plus a custom **.exe path** and **launch arguments** so you can point NEO-LIB at any executable you want.
+- **Discord Rich Presence** — when you launch a game through NEO-LIB, your Discord status reads `Playing <game> · via NEO-LIB`. Toggle in Settings → App behaviour. (Requires NEO-LIB's Discord App ID to be set; see *Discord RPC setup* below.)
+
+#### Discord RPC setup (one-time)
+1. Go to https://discord.com/developers/applications → **New Application** → name it `NEO-LIB`.
+2. Copy the **Application ID** from General Information.
+3. In the GitHub repo: `Settings → Secrets and variables → Actions → New repository secret` → name `NEOLIB_DISCORD_APP_ID`, paste the ID.
+4. Optional: under **Rich Presence → Art Assets** in the Discord portal, upload a square logo and name the asset key `neolib_logo`.
+5. Push a new tag — the CI build will bake the App ID into the installer.
+
+### v1.1.7 (Themes, layout & window memory)
 - **Two new "Middle" themes** — **Gaming** (dark blue + pink) and **Modern** (dark orange + light blue) — grouped in their own niche between Dark and Bright.
 - **Window remembers your size & position** across sessions; opens at 75% of native screen on first launch.
 - **New slider:** "Gap between header & first game" — minimum value lets games sit right under the category header.

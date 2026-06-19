@@ -1,7 +1,7 @@
 {
   "name": "neo-lib",
   "productName": "NEO-LIB",
-  "version": "1.1.7",
+  "version": "1.1.8",
   "description": "A synthwave-flavored, multi-source game library for Windows.",
   "main": "electron/main.js",
   "author": {
@@ -16,6 +16,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "discord-rpc": "^4.0.1",
     "electron-store": "8.2.0"
   },
   "devDependencies": {
@@ -51,7 +52,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "build/icon.ico",
