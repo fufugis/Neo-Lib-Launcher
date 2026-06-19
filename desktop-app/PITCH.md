@@ -1,95 +1,43 @@
-# NEO-LIB — Promotion Pitch & Forum Hit-List
+# NEO-LIB — Promotion Pitch
 
-> Saved Feb 16, 2026 — copy-paste ready. Tweak as needed.
+> Saved Feb 16, 2026. Copy-paste ready. Tweak as needed.
 
 ---
 
-## Forum-Ready Pitch (~250 words)
+## Short Pitch (v2)
 
-### NEO-LIB — every game on your PC, in one neon-lit place. Free, portable, no accounts.
+### NEO-LIB — every game on your PC, in one neon-lit launcher. Private categories, smart fetch, fully portable.
 
-After many late nights and a not-small chunk of dev budget, I finally have my dream game library working — so I'm sharing it.
+**Why I built it.** I have kids in the house and a mixed bag of games — some Steam, some Epic, some GOG, some I downloaded from forums, and a couple NSFW visual novels I really didn't want them stumbling into. Nothing on the market did all three: **hide adult stuff behind a PIN**, **collect every launcher into one place**, and **let me sort and theme it the way I want**. So I built it. Many late nights and a not-small chunk of my own money later — here it is. Free, portable, no accounts.
 
-**NEO-LIB** is a fully portable Windows app (~80 MB, runs from a USB stick) that unifies *everything*: Steam, Epic, GOG, EA, Ubisoft, itch.io, DLsite, VNDB, plus any random `.exe` or `.lnk` you drag in. Games launch via their original executable — overlays, achievements, and cloud saves keep working exactly as before.
+### Top 5 features
 
-**What it does:**
-- **Auto-imports** your launchers in one click (Steam / Epic / GOG / EA / Ubisoft / etc.) + scans any folder or drive (Fast or Deep mode for nested setups).
-- **Hidden category with PIN lock** 🔒 — perfect for NSFW / VNs / "you didn't see anything" games. The category previews nothing on startup and unlocking requires a PIN you set.
-- **Smart metadata** from Steam, GOG, itch.io, DLsite, VNDB, Ryuugames, Google — with side-by-side preview before anything overwrites your library (pick which fields to apply per game).
-- **Drag a folder onto the window** → wizard auto-scans it.
-- **Smart Auto-Sort** buckets your library: Recently Played, Long Games, Quick Sessions, AAA, Indie, Hidden Gems.
-- **6 themes**, ambient particles, sound packs, optional CRT boot animation.
-- **Close to system tray**, auto-updater, hand-picked deals strip (dismissible).
+1. **🔒 Hidden category with PIN lock** — drop any game into the *Hidden* category and the whole row goes blank on startup. A PIN you set is the only way to reveal it. NSFW, surprises for friends, "you didn't see anything" → sorted.
+2. **🎯 Unified launcher** — auto-imports **Steam · Epic · GOG · EA · Ubisoft · Battle.net · Riot · Xbox/MS Store · itch.io**, plus any `.exe` or `.lnk` you drag in. Games launch through their original executables, so Steam achievements, EA cloud saves, and Discord overlays keep working.
+3. **🧠 Multi-source metadata picker** — when an indie or Japanese game won't auto-match, hit the new picker: one button each for **Steam · GOG · itch.io · DLsite · VNDB · Ryuugames · F95Zone · Google · Ask AI**, browse results 1/N with arrow buttons, pick the right one in seconds.
+4. **🗂 Smart Auto-Sort + categories** — one click buckets your library into *Recently Played · Long Games · Quick Sessions · AAA · Indie · Hidden Gems*. Make your own categories, drag games between them, set covers + screenshots, pin favorites to the top.
+5. **🎨 8 themes, ambient effects, sound packs** — Synthwave, Midnight, Ocean, Crimson, Anime, Gaming, Modern, Mint Garden. Each with its own particles, CRT boot animation, and UI sound pack. Make it yours.
 
-**Local-first.** Everything lives in `%APPDATA%\NEO-LIB\` — no cloud, no telemetry, no account. Delete the folder to uninstall.
+### Sub-features worth mentioning
 
-**Download:** https://github.com/fufugis/Neo-Lib-Launcher/releases/latest
+- **Drag a folder onto the window** → wizard auto-scans (Fast or Deep mode for nested folders)
+- **Custom everything** — replace cover, icon, hero image, screenshots, description, even the `.exe` it launches, all from one Customize button
+- **Discord Rich Presence** — launches show "Playing X · via NEO-LIB" in your Discord status
+- **Close-to-tray** — minimize next to the clock, pop open when you want to play
+- **Live deals strip** — Epic free games, Steam discounts, Instant Gaming hot deals (dismissible)
+- **Per-game playtime tracking**, **auto-updater**, **resizable sidebar**, **two-column dense view**
+- **100% local-first** — your library lives in `%APPDATA%\NEO-LIB\`, no cloud, no telemetry, no account, no data ever leaves your PC
 
-Feedback (and bug reports) very welcome.
+### Download
+
+**https://github.com/fufugis/Neo-Lib-Launcher/releases/latest**
+
+Get the portable `.zip` (no install) or the `.exe` installer. Runs from a USB stick. ~80 MB.
+
+### One favor
+
+If this saves you the launcher tab-juggling I had to do for years, there's a "Buy me a coffee" button inside the app. Genuinely no pressure — but I spent a real chunk of my own budget building NEO-LIB, and every coffee helps me keep the lights on and ship more polish updates.
+
+Feedback (especially bug reports for weird F95Zone / DLsite games that won't match) very welcome.
 
 — KenLun
-
----
-
-## 🌐 Where to post — sorted by fit, with direct subforum links
-
-### 🟣 Best fit (Hidden+PIN feature + game library combo is a huge sell here)
-
-| Forum | Subforum | Why it fits |
-|---|---|---|
-| **F95Zone** | [Forum → Off-Topic → Programming / Tools](https://f95zone.to/forums/programming-development-art-resources.36/) | Huge NSFW PC gaming community, loves library tools |
-| **F95Zone** | [Forum → Workshop / Help](https://f95zone.to/forums/development-help.6/) | Cross-promote for indie devs / tool makers |
-| **ULMF** | [General Discussion](https://ulmf.org/forum/forum/general/general-discussion) | Lewd-game-friendly, small but very engaged |
-| **Anime-Sharing** | [Hentai Games & Eroge → Tools & Releases](https://www.anime-sharing.com/forum/hentai-games-eroge-187/) | Visual novel / DLsite RJ-code crowd |
-| **r/lewdgames** | [reddit.com/r/lewdgames](https://www.reddit.com/r/lewdgames/) | Direct audience for the hidden-PIN feature |
-| **r/HentaiGames** | [reddit.com/r/HentaiGames](https://www.reddit.com/r/HentaiGames/) | Same |
-| **r/visualnovels** | [reddit.com/r/visualnovels](https://www.reddit.com/r/visualnovels/) | DLsite + VNDB integration sells itself here |
-| **r/eroge** | [reddit.com/r/eroge](https://www.reddit.com/r/eroge/) | DLsite + RJ-code support is the killer feature |
-
-### 🟢 General PC gaming / launcher communities
-
-| Forum | Subforum | Notes |
-|---|---|---|
-| **Reddit** | [r/pcgaming](https://www.reddit.com/r/pcgaming/) | Use weekly self-promo / "I made this" thread |
-| **Reddit** | [r/gamelaunchers](https://www.reddit.com/r/gamelaunchers/) | Tiny but laser-targeted |
-| **Reddit** | [r/gamecollecting](https://www.reddit.com/r/gamecollecting/) | Library nerds, loves catalog tools |
-| **Reddit** | [r/Steam](https://www.reddit.com/r/Steam/) | Frame it as "Steam + everything else in one place" |
-| **Reddit** | [r/IndieGaming](https://www.reddit.com/r/IndieGaming/) | Mention itch.io + indie scanner |
-| **Reddit** | [r/SteamDeck](https://www.reddit.com/r/SteamDeck/) | "Wish I could use this on Deck too" — gauge interest |
-| **NeoGAF** | [Gaming Discussion](https://www.neogaf.com/forums/gaming-discussion.2/) | Older audience, loves polished tools |
-| **ResetEra** | [Gaming Hangouts](https://www.resetera.com/forums/gaming-hangouts.15/) | Strict mods, post once + done |
-
-### 🔧 Tech / open-source / "look what I built"
-
-| Forum | Subforum | Notes |
-|---|---|---|
-| **Hacker News** | [news.ycombinator.com](https://news.ycombinator.com/submit) | Title: *Show HN: NEO-LIB – portable Windows game library* |
-| **Product Hunt** | [producthunt.com/posts/new](https://www.producthunt.com/posts/new) | Free, drives steady traffic for ~7 days |
-| **Reddit** | [r/SideProject](https://www.reddit.com/r/SideProject/) | Engaged builder audience |
-| **Reddit** | [r/coolgithubprojects](https://www.reddit.com/r/coolgithubprojects/) | Direct GitHub-repo crowd |
-| **Reddit** | [r/electronjs](https://www.reddit.com/r/electronjs/) | Devs love seeing real Electron apps |
-| **Reddit** | [r/opensource](https://www.reddit.com/r/opensource/) | Note your "source published for transparency" line |
-| **Reddit** | [r/InternetIsBeautiful](https://www.reddit.com/r/InternetIsBeautiful/) | Pitch the synthwave UI screenshots hard |
-| **AlternativeTo** | [submit a new app](https://alternativeto.net/management/software/) | Lists you as alternative to Playnite / GOG Galaxy → free SEO |
-| **Slant** | [Best game launchers](https://www.slant.co/topics/2126/~best-game-launchers) | Submit yourself |
-| **Lemmy** | [lemmy.world/c/games](https://lemmy.world/c/games) | Federated Reddit alt, growing |
-
-### 🎮 Adjacent / niche
-
-| Forum | Subforum | Notes |
-|---|---|---|
-| **GBAtemp** | [PC / Tools section](https://gbatemp.net/forums/computer-software-and-operating-systems.15/) | Homebrew/tinkerer crowd |
-| **FMHY** | [FreeMediaHeckYeah Wiki](https://fmhy.net/) — submit via [r/FREEMEDIAHECKYEAH](https://www.reddit.com/r/FREEMEDIAHECKYEAH/) | Free-software directory, very high traffic |
-| **MyAnimeList** | [Forum → Other Games](https://myanimelist.net/forum/?subboard=11) | Eroge / VN crossover audience |
-| **GitHub Trending** | passive — just push releases | Tag releases + good README = free listings |
-| **Discord** | r/pcgaming server, Playnite server, F95Zone server | Quick reach once you have GitHub stars |
-
----
-
-## 💬 Posting Tips
-
-1. **Lead with screenshots.** A clean shot of the library + one of the synthwave theme + one of the hidden-PIN unlock dialog is gold.
-2. **Don't crosspost the same hour** — Reddit spam filters hate it. Space posts 24-48h apart.
-3. **On F95Zone / ULMF / Anime-Sharing**, mention DLsite RJ-code support **first** — it's their killer-feature flag.
-4. **On HN / Product Hunt**, lead with "**portable, no accounts, no telemetry**" — that crowd cares about ownership.
-5. **Pin the GitHub link** in every post and reply to early comments quickly — it doubles karma/upvotes.
