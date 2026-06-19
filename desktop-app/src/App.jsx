@@ -24,7 +24,7 @@ import ChangelogModal from './components/ChangelogModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.1.6';
+const APP_VERSION = '1.1.7';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin } from './lib/utils';
 import { setSoundPack } from './lib/sound';
@@ -230,6 +230,11 @@ export default function App() {
   const [detectedLauncher, setDetectedLauncher] = React.useState(null);
   // Track in-flight silent imports so the polling loop doesn't double-fire
   const silentImportInFlight = React.useRef({});
+  // Live ref to the latest library so the launcher detection effect can check
+  // "do we already have games for this launcher?" without re-running on every
+  // library mutation (which would flicker the popup).
+  const libraryRef = React.useRef(library);
+  React.useEffect(() => { libraryRef.current = library; }, [library]);
   React.useEffect(() => {
     if (!isElectron || !window.api?.detectLaunchers) return undefined;
     if (settings.launcherDetectEnabled === false) return undefined;
@@ -320,6 +325,19 @@ export default function App() {
           if (dismissed[key]) continue;
           const later = askLater[key];
           if (later && Date.now() - later < 24 * 60 * 60 * 1000) continue;
+
+          // NEW (v1.1.7): if the library already has games tagged with this
+          // launcher, the user has clearly been using it for a while. Skip
+          // the popup and silently import any NEW installs instead. The
+          // popup will still appear on a clean library / brand-new launcher.
+          const hasExisting = !!libraryRef.current?.games?.some(
+            (g) => g.launcher === key || g.source === key || g.source === `${key}-import`
+          );
+          if (hasExisting) {
+            silentImport(key);
+            continue;
+          }
+
           setDetectedLauncher(key);
           return;
         }
@@ -1162,6 +1180,7 @@ export default function App() {
           catGlow={settings.catGlow ?? 40}
           rowGap={settings.rowGap ?? 2}
           catGap={settings.catGap ?? 8}
+          catTopGap={settings.catTopGap ?? 4}
           iconPosition={settings.iconPosition || 'left'}
           showCategoryDot={settings.showCategoryDot !== false}
           pinnedIds={settings.pinnedGameIds || []}
@@ -1170,6 +1189,7 @@ export default function App() {
           onChangeCatGlow={(v) => updateSetting({ catGlow: v })}
           onChangeRowGap={(v) => updateSetting({ rowGap: v })}
           onChangeCatGap={(v) => updateSetting({ catGap: v })}
+          onChangeCatTopGap={(v) => updateSetting({ catTopGap: v })}
           onChangeIconPosition={(v) => updateSetting({ iconPosition: v })}
           onToggleCategoryDot={(v) => updateSetting({ showCategoryDot: v })}
           mode={settings.mode || 'library'}

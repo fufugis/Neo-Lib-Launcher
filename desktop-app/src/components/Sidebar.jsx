@@ -27,11 +27,11 @@ export default function Sidebar({
   launcherFilter = 'all',
   onSetLauncherFilter,
   iconPosition = 'left', rowSize = 44, catTextSize = 11, catGlow = 40,
-  rowGap = 2, catGap = 8,
+  rowGap = 2, catGap = 8, catTopGap = 4,
   showCategoryDot = true,
   pinnedIds = [],
   onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
-  onChangeRowGap, onChangeCatGap, onToggleCategoryDot,
+  onChangeRowGap, onChangeCatGap, onChangeCatTopGap, onToggleCategoryDot,
   onSelect,
   onAddManual, onOpenWizard, onOpenSettings, onUpdateAll,
   onCreateCategory, onCategoryContext, onGameContext,
@@ -210,6 +210,7 @@ export default function Sidebar({
                 catGlow={catGlow}
                 rowGap={rowGap}
                 catGap={catGap}
+                catTopGap={catTopGap}
                 iconPosition={iconPosition}
                 showCategoryDot={showCategoryDot}
                 onSetLibrarySize={onSetLibrarySize}
@@ -218,6 +219,7 @@ export default function Sidebar({
                 onChangeCatGlow={onChangeCatGlow}
                 onChangeRowGap={onChangeRowGap}
                 onChangeCatGap={onChangeCatGap}
+                onChangeCatTopGap={onChangeCatTopGap}
                 onChangeIconPosition={onChangeIconPosition}
                 onToggleCategoryDot={onToggleCategoryDot}
                 onClose={() => setLibSettingsOpen(false)}
@@ -278,7 +280,7 @@ export default function Sidebar({
         />
         {twoRow ? (
           <TwoColumnSections sections={sections} commonProps={{
-            collapsed, size, iconPosition, catTextSize, catGlow, rowGap, catGap, selectedId,
+            collapsed, size, iconPosition, catTextSize, catGlow, rowGap, catGap, catTopGap, selectedId,
             showCategoryDot, pinnedIdsSet,
             onSelect, onGameContext, onCategoryContext, onUnlockCategory, onToggleCollapsed,
             onMoveGameToCategory, onReorderGameInCategory, onReorderCategory,
@@ -297,6 +299,7 @@ export default function Sidebar({
               catGlow={catGlow}
               rowGap={rowGap}
               catGap={catGap}
+              catTopGap={catTopGap}
               showCategoryDot={showCategoryDot}
               pinnedIdsSet={pinnedIdsSet}
               selectedId={selectedId}
@@ -373,7 +376,7 @@ function TwoColumnSections({ sections, commonProps }) {
 }
 
 function SectionWrap({ s, idx, commonProps }) {
-  const { collapsed, size, iconPosition, catTextSize, catGlow, rowGap, catGap, selectedId,
+  const { collapsed, size, iconPosition, catTextSize, catGlow, rowGap, catGap, catTopGap, selectedId,
     showCategoryDot,
     pinnedIdsSet,
     onSelect, onGameContext, onCategoryContext, onUnlockCategory, onToggleCollapsed,
@@ -390,6 +393,7 @@ function SectionWrap({ s, idx, commonProps }) {
       catGlow={catGlow}
       rowGap={rowGap}
       catGap={catGap}
+      catTopGap={catTopGap}
       showCategoryDot={showCategoryDot}
       pinnedIdsSet={pinnedIdsSet}
       selectedId={selectedId}
@@ -472,9 +476,9 @@ function LauncherPill({ label, active, onClick, testid }) {
 /* ---------------- Library settings popover ---------------- */
 function LibrarySettingsPopover({
   librarySize, rowSize = 44, catTextSize = 11, catGlow = 40, iconPosition = 'left',
-  rowGap = 2, catGap = 8, showCategoryDot = true,
+  rowGap = 2, catGap = 8, catTopGap = 4, showCategoryDot = true,
   onSetLibrarySize, onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
-  onChangeRowGap, onChangeCatGap, onToggleCategoryDot,
+  onChangeRowGap, onChangeCatGap, onChangeCatTopGap, onToggleCategoryDot,
   onClose, onCreateCategory,
 }) {
   const ref = React.useRef(null);
@@ -578,6 +582,15 @@ function LibrarySettingsPopover({
         onChange={onChangeCatGap}
         testid="pop-cat-gap"
       />
+      <PopSlider
+        label="Gap between header & first game"
+        value={catTopGap}
+        min={-4}
+        max={24}
+        suffix="px"
+        onChange={onChangeCatTopGap}
+        testid="pop-cat-top-gap"
+      />
 
       <div>
         <div className="mb-1.5 text-[10px] uppercase tracking-wider text-muted">Icon position</div>
@@ -664,7 +677,7 @@ function Section({
   onContext, onCategoryContext, onUnlockCategory, onToggleCollapsed,
   onMoveGameToCategory, onReorderGameInCategory, onReorderCategory,
   unlockedCategories, categories,
-  catTextSize = 11, catGlow = 40, rowGap = 2, catGap = 8,
+  catTextSize = 11, catGlow = 40, rowGap = 2, catGap = 8, catTopGap = 4,
   showCategoryDot = true,
   pinnedIdsSet = new Set(),
 }) {
@@ -843,7 +856,7 @@ function Section({
               }
             }}
           >
-            <div className="pl-4" style={{ overflow: 'visible' }}>
+            <div className="pl-4" style={{ overflow: 'visible', paddingTop: catTopGap }}>
               {section.games.length === 0 ? (
                 <div className="px-3 py-2 text-[11px] text-muted/70 italic">
                   Empty — drop a game here.

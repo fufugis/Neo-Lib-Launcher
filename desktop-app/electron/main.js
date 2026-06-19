@@ -141,15 +141,42 @@ function destroyTray() {
 function createWindow() {
   const { screen } = require('electron');
   const primary = screen.getPrimaryDisplay().workAreaSize;
-  // Start at 70% of the user's screen, centred
-  const w = Math.max(960, Math.round(primary.width * 0.70));
-  const h = Math.max(600, Math.round(primary.height * 0.70));
+  // Default = 75% of the user's native screen, centered.
+  const defaultW = Math.max(960, Math.round(primary.width * 0.75));
+  const defaultH = Math.max(600, Math.round(primary.height * 0.75));
+
+  // Restore the last window bounds the user resized to (if saved). Validate
+  // against current displays so a saved bound that's now off-screen (monitor
+  // unplugged, resolution changed) falls back to the default.
+  let bounds = { width: defaultW, height: defaultH, x: undefined, y: undefined, center: true };
+  try {
+    const raw = fs.readFileSync(settingsFile(), 'utf-8');
+    const s = JSON.parse(raw);
+    const saved = s && s.windowBounds;
+    if (saved && typeof saved.width === 'number' && typeof saved.height === 'number') {
+      // Constrain to primary display so the window can't open off-screen
+      const w = Math.max(960, Math.min(saved.width, primary.width));
+      const h = Math.max(600, Math.min(saved.height, primary.height));
+      bounds = { width: w, height: h };
+      if (typeof saved.x === 'number' && typeof saved.y === 'number'
+          && saved.x >= 0 && saved.y >= 0
+          && saved.x + 80 < primary.width && saved.y + 80 < primary.height) {
+        bounds.x = saved.x;
+        bounds.y = saved.y;
+      } else {
+        bounds.center = true;
+      }
+    }
+  } catch { /* no saved bounds — use default */ }
+
   mainWindow = new BrowserWindow({
-    width: w,
-    height: h,
+    width: bounds.width,
+    height: bounds.height,
+    x: bounds.x,
+    y: bounds.y,
     minWidth: 960,
     minHeight: 600,
-    center: true,
+    center: bounds.center === true,
     frame: false,
     backgroundColor: '#0a0a0c',
     title: 'NEO-LIB',
@@ -171,6 +198,27 @@ function createWindow() {
 
   mainWindow.on('maximize', () => mainWindow.webContents.send('window:maximized', true));
   mainWindow.on('unmaximize', () => mainWindow.webContents.send('window:maximized', false));
+
+  // Persist window bounds (debounced) whenever the user resizes or moves the
+  // window. Stored in settings.json alongside other prefs so they survive
+  // installer upgrades.
+  let saveBoundsTimer = null;
+  const saveBounds = () => {
+    if (saveBoundsTimer) clearTimeout(saveBoundsTimer);
+    saveBoundsTimer = setTimeout(() => {
+      try {
+        if (!mainWindow || mainWindow.isDestroyed()) return;
+        if (mainWindow.isMaximized() || mainWindow.isMinimized()) return;
+        const b = mainWindow.getBounds();
+        let s = {};
+        try { s = JSON.parse(fs.readFileSync(settingsFile(), 'utf-8')); } catch { s = {}; }
+        s.windowBounds = { width: b.width, height: b.height, x: b.x, y: b.y };
+        fs.writeFileSync(settingsFile(), JSON.stringify(s, null, 2));
+      } catch { /* ignore disk errors */ }
+    }, 400);
+  };
+  mainWindow.on('resize', saveBounds);
+  mainWindow.on('move', saveBounds);
 
   // Close-to-tray — if the setting is on and the user isn't quitting via the
   // tray menu, hide the window instead of closing it.

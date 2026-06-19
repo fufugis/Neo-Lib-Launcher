@@ -15,6 +15,16 @@ import { Sparkles, Check, X } from 'lucide-react';
 
 export const CHANGELOG = [
   {
+    version: '1.1.7',
+    title: 'Themes, layout & window memory',
+    items: [
+      'Two new "Middle" themes — Gaming (dark blue + pink) and Modern (dark orange + light blue) — grouped in their own niche between Dark and Bright.',
+      'Window now opens at 75% of your native screen by default and remembers any resize / move between sessions.',
+      'New library slider: "Gap between header & first game" — pull games right under the category header or push them further away.',
+      'Steam (and other launcher) popup no longer reappears once you already have games from that launcher imported — only NEW installs trigger a silent toast.',
+    ],
+  },
+  {
     version: '1.1.6',
     title: 'Windows CI hardening',
     items: [

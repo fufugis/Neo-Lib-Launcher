@@ -4,9 +4,15 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.1.6-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.1.7-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.1.6 (Windows CI hardening)
+### Latest — v1.1.7 (Themes, layout & window memory)
+- **Two new "Middle" themes** — **Gaming** (dark blue + pink) and **Modern** (dark orange + light blue) — grouped in their own niche between Dark and Bright.
+- **Window remembers your size & position** across sessions; opens at 75% of native screen on first launch.
+- **New slider:** "Gap between header & first game" — minimum value lets games sit right under the category header.
+- **Steam popup fix:** once a launcher has games imported, it no longer re-prompts on startup. New installs are silently added with a toast.
+
+### v1.1.6 (Windows CI hardening)
 - Pipeline hardened: explicit Vite renderer step, code-signing disabled on Windows runner, verbose electron-builder logs, dist verification before zipping.
 - No user-facing behavior changes — purely a release-engineering fix to make the `.exe` reliably reach the Releases page.
 

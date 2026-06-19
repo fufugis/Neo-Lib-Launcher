@@ -24,6 +24,9 @@ export const THEMES = [
   { id: 'midnight',      label: 'Midnight',       swatch: '#c4a56e', tone: 'dark' },
   { id: 'ocean',         label: 'Ocean',          swatch: '#4ea8f0', tone: 'dark' },
   { id: 'crimson',       label: 'Crimson',        swatch: '#dc263c', tone: 'dark' },
+  // Middle themes (somewhere between dark and bright)
+  { id: 'gaming',        label: 'Gaming',         swatch: '#ff5fae', tone: 'middle' },
+  { id: 'modern',        label: 'Modern',         swatch: '#e07a3c', tone: 'middle' },
   // Bright themes
   { id: 'synthwave-day', label: 'Vaporwave Day',  swatch: '#ff0090', tone: 'bright' },
   { id: 'daybreak',      label: 'Daybreak',       swatch: '#1c1c20', tone: 'bright' },

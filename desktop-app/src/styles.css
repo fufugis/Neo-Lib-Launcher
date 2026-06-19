@@ -100,6 +100,35 @@
   --hairline-glow: 52 201 138;
 }
 
+/* GAMING — medium-tone esports vibe: muted navy surface, hot pink primary, electric
+   light-blue secondary. Lighter than the Dark themes but never washes out screenshots
+   like the Bright themes do. */
+[data-theme='gaming'] {
+  --ink: 240 245 255;
+  --muted: 175 188 220;
+  --surface: 22 28 56;
+  --panel: 32 40 78;
+  --border: 58 78 118;
+  --accent: 255 95 174;            /* hot pink */
+  --accent-2: 110 196 255;         /* electric light blue */
+  --accent-soft: 255 95 174;
+  --hairline-glow: 255 95 174;
+}
+
+/* MODERN — warm mid-tone: charcoal-with-warmth surface, dark-orange primary, soft
+   sky-blue secondary. Feels like a premium app dark mode without being pitch black. */
+[data-theme='modern'] {
+  --ink: 245 238 230;
+  --muted: 198 188 174;
+  --surface: 34 28 24;
+  --panel: 50 42 36;
+  --border: 86 72 60;
+  --accent: 224 122 60;            /* dark orange */
+  --accent-2: 135 200 240;         /* light sky blue */
+  --accent-soft: 255 168 110;
+  --hairline-glow: 224 122 60;
+}
+
 /* ANIME — bold modern anime (Jujutsu Kaisen / Demon Slayer style):
    deep magenta, electric blue, neon green accents on a dark indigo void.
    High-contrast, energetic, distinctively different from Vaporwave-Day. */
