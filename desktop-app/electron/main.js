@@ -1366,6 +1366,405 @@ function curatedMatch(query) {
   return LAUNCHER_EXCLUSIVES[k] || null;
 }
 
+// ---------------- Per-source candidate search ---------------- //
+/**
+ * `metadata:listCandidates` — replaces the old "give me one best guess"
+ * dispatch with a "give me an ARRAY of candidates the user can browse".
+ *
+ * Each candidate is a normalized preview: {source, id, name, image, year,
+ * shortDescription, raw}. `raw` is whatever the source returned and is used
+ * later by `metadata:expandCandidate` to fetch the full record.
+ *
+ * Sources accepted:
+ *   'auto'      → falls back to the legacy single-best metadata:auto
+ *   'steam'     → Steam Store search → up to 10 hits
+ *   'gog'       → GOG catalog search → up to 10
+ *   'itch'      → itch.io HTML search → up to 8
+ *   'dlsite'    → DLsite RJ/VJ code lookup (single hit) OR keyword search
+ *   'vndb'      → VNDB Kana API search → up to 10
+ *   'ryuugames' → Ryuugames WordPress search → up to 5
+ *   'f95zone'   → DDG `site:f95zone.to <query>` → up to 5 thread title hits
+ *   'google'    → DDG/Google scrape — up to 8 generic web results
+ *   'ai'        → Gemini "name this game" → returns a single synthetic hit
+ */
+ipcMain.handle('metadata:listCandidates', async (_e, { source, query, geminiKey } = {}) => {
+  const term = cleanSearchTerm(query || '');
+  if (!term) return { candidates: [], error: 'Empty query' };
+
+  try {
+    if (source === 'steam') return { candidates: await listSteamCandidates(term) };
+    if (source === 'gog') return { candidates: await listGogCandidates(term) };
+    if (source === 'itch') return { candidates: await listItchCandidates(term) };
+    if (source === 'dlsite') return { candidates: await listDlsiteCandidates(term) };
+    if (source === 'vndb') return { candidates: await listVndbCandidates(term) };
+    if (source === 'ryuugames') return { candidates: await listRyuuCandidates(term) };
+    if (source === 'f95zone') return { candidates: await listF95Candidates(term) };
+    if (source === 'google') return { candidates: await listGoogleCandidates(term) };
+    if (source === 'ai') return { candidates: await listAiCandidates(term, geminiKey) };
+  } catch (e) {
+    return { candidates: [], error: String(e) };
+  }
+  return { candidates: [], error: 'Unknown source' };
+});
+
+/**
+ * `metadata:expandCandidate` — turn a candidate preview into a full metadata
+ * record (the kind AcceptMetadataModal expects). Called when the user picks
+ * a result from the carousel.
+ */
+ipcMain.handle('metadata:expandCandidate', async (_e, { candidate } = {}) => {
+  if (!candidate || !candidate.source) return null;
+  try {
+    if (candidate.source === 'steam') return await expandSteam(candidate);
+    if (candidate.source === 'gog') return await expandGog(candidate);
+    if (candidate.source === 'itch') return await expandItch(candidate);
+    if (candidate.source === 'dlsite') return await dlsiteLookup(candidate.id);
+    if (candidate.source === 'vndb') return await expandVndb(candidate);
+    if (candidate.source === 'ryuugames') return await expandRyuu(candidate);
+    if (candidate.source === 'f95zone') return await expandF95(candidate);
+    if (candidate.source === 'google') return await expandGoogle(candidate);
+    if (candidate.source === 'ai') return candidate.raw; // already a full record
+  } catch { return null; }
+  return null;
+});
+
+// ---- Per-source list helpers (lightweight previews) ---- //
+
+async function listSteamCandidates(term) {
+  const data = await httpGetJson(
+    `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=en&cc=us`
+  );
+  return (data.items || []).slice(0, 10).map((it) => ({
+    source: 'steam',
+    id: String(it.id),
+    name: it.name,
+    image: it.tiny_image || `https://cdn.cloudflare.steamstatic.com/steam/apps/${it.id}/header.jpg`,
+    year: '',
+    shortDescription: '',
+    raw: it,
+  }));
+}
+async function expandSteam(c) {
+  const det = await httpGetJson(`https://store.steampowered.com/api/appdetails?appids=${c.id}&l=en&cc=us`);
+  const entry = det && det[c.id];
+  if (!entry || !entry.success) return null;
+  const d = entry.data;
+  return {
+    source: 'steam',
+    appid: c.id,
+    name: d.name,
+    shortDescription: d.short_description,
+    about: stripHtml(d.about_the_game || '').slice(0, 1400),
+    headerImage: d.header_image,
+    capsuleImage: d.capsule_imagev5 || d.capsule_image,
+    background: d.background_raw || d.background,
+    screenshots: (d.screenshots || []).slice(0, 6).map((s) => s.path_full),
+    genres: (d.genres || []).map((g) => g.description),
+    developers: d.developers || [],
+    publishers: d.publishers || [],
+    releaseDate: d.release_date ? d.release_date.date : '',
+    metacritic: d.metacritic ? d.metacritic.score : null,
+    website: d.website || '',
+  };
+}
+
+async function listGogCandidates(term) {
+  const url = `https://catalog.gog.com/v1/catalog?limit=10&query=like:${encodeURIComponent(term)}&order=desc:score&productType=in:game,pack`;
+  const data = await httpGetJson(url);
+  return (data.products || []).slice(0, 10).map((p) => ({
+    source: 'gog',
+    id: String(p.id || p.slug),
+    name: p.title,
+    image: (p.coverHorizontal || p.image || '').replace(/^\/\//, 'https://'),
+    year: (p.releaseDate || '').slice(0, 4),
+    shortDescription: '',
+    raw: p,
+  }));
+}
+async function expandGog(c) {
+  const p = c.raw || {};
+  return {
+    source: 'gog',
+    name: p.title || c.name,
+    shortDescription: '',
+    about: '',
+    headerImage: (p.coverHorizontal || p.image || '').replace(/^\/\//, 'https://'),
+    capsuleImage: (p.coverVertical || p.image || '').replace(/^\/\//, 'https://'),
+    background: (p.coverHorizontal || p.image || '').replace(/^\/\//, 'https://'),
+    screenshots: (p.screenshots || []).slice(0, 6).map((s) => (s.formatterTemplateUrl || s.imageUrl || '').replace(/_{formatter}/, '_glx_screenshot_thumbnail_716')),
+    genres: (p.genres || []).map((g) => g.name || g),
+    developers: p.developers || [],
+    publishers: p.publishers || [],
+    releaseDate: (p.releaseDate || '').slice(0, 10),
+    website: `https://www.gog.com${p.storeLink || ''}`,
+  };
+}
+
+async function listItchCandidates(term) {
+  const url = `https://itch.io/search?q=${encodeURIComponent(term)}`;
+  const html = await httpGetText(url);
+  const out = [];
+  const re = /<div class="game_cell[^"]*"[\s\S]*?<a[^>]+href="(https?:\/\/[^"]+itch\.io[^"]+)"[^>]*>([^<]+)<\/a>[\s\S]*?(?:<img[^>]+(?:data-lazy_src|src)="([^"]+)")?/g;
+  let m;
+  while ((m = re.exec(html)) !== null && out.length < 8) {
+    out.push({
+      source: 'itch',
+      id: m[1],
+      name: m[2].trim(),
+      image: m[3] || '',
+      year: '',
+      shortDescription: '',
+      raw: { pageUrl: m[1] },
+    });
+  }
+  return out;
+}
+async function expandItch(c) {
+  return itchDetails(c.id);
+}
+
+async function listDlsiteCandidates(term) {
+  const code = extractDLsiteCode(term);
+  if (code) {
+    const hit = await dlsiteLookup(code);
+    if (hit) {
+      return [{
+        source: 'dlsite',
+        id: code,
+        name: hit.name,
+        image: hit.headerImage || '',
+        year: (hit.releaseDate || '').slice(0, 4),
+        shortDescription: hit.shortDescription || '',
+        raw: hit,
+      }];
+    }
+  }
+  // Keyword search on DLsite English
+  try {
+    const url = `https://www.dlsite.com/maniax/fsr/=/keyword/${encodeURIComponent(term)}/work_category[0]/doujin/order/trend/work_type_category[0]/game`;
+    const html = await httpGetText(url);
+    const re = /<a[^>]+href="(\/maniax\/work\/=\/product_id\/(RJ\d+)\.html)"[^>]*>([\s\S]*?)<\/a>/g;
+    const out = [];
+    let m;
+    const seen = new Set();
+    while ((m = re.exec(html)) !== null && out.length < 8) {
+      const codeMatch = m[2];
+      if (seen.has(codeMatch)) continue;
+      seen.add(codeMatch);
+      const title = m[3].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+      if (!title) continue;
+      out.push({
+        source: 'dlsite',
+        id: codeMatch,
+        name: title,
+        image: `https://img.dlsite.jp/modpub/images2/work/doujin/${codeMatch.slice(0, 5)}000/${codeMatch}_img_main.jpg`,
+        year: '',
+        shortDescription: '',
+        raw: { code: codeMatch },
+      });
+    }
+    return out;
+  } catch { return []; }
+}
+
+async function listVndbCandidates(term) {
+  try {
+    const body = { filters: ['search', '=', term], fields: 'id,title,image.url,released,description', results: 10 };
+    const data = await httpPostJson('https://api.vndb.org/kana/vn', body);
+    return (data.results || []).slice(0, 10).map((v) => ({
+      source: 'vndb',
+      id: v.id,
+      name: v.title,
+      image: v.image?.url || '',
+      year: (v.released || '').slice(0, 4),
+      shortDescription: (v.description || '').slice(0, 160),
+      raw: v,
+    }));
+  } catch { return []; }
+}
+async function expandVndb(c) {
+  const v = c.raw || {};
+  return {
+    source: 'vndb',
+    name: v.title || c.name,
+    shortDescription: (v.description || '').replace(/\[[\s\S]+?\]/g, '').slice(0, 240),
+    about: (v.description || '').replace(/\[[\s\S]+?\]/g, '').slice(0, 1400),
+    headerImage: v.image?.url || c.image,
+    capsuleImage: v.image?.url || c.image,
+    background: v.image?.url || c.image,
+    screenshots: [],
+    genres: ['Visual Novel'],
+    developers: [],
+    publishers: [],
+    releaseDate: v.released || '',
+    website: `https://vndb.org/${v.id || ''}`,
+  };
+}
+
+async function listRyuuCandidates(term) {
+  try {
+    const url = `https://www.ryuugames.com/?s=${encodeURIComponent(term)}`;
+    const html = await httpGetText(url);
+    const out = [];
+    const re = /<h2[^>]*post-title[^>]*>\s*<a[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>/g;
+    let m;
+    while ((m = re.exec(html)) !== null && out.length < 5) {
+      out.push({
+        source: 'ryuugames',
+        id: m[1],
+        name: m[2].trim(),
+        image: '',
+        year: '',
+        shortDescription: '',
+        raw: { pageUrl: m[1] },
+      });
+    }
+    return out;
+  } catch { return []; }
+}
+async function expandRyuu(c) {
+  try {
+    const page = await httpGetText(c.id);
+    const cover = (page.match(/<meta property="og:image" content="([^"]+)"/) || [])[1] || '';
+    const desc = (page.match(/<meta property="og:description" content="([^"]+)"/) || [])[1] || '';
+    return {
+      source: 'ryuugames',
+      name: c.name,
+      shortDescription: desc,
+      about: desc,
+      headerImage: cover,
+      capsuleImage: cover,
+      background: cover,
+      screenshots: [],
+      genres: ['Visual Novel'],
+      developers: [],
+      publishers: [],
+      releaseDate: '',
+      website: c.id,
+    };
+  } catch { return null; }
+}
+
+/**
+ * F95Zone — uses DuckDuckGo to find threads on f95zone.to.
+ * F95Zone itself rate-limits unauthenticated requests, so we scrape result
+ * links from DDG and present them as candidates. The user opens the thread
+ * by picking one — full metadata extraction is best-effort.
+ */
+async function listF95Candidates(term) {
+  try {
+    const results = await ddgSearch(`site:f95zone.to ${term}`);
+    return (results || []).slice(0, 6).map((r) => ({
+      source: 'f95zone',
+      id: r.url,
+      name: cleanTitle(r.title || '').replace(/\s*\|.*$/, ''),
+      image: '',
+      year: '',
+      shortDescription: r.snippet || '',
+      raw: r,
+    }));
+  } catch { return []; }
+}
+async function expandF95(c) {
+  // We don't try to scrape the F95Zone thread (auth required for many subforums).
+  // Return a record that the user can hand-edit afterwards.
+  return {
+    source: 'f95zone',
+    name: c.name || 'F95Zone game',
+    shortDescription: c.shortDescription || '',
+    about: c.shortDescription || '',
+    headerImage: '',
+    capsuleImage: '',
+    background: '',
+    screenshots: [],
+    genres: ['Adult'],
+    developers: [],
+    publishers: [],
+    releaseDate: '',
+    website: c.id,
+  };
+}
+
+async function listGoogleCandidates(term) {
+  try {
+    let results = await ddgSearch(term);
+    if (!results.length) results = await googleScrape(term);
+    return (results || []).slice(0, 8).map((r) => ({
+      source: 'google',
+      id: r.url,
+      name: cleanTitle(r.title || ''),
+      image: '',
+      year: ((r.snippet + ' ' + r.title).match(/\b(19|20)\d{2}\b/) || [])[0] || '',
+      shortDescription: r.snippet || '',
+      raw: r,
+    }));
+  } catch { return []; }
+}
+async function expandGoogle(c) {
+  const r = c.raw || {};
+  return {
+    source: 'web',
+    name: c.name || 'Unknown',
+    shortDescription: r.snippet || '',
+    about: r.snippet || '',
+    headerImage: '',
+    capsuleImage: '',
+    background: '',
+    screenshots: [],
+    genres: [],
+    developers: [],
+    publishers: [],
+    releaseDate: c.year || '',
+    website: r.url || '',
+  };
+}
+
+async function listAiCandidates(term, geminiKey) {
+  if (!geminiKey) return [{
+    source: 'ai',
+    id: 'ai-key-missing',
+    name: 'Gemini API key required',
+    image: '',
+    year: '',
+    shortDescription: 'Add your Gemini API key in Settings → Integrations to use the "Ask AI" source.',
+    raw: null,
+  }];
+  // Reuse existing gemini:metadata handler logic by invoking it inline
+  try {
+    const apiBody = {
+      contents: [{
+        role: 'user',
+        parts: [{ text:
+`You are a video-game database. Given this rough name guessed from a folder/exe: "${term}".
+Return ONLY a single compact JSON object (no markdown) with these fields:
+{ "name": "canonical title", "shortDescription": "1-2 sentence summary",
+  "about": "3-5 sentence description", "genres": ["..."],
+  "developers": ["..."], "publishers": ["..."], "releaseDate": "YYYY-MM-DD",
+  "website": "official URL or store URL", "metacritic": null,
+  "source": "gemini" }` }],
+      }],
+    };
+    const resp = await httpPostJson(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+      apiBody,
+    );
+    const text = resp?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const jsonStart = text.indexOf('{');
+    const jsonEnd = text.lastIndexOf('}');
+    if (jsonStart === -1 || jsonEnd === -1) return [];
+    const obj = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+    return [{
+      source: 'ai',
+      id: 'gemini-1',
+      name: obj.name || term,
+      image: '',
+      year: (obj.releaseDate || '').slice(0, 4),
+      shortDescription: obj.shortDescription || '',
+      raw: { ...obj, source: 'gemini' },
+    }];
+  } catch { return []; }
+}
+
 ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey, lockedAppid }) => {
   // If a lockedAppid is provided, skip search entirely and just refresh that exact entry
   if (lockedAppid) {

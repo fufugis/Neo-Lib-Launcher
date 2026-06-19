@@ -37,6 +37,8 @@ contextBridge.exposeInMainWorld('api', {
 
   // multi-source metadata
   fetchMetadata: (opts) => ipcRenderer.invoke('metadata:auto', opts),
+  listCandidates: (opts) => ipcRenderer.invoke('metadata:listCandidates', opts),
+  expandCandidate: (opts) => ipcRenderer.invoke('metadata:expandCandidate', opts),
   webSearch: (q) => ipcRenderer.invoke('web:search', q),
   gogSearch: (q) => ipcRenderer.invoke('gog:search', q),
 

@@ -20,11 +20,12 @@ import CategoryModal from './components/CategoryModal';
 import Confetti from './components/Confetti';
 import EditMetadataModal from './components/EditMetadataModal';
 import AcceptMetadataModal from './components/AcceptMetadataModal';
+import FetchSourcePicker from './components/FetchSourcePicker';
 import ChangelogModal from './components/ChangelogModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.1.9';
+const APP_VERSION = '1.2.0';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin } from './lib/utils';
 import { setSoundPack } from './lib/sound';
@@ -217,6 +218,12 @@ export default function App() {
 
   /* --- "What's new" changelog modal — shown once per installed version --- */
   const [changelogOpen, setChangelogOpen] = React.useState(false);
+
+  /* --- Unified multi-source metadata picker (v1.2.0). Opened from:
+        • GameDetail "Re-fetch info" button
+        • AcceptMetadataModal "Try again"
+        • Wizard's refetch flow */
+  const [fetchPickerGame, setFetchPickerGame] = React.useState(null);
 
   /* --- Accept-before-add modal (preview proposed metadata before applying) --- */
   const [acceptPreview, setAcceptPreview] = React.useState({ open: false, game: null, proposed: null, busy: false });
@@ -1228,7 +1235,7 @@ export default function App() {
                 fetching={fetching}
                 settings={settings}
                 onLaunch={launchGame}
-                onRefetch={(g) => setTroubleshoot({ open: true, game: g })}
+                onRefetch={(g) => setFetchPickerGame(g)}
                 onRevealFolder={(g) => (isElectron ? window.api.revealInFolder(g.exePath) : notify('Open: ' + g.exePath))}
                 onToggleCategory={toggleGameInCategory}
                 onCustomize={(g) => setEditMetaGame(g)}
@@ -1397,18 +1404,30 @@ export default function App() {
           setAcceptPreview({ open: false, game: null, proposed: null, busy: false });
           if (g) applyAcceptedMetadata(g, patch);
         }}
-        onTryAgain={async (newName) => {
+        onTryAgain={async () => {
+          // v1.2.0: refetch from accept-preview now opens the unified
+          // multi-source picker. User-driven, no more black-box auto cycle.
           const g = acceptPreview.game;
           if (!g) return;
-          setAcceptPreview((p) => ({ ...p, busy: true }));
-          const result = await window.api.fetchMetadata({
-            query: newName,
-            skipSources: [],
-            geminiKey: settings.geminiKey || '',
-            // Force-search bypasses the appid lock — we want to allow finding a totally different game
-            lockedAppid: null,
-          });
-          setAcceptPreview({ open: true, game: g, proposed: result, busy: false });
+          setAcceptPreview({ open: false, game: null, proposed: null, busy: false });
+          setFetchPickerGame(g);
+        }}
+      />
+
+      {/* Unified multi-source metadata picker — v1.2.0
+          One modal handles: Re-fetch from GameDetail, Try again from
+          Accept preview, and Wizard refetch. */}
+      <FetchSourcePicker
+        open={!!fetchPickerGame}
+        game={fetchPickerGame}
+        geminiKey={settings.geminiKey || ''}
+        onClose={() => setFetchPickerGame(null)}
+        onPick={(metadata) => {
+          // Hand the chosen result back to the AcceptMetadataModal preview
+          // flow so the user still gets the side-by-side diff before commit.
+          const g = fetchPickerGame;
+          setFetchPickerGame(null);
+          if (g) setAcceptPreview({ open: true, game: g, proposed: metadata, busy: false });
         }}
       />
 

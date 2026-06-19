@@ -15,6 +15,18 @@ import { Sparkles, Check, X } from 'lucide-react';
 
 export const CHANGELOG = [
   {
+    version: '1.2.0',
+    title: 'Unified multi-source fetch picker',
+    items: [
+      'Brand new "Find metadata" picker — single window with editable query, big "Auto fetch" button, plus dedicated buttons for Steam, GOG, itch.io, DLsite, VNDB, Ryuugames, F95Zone, Google/DDG, and Ask AI.',
+      'Smart query seeding — when you open the picker, NEO-LIB auto-fills the query from the exe name + parent folder (strips version tags, x64, repack noise).',
+      'Results carousel — every source returns up to 8-10 candidates, browse left/right with arrows. "1 / 5" counter, preview card with cover + year + snippet.',
+      'New F95Zone source (via DDG site-search) — finally findable adult-game threads.',
+      'Re-fetch info on the game detail page now opens this picker (was Troubleshoot).',
+      '"Try again" on the Accept preview also opens this picker — clean up unknown games quickly.',
+    ],
+  },
+  {
     version: '1.1.9',
     title: 'CI fix: native Discord IPC',
     items: [

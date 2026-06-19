@@ -4,9 +4,16 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.1.9-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.2.0-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.1.9 (CI hotfix)
+### Latest — v1.2.0 (Unified multi-source fetch picker)
+- **Brand-new "Find metadata" picker** — replaces the old auto-cycle black box with a single window: editable query, big "Auto fetch", plus dedicated buttons for **Steam · GOG · itch.io · DLsite · VNDB · Ryuugames · F95Zone · Google/DDG · Ask AI**.
+- **Smart query seeding** from the exe + parent folder (strips version tags, x64, repack noise).
+- **Results carousel** — every source returns up to 8-10 candidates with arrows + "1 / N" counter + cover preview.
+- **F95Zone source** (via DuckDuckGo site-search) — finally findable adult-game threads.
+- "**Re-fetch info**" on Game Detail + "**Try again**" on Accept preview both open this picker.
+
+### v1.1.9 (CI hotfix)
 - Replaced the `discord-rpc` npm package — its Windows postinstall was killing the CI build at yarn install — with a tiny native IPC client using only Node's built-in `net` module. **No new dependencies.**
 - Bumped CI runner to Node 22 (Node 20 was deprecated).
 - Same user-facing Customize button + Discord status as v1.1.8, just builds reliably now.
