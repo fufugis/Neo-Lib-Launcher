@@ -4,9 +4,13 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.1.5-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.1.6-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.1.5 (UI polish & visibility)
+### Latest — v1.1.6 (Windows CI hardening)
+- Pipeline hardened: explicit Vite renderer step, code-signing disabled on Windows runner, verbose electron-builder logs, dist verification before zipping.
+- No user-facing behavior changes — purely a release-engineering fix to make the `.exe` reliably reach the Releases page.
+
+### v1.1.5 (UI polish & visibility)
 - **Current version** now shown directly in the title bar — no Settings dive needed.
 - **Update pill blinks** gently so you never miss a new release.
 - **Settings tooltips redesigned** — bigger, white card with dark text, offset below the cursor so it never overlaps your reading.

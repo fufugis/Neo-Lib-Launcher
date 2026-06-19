@@ -15,6 +15,14 @@ import { Sparkles, Check, X } from 'lucide-react';
 
 export const CHANGELOG = [
   {
+    version: '1.1.6',
+    title: 'Windows CI hardening',
+    items: [
+      'Build pipeline hardened: explicit Vite step, disabled code-signing on Windows runner, verbose electron-builder logs, and dist verification before zipping.',
+      'No app behavior changes — purely a release-engineering fix so the .exe always reaches the Release page.',
+    ],
+  },
+  {
     version: '1.1.5',
     title: 'UI polish & visibility',
     items: [
