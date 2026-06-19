@@ -28,7 +28,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           # NOTE: caching intentionally disabled — works whether or not yarn.lock is present
 
       - name: Show tool versions

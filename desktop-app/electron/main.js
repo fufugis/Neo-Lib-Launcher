@@ -11,10 +11,11 @@ const fsp = require('fs/promises');
 const { spawn } = require('child_process');
 const https = require('https');
 
-// ---- Optional Discord Rich Presence (loaded lazily so the build never crashes
-// if discord-rpc fails to install on a runner that doesn't ship Discord) ----
-let RPC = null;
-try { RPC = require('discord-rpc'); } catch { RPC = null; }
+// ---- Optional Discord Rich Presence (native IPC, no third-party deps) ----
+// Talks to the local Discord client over a named pipe (Windows) or Unix
+// socket (mac/Linux). Pure Node `net` module + Discord's documented binary
+// frame format. Fails silently if Discord isn't running.
+const net = require('net');
 
 // Public NEO-LIB Discord Application ID. Loaded from electron/discord-config.js
 // which the GitHub Actions workflow overwrites at build time using the
@@ -395,82 +396,132 @@ ipcMain.handle('game:launch', async (_e, { exePath, launchArgs, gameId, name } =
   }
 });
 
-// ---------------- Discord Rich Presence ---------------- //
-// Lazy-connected. Only attempts to connect when the user has the setting ON
-// AND a game launches. If Discord isn't running, fails silently. Reconnects
-// automatically on next game launch.
-let discordClient = null;
+// ---------------- Discord Rich Presence (native IPC) ---------------- //
+// Protocol reference: https://discord.com/developers/docs/topics/rpc
+//   Each frame = 4-byte LE opcode + 4-byte LE payload length + JSON payload
+//   Opcodes used here: 0 = HANDSHAKE, 1 = FRAME (set activity), 2 = CLOSE
+let discordSock = null;
 let discordReady = false;
 let discordConnecting = false;
-function ensureDiscord() {
-  if (!RPC || !DISCORD_APP_ID) return null;
-  if (discordReady && discordClient) return discordClient;
-  if (discordConnecting) return null;
-  if (!isDiscordRpcEnabled()) return null;
-  try {
-    discordConnecting = true;
-    const c = new RPC.Client({ transport: 'ipc' });
-    c.on('ready', () => { discordReady = true; });
-    c.on('disconnected', () => { discordReady = false; discordClient = null; });
-    c.login({ clientId: DISCORD_APP_ID }).catch(() => {
-      discordClient = null; discordReady = false;
-    }).finally(() => { discordConnecting = false; });
-    discordClient = c;
-    return c;
-  } catch {
-    discordConnecting = false;
-    return null;
-  }
+let discordNonce = 0;
+
+function discordPipePath(i) {
+  if (process.platform === 'win32') return `\\\\.\\pipe\\discord-ipc-${i}`;
+  const tmp = process.env.XDG_RUNTIME_DIR
+    || process.env.TMPDIR
+    || process.env.TMP
+    || process.env.TEMP
+    || '/tmp';
+  return `${tmp}/discord-ipc-${i}`;
 }
+
+function discordFrame(op, payload) {
+  const json = Buffer.from(JSON.stringify(payload));
+  const header = Buffer.alloc(8);
+  header.writeInt32LE(op, 0);
+  header.writeInt32LE(json.length, 4);
+  return Buffer.concat([header, json]);
+}
+
+function connectDiscord() {
+  if (!DISCORD_APP_ID) return Promise.resolve(false);
+  if (discordSock && discordReady) return Promise.resolve(true);
+  if (discordConnecting) return Promise.resolve(false);
+  discordConnecting = true;
+
+  return new Promise((resolve) => {
+    const tryPipe = (i) => {
+      if (i > 9) { discordConnecting = false; resolve(false); return; }
+      const sock = net.createConnection({ path: discordPipePath(i) });
+      let resolved = false;
+      const giveUp = () => {
+        if (resolved) return;
+        resolved = true;
+        try { sock.destroy(); } catch { /* ignore */ }
+        tryPipe(i + 1);
+      };
+      sock.once('error', giveUp);
+      sock.once('connect', () => {
+        sock.write(discordFrame(0, { v: 1, client_id: DISCORD_APP_ID }));
+      });
+      sock.on('data', () => {
+        if (resolved) return;
+        resolved = true;
+        discordSock = sock;
+        discordReady = true;
+        discordConnecting = false;
+        sock.on('error', () => { discordReady = false; discordSock = null; });
+        sock.on('close', () => { discordReady = false; discordSock = null; });
+        resolve(true);
+      });
+      // Timeout protection in case Discord stalls
+      setTimeout(giveUp, 1500);
+    };
+    tryPipe(0);
+  });
+}
+
+async function setDiscordActivity({ name, startedAt }) {
+  if (!DISCORD_APP_ID) return;
+  if (!isDiscordRpcEnabled()) return;
+  if (!discordReady) await connectDiscord();
+  if (!discordReady || !discordSock) return;
+  try {
+    discordNonce += 1;
+    discordSock.write(discordFrame(1, {
+      cmd: 'SET_ACTIVITY',
+      args: {
+        pid: process.pid,
+        activity: {
+          details: (name || 'Playing a game').slice(0, 128),
+          state: 'via NEO-LIB',
+          timestamps: { start: Math.floor((startedAt || Date.now()) / 1000) },
+          assets: {
+            large_image: 'neolib_logo',
+            large_text: 'NEO-LIB · portable game library',
+          },
+          instance: false,
+        },
+      },
+      nonce: String(discordNonce),
+    }));
+  } catch { /* ignore */ }
+}
+
+function clearDiscordActivity() {
+  if (!discordReady || !discordSock) return;
+  try {
+    discordNonce += 1;
+    discordSock.write(discordFrame(1, {
+      cmd: 'SET_ACTIVITY',
+      args: { pid: process.pid, activity: null },
+      nonce: String(discordNonce),
+    }));
+  } catch { /* ignore */ }
+}
+
 function isDiscordRpcEnabled() {
   try {
     const raw = fs.readFileSync(settingsFile(), 'utf-8');
     const s = JSON.parse(raw);
-    return s && s.discordRpcEnabled !== false; // default ON when an APP_ID is set
+    return s && s.discordRpcEnabled !== false;
   } catch { return true; }
 }
-function setDiscordActivity({ name, startedAt }) {
-  if (!RPC || !DISCORD_APP_ID || !isDiscordRpcEnabled()) return;
-  const c = ensureDiscord();
-  if (!c) return;
-  // Discord requires the client to be ready before setActivity. Retry once
-  // 1.5 s after connect attempt — by then the IPC handshake is complete.
-  const apply = () => {
-    if (!discordReady || !discordClient) return;
-    try {
-      discordClient.setActivity({
-        details: name || 'Playing a game',
-        state: 'via NEO-LIB',
-        startTimestamp: Math.floor((startedAt || Date.now()) / 1000),
-        largeImageKey: 'neolib_logo',
-        largeImageText: 'NEO-LIB · portable game library',
-        instance: false,
-      }).catch(() => { /* ignore */ });
-    } catch { /* ignore */ }
-  };
-  if (discordReady) apply();
-  else setTimeout(apply, 1500);
-}
-function clearDiscordActivity() {
-  if (!discordClient || !discordReady) return;
-  try { discordClient.clearActivity().catch(() => {}); } catch { /* ignore */ }
-}
+
 // Live toggle from the renderer
 ipcMain.handle('app:setDiscordRpc', async (_e, enabled) => {
   if (!enabled) {
     clearDiscordActivity();
-    if (discordClient) {
-      try { discordClient.destroy(); } catch { /* ignore */ }
-      discordClient = null; discordReady = false;
+    if (discordSock) {
+      try { discordSock.destroy(); } catch { /* ignore */ }
+      discordSock = null; discordReady = false;
     }
   }
   return { ok: true, hasAppId: !!DISCORD_APP_ID };
 });
-// Expose whether RPC is even configured (for the Settings toggle to know if
-// it's a no-op until KenLun pastes an Application ID).
 ipcMain.handle('app:discordRpcStatus', async () => ({
   hasAppId: !!DISCORD_APP_ID,
-  installed: !!RPC,
+  installed: true,
   ready: !!discordReady,
 }));
 

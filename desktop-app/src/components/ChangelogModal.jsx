@@ -15,6 +15,15 @@ import { Sparkles, Check, X } from 'lucide-react';
 
 export const CHANGELOG = [
   {
+    version: '1.1.9',
+    title: 'CI fix: native Discord IPC',
+    items: [
+      'Build pipeline fix — replaced the discord-rpc npm package (whose Windows postinstall was breaking CI) with a native ~80-line IPC client using only Node\'s built-in net module. Zero new dependencies.',
+      'Bumped CI runner to Node 22 to silence the Node 20 deprecation warning.',
+      'No user-facing changes from v1.1.8 — same Customize button, same Discord status feature.',
+    ],
+  },
+  {
     version: '1.1.8',
     title: 'Customize button + Discord status',
     items: [

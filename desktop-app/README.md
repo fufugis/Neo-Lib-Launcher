@@ -4,9 +4,14 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.1.8-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.1.9-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.1.8 (Customize button + Discord status)
+### Latest — v1.1.9 (CI hotfix)
+- Replaced the `discord-rpc` npm package — its Windows postinstall was killing the CI build at yarn install — with a tiny native IPC client using only Node's built-in `net` module. **No new dependencies.**
+- Bumped CI runner to Node 22 (Node 20 was deprecated).
+- Same user-facing Customize button + Discord status as v1.1.8, just builds reliably now.
+
+### v1.1.8 (Customize button + Discord status)
 - New eye-catching **Customize** button on every game detail page → single panel for custom **cover / icon / hero / background / screenshots / description**, plus a custom **.exe path** and **launch arguments** so you can point NEO-LIB at any executable you want.
 - **Discord Rich Presence** — when you launch a game through NEO-LIB, your Discord status reads `Playing <game> · via NEO-LIB`. Toggle in Settings → App behaviour. (Requires NEO-LIB's Discord App ID to be set; see *Discord RPC setup* below.)
 
