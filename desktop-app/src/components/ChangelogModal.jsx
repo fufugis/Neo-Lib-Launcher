@@ -15,6 +15,14 @@ import { Sparkles, Check, X } from 'lucide-react';
 
 export const CHANGELOG = [
   {
+    version: '1.2.1',
+    title: 'Community access',
+    items: [
+      'New "Discord" button in the title bar — one click to join the NEO-LIB community for bug reports, feature suggestions, and update news.',
+      'Same Discord button mirrored in Settings → About so it\'s reachable from there too.',
+    ],
+  },
+  {
     version: '1.2.0',
     title: 'Unified multi-source fetch picker',
     items: [

@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { THEMES } from '../lib/utils';
 import { SOUND_PACKS, setSoundPack, playLaunch, playHover } from '../lib/sound';
-import { Check, Sparkles, Eye, EyeOff, Sliders, Power, Heart, DownloadCloud } from 'lucide-react';
+import { Check, Sparkles, Eye, EyeOff, Sliders, Power, Heart, DownloadCloud, MessageCircle } from 'lucide-react';
 import Modal from './Modal';
 import { DONATE_PAYPAL_URL } from './DonateModal';
 import qrUrl from '../assets/donate-qr.png';
@@ -339,6 +339,23 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
                 What&apos;s new
               </button>
             )}
+            <button
+              data-testid="settings-discord-btn"
+              onClick={() => {
+                const url = 'https://discord.gg/spk6QWREk8';
+                if (window.api?.openExternal) window.api.openExternal(url);
+                else window.open(url, '_blank');
+              }}
+              className="inline-flex items-center gap-2 rounded-md px-3 h-8 text-[12px] font-bold text-white transition-all hover:scale-[1.03]"
+              style={{
+                background: 'linear-gradient(135deg, #5865F2 0%, #7289DA 100%)',
+                boxShadow: '0 0 10px -3px rgba(88,101,242,0.6)',
+              }}
+              title="Join the NEO-LIB Discord — submit bugs, suggest features, stay updated"
+            >
+              <MessageCircle size={13} />
+              Join Discord
+            </button>
           </div>
         </Section>
 

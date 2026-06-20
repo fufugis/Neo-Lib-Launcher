@@ -4,9 +4,12 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.2.0-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.2.1-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.2.0 (Unified multi-source fetch picker)
+### Latest — v1.2.1 (Community access)
+- **Discord button in the title bar** (and Settings → About) — one click to join the community: https://discord.gg/spk6QWREk8 — submit bugs, suggest features, stay updated.
+
+### v1.2.0 (Unified multi-source fetch picker)
 - **Brand-new "Find metadata" picker** — replaces the old auto-cycle black box with a single window: editable query, big "Auto fetch", plus dedicated buttons for **Steam · GOG · itch.io · DLsite · VNDB · Ryuugames · F95Zone · Google/DDG · Ask AI**.
 - **Smart query seeding** from the exe + parent folder (strips version tags, x64, repack noise).
 - **Results carousel** — every source returns up to 8-10 candidates with arrows + "1 / N" counter + cover preview.

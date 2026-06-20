@@ -1,8 +1,14 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Minus, Square, X, DownloadCloud } from 'lucide-react';
+import { Minus, Square, X, DownloadCloud, MessageCircle } from 'lucide-react';
+
+const DISCORD_INVITE = 'https://discord.gg/spk6QWREk8';
 
 export default function TitleBar({ search, setSearch, currentVersion, updateAvailable, latestVersion, onClickUpdate }) {
+  const openDiscord = () => {
+    if (typeof window !== 'undefined' && window.api?.openExternal) window.api.openExternal(DISCORD_INVITE);
+    else window.open(DISCORD_INVITE, '_blank');
+  };
   return (
     <div
       className="titlebar-drag relative z-50 flex h-11 items-center gap-3 border-b hairline glass px-3"
@@ -20,6 +26,22 @@ export default function TitleBar({ search, setSearch, currentVersion, updateAvai
           v{currentVersion}
         </span>
       )}
+
+      {/* Join Discord — submit bugs & suggestions, stay updated */}
+      <button
+        data-testid="titlebar-discord-btn"
+        onClick={openDiscord}
+        title="Join the NEO-LIB Discord — submit bugs, suggest features, stay updated"
+        className="titlebar-nodrag group inline-flex items-center gap-1.5 rounded-full px-2.5 h-6 text-[10.5px] font-bold transition-all hover:scale-[1.04]"
+        style={{
+          background: 'linear-gradient(135deg, #5865F2 0%, #7289DA 100%)',
+          color: '#fff',
+          boxShadow: '0 0 10px -3px rgba(88,101,242,0.6)',
+        }}
+      >
+        <MessageCircle size={11} className="transition-transform group-hover:rotate-[-6deg]" />
+        Discord
+      </button>
 
       <div className="titlebar-nodrag relative ml-2 flex-1 max-w-md">
         <input
