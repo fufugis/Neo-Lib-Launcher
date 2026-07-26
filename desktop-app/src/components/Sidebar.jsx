@@ -2,10 +2,10 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import {
-  Plus, Wand2, Settings, RefreshCw, Trash2, Pencil, FolderOpen, MoreVertical,
-  Lock, ChevronRight, ChevronDown, Tag, GripVertical, Sparkles, Terminal,
+  Plus, Wand2, Settings, RefreshCw, Trash2, Pencil, FolderOpen, MoreVertical, Sparkles,
+  Lock, ChevronRight, ChevronDown, Tag, GripVertical, Terminal,
   Info, ArrowUp, ArrowDown, Palette, Eye, EyeOff, Sliders, Library as LibIcon,
-  Wrench, Columns, Pin, PinOff, X as XIcon,
+  Wrench, Columns, Pin, PinOff, X as XIcon, Newspaper,
 } from 'lucide-react';
 import { cn, colorFromId, sizeById } from '../lib/utils';
 
@@ -33,7 +33,7 @@ export default function Sidebar({
   onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
   onChangeRowGap, onChangeCatGap, onChangeCatTopGap, onToggleCategoryDot,
   onSelect,
-  onAddManual, onOpenWizard, onOpenSettings, onUpdateAll,
+  onAddManual, onOpenWizard, onOpenSettings, onUpdateAll, onTidyUp,
   onCreateCategory, onCategoryContext, onGameContext,
   onSetLibrarySize, onMoveGameToCategory,
   onReorderGameInCategory, onReorderCategory,
@@ -52,6 +52,8 @@ export default function Sidebar({
     font: Math.max(11, Math.min(16, Math.round(rowSize * 0.28))),
   };
   const [libSettingsOpen, setLibSettingsOpen] = React.useState(false);
+  const [refreshMenuOpen, setRefreshMenuOpen] = React.useState(false);
+  const treeScrollRef = React.useRef(null);
   const isTools = mode === 'tools';
   const pinnedIdsSet = React.useMemo(() => new Set(pinnedIds || []), [pinnedIds]);
 
@@ -117,12 +119,12 @@ export default function Sidebar({
         className="absolute right-0 top-0 z-30 h-full w-1.5 cursor-col-resize hover:bg-[rgb(var(--accent)/0.4)] transition-colors"
         style={{ touchAction: 'none' }}
       />
-      {/* Tab bar — Library / Tools (primary) */}
+      {/* Tab bar — Library / Tools / News (primary) */}
       <div className="flex items-center gap-1 p-2 pb-0">
         <TabPill
           label="Library"
           icon={<LibIcon size={12} />}
-          active={mode !== 'tools'}
+          active={mode !== 'tools' && mode !== 'news'}
           onClick={() => { onSetMode('library'); onSetLauncherFilter?.('all'); }}
           testid="tab-library"
           big
@@ -133,6 +135,14 @@ export default function Sidebar({
           active={mode === 'tools'}
           onClick={() => onSetMode('tools')}
           testid="tab-tools"
+          big
+        />
+        <TabPill
+          label="News"
+          icon={<Newspaper size={12} />}
+          active={mode === 'news'}
+          onClick={() => onSetMode('news')}
+          testid="tab-news"
           big
         />
       </div>
@@ -187,12 +197,53 @@ export default function Sidebar({
         )}
         <div className="flex-1" />
         {!isTools && (
-          <SideBtn
-            icon={<RefreshCw size={14} className={updatingAll ? 'animate-spin' : ''} />}
-            onClick={onUpdateAll}
-            testid="sidebar-update-all-btn"
-            title="Refresh metadata for all games"
-          />
+          <div className="relative">
+            <SideBtn
+              icon={<RefreshCw size={14} className={updatingAll ? 'animate-spin' : ''} />}
+              onClick={() => setRefreshMenuOpen((v) => !v)}
+              testid="sidebar-refresh-menu-btn"
+              title="Refresh · Tidy up"
+            />
+            <AnimatePresence>
+              {refreshMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.15 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute right-0 z-30 mt-1 w-64 rounded-lg hairline glass shadow-2xl p-1.5"
+                >
+                  <button
+                    data-testid="refresh-menu-refresh"
+                    onClick={() => { setRefreshMenuOpen(false); onUpdateAll?.(); }}
+                    className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left hover:bg-[rgb(var(--accent)/0.08)] transition-colors"
+                  >
+                    <span className="flex items-center gap-2 text-[12px] font-semibold text-ink">
+                      <RefreshCw size={12} className="text-[rgb(var(--accent))]" />
+                      Refresh all metadata
+                    </span>
+                    <span className="text-[10.5px] text-muted">
+                      Re-fetches covers, descriptions & screenshots for every game (skips manually edited ones).
+                    </span>
+                  </button>
+                  <button
+                    data-testid="refresh-menu-tidy"
+                    onClick={() => { setRefreshMenuOpen(false); onTidyUp?.(); }}
+                    className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left hover:bg-[rgb(var(--accent-2)/0.08)] transition-colors"
+                  >
+                    <span className="flex items-center gap-2 text-[12px] font-semibold text-ink">
+                      <Sparkles size={12} className="text-[rgb(var(--accent-2))]" />
+                      Tidy up (find duplicates)
+                    </span>
+                    <span className="text-[10.5px] text-muted">
+                      Scans for duplicate games and multiple .exes from the same folder tree. Shows a side-by-side compare so you can pick which one to keep.
+                    </span>
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         )}
         <div className="relative">
           <SideBtn
@@ -269,8 +320,30 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Tree — single column or two-column (categories never split between columns) */}
-      <div className="flex-1 overflow-y-auto px-2 pb-4" data-testid="sidebar-tree">
+      {/* Tree — single column or two-column (categories never split between columns).
+          v1.2.2 — auto-scroll while dragging a game near the top/bottom edges so
+          long libraries are actually reachable during a drag operation. */}
+      <div
+        ref={treeScrollRef}
+        className="flex-1 overflow-y-auto px-2 pb-4"
+        data-testid="sidebar-tree"
+        onDragOver={(e) => {
+          const el = treeScrollRef.current;
+          if (!el) return;
+          const r = el.getBoundingClientRect();
+          const EDGE = 60; // px within which auto-scroll kicks in
+          const MAX_SPEED = 20;
+          const dyTop = e.clientY - r.top;
+          const dyBottom = r.bottom - e.clientY;
+          if (dyTop < EDGE && dyTop >= 0) {
+            const speed = Math.round(MAX_SPEED * (1 - dyTop / EDGE));
+            el.scrollTop -= speed;
+          } else if (dyBottom < EDGE && dyBottom >= 0) {
+            const speed = Math.round(MAX_SPEED * (1 - dyBottom / EDGE));
+            el.scrollTop += speed;
+          }
+        }}
+      >
         {/* Pinned strip — full-width, sits above all categories in both single & two-row modes */}
         <PinnedStrip
           games={(library.games || []).filter((g) => pinnedIdsSet.has(g.id))}
@@ -559,7 +632,7 @@ function LibrarySettingsPopover({
         label="Category glow"
         value={catGlow}
         min={0}
-        max={200}
+        max={300}
         suffix="%"
         onChange={onChangeCatGlow}
         testid="pop-cat-glow"
@@ -781,7 +854,7 @@ function Section({
               width: Math.round(catTextSize * 0.95),
               height: Math.round(catTextSize * 0.95),
               background: color,
-              boxShadow: `0 0 ${Math.round(8 + catGlow * 0.1)}px ${color}`,
+              boxShadow: `0 0 ${Math.round(4 + catGlow * 0.18)}px ${color}, 0 0 ${Math.round(catGlow * 0.35)}px ${color}80`,
               color, // for filter:drop-shadow on hover
             }}
           />
@@ -794,19 +867,32 @@ function Section({
             section.isGhost ? 'text-[rgb(var(--accent))]/80' : 'text-ink/95'
           )}
           style={(() => {
-            const g = Math.max(0, Math.min(200, catGlow)) / 100; // 0..2
+            const g = Math.max(0, Math.min(300, catGlow)) / 100; // 0..3, smooth
             const base = `${catTextSize}px`;
             if (section.isGhost || isUncat || g === 0) {
               return { fontSize: base };
             }
-            // Layered outer-glow (cheap CSS post-processing): inner halo + outer halo + contrast bump.
-            const inner = (4 + g * 4).toFixed(1);    // 4..12 px
-            const outer = (10 + g * 14).toFixed(1);  // 10..38 px
-            const punch = (12 + g * 12).toFixed(1);  // 12..36 px
+            // v1.2.2 — bigger dynamic range so the slider actually feels
+            // smooth instead of "3 levels". Layered halos: inner (crisp core),
+            // outer (soft bloom), punch (far diffuse), plus a super-bright
+            // core kick that only engages above ~120% for extra pop.
+            const inner   = (3 + g * 8).toFixed(1);     // 3..27 px
+            const outer   = (10 + g * 22).toFixed(1);   // 10..76 px
+            const punch   = (12 + g * 26).toFixed(1);   // 12..90 px
+            const coreG   = Math.max(0, g - 1.2);       // 0..1.8 kick at high glow
+            const shadows = [
+              `0 0 ${inner}px ${color}`,
+              `0 0 ${outer}px ${color}`,
+              `0 0 ${punch}px ${color}80`,
+            ];
+            if (coreG > 0) {
+              shadows.unshift(`0 0 ${(2 + coreG * 6).toFixed(1)}px #ffffff`);
+              shadows.push(`0 0 ${(20 + coreG * 30).toFixed(1)}px ${color}`);
+            }
             return {
               fontSize: base,
-              textShadow: `0 0 ${inner}px ${color}, 0 0 ${outer}px ${color}${g > 1 ? '' : 'C0'}, 0 0 ${punch}px ${color}66`,
-              filter: g > 1.2 ? `drop-shadow(0 0 ${(g * 4).toFixed(1)}px ${color})` : undefined,
+              textShadow: shadows.join(', '),
+              filter: g > 1.5 ? `drop-shadow(0 0 ${(g * 6).toFixed(1)}px ${color}) brightness(${(1 + coreG * 0.15).toFixed(2)})` : undefined,
               letterSpacing: '0.2em',
             };
           })()}
@@ -1016,10 +1102,11 @@ function GameRow({
         <div className={cn('truncate font-medium', `text-[${size.font}px]`)} style={{ fontSize: size.font }}>
           {g.name || 'Untitled'}
         </div>
-        {/* Genre/meta strip + category dots — hidden as a unit when "Category dot" is off */}
-        {!isSmall && showCategoryDot && (
+        {/* Genre/meta strip — always shown when not in small mode.
+            Category color dots hide when the "Category dot" toggle is off. */}
+        {!isSmall && (
           <div className="flex items-center gap-1.5 truncate text-[10.5px] text-muted">
-            {(g.categoryIds || []).slice(0, 3).map((cid) => {
+            {showCategoryDot && (g.categoryIds || []).slice(0, 3).map((cid) => {
               const cc = categories.find((x) => x.id === cid);
               if (!cc) return null;
               return (

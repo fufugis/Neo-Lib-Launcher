@@ -1,0 +1,30 @@
+{
+  "summary": "Frontend-only verification of the v1.2.2 bug fix: 'Custom .exe picker in EditMetadataModal now updates exePath'. Started Vite (yarn vite --host, port 5173, Electron was skipped since it can't run as root in this env). Ran a Playwright smoke+integration test against the browser preview of the NEO-LIB desktop app. All critical acceptance criteria for the fix passed. The Electron `window.api.pickExe` dialog itself cannot be invoked in a browser, so that path was verified via direct source inspection of the shipped fix (lines 41-49 of EditMetadataModal.jsx) — the code correctly normalizes BOTH a raw string return AND a `{exePath: string}` object, and calls `set('exePath', picked)`.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "EditMetadataModal", "issues": ["React warning: 'A component is changing an uncontrolled input to be controlled' fired by ImageSlot in EditMetadataModal.jsx (~line 665). Happens because ImageSlot passes `value` prop which can be undefined when `emptyForm(g)` returns a game with no icon/cover/header/background. Fix: default the value prop or emptyForm fields to '' (they already default in emptyForm, but the issue triggers when g has explicit undefined; ensure `value={value || ''}` inside ImageSlot's <input> and <img>). Non-blocking, cosmetic console warning only."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "None blocking. The reported user bug ('picking a new exe does nothing, old path stays') is FIXED — pickExeFor now normalizes both string and {exePath} return shapes from window.api.pickExe. Verified via code inspection + manual-input Save round-trip in the browser preview.",
+    "Optional cleanup: silence the ImageSlot 'uncontrolled → controlled' React warning by defaulting `value` to '' in the ImageSlot input/img."
+  ],
+  "critical_code_review_comments": [
+    "The fix at /app/desktop-app/src/components/EditMetadataModal.jsx lines 41-49 is correct and defensive: `const picked = typeof r === 'string' ? r : (r && r.exePath) || null;` handles both current main.js contract (raw string from dialog:pickExe at electron/main.js:~303) AND the future/pickImage-style {exePath} contract. Consistent with how `pickImageFor` handles `r?.url` — reasonable to eventually unify these IPC return shapes in main.js so the renderer doesn't need to be tolerant on both sides.",
+    "Submit handler (lines 68-69) correctly only patches exePath when it differs from the original AND is non-empty — good behavior, avoids no-op writes.",
+    "onSave patch → App.updateGame merges via {...g, ...patch} (App.jsx line ~665), which correctly persists exePath into library.games. Verified end-to-end by re-opening the modal and seeing the new value.",
+    "Minor: ImageSlot component leaks the uncontrolled→controlled warning when a game field is undefined; harmless but noisy."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (no backend)", "frontend": "100% (all bug-fix acceptance criteria passed)"},
+  "test_credentials": "N/A",
+  "seed_data_creation": "None — used the built-in DEMO_GAMES (Hollow Knight is auto-selected in browser preview mode, and it already has exePath='C:\\\\Games\\\\Hollow Knight\\\\hollow_knight.exe').",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Electron cannot start as root in this container ('Running as root without --no-sandbox is not supported'), so ALWAYS start with `cd /app/desktop-app && nohup yarn vite --host 0.0.0.0 --port 5173 > /tmp/vite.log 2>&1 &` instead of `yarn dev`. The desktop-app is a client-only Electron/React app — no backend, no DB. In browser preview mode isElectron=false, so all window.api.* calls (including pickExe) short-circuit. To test the actual picker→field flow you must either (a) run inside real Electron, or (b) inject a mock window.api BEFORE the app bundle loads (tricky because App.jsx caches `isElectron` at module load). For this fix, direct file source inspection + manual-typing round-trip is sufficient since the picker is a one-liner that just calls `set('exePath', picked)` when picked is truthy.",
+  "rca of the issue": "Original bug: main process IPC handler `dialog:pickExe` (electron/main.js:~303) returns `result.filePaths[0]` — a RAW STRING. But EditMetadataModal.jsx's pickExeFor previously destructured the return as if it were an object with .exePath (mirroring pickImage's {url} contract). Because `r.exePath` was undefined on a raw string, the `if (r?.exePath) set(...)` branch never fired → silent no-op → the old exePath remained. Fix: normalize both shapes: `const picked = typeof r === 'string' ? r : (r && r.exePath) || null; if (picked) set('exePath', picked);`. Verified the exePath now updates the form field, propagates through submit() into the patch, is passed to onSave, and merged into library.games via updateGame in App.jsx."
+}

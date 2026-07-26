@@ -22,10 +22,12 @@ import EditMetadataModal from './components/EditMetadataModal';
 import AcceptMetadataModal from './components/AcceptMetadataModal';
 import FetchSourcePicker from './components/FetchSourcePicker';
 import ChangelogModal from './components/ChangelogModal';
+import NewsPanel from './components/NewsPanel';
+import TidyUpModal from './components/TidyUpModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.2.1';
+const APP_VERSION = '1.2.2';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin } from './lib/utils';
 import { setSoundPack } from './lib/sound';
@@ -224,6 +226,7 @@ export default function App() {
         • AcceptMetadataModal "Try again"
         • Wizard's refetch flow */
   const [fetchPickerGame, setFetchPickerGame] = React.useState(null);
+  const [tidyOpen, setTidyOpen] = React.useState(false);
 
   /* --- Accept-before-add modal (preview proposed metadata before applying) --- */
   const [acceptPreview, setAcceptPreview] = React.useState({ open: false, game: null, proposed: null, busy: false });
@@ -1213,6 +1216,7 @@ export default function App() {
           onOpenWizard={() => setShowWizard(true)}
           onOpenSettings={() => setShowSettings(true)}
           onUpdateAll={refetchAll}
+          onTidyUp={() => setTidyOpen(true)}
           onCreateCategory={() => setCatModal({ open: true, initial: null })}
           onCategoryContext={(category, anchor) => setCatCtx({ open: true, category, anchor })}
           onGameContext={handleGameContext}
@@ -1227,20 +1231,24 @@ export default function App() {
 
         <main className="relative flex min-w-0 flex-1 flex-col">
           <div className="flex-1 min-h-0 overflow-hidden">
-            <AnimatePresence mode="wait">
-              <GameDetail
-                key={selected?.id || 'empty'}
-                game={selected}
-                categories={currentCats.filter((c) => !c.private || unlockedCategories.includes(c.id))}
-                fetching={fetching}
-                settings={settings}
-                onLaunch={launchGame}
-                onRefetch={(g) => setFetchPickerGame(g)}
-                onRevealFolder={(g) => (isElectron ? window.api.revealInFolder(g.exePath) : notify('Open: ' + g.exePath))}
-                onToggleCategory={toggleGameInCategory}
-                onCustomize={(g) => setEditMetaGame(g)}
-              />
-            </AnimatePresence>
+            {settings.mode === 'news' ? (
+              <NewsPanel />
+            ) : (
+              <AnimatePresence mode="wait">
+                <GameDetail
+                  key={selected?.id || 'empty'}
+                  game={selected}
+                  categories={currentCats.filter((c) => !c.private || unlockedCategories.includes(c.id))}
+                  fetching={fetching}
+                  settings={settings}
+                  onLaunch={launchGame}
+                  onRefetch={(g) => setFetchPickerGame(g)}
+                  onRevealFolder={(g) => (isElectron ? window.api.revealInFolder(g.exePath) : notify('Open: ' + g.exePath))}
+                  onToggleCategory={toggleGameInCategory}
+                  onCustomize={(g) => setEditMetaGame(g)}
+                />
+              </AnimatePresence>
+            )}
           </div>
 
           {/* Showcase strip below preview — only on Library tab */}
@@ -1423,12 +1431,17 @@ export default function App() {
         geminiKey={settings.geminiKey || ''}
         onClose={() => setFetchPickerGame(null)}
         onPick={(metadata) => {
-          // Hand the chosen result back to the AcceptMetadataModal preview
-          // flow so the user still gets the side-by-side diff before commit.
           const g = fetchPickerGame;
           setFetchPickerGame(null);
           if (g) setAcceptPreview({ open: true, game: g, proposed: metadata, busy: false });
         }}
+      />
+
+      <TidyUpModal
+        open={tidyOpen}
+        games={library.games || []}
+        onDelete={(id) => removeGame(id)}
+        onClose={() => setTidyOpen(false)}
       />
 
       {/* Theme-aware confetti — bumps key when fired, auto-cleans */}

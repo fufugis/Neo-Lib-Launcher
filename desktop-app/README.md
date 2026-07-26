@@ -4,9 +4,17 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.2.1-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.2.2-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.2.1 (Community access)
+### Latest — v1.2.2 (Fixes + Tidy up + News tab)
+- **Bug fix:** Custom .exe picker now actually saves the picked path.
+- **Bug fix:** "Category dot" toggle correctly toggles only the dots.
+- **Dynamic glow slider** — 0-300% range with a white-core "extra pop" above 120%.
+- **Auto-scroll while dragging** games near the top/bottom edge of the sidebar.
+- **Refresh menu** with a new **Tidy up** action — finds duplicate games (same exe, same name, or multiple exes sharing a folder tree) and shows them side-by-side.
+- **New "News" tab** (placeholder) — future home for patch notes / dev announcements of the last 14 days from every launcher.
+
+### v1.2.1 (Community access)
 - **Discord button in the title bar** (and Settings → About) — one click to join the community: https://discord.gg/spk6QWREk8 — submit bugs, suggest features, stay updated.
 
 ### v1.2.0 (Unified multi-source fetch picker)

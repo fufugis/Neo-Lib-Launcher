@@ -15,6 +15,19 @@ import { Sparkles, Check, X } from 'lucide-react';
 
 export const CHANGELOG = [
   {
+    version: '1.2.2',
+    title: 'Fixes + Tidy up + News tab',
+    items: [
+      'Bug fix: Custom .exe picker in the Customize panel now actually saves the picked path (was silently no-oping due to a return-shape mismatch).',
+      'Bug fix: "Category dot" toggle now really toggles just the dots — before it hid the whole meta line.',
+      'Dynamic glow slider — smoother 0-300% range with a bright white core kick above ~120%. Max glow is now unmissable.',
+      'Auto-scroll while dragging games — hover near the top or bottom of the tree and the sidebar scrolls with you.',
+      'Refresh button is now a menu: Refresh (unchanged) + Tidy up (new).',
+      'New: Tidy up — finds duplicate games (same exe, same normalized name, or multiple .exes sharing a folder tree) and shows them side-by-side so you can pick which one to keep.',
+      'New: "News" tab (placeholder) — future home for Steam / GOG / itch patch notes on the last 14 days of your library.',
+    ],
+  },
+  {
     version: '1.2.1',
     title: 'Community access',
     items: [

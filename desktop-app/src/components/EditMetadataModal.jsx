@@ -41,7 +41,11 @@ export default function EditMetadataModal({ open, game, onClose, onSave }) {
   const pickExeFor = async () => {
     if (!isElectron || !window.api?.pickExe) return;
     const r = await window.api.pickExe();
-    if (r?.exePath) set('exePath', r.exePath);
+    // BUGFIX v1.2.2 — main.js returns a raw string for pickExe (not an
+    // {exePath} object like pickImage does). Handle both shapes so the
+    // custom-exe field actually updates.
+    const picked = typeof r === 'string' ? r : (r && r.exePath) || null;
+    if (picked) set('exePath', picked);
   };
 
   const submit = () => {
