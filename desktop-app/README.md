@@ -95,20 +95,29 @@ before.
 
 ## Highlights
 
-- **6 dynamic themes** — Synthwave, Midnight, Ocean, Crimson, Anime, Mint
-  Garden (grouped Dark / Bright). Each with its own ambient particle field,
-  sound pack, and optional CRT boot animation.
+- **8 dynamic themes** — Synthwave, Midnight, Ocean, Crimson, Anime, Gaming,
+  Modern, Mint Garden — grouped Dark / Middle / Bright. Each with its own
+  ambient particle field, sound pack, and optional CRT boot animation.
 - **Smart Wizard** — pick folders, drives, or whole launcher install roots.
   Fast (5-deep) and **Deep Scan** (10-deep, 5000 files) for nested setups.
   Exclusion paths supported; back-button at every step.
 - **Auto-detect launchers** — Steam, Epic, EA App, GOG, Ubisoft, Battle.net,
-  Riot, Xbox / MS Store. Inactive launchers are dimmed.
+  Riot, Xbox / MS Store. Inactive launchers are dimmed. Only prompts on
+  first detection or when a NEW game is found — never nags on subsequent starts.
 - **Drag-drop** `.exe` / `.lnk` / **folders** onto the window — single files
   add instantly, folders open the Wizard and auto-scan.
+- **Multi-source metadata picker (v1.2.0)** — dedicated buttons for Steam,
+  GOG, itch.io, DLsite, VNDB, Ryuugames, F95Zone, Google/DDG, and Ask AI.
+  Results carousel with 1/N counter, arrow navigation, cover preview.
 - **Accept-before-add** metadata preview — pick exactly which fields (cover /
   description / genres / screenshots / dev / publisher / …) to apply, with
   All / Only changed / None presets.
-- **Edit Metadata** form — manual override with local `file://` image pickers.
+- **Customize panel** — one prominent button on every game detail page →
+  set custom **cover / icon / hero / background / screenshots / description**,
+  plus a custom **.exe path** and **launch arguments**.
+- **Tidy up — duplicate finder** — scans for same-exe, same-name, or
+  multiple-.exes-in-the-same-folder-tree clusters. Side-by-side compare,
+  keep one, remove the rest (files on disk untouched).
 - **Launcher tabs** — filter the sidebar by store (All / Steam / Epic / EA /
   GOG / Other).
 - **Pinned Games strip** + **Two-Row dense layout** + **resizable sidebar**.
@@ -116,19 +125,24 @@ before.
   Quick Sessions, AAA, Indie, Hidden Gems with one click.
 - **Granular Troubleshoot panel** — refetch from a specific source when one
   fails, without re-running the full Wizard.
+- **Discord Rich Presence** — game launches show "Playing X · via NEO-LIB".
 - **Live Deals strip** — Epic Free Games + Steam discounts + Instant Gaming
   hot deals, refreshed on launch. Affiliate-tagged so it helps fund updates.
   "All N" pill opens a full-grid popover; **Featured deal banner** above the
   bar showcases one IG hot deal at a time.
 - **Close-to-tray mode** — hide NEO-LIB to the system tray (next to the
   clock) instead of quitting. Right-click tray = Show / Quit.
-- **Auto-updater pill** in the title bar — checks GitHub Releases and shows
-  when a new version is out.
+- **Auto-updater pill** in the title bar — pulses when a new release is out.
 - **"What's new" toast** — auto-shows once after each update so you actually
   see what changed.
 - **Per-game ambient backdrop** — selected game's hero image subtly tints
   the theme behind it. Optional.
+- **Window bounds memory** — opens at 75% of your native screen on first
+  launch, remembers any resize / move between sessions.
+- **News tab (coming soon)** — placeholder for auto-collected patch notes
+  and dev announcements from every launcher, last 14 days only.
 - **PayPal donations** — "Buy me a coffee" modal with QR + direct link.
+- **Discord community** — join button in the title bar + Settings → About.
 
 ---
 
