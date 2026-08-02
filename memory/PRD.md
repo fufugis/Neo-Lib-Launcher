@@ -11,6 +11,17 @@ and a non-intrusive monetization system (Deals banners via Affiliate links).
 - CI: GitHub Actions builds NSIS `.exe` + portable `.zip` on tag push.
 - System tray (Electron Tray API) for close-to-tray behavior.
 
+## Version 1.2.7 — Feb 2, 2026
+**Category dot fixed · Effects moved · Time-bucketed showcase · Snappier news:**
+- Bug fix: Category dot toggle now hides both the meta dots (GameRow) AND the category header dot (`CategorySection`, line 900-911). Previously only the meta dots were gated.
+- Library settings popover z-index bumped from 30 → 70 so it overlays the GameDetail hero, not hidden behind screenshots. Also uses `glass-strong` for better readability.
+- Effects intensity slider **moved** from `SettingsModal` to `LibrarySettingsPopover` in the sidebar (where all other visual dials live). SettingsModal now shows an info hint pointing users there.
+- Effects `LEVEL_MAP` beefed up: Max now spawns 64 particles + 88 sakura + drifting radial blobs (2-3 layers) + pulsing viewport `boxShadow` edge glow. Every level from Low → Max is visibly distinct.
+- `LatestNewsPill` in `GameDetail.jsx` redesigned: full-width, big pulsing dot with LIVE label, gradient tint background, expandable snippet, gradient "Read full" CTA button.
+- News popup: removed backdrop blur + darkening, animation duration cut 220 → 140ms, positioned top-right corner instead of center — feels like a notification tray.
+- New `unseenNewsCount` state in App polls `news:fetchAll` every 10 min; renders as a pulsing red badge on the News tab. `settings.newsLastSeenAt` stamped when News is opened.
+- `ShowcaseStrip` restructured: horizontal buckets **This week (72px tiles) · This month (56px) · Long ago (44px icon-only w/ hover tooltip)** based on `lastPlayedAt` / `addedAt` matched to the active mode. Vertical group labels with per-bucket accent dot + count.
+
 ## Version 1.2.6 — Feb 2, 2026
 **Live news pill · Ubisoft deals · Frosted panels · Per-theme effects · Toolbar refresh:**
 - New IPC `news:latestForGame` — compact 15-min-cached lookup that returns the single newest news item across Steam / itch / GOG for one game.

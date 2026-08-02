@@ -4,9 +4,17 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.2.6-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.2.7-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.2.6 (Live news pill · Ubisoft deals · Frosted panels)
+### Latest — v1.2.7 (Category dot fixed · Effects moved · Time-bucketed showcase · Snappier news)
+- **Bug fix**: Category dot toggle now hides both the meta dots AND the category header dot.
+- **Sliders popover** now floats above the preview pane (z-70 instead of z-30).
+- **Effects slider moved** from Settings to the sidebar Sliders menu; Max level is now genuinely maxed (64 particles, drifting blobs, pulsing viewport edge glow).
+- **Latest news pill** on selected games — full-width, LIVE label, gradient tint, big blinking dot, "Read full" gradient CTA.
+- **News popup** slides in from the corner in ~140ms with no blur / no darken; **News tab pulses** when there are unseen items.
+- **Showcase strip** below the preview is smaller and horizontally bucketed: **This week** (big) → **This month** (medium) → **Long ago** (compact).
+
+### v1.2.6 (Live news pill · Ubisoft deals · Frosted panels)
 - **Live news pill** — every selected game shows a small pulsing "Latest news" pill above its description; click to expand, click "Read full" to open the source.
 - **Ubisoft deals** — deals bar now pulls Ubisoft Store offers alongside Steam / Epic / GOG / IG / Fanatical.
 - **Frosted panels** — primary surfaces (sidebar, About, gallery, showcase cards, deals bar) now use backdrop-blurred glass so the theme background breathes through.

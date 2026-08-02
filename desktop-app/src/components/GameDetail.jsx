@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play, RefreshCw, Calendar, Award, Building2, Globe, FolderOpen,
-  Tag, Sparkles, ChevronLeft, ChevronRight, Youtube, FileText, Wrench, Wand2,
+  Tag, Sparkles, ChevronLeft, ChevronRight, ChevronDown, Youtube, FileText, Wrench, Wand2, ExternalLink,
 } from 'lucide-react';
 import { cn, colorFromId } from '../lib/utils';
 import { hoverThrottled, playLaunch } from '../lib/sound';
@@ -764,43 +764,70 @@ function LatestNewsPill({ game }) {
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: -4 }}
+      initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
+      transition={{ duration: 0.28 }}
       onClick={() => setExpanded((v) => !v)}
-      className="group mb-3 cursor-pointer overflow-hidden rounded-lg hairline"
+      className="group mb-4 cursor-pointer overflow-hidden rounded-xl"
       style={{
-        backgroundColor: 'rgb(var(--accent)/0.06)',
-        borderColor: 'rgb(var(--accent)/0.35)',
-        boxShadow: expanded ? '0 0 20px -6px rgb(var(--accent)/0.5)' : 'none',
+        border: '1px solid rgb(var(--accent)/0.45)',
+        background:
+          'linear-gradient(135deg, rgb(var(--accent)/0.10) 0%, rgb(var(--accent-2)/0.06) 100%)',
+        boxShadow: expanded
+          ? '0 0 30px -8px rgb(var(--accent)/0.6), inset 0 1px 0 rgb(255,255,255,0.05)'
+          : '0 0 14px -6px rgb(var(--accent)/0.35), inset 0 1px 0 rgb(255,255,255,0.04)',
       }}
       data-testid="latest-news-pill"
     >
-      <div className="flex items-center gap-2.5 px-3 py-2">
-        {/* Blinking indicator dot */}
-        <motion.span
-          animate={{ opacity: [0.35, 1, 0.35] }}
-          transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-          className="inline-block h-2 w-2 shrink-0 rounded-full"
-          style={{
-            backgroundColor: 'rgb(var(--accent))',
-            boxShadow: '0 0 8px rgb(var(--accent))',
-          }}
-        />
-        <span className="text-[9.5px] font-bold uppercase tracking-[0.18em] text-[rgb(var(--accent))]">
-          Latest news
-        </span>
-        <span className="text-[10px] text-muted">· {platformLabel} · {timeStr}</span>
-        <span className="ml-1 truncate text-[12px] font-semibold text-ink group-hover:text-[rgb(var(--accent))] transition-colors">
-          {item.title}
-        </span>
-        <motion.span
+      <div className="flex items-center gap-3 px-4 py-3">
+        {/* Left rail — big pulsing indicator + LIVE label */}
+        <div className="flex shrink-0 items-center gap-2">
+          <motion.span
+            animate={{ opacity: [0.4, 1, 0.4], scale: [1, 1.25, 1] }}
+            transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{
+              backgroundColor: 'rgb(var(--accent))',
+              boxShadow: '0 0 12px rgb(var(--accent)), 0 0 22px rgb(var(--accent)/0.6)',
+            }}
+          />
+          <div className="flex flex-col leading-tight">
+            <span
+              className="text-[10px] font-extrabold uppercase tracking-[0.24em]"
+              style={{ color: 'rgb(var(--accent))' }}
+            >
+              Live news
+            </span>
+            <span className="text-[10px] text-muted">
+              {platformLabel} · {timeStr}
+            </span>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <span className="h-8 w-px shrink-0" style={{ background: 'rgb(var(--accent)/0.25)' }} />
+
+        {/* Title */}
+        <div className="min-w-0 flex-1">
+          <h4 className="truncate text-[14px] font-bold text-ink leading-snug group-hover:text-[rgb(var(--accent))] transition-colors">
+            {item.title}
+          </h4>
+          {!expanded && item.snippet && (
+            <p className="mt-0.5 truncate text-[11.5px] text-muted leading-relaxed">
+              {item.snippet}
+            </p>
+          )}
+        </div>
+
+        {/* Chevron */}
+        <motion.div
           animate={{ rotate: expanded ? 180 : 0 }}
           transition={{ duration: 0.2 }}
-          className="ml-auto text-[11px] text-muted"
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-full hairline"
+          style={{ backgroundColor: 'rgb(var(--accent)/0.12)', color: 'rgb(var(--accent))' }}
         >
-          ▾
-        </motion.span>
+          <ChevronDown size={14} />
+        </motion.div>
       </div>
 
       <AnimatePresence initial={false}>
@@ -813,18 +840,22 @@ function LatestNewsPill({ game }) {
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             className="overflow-hidden"
           >
-            <div className="px-3 pb-3 pt-1 border-t hairline">
+            <div className="px-4 pb-4 pt-2 border-t" style={{ borderColor: 'rgb(var(--accent)/0.25)' }}>
               {item.snippet && (
-                <p className="text-[12.5px] leading-relaxed text-muted line-clamp-4">
+                <p className="text-[12.5px] leading-relaxed text-muted line-clamp-6">
                   {item.snippet}
                 </p>
               )}
               <button
                 onClick={openLink}
                 data-testid="latest-news-open"
-                className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-[rgb(var(--accent-2))] hover:text-[rgb(var(--accent))]"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-md px-3 h-8 text-[11.5px] font-bold text-white"
+                style={{
+                  background: 'linear-gradient(135deg, rgb(var(--accent)) 0%, rgb(var(--accent-2)) 100%)',
+                  boxShadow: '0 0 14px -4px rgb(var(--accent)/0.7)',
+                }}
               >
-                Read full · {platformLabel} →
+                Read full on {platformLabel} <ExternalLink size={11} />
               </button>
             </div>
           </motion.div>

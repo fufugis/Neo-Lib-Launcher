@@ -15,6 +15,20 @@ import { Sparkles, Check, X } from 'lucide-react';
 
 export const CHANGELOG = [
   {
+    version: '1.2.7',
+    title: 'Category dot fixed · Effects moved · Time-bucketed showcase · Snappier news',
+    items: [
+      'Bug fix: Category dot toggle now hides BOTH the tiny dots next to game meta AND the colored circle next to each category header.',
+      'Library settings popover z-bumped to z-[70] so it overlays the game preview instead of hiding behind screenshots.',
+      'The Effects intensity slider moved from Settings → to the sidebar Sliders menu (where all the visual dials live).',
+      'Effects levels beefed up dramatically: Max now spawns 64 particles, 88 sakura petals, drifting radial blobs, and a pulsing accent-color edge glow around the entire viewport.',
+      'The "Latest news" pill on selected games is now full-width with a big blinking dot, LIVE label, gradient tint and a proper "Read full" button — click it or expand for the snippet.',
+      'News popup is now snappier — slides in from the top-right in 140ms with NO dark backdrop and NO blur. Feels like a native notification tray.',
+      'News tab now pulses with an unread badge when there are new items you haven\'t seen since last opening the tab.',
+      'Showcase strip below the preview is now smaller and horizontally bucketed into **This week** (big tiles), **This month** (medium), and **Long ago** (compact icons with hover-tooltips) — so recent-first is spatially obvious.',
+    ],
+  },
+  {
     version: '1.2.6',
     title: 'Live news pill · Ubisoft deals · Frosted panels · Per-theme effects · Toolbar refresh',
     items: [

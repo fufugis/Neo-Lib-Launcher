@@ -98,18 +98,101 @@ export default function ShowcaseStrip({ games, mode, setMode, onSelect, selected
 
       <div
         ref={scrollRef}
-        className="relative flex gap-3 overflow-x-auto px-6 pb-4 pt-2 [scrollbar-width:thin]"
+        className="relative flex items-stretch gap-4 overflow-x-auto px-6 pb-3 pt-1.5 [scrollbar-width:thin]"
         style={{ scrollbarWidth: 'thin' }}
       >
-        <AnimatePresence mode="popLayout">
-          {deal && <DealTile key={`deal-${deal.id}`} deal={deal} affiliate={settings.affiliate || {}} />}
-          {sorted.map((g, i) => (
-            <Tile key={g.id} g={g} mode={mode} selected={selectedId === g.id} index={i} onClick={() => onSelect(g.id)} />
+        {(() => {
+          // Bucket games into This Week / This Month / Long Ago based on the
+          // timestamp that matches the current mode. Playtime modes bucket by
+          // lastPlayedAt; add-based modes bucket by addedAt. Falls back to
+          // addedAt so newer additions always appear.
+          const now = Date.now();
+          const WEEK  = 7  * 86400_000;
+          const MONTH = 30 * 86400_000;
+          const timestampFor = (g) => {
+            if (mode === 'recent_played' || mode === 'most_played') return g.lastPlayedAt || g.addedAt || 0;
+            return g.addedAt || g.lastPlayedAt || 0;
+          };
+          const buckets = { week: [], month: [], long: [] };
+          for (const g of sorted) {
+            const ts = timestampFor(g);
+            const age = ts ? now - ts : Infinity;
+            if (age <= WEEK)       buckets.week.push(g);
+            else if (age <= MONTH) buckets.month.push(g);
+            else                    buckets.long.push(g);
+          }
+          const groups = [
+            { key: 'week',  label: 'This week',  tone: 'accent',   size: 'lg', games: buckets.week },
+            { key: 'month', label: 'This month', tone: 'accent-2', size: 'md', games: buckets.month },
+            { key: 'long',  label: 'Long ago',   tone: 'muted',    size: 'sm', games: buckets.long },
+          ];
+          const nonEmpty = groups.filter((gr) => gr.games.length > 0);
+          if (nonEmpty.length === 0) {
+            return <div className="px-2 py-4 text-xs text-muted">Nothing here yet.</div>;
+          }
+          return (
+            <>
+              {deal && <DealTile key={`deal-${deal.id}`} deal={deal} affiliate={settings.affiliate || {}} />}
+              {nonEmpty.map((gr, gi) => (
+                <ShowcaseGroup
+                  key={gr.key}
+                  label={gr.label}
+                  tone={gr.tone}
+                  size={gr.size}
+                  games={gr.games}
+                  mode={mode}
+                  onSelect={onSelect}
+                  selectedId={selectedId}
+                  showSeparator={gi > 0}
+                />
+              ))}
+            </>
+          );
+        })()}
+      </div>
+    </div>
+  );
+}
+
+function ShowcaseGroup({ label, tone, size, games, mode, onSelect, selectedId, showSeparator }) {
+  const toneColor =
+    tone === 'accent'   ? 'rgb(var(--accent))'   :
+    tone === 'accent-2' ? 'rgb(var(--accent-2))' :
+                          'rgb(var(--muted))';
+  return (
+    <div className="flex items-stretch gap-2">
+      {showSeparator && (
+        <span
+          aria-hidden
+          className="mx-1 w-px shrink-0 self-stretch"
+          style={{ background: 'linear-gradient(180deg, transparent, rgb(var(--border))/0.9, transparent)' }}
+        />
+      )}
+      <div className="flex flex-col gap-1.5">
+        <div
+          className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.24em]"
+          style={{ color: toneColor, textShadow: `0 0 6px ${toneColor}55` }}
+        >
+          <span
+            className="inline-block h-1 w-1 rounded-full"
+            style={{ background: toneColor, boxShadow: `0 0 6px ${toneColor}` }}
+          />
+          {label}
+          <span className="opacity-60">· {games.length}</span>
+        </div>
+        <div className="flex items-stretch gap-2">
+          {games.map((g, i) => (
+            <ShowcaseTile
+              key={g.id}
+              g={g}
+              size={size}
+              mode={mode}
+              selected={selectedId === g.id}
+              index={i}
+              onClick={() => onSelect(g.id)}
+            />
           ))}
-        </AnimatePresence>
-        {sorted.length === 0 && (
-          <div className="px-2 py-6 text-xs text-muted">Nothing here yet.</div>
-        )}
+        </div>
       </div>
     </div>
   );
@@ -123,6 +206,63 @@ function ScrollBtn({ children, onClick }) {
     >
       {children}
     </button>
+  );
+}
+
+function ShowcaseTile({ g, size, mode, selected, index, onClick }) {
+  const stat = (() => {
+    if (mode === 'most_played')  return g.playtime ? formatPlaytime(g.playtime) : '';
+    if (mode === 'recent_played') return g.lastPlayedAt ? formatRelative(g.lastPlayedAt) : '';
+    if (mode === 'recent_added')  return g.addedAt ? formatRelative(g.addedAt) : '';
+    if (mode === 'untouched')     return g.addedAt ? formatRelative(g.addedAt) : '';
+    return '';
+  })();
+  const dims =
+    size === 'lg' ? 'h-[72px] w-[128px]' :
+    size === 'md' ? 'h-[56px] w-[92px]'  :
+                    'h-[44px] w-[44px]';
+  const isSm = size === 'sm';
+
+  return (
+    <motion.button
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: Math.min(index * 0.018, 0.15) }}
+      whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.96 }}
+      onClick={onClick}
+      title={isSm ? `${g.name}${stat ? ' — ' + stat : ''}` : g.name}
+      data-testid={`showcase-tile-${g.id}`}
+      className={cn(
+        'showcase-card group relative shrink-0 overflow-hidden rounded-md hairline glass-soft text-left',
+        dims,
+        selected ? 'ring-1 ring-[rgb(var(--accent))] shadow-[0_0_16px_-2px_rgb(var(--accent)/0.55)]' : ''
+      )}
+    >
+      {(g.coverUrl || g.headerImage) ? (
+        <img
+          src={g.headerImage || g.coverUrl}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+        />
+      ) : (
+        <div className="absolute inset-0 grid place-items-center bg-[rgb(var(--surface))]/70 text-[10px] font-bold uppercase text-muted">
+          {g.name?.slice(0, 2)}
+        </div>
+      )}
+      {!isSm && <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />}
+      {!isSm && (
+        <div className="absolute inset-0 flex flex-col justify-end p-1.5">
+          <div className={cn(
+            'truncate font-semibold text-white',
+            size === 'lg' ? 'text-[11px]' : 'text-[10px]',
+          )}>{g.name}</div>
+          {stat && (
+            <div className="truncate text-[9px] text-[rgb(var(--accent-2))]">{stat}</div>
+          )}
+        </div>
+      )}
+    </motion.button>
   );
 }
 
@@ -190,7 +330,7 @@ function DealTile({ deal, affiliate }) {
       onClick={open}
       data-testid={`showcase-deal-${deal.platform}`}
       className={cn(
-        'showcase-card group relative h-[88px] w-[158px] shrink-0 overflow-hidden rounded-lg text-left',
+        'showcase-card group relative h-[72px] w-[128px] shrink-0 overflow-hidden rounded-md text-left',
         'ring-1 ring-[rgb(var(--accent)/0.55)]'
       )}
       style={{

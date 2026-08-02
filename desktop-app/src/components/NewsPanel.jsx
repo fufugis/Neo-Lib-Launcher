@@ -114,27 +114,21 @@ export default function NewsPanel({ games = [], onClose }) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 0.18 }}
-        className="fixed inset-0 z-[80] flex items-center justify-center p-6"
-        style={{
-          backgroundColor: 'rgba(4, 4, 10, 0.55)',
-          backdropFilter: 'blur(6px) saturate(115%)',
-          WebkitBackdropFilter: 'blur(6px) saturate(115%)',
-        }}
+        transition={{ duration: 0.08 }}
+        className="fixed inset-0 z-[80] flex items-start justify-end p-3 pt-16"
         onClick={onClose}
         data-testid="news-backdrop"
       >
         <motion.div
-          initial={{ opacity: 0, y: 20, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 12, scale: 0.98 }}
-          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-          className="relative flex w-full max-w-[720px] max-h-[78vh] flex-col overflow-hidden rounded-2xl hairline shadow-2xl"
+          initial={{ opacity: 0, x: 12, scale: 0.98 }}
+          animate={{ opacity: 1, x: 0, scale: 1 }}
+          exit={{ opacity: 0, x: 12, scale: 0.98 }}
+          transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
+          className="relative flex w-full max-w-[520px] max-h-[80vh] flex-col overflow-hidden rounded-2xl hairline"
           style={{
-            backgroundColor: 'rgb(var(--panel) / 0.86)',
-            backdropFilter: 'blur(18px) saturate(140%)',
-            WebkitBackdropFilter: 'blur(18px) saturate(140%)',
-            boxShadow: '0 30px 80px -20px rgba(0,0,0,0.7), 0 0 40px -10px rgb(var(--accent)/0.3)',
+            backgroundColor: 'rgb(var(--panel) / 0.96)',
+            border: '1px solid rgb(var(--accent) / 0.25)',
+            boxShadow: '0 20px 60px -20px rgba(0,0,0,0.85), 0 0 30px -8px rgb(var(--accent)/0.35)',
           }}
           onClick={(e) => e.stopPropagation()}
           data-testid="news-panel"

@@ -27,7 +27,7 @@ import TidyUpModal from './components/TidyUpModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.2.6';
+const APP_VERSION = '1.2.7';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin } from './lib/utils';
 import { setSoundPack } from './lib/sound';
@@ -607,7 +607,40 @@ export default function App() {
   const currentSelectedId = isTools ? selectedToolId : selectedId;
   const setCurrentSelectedId = isTools ? setSelectedToolId : setSelectedId;
 
-  const setMode = (m) => updateSetting({ mode: m });
+  const setMode = (m) => {
+    // Opening News: stamp the "last seen" timestamp so future items are counted as unseen.
+    if (m === 'news') updateSetting({ mode: m, newsLastSeenAt: Date.now() });
+    else updateSetting({ mode: m });
+  };
+
+  // Background poll for unseen news — count items newer than settings.newsLastSeenAt.
+  // Runs every 10 min while the app is open. Silent failure if not in Electron.
+  const [unseenNewsCount, setUnseenNewsCount] = React.useState(0);
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || !window.api?.fetchAllNews) return undefined;
+    let cancelled = false;
+    const check = async () => {
+      const games = (library.games || []).filter(
+        (g) => g && (g.appid || g.gogId || /itch\.io/.test(g.website || '') || g.source === 'itch')
+      );
+      if (!games.length) { setUnseenNewsCount(0); return; }
+      try {
+        const res = await window.api.fetchAllNews({
+          games: games.map((g) => ({ id: g.id, appid: g.appid, name: g.name, website: g.website, source: g.source, gogId: g.gogId })),
+          days: 14,
+          force: false,
+        });
+        if (cancelled) return;
+        const items = res?.items || [];
+        const seenAt = Number(settings.newsLastSeenAt || 0);
+        const unseen = items.filter((it) => Number(it.date || 0) > seenAt).length;
+        setUnseenNewsCount(unseen);
+      } catch { /* ignore */ }
+    };
+    check();
+    const iv = setInterval(check, 10 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(iv); };
+  }, [library.games, settings.newsLastSeenAt]);
 
   /* --- Helpers --- */
   const ensureOrder = (catId, gameIds) => {
@@ -1202,6 +1235,19 @@ export default function App() {
           onChangeCatTopGap={(v) => updateSetting({ catTopGap: v })}
           onChangeIconPosition={(v) => updateSetting({ iconPosition: v })}
           onToggleCategoryDot={(v) => updateSetting({ showCategoryDot: v })}
+          unseenNewsCount={unseenNewsCount}
+          effectsLevel={(() => {
+            const map = settings.effectsLevelByTheme || {};
+            const perTheme = map[settings.theme || 'synthwave'];
+            if (Number.isFinite(perTheme)) return perTheme;
+            return Number.isFinite(settings.effectsLevel) ? settings.effectsLevel : 2;
+          })()}
+          currentTheme={settings.theme || 'synthwave'}
+          onChangeEffectsLevel={(v) => {
+            const map = { ...(settings.effectsLevelByTheme || {}) };
+            map[settings.theme || 'synthwave'] = v;
+            updateSetting({ effectsLevelByTheme: map, effectsLevel: v });
+          }}
           mode={settings.mode || 'library'}
           onSetMode={setMode}
           launcherFilter={launcherFilter}
@@ -1576,11 +1622,11 @@ function BgAmbience({ theme, settings = {}, game = null }) {
     : (Number.isFinite(settings.effectsLevel) ? settings.effectsLevel : 2);
   const level = Math.max(0, Math.min(4, rawLevel));
   const LEVEL_MAP = [
-    { intensity: 0.00, particles: 0,  sakura: 0,  crimsonBoost: 0 },
-    { intensity: 0.55, particles: 4,  sakura: 8,  crimsonBoost: 2 },
-    { intensity: 1.00, particles: 10, sakura: 18, crimsonBoost: 4 },
-    { intensity: 1.35, particles: 20, sakura: 32, crimsonBoost: 8 },
-    { intensity: 1.75, particles: 36, sakura: 54, crimsonBoost: 14 },
+    { intensity: 0.00, particles: 0,  sakura: 0,  crimsonBoost: 0, edgeGlow: 0.0, extraLayers: 0 },
+    { intensity: 0.55, particles: 6,  sakura: 10, crimsonBoost: 3, edgeGlow: 0.25, extraLayers: 0 },
+    { intensity: 1.00, particles: 16, sakura: 24, crimsonBoost: 6, edgeGlow: 0.55, extraLayers: 1 },
+    { intensity: 1.55, particles: 34, sakura: 48, crimsonBoost: 14, edgeGlow: 0.85, extraLayers: 2 },
+    { intensity: 2.10, particles: 64, sakura: 88, crimsonBoost: 28, edgeGlow: 1.20, extraLayers: 3 },
   ];
   const lvl = LEVEL_MAP[level];
   const intensity = ((settings.gridIntensity ?? 100) / 100) * lvl.intensity;
@@ -1607,15 +1653,61 @@ function BgAmbience({ theme, settings = {}, game = null }) {
     />
   ) : null;
 
+  // Global edge glow — a giant vignette of the accent color that pulses around
+  // the window edges. Scales with the effects level so it's invisible at 0,
+  // subtle at Med, and unmistakable at Max. This is what makes higher levels
+  // feel "alive" — the whole viewport gets rimmed with accent light.
+  const edgeGlowLayer = lvl.edgeGlow > 0 ? (
+    <motion.div
+      key={`edge-${theme}-${level}`}
+      aria-hidden
+      className="pointer-events-none fixed inset-0 z-[5]"
+      initial={{ opacity: lvl.edgeGlow * 0.6 }}
+      animate={{ opacity: [lvl.edgeGlow * 0.55, lvl.edgeGlow * 1.0, lvl.edgeGlow * 0.55] }}
+      transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
+      style={{
+        boxShadow: `inset 0 0 ${Math.round(60 + lvl.edgeGlow * 120)}px ${Math.round(20 + lvl.edgeGlow * 40)}px rgb(var(--accent) / ${(0.15 + lvl.edgeGlow * 0.25).toFixed(2)})`,
+      }}
+    />
+  ) : null;
+
+  // Extra floating layers (only at High/Max) — soft radial blobs of accent-2
+  // that drift across the viewport. Cheap on GPU (just background-position
+  // animation), heavy on vibe.
+  const extraLayersEl = lvl.extraLayers > 0 ? (
+    <div aria-hidden className="pointer-events-none fixed inset-0 z-[3]">
+      {Array.from({ length: lvl.extraLayers }).map((_, i) => (
+        <motion.div
+          key={`blob-${i}`}
+          className="absolute rounded-full"
+          style={{
+            width: 500 + i * 120, height: 500 + i * 120,
+            left: `${20 + i * 25}%`, top: `${10 + i * 30}%`,
+            background: `radial-gradient(circle, rgb(var(--accent${i % 2 === 0 ? '' : '-2'}) / ${(0.10 + lvl.edgeGlow * 0.06).toFixed(2)}) 0%, transparent 65%)`,
+            filter: 'blur(40px)',
+          }}
+          animate={{
+            x: [0, 60, -40, 0],
+            y: [0, -30, 40, 0],
+          }}
+          transition={{ duration: 22 + i * 4, repeat: Infinity, ease: 'linear' }}
+        />
+      ))}
+    </div>
+  ) : null;
+
   // Vaporwave Day — clouds + neon grid floor
   if (theme === 'synthwave-day') {
     return (
       <>
         {gameBgLayer}
+        {extraLayersEl}
         <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden" style={{ opacity: intensity }}>
           <div className="vapor-clouds" />
           <div className="vapor-floor" />
+          {showParticles && <Particles count={lvl.particles} />}
         </div>
+        {edgeGlowLayer}
       </>
     );
   }
@@ -1624,6 +1716,7 @@ function BgAmbience({ theme, settings = {}, game = null }) {
     return (
       <>
         {gameBgLayer}
+        {extraLayersEl}
         <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden" style={{ opacity: intensity }}>
           <div className="synth-grid" />
           <div className="synth-horizon" />
@@ -1633,6 +1726,7 @@ function BgAmbience({ theme, settings = {}, game = null }) {
           />
           {showParticles && <Particles count={lvl.particles} />}
         </div>
+        {edgeGlowLayer}
       </>
     );
   }
@@ -1647,11 +1741,15 @@ function BgAmbience({ theme, settings = {}, game = null }) {
   }[theme];
   if (!ambClass) return null;
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden" style={{ opacity: intensity }}>
-      <div className={ambClass} />
-      {theme === 'anime' && lvl.sakura > 0 && <Sakura count={lvl.sakura} />}
-      {showParticles && <Particles count={theme === 'crimson' ? lvl.particles + lvl.crimsonBoost : lvl.particles} />}
-    </div>
+    <>
+      {extraLayersEl}
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden" style={{ opacity: intensity }}>
+        <div className={ambClass} />
+        {theme === 'anime' && lvl.sakura > 0 && <Sakura count={lvl.sakura} />}
+        {showParticles && <Particles count={theme === 'crimson' ? lvl.particles + lvl.crimsonBoost : lvl.particles} />}
+      </div>
+      {edgeGlowLayer}
+    </>
   );
 }
 

@@ -141,20 +141,13 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
         {/* Visual effects */}
         <Section title="Visual effects">
           <div className="space-y-3">
-            <EffectsLevelSlider
-              theme={settings.theme || 'synthwave'}
-              value={(() => {
-                const map = settings.effectsLevelByTheme || {};
-                const perTheme = map[settings.theme || 'synthwave'];
-                if (Number.isFinite(perTheme)) return perTheme;
-                return Number.isFinite(settings.effectsLevel) ? settings.effectsLevel : 2;
-              })()}
-              onChange={(v) => {
-                const map = { ...(settings.effectsLevelByTheme || {}) };
-                map[settings.theme || 'synthwave'] = v;
-                setKey({ effectsLevelByTheme: map, effectsLevel: v });
-              }}
-            />
+            <div className="rounded-md hairline bg-panel/30 p-2.5 text-[11px] text-muted flex items-start gap-2">
+              <span className="mt-0.5 text-[rgb(var(--accent))]">→</span>
+              <span>
+                <strong className="text-ink">Effects intensity</strong> lives on the sidebar
+                — click the <em>sliders</em> icon in the top toolbar to dial it.
+              </span>
+            </div>
             <Toggle
               label="Animations"
               hint="Smooth transitions, hover lifts, page reveals."
@@ -325,7 +318,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
 
         <Section title="About">
           <p className="text-xs text-muted leading-relaxed">
-            NEO-LIB v1.2.6. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
+            NEO-LIB v1.2.7. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
             Library data lives in <span className="font-mono text-ink">%APPDATA%/NEO-LIB</span>.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">

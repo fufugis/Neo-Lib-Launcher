@@ -29,6 +29,8 @@ export default function Sidebar({
   iconPosition = 'left', rowSize = 44, catTextSize = 11, catGlow = 40,
   rowGap = 2, catGap = 8, catTopGap = 4,
   showCategoryDot = true,
+  effectsLevel = 2, currentTheme = 'synthwave', onChangeEffectsLevel,
+  unseenNewsCount = 0,
   pinnedIds = [],
   onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
   onChangeRowGap, onChangeCatGap, onChangeCatTopGap, onToggleCategoryDot,
@@ -154,6 +156,7 @@ export default function Sidebar({
           onClick={() => onSetMode('news')}
           testid="tab-news"
           big
+          badge={typeof unseenNewsCount === 'number' && unseenNewsCount > 0 ? unseenNewsCount : null}
         />
         {/* Bottom accent line separating the toolbar from what's underneath */}
         <span
@@ -292,6 +295,9 @@ export default function Sidebar({
                 onChangeCatTopGap={onChangeCatTopGap}
                 onChangeIconPosition={onChangeIconPosition}
                 onToggleCategoryDot={onToggleCategoryDot}
+                effectsLevel={effectsLevel}
+                currentTheme={currentTheme}
+                onChangeEffectsLevel={onChangeEffectsLevel}
                 onClose={() => setLibSettingsOpen(false)}
                 onCreateCategory={onCreateCategory}
               />
@@ -517,7 +523,7 @@ function SideBtn({ icon, label, onClick, testid, title }) {
   );
 }
 
-function TabPill({ label, icon, active, onClick, testid, big = false }) {
+function TabPill({ label, icon, active, onClick, testid, big = false, badge = null }) {
   return (
     <button
       data-testid={testid}
@@ -564,6 +570,21 @@ function TabPill({ label, icon, active, onClick, testid, big = false }) {
       <span className="relative">
         {label}
       </span>
+      {/* Live badge — pulses when there's unseen news; also visible when tab isn't active */}
+      {badge != null && badge > 0 && (
+        <motion.span
+          animate={{ scale: [1, 1.15, 1], opacity: [0.85, 1, 0.85] }}
+          transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+          className="absolute top-1.5 right-2 grid min-w-[16px] h-4 place-items-center rounded-full px-1 text-[9px] font-black text-white"
+          style={{
+            background: 'linear-gradient(135deg, #ff3b6b 0%, #ff6b95 100%)',
+            boxShadow: '0 0 10px rgba(255,59,107,0.75)',
+          }}
+          data-testid="tab-news-badge"
+        >
+          {badge > 99 ? '99+' : badge}
+        </motion.span>
+      )}
       {active && (
         <motion.span
           layoutId="tab-underline"
@@ -600,8 +621,10 @@ function LauncherPill({ label, active, onClick, testid }) {
 function LibrarySettingsPopover({
   librarySize, rowSize = 44, catTextSize = 11, catGlow = 40, iconPosition = 'left',
   rowGap = 2, catGap = 8, catTopGap = 4, showCategoryDot = true,
+  effectsLevel = 2, currentTheme = 'synthwave',
   onSetLibrarySize, onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
   onChangeRowGap, onChangeCatGap, onChangeCatTopGap, onToggleCategoryDot,
+  onChangeEffectsLevel,
   onClose, onCreateCategory,
 }) {
   const ref = React.useRef(null);
@@ -625,7 +648,7 @@ function LibrarySettingsPopover({
       transition={{ duration: 0.14 }}
       onMouseDown={(e) => e.stopPropagation()}
       style={{ left: 0, top: '100%' }}
-      className="absolute z-30 mt-1 w-72 max-w-[calc(100vw-32px)] max-h-[80vh] overflow-y-auto rounded-lg hairline glass shadow-2xl p-3 space-y-3"
+      className="absolute z-[70] mt-1 w-72 max-w-[calc(100vw-32px)] max-h-[80vh] overflow-y-auto rounded-lg hairline glass-strong shadow-2xl p-3 space-y-3"
       data-testid="library-settings-popover"
     >
       <div
@@ -763,6 +786,16 @@ function LibrarySettingsPopover({
         </span>
       </button>
 
+      {/* Effects intensity (per-theme) — sits under the layout knobs so users
+          treat it as a "living room dimmer" for particles / sakura / glow. */}
+      <div className="rounded-md hairline bg-panel/40 p-2.5">
+        <EffectsPopSlider
+          theme={currentTheme}
+          value={effectsLevel}
+          onChange={onChangeEffectsLevel}
+        />
+      </div>
+
       <div className="h-px bg-[rgb(var(--border))]" />
       <button
         onClick={() => { onCreateCategory(); onClose(); }}
@@ -793,6 +826,47 @@ function PopSlider({ label, value, min, max, suffix = '', onChange, testid }) {
     </div>
   );
 }
+
+const EFFECTS_STAGES = ['None', 'Low', 'Medium', 'High', 'Max'];
+const EFFECTS_HINT = {
+  0: 'Off — flat & focused.',
+  1: 'A subtle dusting.',
+  2: 'Balanced default.',
+  3: 'Lots of drift & glow.',
+  4: 'Full arcade blast.',
+};
+function EffectsPopSlider({ theme, value, onChange }) {
+  const v = Math.max(0, Math.min(4, value | 0));
+  const themeLabel = String(theme || '').replace(/-/g, ' ');
+  return (
+    <div data-testid="pop-effects-level">
+      <div className="mb-1 flex items-center justify-between">
+        <div className="text-[11px] text-ink/90">
+          Effects intensity
+          <span className="ml-1.5 rounded bg-panel/60 px-1.5 py-0.5 text-[9px] uppercase tracking-widest text-muted">
+            {themeLabel} theme
+          </span>
+        </div>
+        <div className="text-[10.5px] font-bold" style={{ color: 'rgb(var(--accent-2))' }}>
+          {EFFECTS_STAGES[v]}
+        </div>
+      </div>
+      <input
+        type="range"
+        data-testid="opt-effects-level"
+        min={0} max={4} step={1}
+        value={v}
+        onChange={(e) => onChange && onChange(Number(e.target.value))}
+        className="w-full accent-[rgb(var(--accent))]"
+      />
+      <div className="mt-0.5 flex justify-between px-0.5 text-[8.5px] uppercase tracking-widest text-muted/70">
+        {EFFECTS_STAGES.map((s) => <span key={s}>{s}</span>)}
+      </div>
+      <div className="mt-0.5 text-[10px] text-muted">{EFFECTS_HINT[v]}</div>
+    </div>
+  );
+}
+
 
 /* ---------------- Section ---------------- */
 function Section({
