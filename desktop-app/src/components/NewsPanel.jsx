@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Newspaper, RefreshCw, ExternalLink, MessageCircle, Sparkles,
-  Users, Megaphone, Globe2, Filter, Gamepad2,
+  Users, Megaphone, Globe2, Filter, Gamepad2, X,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const isElectron = typeof window !== 'undefined' && !!window.api;
 
@@ -36,7 +37,7 @@ function timeAgo(ms) {
   return `${d}d ago`;
 }
 
-export default function NewsPanel({ games = [] }) {
+export default function NewsPanel({ games = [], onClose }) {
   const eligibleGames = useMemo(
     () => (games || []).filter((g) => g && (g.appid || g.gogId || /itch\.io/.test(g.website || '') || g.source === 'itch')),
     [games]
@@ -87,6 +88,14 @@ export default function NewsPanel({ games = [] }) {
     load(false);
   }, [eligibleGames.length]);
 
+  // Esc to close
+  useEffect(() => {
+    if (!onClose) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   const filtered = useMemo(
     () => state.items.filter((it) => enabledFeeds[classifyFeed(it)]),
     [state.items, enabledFeeds]
@@ -98,130 +107,175 @@ export default function NewsPanel({ games = [] }) {
     return c;
   }, [state.items]);
 
-  return (
-    <div className="flex-1 overflow-y-auto" data-testid="news-panel">
-      <div className="mx-auto max-w-3xl p-6 md:p-8">
-        {/* Header */}
-        <div className="mb-6 flex items-start gap-3">
-          <div
-            className="grid h-12 w-12 shrink-0 place-items-center rounded-full"
-            style={{
-              backgroundImage: 'linear-gradient(135deg, rgb(var(--accent)) 0%, rgb(var(--accent-2)) 100%)',
-              color: 'rgb(var(--surface))',
-            }}
-          >
-            <Newspaper size={22} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="font-display text-2xl font-bold tracking-tight">News</h2>
-              <span className="rounded-full bg-panel/70 hairline px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-muted">
-                Last 14 days
-              </span>
+  const body = (
+    <AnimatePresence>
+      <motion.div
+        key="news-backdrop"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+        className="fixed inset-0 z-[80] flex items-center justify-center p-6"
+        style={{
+          backgroundColor: 'rgba(4, 4, 10, 0.55)',
+          backdropFilter: 'blur(6px) saturate(115%)',
+          WebkitBackdropFilter: 'blur(6px) saturate(115%)',
+        }}
+        onClick={onClose}
+        data-testid="news-backdrop"
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 20, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 12, scale: 0.98 }}
+          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+          className="relative flex w-full max-w-[720px] max-h-[78vh] flex-col overflow-hidden rounded-2xl hairline shadow-2xl"
+          style={{
+            backgroundColor: 'rgb(var(--panel) / 0.86)',
+            backdropFilter: 'blur(18px) saturate(140%)',
+            WebkitBackdropFilter: 'blur(18px) saturate(140%)',
+            boxShadow: '0 30px 80px -20px rgba(0,0,0,0.7), 0 0 40px -10px rgb(var(--accent)/0.3)',
+          }}
+          onClick={(e) => e.stopPropagation()}
+          data-testid="news-panel"
+        >
+          {/* HEADER — fixed, doesn't scroll */}
+          <div className="flex items-start gap-3 border-b hairline px-6 pt-5 pb-4">
+            <div
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full"
+              style={{
+                backgroundImage: 'linear-gradient(135deg, rgb(var(--accent)) 0%, rgb(var(--accent-2)) 100%)',
+                color: 'rgb(var(--surface))',
+              }}
+            >
+              <Newspaper size={18} />
             </div>
-            <p className="text-sm text-muted">
-              {coveredCount ? (
-                <>
-                  Covering <span className="font-mono text-ink">{coveredCount}</span>{' '}
-                  {coveredCount === 1 ? 'game' : 'games'}
-                  {sourceCounts.steam > 0 && <> · <span className="text-ink/80">{sourceCounts.steam} Steam</span></>}
-                  {sourceCounts.itch > 0 && <> · <span className="text-ink/80">{sourceCounts.itch} itch</span></>}
-                  {sourceCounts.gog > 0 && <> · <span className="text-ink/80">{sourceCounts.gog} GOG</span></>}
-                </>
-              ) : (
-                <>Add Steam, itch.io or GOG games to your library to see updates here.</>
-              )}
-              {state.fetchedAt ? <span className="ml-1 opacity-60">· Updated {timeAgo(state.fetchedAt)}</span> : null}
-            </p>
-          </div>
-          <button
-            onClick={() => load(true)}
-            disabled={state.loading || !eligibleGames.length}
-            data-testid="news-refresh-btn"
-            className="inline-flex h-9 items-center gap-2 rounded-md px-3 text-[12px] font-bold hairline bg-panel/60 hover:bg-panel disabled:opacity-40"
-            title="Refresh news"
-          >
-            <RefreshCw size={13} className={state.loading ? 'animate-spin' : ''} />
-            {state.loading ? 'Loading…' : 'Refresh'}
-          </button>
-        </div>
-
-        {/* Feed filter toggle bar */}
-        {state.items.length > 0 && (
-          <div
-            className="mb-5 flex flex-wrap items-center gap-2 rounded-lg hairline bg-panel/40 p-2"
-            data-testid="news-feed-filters"
-          >
-            <div className="flex items-center gap-1 px-2 text-[10px] uppercase tracking-[0.2em] text-muted">
-              <Filter size={11} /> Feeds
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-display text-xl font-bold tracking-tight">News</h2>
+                <span className="rounded-full bg-panel/70 hairline px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-muted">
+                  Last 14 days
+                </span>
+              </div>
+              <p className="text-[12px] text-muted">
+                {coveredCount ? (
+                  <>
+                    Covering <span className="font-mono text-ink">{coveredCount}</span>{' '}
+                    {coveredCount === 1 ? 'game' : 'games'}
+                    {sourceCounts.steam > 0 && <> · <span className="text-ink/80">{sourceCounts.steam} Steam</span></>}
+                    {sourceCounts.itch > 0 && <> · <span className="text-ink/80">{sourceCounts.itch} itch</span></>}
+                    {sourceCounts.gog > 0 && <> · <span className="text-ink/80">{sourceCounts.gog} GOG</span></>}
+                  </>
+                ) : (
+                  <>Add Steam, itch.io or GOG games to see updates.</>
+                )}
+                {state.fetchedAt ? <span className="ml-1 opacity-60">· Updated {timeAgo(state.fetchedAt)}</span> : null}
+              </p>
             </div>
-            {(['official', 'community', 'thirdparty', 'itch', 'gog']).map((key) => {
-              if ((feedCounts[key] || 0) === 0) return null;
-              const meta = FEED_META[key];
-              const Icon = meta.icon;
-              const active = enabledFeeds[key];
-              const count = feedCounts[key] || 0;
-              return (
-                <button
-                  key={key}
-                  onClick={() => setEnabledFeeds((s) => ({ ...s, [key]: !s[key] }))}
-                  data-testid={`news-feed-${key}`}
-                  className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-semibold transition"
-                  style={{
-                    backgroundColor: active ? meta.color.replace('rgb', 'rgba').replace(')', ', 0.15)') : 'transparent',
-                    color: active ? meta.color : 'rgb(var(--muted))',
-                    border: `1px solid ${active ? meta.color.replace('rgb', 'rgba').replace(')', ', 0.35)') : 'rgba(255,255,255,0.06)'}`,
-                  }}
-                >
-                  <Icon size={11} />
-                  {meta.label}
-                  <span className="opacity-60">· {count}</span>
-                </button>
-              );
-            })}
-            <div className="ml-auto text-[11px] text-muted">
-              Showing <span className="font-mono text-ink">{filtered.length}</span> / {state.items.length}
-            </div>
+            <button
+              onClick={() => load(true)}
+              disabled={state.loading || !eligibleGames.length}
+              data-testid="news-refresh-btn"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-bold hairline bg-panel/60 hover:bg-panel disabled:opacity-40"
+              title="Refresh news"
+            >
+              <RefreshCw size={11} className={state.loading ? 'animate-spin' : ''} />
+              {state.loading ? 'Loading…' : 'Refresh'}
+            </button>
+            {onClose && (
+              <button
+                onClick={onClose}
+                data-testid="news-close-btn"
+                className="grid h-8 w-8 place-items-center rounded-md text-muted hover:text-ink hover:bg-panel/60"
+                title="Close (Esc)"
+              >
+                <X size={15} />
+              </button>
+            )}
           </div>
-        )}
 
-        {/* Body */}
-        {!eligibleGames.length ? (
-          <EmptyPlaceholder onDiscord={() => openExternal('https://discord.gg/spk6QWREk8')} />
-        ) : state.loading && !state.items.length ? (
-          <LoadingSkeleton />
-        ) : state.error ? (
-          <div className="rounded-lg hairline bg-panel/40 p-4 text-sm text-[rgb(var(--danger,240,120,120))]">
-            {state.error}
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="rounded-lg hairline bg-panel/40 p-6 text-center text-sm text-muted">
-            {state.items.length === 0
-              ? 'No updates from your games in the last 14 days.'
-              : 'All feeds are hidden — enable one above.'}
-          </div>
-        ) : (
-          <ul className="space-y-3">
-            {filtered.map((item, idx) => (
-              <NewsRow key={item.id} item={item} index={idx} onOpen={() => openExternal(item.url)} />
-            ))}
-          </ul>
-        )}
+          {/* BODY — this is the scroll region. min-h-0 lets flex-1 shrink & overflow. */}
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5" data-testid="news-scroll-body">
+            {/* Feed filter toggle bar */}
+            {state.items.length > 0 && (
+              <div
+                className="mb-4 flex flex-wrap items-center gap-2 rounded-lg hairline bg-panel/40 p-2"
+                data-testid="news-feed-filters"
+              >
+                <div className="flex items-center gap-1 px-2 text-[10px] uppercase tracking-[0.2em] text-muted">
+                  <Filter size={11} /> Feeds
+                </div>
+                {(['official', 'community', 'thirdparty', 'itch', 'gog']).map((key) => {
+                  if ((feedCounts[key] || 0) === 0) return null;
+                  const meta = FEED_META[key];
+                  const Icon = meta.icon;
+                  const active = enabledFeeds[key];
+                  const count = feedCounts[key] || 0;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setEnabledFeeds((s) => ({ ...s, [key]: !s[key] }))}
+                      data-testid={`news-feed-${key}`}
+                      className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-semibold transition"
+                      style={{
+                        backgroundColor: active ? meta.color.replace('rgb', 'rgba').replace(')', ', 0.15)') : 'transparent',
+                        color: active ? meta.color : 'rgb(var(--muted))',
+                        border: `1px solid ${active ? meta.color.replace('rgb', 'rgba').replace(')', ', 0.35)') : 'rgba(255,255,255,0.06)'}`,
+                      }}
+                    >
+                      <Icon size={11} />
+                      {meta.label}
+                      <span className="opacity-60">· {count}</span>
+                    </button>
+                  );
+                })}
+                <div className="ml-auto text-[11px] text-muted">
+                  Showing <span className="font-mono text-ink">{filtered.length}</span> / {state.items.length}
+                </div>
+              </div>
+            )}
 
-        {/* Footer note about uncovered games */}
-        {uncoveredCount > 0 && (
-          <div className="mt-8 rounded-lg hairline bg-panel/30 p-3 text-[12px] text-muted flex items-center gap-2">
-            <Sparkles size={12} className="text-[rgb(var(--accent-2))]" />
-            <span>
-              <span className="font-mono text-ink">{uncoveredCount}</span> {uncoveredCount === 1 ? 'game has' : 'games have'} no
-              Steam / itch / GOG source and won&apos;t appear here. Standalone launcher feeds are on the roadmap.
-            </span>
+            {!eligibleGames.length ? (
+              <EmptyPlaceholder onDiscord={() => openExternal('https://discord.gg/spk6QWREk8')} />
+            ) : state.loading && !state.items.length ? (
+              <LoadingSkeleton />
+            ) : state.error ? (
+              <div className="rounded-lg hairline bg-panel/40 p-4 text-sm text-[rgb(var(--danger,240,120,120))]">
+                {state.error}
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="rounded-lg hairline bg-panel/40 p-6 text-center text-sm text-muted">
+                {state.items.length === 0
+                  ? 'No updates from your games in the last 14 days.'
+                  : 'All feeds are hidden — enable one above.'}
+              </div>
+            ) : (
+              <ul className="space-y-3">
+                {filtered.map((item, idx) => (
+                  <NewsRow key={item.id} item={item} index={idx} onOpen={() => openExternal(item.url)} />
+                ))}
+              </ul>
+            )}
+
+            {uncoveredCount > 0 && (
+              <div className="mt-6 rounded-lg hairline bg-panel/30 p-3 text-[12px] text-muted flex items-center gap-2">
+                <Sparkles size={12} className="text-[rgb(var(--accent-2))]" />
+                <span>
+                  <span className="font-mono text-ink">{uncoveredCount}</span> {uncoveredCount === 1 ? 'game has' : 'games have'} no
+                  Steam / itch / GOG source and won&apos;t appear here.
+                </span>
+              </div>
+            )}
           </div>
-        )}
-      </div>
-    </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   );
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(body, document.body);
 }
+
 
 function NewsRow({ item, index, onOpen }) {
   const feedKey = classifyFeed(item);

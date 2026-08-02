@@ -27,7 +27,7 @@ import TidyUpModal from './components/TidyUpModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.2.4';
+const APP_VERSION = '1.2.5';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin } from './lib/utils';
 import { setSoundPack } from './lib/sound';
@@ -1231,28 +1231,24 @@ export default function App() {
 
         <main className="relative flex min-w-0 flex-1 flex-col">
           <div className="flex-1 min-h-0 overflow-hidden">
-            {settings.mode === 'news' ? (
-              <NewsPanel games={library.games} />
-            ) : (
-              <AnimatePresence mode="wait">
-                <GameDetail
-                  key={selected?.id || 'empty'}
-                  game={selected}
-                  categories={currentCats.filter((c) => !c.private || unlockedCategories.includes(c.id))}
-                  fetching={fetching}
-                  settings={settings}
-                  onLaunch={launchGame}
-                  onRefetch={(g) => setFetchPickerGame(g)}
+            <AnimatePresence mode="wait">
+              <GameDetail
+                key={selected?.id || 'empty'}
+                game={selected}
+                categories={currentCats.filter((c) => !c.private || unlockedCategories.includes(c.id))}
+                fetching={fetching}
+                settings={settings}
+                onLaunch={launchGame}
+                onRefetch={(g) => setFetchPickerGame(g)}
                   onRevealFolder={(g) => (isElectron ? window.api.revealInFolder(g.exePath) : notify('Open: ' + g.exePath))}
                   onToggleCategory={toggleGameInCategory}
                   onCustomize={(g) => setEditMetaGame(g)}
                 />
               </AnimatePresence>
-            )}
           </div>
 
           {/* Showcase strip below preview — only on Library tab */}
-          {!isTools && (
+          {!isTools && settings.mode !== 'news' && (
             <ShowcaseStrip
               games={visibleGames}
               mode={settings.showcaseMode || 'recent_added'}
@@ -1264,6 +1260,14 @@ export default function App() {
           )}
         </main>
       </div>
+
+      {/* News modal — floating popup overlay. Click backdrop / Esc / X to close. */}
+      {settings.mode === 'news' && (
+        <NewsPanel
+          games={library.games}
+          onClose={() => setMode('library')}
+        />
+      )}
 
       {/* Featured deal banner — sits above the rotating DealsBar.
           Only shown when deals are enabled, the featured slot isn't dismissed,
@@ -1561,7 +1565,20 @@ export default function App() {
 
 function BgAmbience({ theme, settings = {}, game = null }) {
   if (settings.synthGridEnabled === false) return null;
-  const intensity = (settings.gridIntensity ?? 100) / 100;
+  // Effects Level (0=None, 1=Low, 2=Med, 3=High, 4=Max) — one slider governs
+  // particles, sakura, glow, and the ambient overlay opacity. Legacy per-effect
+  // toggles still hard-disable, but the level controls how *much* of each.
+  const level = Math.max(0, Math.min(4, Number.isFinite(settings.effectsLevel) ? settings.effectsLevel : 2));
+  const LEVEL_MAP = [
+    { intensity: 0.00, particles: 0,  sakura: 0,  crimsonBoost: 0 },
+    { intensity: 0.55, particles: 4,  sakura: 8,  crimsonBoost: 2 },
+    { intensity: 1.00, particles: 10, sakura: 18, crimsonBoost: 4 },
+    { intensity: 1.35, particles: 20, sakura: 32, crimsonBoost: 8 },
+    { intensity: 1.75, particles: 36, sakura: 54, crimsonBoost: 14 },
+  ];
+  const lvl = LEVEL_MAP[level];
+  const intensity = ((settings.gridIntensity ?? 100) / 100) * lvl.intensity;
+  const showParticles = settings.particlesEnabled !== false && lvl.particles > 0;
   // Per-game custom backdrop — when settings.perGameBg is on, the currently selected
   // game's hero is rendered as a giant blurred wash behind the ambient. Subtle,
   // additive, never overwhelms the theme.
@@ -1608,7 +1625,7 @@ function BgAmbience({ theme, settings = {}, game = null }) {
             className="absolute -top-40 left-1/2 h-[60vh] w-[80vw] -translate-x-1/2 rounded-full opacity-30 blur-3xl"
             style={{ background: 'radial-gradient(circle, rgb(var(--accent)/0.45), transparent 60%)' }}
           />
-          {settings.particlesEnabled !== false && <Particles count={10} />}
+          {showParticles && <Particles count={lvl.particles} />}
         </div>
       </>
     );
@@ -1626,8 +1643,8 @@ function BgAmbience({ theme, settings = {}, game = null }) {
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden" style={{ opacity: intensity }}>
       <div className={ambClass} />
-      {theme === 'anime' && <Sakura count={18} />}
-      {settings.particlesEnabled !== false && <Particles count={theme === 'crimson' ? 14 : 8} />}
+      {theme === 'anime' && lvl.sakura > 0 && <Sakura count={lvl.sakura} />}
+      {showParticles && <Particles count={theme === 'crimson' ? lvl.particles + lvl.crimsonBoost : lvl.particles} />}
     </div>
   );
 }

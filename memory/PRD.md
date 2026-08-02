@@ -11,6 +11,17 @@ and a non-intrusive monetization system (Deals banners via Affiliate links).
 - CI: GitHub Actions builds NSIS `.exe` + portable `.zip` on tag push.
 - System tray (Electron Tray API) for close-to-tray behavior.
 
+## Version 1.2.5 — Feb 2, 2026
+**Installer fix + Deals expansion + News popup + Effects dial:**
+- Installer bug fixed: replaced flaky `MUI_FINISHPAGE_RUN` checkbox with `build/installer.nsh` custom NSIS hook that ExecShells the app from `customInstall` (fires after files are copied, guaranteed non-elevated).
+- `package.json` nsis: `runAfterFinish: false` + `include: "build/installer.nsh"`.
+- Deals expanded — new sources: GOG discounted catalog (up to 12 items, 40%+ off) and Fanatical `stardeal` (covers EA/Ubisoft titles).
+- Platform badge overlay on every deal card (`PlatformBadge` component in `DealsBar.jsx`) — STEAM / EPIC / GOG / IG / FAN with brand-matched gradients.
+- "All N" pill: animated pulse loop (framer-motion), flame icon, accent gradient background.
+- News tab: converted from full-panel replacement to a floating modal via `createPortal(body, document.body)`. Backdrop uses `backdrop-blur(6px)` + darkening layer. Modal itself uses `backdrop-blur(18px) saturate(140%)`. Body scrolls (uses `flex-1 min-h-0 overflow-y-auto`). Close via Esc, X, or backdrop click.
+- New `EffectsLevelSlider` (5 discrete stages: None/Low/Medium/High/Max) — single control in `SettingsModal.jsx` that scales particles, sakura, and overlay opacity together via the `LEVEL_MAP` in `BgAmbience`.
+- Affiliate revenue audit: verified Instant Gaming direct `?igr=gamer-1485e8f`, Skimlinks catch-all fallback wraps every else, Skimlinks JS auto-injected in `main.jsx`.
+
 ## Version 1.2.4 — Feb 2, 2026
 **Build IDs, itch devlogs & GOG patch notes:**
 - New IPC `steam:manifest` — reads `%STEAM%\steamapps\appmanifest_<appid>.acf` on demand (5-min per-appid cache) and returns `buildid`, `LastUpdated`, `SizeOnDisk`.

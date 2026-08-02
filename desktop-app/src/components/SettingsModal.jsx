@@ -141,6 +141,10 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
         {/* Visual effects */}
         <Section title="Visual effects">
           <div className="space-y-3">
+            <EffectsLevelSlider
+              value={Number.isFinite(settings.effectsLevel) ? settings.effectsLevel : 2}
+              onChange={(v) => setKey({ effectsLevel: v })}
+            />
             <Toggle
               label="Animations"
               hint="Smooth transitions, hover lifts, page reveals."
@@ -311,7 +315,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
 
         <Section title="About">
           <p className="text-xs text-muted leading-relaxed">
-            NEO-LIB v1.2.4. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
+            NEO-LIB v1.2.5. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
             Library data lives in <span className="font-mono text-ink">%APPDATA%/NEO-LIB</span>.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -480,4 +484,53 @@ function Slider({ label, value, min, max, onChange, suffix = '', testid }) {
   );
 }
 
+
+
+/**
+ * EffectsLevelSlider — 5 discrete stages (None / Low / Medium / High / Max) that
+ * scale particles, sakura, glow opacity, and ambient overlays together. One
+ * knob so users can dial down flashiness for battery-saver / focus modes,
+ * or crank it for retro-arcade demo screens.
+ */
+const EFFECTS_STAGES = ['None', 'Low', 'Medium', 'High', 'Max'];
+const EFFECTS_HINT = {
+  0: 'Particles, sakura, and neon glow are off.',
+  1: 'A tiny dusting of ambient life.',
+  2: 'Balanced — the default retro look.',
+  3: 'Lots of drifting particles, brighter grid glow.',
+  4: 'Full arcade — max particles, max glow, max sparkle.',
+};
+function EffectsLevelSlider({ value, onChange }) {
+  const v = Math.max(0, Math.min(4, value | 0));
+  return (
+    <div data-testid="effects-level-wrapper">
+      <div className="mb-1.5 flex items-center justify-between">
+        <div>
+          <div className="text-[13px] font-medium">Effects intensity</div>
+          <div className="text-[11px] text-muted mt-0.5">{EFFECTS_HINT[v]}</div>
+        </div>
+        <div
+          className="text-[11px] font-bold neon-text-cyan"
+          style={{ color: 'rgb(var(--accent-2))' }}
+        >
+          {EFFECTS_STAGES[v]}
+        </div>
+      </div>
+      <input
+        type="range"
+        data-testid="opt-effects-level"
+        min={0}
+        max={4}
+        step={1}
+        value={v}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full accent-[rgb(var(--accent))]"
+      />
+      {/* Stage tick marks */}
+      <div className="mt-1 flex justify-between px-0.5 text-[9px] uppercase tracking-widest text-muted/70">
+        {EFFECTS_STAGES.map((s) => <span key={s}>{s}</span>)}
+      </div>
+    </div>
+  );
+}
 

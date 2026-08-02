@@ -1,7 +1,41 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Tag, ExternalLink, Heart, Grid3x3 } from 'lucide-react';
+import { X, Tag, ExternalLink, Heart, Grid3x3, Flame } from 'lucide-react';
 import { wrapDealUrl } from '../lib/deals';
+
+// Platform metadata for the deal badge overlay on each card image.
+// Colors mirror each store's brand accent so users spot the source instantly.
+const PLATFORM_META = {
+  steam:           { label: 'STEAM',  bg: 'linear-gradient(135deg,#1b2838 0%,#2a475e 100%)', color: '#66c0f4' },
+  epic:            { label: 'EPIC',   bg: 'linear-gradient(135deg,#0e0e10 0%,#313131 100%)', color: '#ffffff' },
+  gog:             { label: 'GOG',    bg: 'linear-gradient(135deg,#6a1b9a 0%,#8e24aa 100%)', color: '#e1bee7' },
+  'instant-gaming':{ label: 'IG',     bg: 'linear-gradient(135deg,#d63920 0%,#f26e50 100%)', color: '#ffe1d5' },
+  fanatical:       { label: 'FAN',    bg: 'linear-gradient(135deg,#0a5cff 0%,#38a1ff 100%)', color: '#dbeaff' },
+  ea:              { label: 'EA',     bg: 'linear-gradient(135deg,#ff2d2d 0%,#ff6f6f 100%)', color: '#fff' },
+  ubisoft:         { label: 'UBI',    bg: 'linear-gradient(135deg,#0084ff 0%,#41c1ff 100%)', color: '#fff' },
+};
+
+function PlatformBadge({ platform, size = 'md' }) {
+  const meta = PLATFORM_META[platform];
+  if (!meta) return null;
+  const tiny = size === 'sm';
+  return (
+    <span
+      className="absolute left-1 top-1 rounded font-bold uppercase tracking-widest shadow-lg"
+      style={{
+        background: meta.bg,
+        color: meta.color,
+        fontSize: tiny ? 8 : 9,
+        padding: tiny ? '1px 4px' : '2px 5px',
+        letterSpacing: '0.1em',
+        border: '1px solid rgba(255,255,255,0.14)',
+      }}
+      data-testid={`platform-badge-${platform}`}
+    >
+      {meta.label}
+    </span>
+  );
+}
 
 /**
  * DealsBar — 50px tall bar at the bottom of the window showing rotating deals.
@@ -74,8 +108,9 @@ export default function DealsBar({ settings = {}, onClose, onDonate }) {
             className="absolute inset-0 flex w-full items-center gap-3 text-left hover:bg-[rgb(var(--accent)/0.06)] rounded transition-colors px-1"
             data-testid={`deal-${d.platform}`}
           >
-            <div className="h-9 w-16 shrink-0 overflow-hidden rounded hairline bg-surface/60">
+            <div className="relative h-9 w-16 shrink-0 overflow-hidden rounded hairline bg-surface/60">
               {d.image && <img src={d.image} alt="" className="h-full w-full object-cover" />}
+              <PlatformBadge platform={d.platform} size="sm" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="truncate text-[12px] font-semibold text-ink">{d.title}</div>
@@ -115,21 +150,28 @@ export default function DealsBar({ settings = {}, onClose, onDonate }) {
         ))}
       </div>
 
-      {/* View all — opt-in popover with every deal */}
-      <button
+      {/* View all — punchier pill with a subtle pulse to nudge discovery */}
+      <motion.button
         data-testid="deals-bar-view-all"
         onClick={() => setAllOpen((o) => !o)}
         title={`View all ${items.length} deals`}
-        className={
-          'flex items-center gap-1.5 rounded-full hairline px-2.5 h-7 text-[10.5px] transition-colors ' +
-          (allOpen
-            ? 'border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.12)] text-ink'
-            : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)]')
-        }
+        whileHover={{ scale: 1.06 }}
+        whileTap={{ scale: 0.96 }}
+        animate={allOpen ? { scale: 1 } : { scale: [1, 1.04, 1] }}
+        transition={allOpen ? { duration: 0.2 } : { duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+        className="relative flex items-center gap-1.5 rounded-full px-3 h-7 text-[10.5px] font-bold uppercase tracking-wider text-white"
+        style={{
+          background: allOpen
+            ? 'linear-gradient(135deg, rgb(var(--accent)) 0%, rgb(var(--accent-2)) 100%)'
+            : 'linear-gradient(135deg, rgb(var(--accent)/0.85) 0%, rgb(var(--accent-2)/0.85) 100%)',
+          boxShadow: allOpen
+            ? '0 0 18px -2px rgb(var(--accent)/0.7)'
+            : '0 0 10px -3px rgb(var(--accent)/0.5)',
+        }}
       >
-        <Grid3x3 size={11} />
-        <span className="hidden md:inline">All {items.length}</span>
-      </button>
+        <Flame size={11} className="drop-shadow" />
+        <span>All {items.length}</span>
+      </motion.button>
 
       <button
         data-testid="deals-bar-donate"
@@ -191,8 +233,9 @@ export default function DealsBar({ settings = {}, onClose, onDonate }) {
                     data-testid={`deals-popover-item-${it.platform}`}
                     className="flex w-full items-center gap-2.5 rounded-lg hairline bg-surface/40 p-2 text-left transition-colors hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.06)]"
                   >
-                    <div className="h-10 w-16 shrink-0 overflow-hidden rounded hairline bg-surface/60">
+                    <div className="relative h-10 w-16 shrink-0 overflow-hidden rounded hairline bg-surface/60">
                       {it.image && <img src={it.image} alt="" className="h-full w-full object-cover" />}
+                      <PlatformBadge platform={it.platform} size="sm" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[12px] font-semibold text-ink">{it.title}</div>

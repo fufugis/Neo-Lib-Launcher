@@ -15,6 +15,19 @@ import { Sparkles, Check, X } from 'lucide-react';
 
 export const CHANGELOG = [
   {
+    version: '1.2.5',
+    title: 'Installer fix · Deals expanded · News as floating popup · Effects dial',
+    items: [
+      'Bug fix: Ticking "Run NEO-LIB after install" in the installer now actually launches the app. The flaky MUI finish-page checkbox was replaced with a robust custom NSIS hook that always fires post-install.',
+      'Deals bar now pulls from **GOG** discounts (public catalog, up to 12 items at 40%+ off) and **Fanatical** star deal (covers many EA / Ubisoft titles).',
+      'Platform badges — every deal card now shows a small colored badge (STEAM / EPIC / GOG / IG / FAN) on its image so you can see the source at a glance.',
+      '"All N" pill is punchier — animated pulse, accent gradient background, flame icon. Impossible to miss.',
+      'News is now a floating popup instead of a full pane — backdrop blurs and darkens the app, focus lands on the feed. Scrolls properly. Close with Esc / X / click-outside.',
+      'New "Effects intensity" slider in Settings → Visual effects. Single dial, 5 stages: None → Low → Medium → High → Max. Scales particles, sakura, glow, and grid brightness together.',
+      'Revenue linkage audit — all wrapped deal URLs route through Instant Gaming (direct 3% commission), Awin, or Skimlinks catch-all. Skimlinks JS is auto-injected on boot so every anchor click gets tracked.',
+    ],
+  },
+  {
     version: '1.2.4',
     title: 'Build IDs, itch devlogs & GOG patch notes',
     items: [

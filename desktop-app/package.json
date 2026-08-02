@@ -1,7 +1,7 @@
 {
   "name": "neo-lib",
   "productName": "NEO-LIB",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "A synthwave-flavored, multi-source game library for Windows.",
   "main": "electron/main.js",
   "author": {
@@ -69,7 +69,8 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "NEO-LIB",
-      "runAfterFinish": true,
+      "runAfterFinish": false,
+      "include": "build/installer.nsh",
       "deleteAppDataOnUninstall": false
     }
   }

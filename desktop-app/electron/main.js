@@ -2137,6 +2137,57 @@ ipcMain.handle('deals:fetch', async () => {
     }
   } catch (e) { /* IG unreachable — keep the other deals */ }
 
+  // -- GOG top discounts (public catalog API, no auth needed).
+  //    Wide selection (~10-15 items) at 40%+ off. Includes many EA/Ubi
+  //    titles since GOG sells them too. Wrapped through Skimlinks for revenue.
+  try {
+    const url = 'https://catalog.gog.com/v1/catalog?limit=15&order=desc:discount&price=discounted:eq:true&productType=in:game,pack';
+    const data = await httpGetJson(url, 8000);
+    const prods = (data?.products || []).slice(0, 12);
+    for (const p of prods) {
+      const disc = String(p?.price?.discount || '').replace(/[^0-9]/g, '');
+      const discPct = parseInt(disc, 10) || 0;
+      if (discPct < 40) continue;
+      items.push({
+        id: `gog-${p.id}`,
+        platform: 'gog',
+        title: p.title,
+        subtitle: `-${discPct}% · GOG`,
+        priceText: p?.price?.final || '',
+        originalPrice: p?.price?.base || '',
+        image: (p.coverHorizontal || p.image || '').replace(/^\/\//, 'https://'),
+        url: `https://www.gog.com${p.storeLink || ''}`,
+        discount: discPct,
+      });
+    }
+  } catch (e) { /* GOG catalog unreachable — skip */ }
+
+  // -- Fanatical star deal (single big-ticket deal, updated daily).
+  //    Fanatical carries a lot of EA / Ubisoft catalog titles + Steam keys.
+  //    Wrapped via Awin (MID 18809 covers Fanatical) once approved, else Skimlinks.
+  try {
+    const fan = await httpGetJson('https://www.fanatical.com/api/all/en', 8000);
+    const sd = fan?.stardeal;
+    if (sd && sd.slug && sd.discount_percent > 20) {
+      const priceUsd = sd?.price?.USD;
+      const fullUsd  = sd?.fullPrice?.USD;
+      const cover = sd.cover
+        ? `https://fanatical.imgix.net/product/original/${sd.cover}?auto=compress,format&w=400`
+        : '';
+      items.push({
+        id: `fan-star-${sd.slug}`,
+        platform: 'fanatical',
+        title: sd.name,
+        subtitle: `-${sd.discount_percent}% · Fanatical star deal`,
+        priceText: priceUsd != null ? `$${Number(priceUsd).toFixed(2)}` : '',
+        originalPrice: fullUsd != null ? `$${Number(fullUsd).toFixed(2)}` : '',
+        image: cover,
+        url: `https://www.fanatical.com/en/game/${sd.slug}`,
+        discount: sd.discount_percent,
+      });
+    }
+  } catch (e) { /* Fanatical unreachable — skip */ }
+
   DEALS_CACHE = { ts: Date.now(), items };
   return items;
 });
