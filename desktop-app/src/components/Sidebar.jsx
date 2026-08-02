@@ -108,7 +108,7 @@ export default function Sidebar({
 
   return (
     <aside
-      className="relative flex h-full shrink-0 flex-col border-r hairline bg-panel/40"
+      className="relative flex h-full shrink-0 flex-col border-r hairline glass-soft"
       style={{ width: sidebarWidth }}
     >
       {/* Resize handle on right edge */}
@@ -119,11 +119,21 @@ export default function Sidebar({
         className="absolute right-0 top-0 z-30 h-full w-1.5 cursor-col-resize hover:bg-[rgb(var(--accent)/0.4)] transition-colors"
         style={{ touchAction: 'none' }}
       />
-      {/* Tab bar — Library / Tools / News (primary) */}
-      <div className="flex items-center gap-1 p-2 pb-0">
+      {/* Top toolbar — Library / Tools / News. Frosted band that stretches
+          across the sidebar, gradient underline separates it from category tree. */}
+      <div
+        className="relative flex items-stretch gap-0.5 px-2 pt-2.5 pb-2"
+        style={{
+          background:
+            'linear-gradient(180deg, rgb(var(--surface)/0.55) 0%, rgb(var(--surface)/0.15) 100%)',
+          backdropFilter: 'blur(12px) saturate(140%)',
+          WebkitBackdropFilter: 'blur(12px) saturate(140%)',
+        }}
+        data-testid="top-toolbar"
+      >
         <TabPill
           label="Library"
-          icon={<LibIcon size={12} />}
+          icon={<LibIcon size={14} />}
           active={mode !== 'tools' && mode !== 'news'}
           onClick={() => { onSetMode('library'); onSetLauncherFilter?.('all'); }}
           testid="tab-library"
@@ -131,7 +141,7 @@ export default function Sidebar({
         />
         <TabPill
           label="Tools"
-          icon={<Wrench size={12} />}
+          icon={<Wrench size={14} />}
           active={mode === 'tools'}
           onClick={() => onSetMode('tools')}
           testid="tab-tools"
@@ -139,11 +149,20 @@ export default function Sidebar({
         />
         <TabPill
           label="News"
-          icon={<Newspaper size={12} />}
+          icon={<Newspaper size={14} />}
           active={mode === 'news'}
           onClick={() => onSetMode('news')}
           testid="tab-news"
           big
+        />
+        {/* Bottom accent line separating the toolbar from what's underneath */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute bottom-0 left-0 right-0 h-px"
+          style={{
+            background:
+              'linear-gradient(90deg, transparent 0%, rgb(var(--accent)/0.5) 50%, transparent 100%)',
+          }}
         />
       </div>
 
@@ -504,24 +523,55 @@ function TabPill({ label, icon, active, onClick, testid, big = false }) {
       data-testid={testid}
       onClick={onClick}
       className={cn(
-        'group relative inline-flex flex-1 items-center justify-center gap-1.5 rounded-md transition-all',
-        big ? 'px-3 h-10 text-[12.5px]' : 'px-3 h-8 text-[11px]',
-        'font-bold uppercase tracking-[0.22em]',
+        'group relative inline-flex flex-1 items-center justify-center gap-2 rounded-lg transition-all overflow-hidden',
+        big ? 'px-3.5 h-11 text-[12px]' : 'px-3 h-8 text-[11px]',
+        'font-bold uppercase tracking-[0.24em]',
         active
-          ? 'text-ink bg-[rgb(var(--accent)/0.18)] hairline border-[rgb(var(--accent)/0.85)] shadow-[0_0_18px_-4px_rgb(var(--accent)/0.7)]'
-          : 'text-muted hover:text-ink hover:bg-panel/60'
+          ? 'text-ink'
+          : 'text-muted/80 hover:text-ink'
       )}
+      style={{
+        background: active
+          ? 'linear-gradient(180deg, rgb(var(--accent)/0.22) 0%, rgb(var(--accent)/0.08) 100%)'
+          : 'transparent',
+        border: `1px solid ${active ? 'rgb(var(--accent)/0.55)' : 'transparent'}`,
+        boxShadow: active
+          ? '0 0 16px -4px rgb(var(--accent)/0.55), inset 0 1px 0 rgb(255,255,255,0.05)'
+          : 'none',
+      }}
+      onMouseEnter={(e) => {
+        if (!active) {
+          e.currentTarget.style.background = 'rgb(var(--panel)/0.55)';
+          e.currentTarget.style.borderColor = 'rgb(var(--border)/0.6)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!active) {
+          e.currentTarget.style.background = 'transparent';
+          e.currentTarget.style.borderColor = 'transparent';
+        }
+      }}
     >
-      <span className={active ? 'text-[rgb(var(--accent))]' : 'text-muted'}>{icon}</span>
-      {label}
+      <span
+        className="grid h-6 w-6 place-items-center rounded transition-colors"
+        style={{
+          backgroundColor: active ? 'rgb(var(--accent)/0.2)' : 'transparent',
+          color: active ? 'rgb(var(--accent))' : 'currentColor',
+        }}
+      >
+        {icon}
+      </span>
+      <span className="relative">
+        {label}
+      </span>
       {active && (
         <motion.span
           layoutId="tab-underline"
-          className="pointer-events-none absolute -bottom-0.5 left-3 right-3 h-[2px] rounded-full"
+          className="pointer-events-none absolute bottom-1 left-4 right-4 h-[2px] rounded-full"
           style={{
             background:
               'linear-gradient(90deg, transparent, rgb(var(--accent)) 50%, transparent)',
-            boxShadow: '0 0 8px rgb(var(--accent))',
+            boxShadow: '0 0 10px rgb(var(--accent))',
           }}
         />
       )}

@@ -87,8 +87,8 @@ export default function DealsBar({ settings = {}, onClose, onDonate }) {
   return (
     <div
       data-testid="deals-bar"
-      className="relative z-20 flex h-[50px] shrink-0 items-center gap-3 border-t hairline px-4"
-      style={{ backgroundColor: 'rgb(var(--surface) / 0.85)', backdropFilter: 'blur(10px) saturate(140%)' }}
+      className="relative z-20 flex h-[50px] shrink-0 items-center gap-3 border-t hairline px-4 glass-soft"
+      style={{}}
     >
       {/* Sponsored label */}
       <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.22em] text-muted/80">

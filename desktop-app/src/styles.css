@@ -178,10 +178,28 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
 /* ===== Utility classes ===== */
 .hairline { border: 1px solid rgb(var(--border)); }
 
+/* Frosted glass panel — used on primary surfaces (sidebar, cards, previews).
+   Uses a slightly translucent panel colour + heavy backdrop blur so the
+   ambient bg (grid/theme/particles) shows through, avoiding the "stack of
+   opaque bricks" feel. */
 .glass {
-  background: rgb(var(--panel) / 0.78);
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  background: rgb(var(--panel) / 0.68);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+}
+.glass-soft {
+  background: rgb(var(--panel) / 0.42);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+}
+.glass-strong {
+  background: rgb(var(--panel) / 0.82);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+}
+/* Subtle inner highlight to lift glass panels off the background */
+.glass, .glass-soft, .glass-strong {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 6px 24px -12px rgb(0 0 0 / 0.5);
 }
 
 .kbd {

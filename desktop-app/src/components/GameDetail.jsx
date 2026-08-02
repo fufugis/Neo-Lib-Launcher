@@ -159,12 +159,13 @@ export default function GameDetail({
         <MetaStrip game={game} />
       </div>
 
-      <div className="grid flex-1 min-h-0 grid-cols-[1.4fr_1fr] gap-4 px-6 py-5">
+      <div className="grid flex-1 min-h-0 grid-cols-[1.4fr_1fr] gap-5 px-6 py-5">
         {/* LEFT — scrollable text panel (About + meta footer) */}
         <section
           className="min-h-0 overflow-y-auto rounded-lg hairline bg-panel/30 px-5 py-4"
           data-testid="game-text-panel"
         >
+          <LatestNewsPill game={game} />
           <h3 className="mb-3 text-[10px] uppercase tracking-[0.28em] text-muted">About</h3>
           <p className="whitespace-pre-line text-[13.5px] leading-relaxed text-muted">
             {game.about ||
@@ -203,7 +204,7 @@ export default function GameDetail({
 
         {/* RIGHT — gallery: one big shot + clickable thumbnail strip */}
         <section
-          className="flex min-h-0 flex-col gap-2 rounded-lg hairline bg-panel/30 p-3"
+          className="flex min-h-0 flex-col gap-2 rounded-xl hairline glass p-3"
           data-testid="game-gallery-panel"
         >
           <GalleryBox shots={game.screenshots || []} />
@@ -724,3 +725,111 @@ function SteamManifestLine({ game }) {
   );
 }
 
+
+
+function LatestNewsPill({ game }) {
+  const [item, setItem] = React.useState(null);
+  const [expanded, setExpanded] = React.useState(false);
+
+  React.useEffect(() => {
+    let alive = true;
+    setItem(null); setExpanded(false);
+    if (!game) return () => { alive = false; };
+    const eligible = game.appid || game.gogId || /itch\.io/.test(game.website || '') || game.source === 'itch';
+    if (!eligible) return () => { alive = false; };
+    if (!(typeof window !== 'undefined' && window.api?.latestNewsForGame)) return () => { alive = false; };
+    window.api.latestNewsForGame({
+      id: game.id, appid: game.appid, gogId: game.gogId,
+      website: game.website, source: game.source, name: game.name,
+    }).then((res) => {
+      if (!alive) return;
+      if (res?.ok && res.item) setItem(res.item);
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [game?.id, game?.appid, game?.gogId, game?.website]);
+
+  if (!item) return null;
+
+  const daysAgo = Math.max(0, Math.floor((Date.now() - item.date) / 86400000));
+  const timeStr = daysAgo === 0 ? 'today' : daysAgo === 1 ? 'yesterday' : `${daysAgo}d ago`;
+  const platformLabel = { steam: 'Steam', itch: 'itch.io', gog: 'GOG' }[item.platform] || 'News';
+
+  const openLink = (e) => {
+    e.stopPropagation();
+    if (!item.url) return;
+    if (typeof window !== 'undefined' && window.api?.openExternal) window.api.openExternal(item.url);
+    else window.open(item.url, '_blank');
+  };
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25 }}
+      onClick={() => setExpanded((v) => !v)}
+      className="group mb-3 cursor-pointer overflow-hidden rounded-lg hairline"
+      style={{
+        backgroundColor: 'rgb(var(--accent)/0.06)',
+        borderColor: 'rgb(var(--accent)/0.35)',
+        boxShadow: expanded ? '0 0 20px -6px rgb(var(--accent)/0.5)' : 'none',
+      }}
+      data-testid="latest-news-pill"
+    >
+      <div className="flex items-center gap-2.5 px-3 py-2">
+        {/* Blinking indicator dot */}
+        <motion.span
+          animate={{ opacity: [0.35, 1, 0.35] }}
+          transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+          className="inline-block h-2 w-2 shrink-0 rounded-full"
+          style={{
+            backgroundColor: 'rgb(var(--accent))',
+            boxShadow: '0 0 8px rgb(var(--accent))',
+          }}
+        />
+        <span className="text-[9.5px] font-bold uppercase tracking-[0.18em] text-[rgb(var(--accent))]">
+          Latest news
+        </span>
+        <span className="text-[10px] text-muted">· {platformLabel} · {timeStr}</span>
+        <span className="ml-1 truncate text-[12px] font-semibold text-ink group-hover:text-[rgb(var(--accent))] transition-colors">
+          {item.title}
+        </span>
+        <motion.span
+          animate={{ rotate: expanded ? 180 : 0 }}
+          transition={{ duration: 0.2 }}
+          className="ml-auto text-[11px] text-muted"
+        >
+          ▾
+        </motion.span>
+      </div>
+
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            key="body"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="px-3 pb-3 pt-1 border-t hairline">
+              {item.snippet && (
+                <p className="text-[12.5px] leading-relaxed text-muted line-clamp-4">
+                  {item.snippet}
+                </p>
+              )}
+              <button
+                onClick={openLink}
+                data-testid="latest-news-open"
+                className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-[rgb(var(--accent-2))] hover:text-[rgb(var(--accent))]"
+              >
+                Read full · {platformLabel} →
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}

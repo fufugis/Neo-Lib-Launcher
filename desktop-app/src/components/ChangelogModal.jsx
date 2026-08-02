@@ -15,6 +15,18 @@ import { Sparkles, Check, X } from 'lucide-react';
 
 export const CHANGELOG = [
   {
+    version: '1.2.6',
+    title: 'Live news pill · Ubisoft deals · Frosted panels · Per-theme effects · Toolbar refresh',
+    items: [
+      'New: every selected game now shows a small pulsing "Latest news" pill above its description. Click to expand a preview, click "Read full" to open the source.',
+      'New: Deals bar now pulls **Ubisoft Store** offers alongside Steam, Epic, GOG, IG and Fanatical. Every deal card carries a platform badge (STEAM / EPIC / GOG / UBI / FAN / IG).',
+      'Visual: primary panels (sidebar, About, gallery, showcase cards, deals bar) now use frosted glass — the animated theme background shows through, killing the "stack of opaque bricks" feel.',
+      'Visual: Library / Tools / News tab bar redesigned as a proper toolbar — frosted band, bigger icons in rounded tiles, gradient underline separating it from the tree.',
+      'Effects intensity slider now remembers a **different level per theme** — dial Synthwave to Max, Modern to Low, and NEO-LIB will restore each level when you swap themes.',
+      'Small: extra breathing room between the About and gallery panels; softer inner highlights on all glass surfaces.',
+    ],
+  },
+  {
     version: '1.2.5',
     title: 'Installer fix · Deals expanded · News as floating popup · Effects dial',
     items: [

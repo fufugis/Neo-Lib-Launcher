@@ -11,6 +11,16 @@ and a non-intrusive monetization system (Deals banners via Affiliate links).
 - CI: GitHub Actions builds NSIS `.exe` + portable `.zip` on tag push.
 - System tray (Electron Tray API) for close-to-tray behavior.
 
+## Version 1.2.6 — Feb 2, 2026
+**Live news pill · Ubisoft deals · Frosted panels · Per-theme effects · Toolbar refresh:**
+- New IPC `news:latestForGame` — compact 15-min-cached lookup that returns the single newest news item across Steam / itch / GOG for one game.
+- `LatestNewsPill` component in `GameDetail.jsx` — pulsing indicator + platform label + click-to-expand snippet + "Read full" deep link.
+- Deals bar now scrapes `store.ubisoft.com/us/deals` (regex on static tiles → 6 titles per fetch, images + links; prices skipped since Ubisoft loads them via JS). Wrapped through Skimlinks.
+- Global CSS `.glass` / `.glass-soft` / `.glass-strong` utilities in `styles.css`. Applied to sidebar, GameDetail About/gallery, ShowcaseStrip tiles, DealsBar.
+- Sidebar top tabs (Library/Tools/News) rebuilt as a proper frosted toolbar with bigger icon tiles, active-state gradient background, and a bottom accent line separating it from the category tree.
+- Effects intensity slider now stores per-theme values in `settings.effectsLevelByTheme[theme]`; `BgAmbience` reads the current theme's value with legacy `effectsLevel` as fallback.
+- Gaps between the About and gallery panels bumped from `gap-4` to `gap-5` for more breathing room.
+
 ## Version 1.2.5 — Feb 2, 2026
 **Installer fix + Deals expansion + News popup + Effects dial:**
 - Installer bug fixed: replaced flaky `MUI_FINISHPAGE_RUN` checkbox with `build/installer.nsh` custom NSIS hook that ExecShells the app from `customInstall` (fires after files are copied, guaranteed non-elevated).

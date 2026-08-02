@@ -2188,6 +2188,38 @@ ipcMain.handle('deals:fetch', async () => {
     }
   } catch (e) { /* Fanatical unreachable — skip */ }
 
+  // -- Ubisoft Store deals (server-rendered HTML).
+  //    Static tiles carry ~6 curated titles; prices load via JS so we skip them
+  //    and let the store page show them. Wrapped via Skimlinks for catch-all revenue.
+  try {
+    const html = await httpGetText('https://store.ubisoft.com/us/deals');
+    const cardRe = /data-itemid="([^"]{8,40})"[\s\S]{0,4000}?href="(\/us\/[^"]+?\.html\?lang=en_US)"[\s\S]{0,3500}?data-src="([^"]+?\.(?:jpg|jpeg|png|webp))[^"]*"[\s\S]{0,500}?title="Go to product: ([^"]+)"/g;
+    let m;
+    let count = 0;
+    const seenIds = new Set();
+    while ((m = cardRe.exec(html)) !== null && count < 8) {
+      const [, itemid, hrefPath, image, rawTitle] = m;
+      if (seenIds.has(itemid)) continue;
+      seenIds.add(itemid);
+      // Unescape common HTML entities
+      const title = String(rawTitle)
+        .replace(/&ndash;/g, '–').replace(/&mdash;/g, '—')
+        .replace(/&rsquo;/g, '\u2019').replace(/&lsquo;/g, '\u2018')
+        .replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
+      items.push({
+        id: `ubi-${itemid}`,
+        platform: 'ubisoft',
+        title,
+        subtitle: 'On sale · Ubisoft Store',
+        priceText: '',
+        originalPrice: '',
+        image: image.startsWith('http') ? image : `https://store.ubisoft.com${image}`,
+        url: `https://store.ubisoft.com${hrefPath}`,
+      });
+      count += 1;
+    }
+  } catch (e) { /* Ubisoft HTML unreachable — skip */ }
+
   DEALS_CACHE = { ts: Date.now(), items };
   return items;
 });
@@ -2501,5 +2533,75 @@ ipcMain.handle('news:fetchAll', async (_e, { games = [], days = 14, force = fals
   };
   NEWS_ALL_CACHE = { ts: Date.now(), keyHash, payload };
   return { ok: true, ...payload, fetchedAt: Date.now(), cached: false };
+});
+
+
+// ---------------- Latest news for one game ---------------- //
+// Compact IPC used by GameDetail's "Latest news" blinking pill.
+// Returns AT MOST one item (the newest across all sources for that game),
+// scoped to the last 30 days. Per-game 15-minute cache.
+const LATEST_NEWS_CACHE = new Map(); // gameKey -> { ts, item }
+ipcMain.handle('news:latestForGame', async (_e, game) => {
+  if (!game) return { ok: true, item: null };
+  const key = String(game.id || game.appid || game.website || '');
+  const FIFTEEN_MIN = 15 * 60 * 1000;
+  const cached = LATEST_NEWS_CACHE.get(key);
+  if (cached && Date.now() - cached.ts < FIFTEEN_MIN) return { ok: true, item: cached.item, cached: true };
+
+  const cutoffMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const results = [];
+
+  // Steam
+  if (game.appid) {
+    try {
+      const url = `https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${game.appid}&count=3&maxlength=300&format=json`;
+      const data = await httpGetJson(url, 6000);
+      const items = data?.appnews?.newsitems || [];
+      const cutoffSec = Math.floor(cutoffMs / 1000);
+      for (const it of items) {
+        if (typeof it.date !== 'number' || it.date < cutoffSec) continue;
+        const snippet = String(it.contents || '')
+          .replace(/\[img][\s\S]*?\[\/img]/gi, '')
+          .replace(/\[url=[^\]]*]([\s\S]*?)\[\/url]/gi, '$1')
+          .replace(/\[\/?[a-z0-9=*\s"'.:/#-]+]/gi, '')
+          .replace(/<[^>]+>/g, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 280);
+        results.push({
+          platform: 'steam',
+          title: it.title,
+          url: it.url,
+          date: it.date * 1000,
+          snippet,
+        });
+      }
+    } catch { /* ignore */ }
+  }
+
+  // itch
+  if ((/itch\.io/.test(game.website || '') || game.source === 'itch') && game.website) {
+    try {
+      const items = await fetchItchDevlog(game, cutoffMs);
+      for (const it of items.slice(0, 3)) {
+        results.push({ platform: 'itch', title: it.title, url: it.url, date: it.date, snippet: it.snippet });
+      }
+    } catch { /* ignore */ }
+  }
+
+  // GOG
+  if (game.gogId) {
+    try {
+      const items = await fetchGogChangelog(game, cutoffMs);
+      for (const it of items.slice(0, 3)) {
+        results.push({ platform: 'gog', title: it.title, url: it.url, date: it.date, snippet: it.snippet });
+      }
+    } catch { /* ignore */ }
+  }
+
+  results.sort((a, b) => b.date - a.date);
+  const item = results[0] || null;
+  LATEST_NEWS_CACHE.set(key, { ts: Date.now(), item });
+  return { ok: true, item, cached: false };
 });
 

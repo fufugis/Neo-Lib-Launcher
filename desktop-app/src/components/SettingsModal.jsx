@@ -142,8 +142,18 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
         <Section title="Visual effects">
           <div className="space-y-3">
             <EffectsLevelSlider
-              value={Number.isFinite(settings.effectsLevel) ? settings.effectsLevel : 2}
-              onChange={(v) => setKey({ effectsLevel: v })}
+              theme={settings.theme || 'synthwave'}
+              value={(() => {
+                const map = settings.effectsLevelByTheme || {};
+                const perTheme = map[settings.theme || 'synthwave'];
+                if (Number.isFinite(perTheme)) return perTheme;
+                return Number.isFinite(settings.effectsLevel) ? settings.effectsLevel : 2;
+              })()}
+              onChange={(v) => {
+                const map = { ...(settings.effectsLevelByTheme || {}) };
+                map[settings.theme || 'synthwave'] = v;
+                setKey({ effectsLevelByTheme: map, effectsLevel: v });
+              }}
             />
             <Toggle
               label="Animations"
@@ -315,7 +325,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
 
         <Section title="About">
           <p className="text-xs text-muted leading-relaxed">
-            NEO-LIB v1.2.5. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
+            NEO-LIB v1.2.6. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
             Library data lives in <span className="font-mono text-ink">%APPDATA%/NEO-LIB</span>.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -500,13 +510,19 @@ const EFFECTS_HINT = {
   3: 'Lots of drifting particles, brighter grid glow.',
   4: 'Full arcade — max particles, max glow, max sparkle.',
 };
-function EffectsLevelSlider({ value, onChange }) {
+function EffectsLevelSlider({ value, onChange, theme = 'synthwave' }) {
   const v = Math.max(0, Math.min(4, value | 0));
+  const themeLabel = theme.charAt(0).toUpperCase() + theme.slice(1).replace('-', ' ');
   return (
     <div data-testid="effects-level-wrapper">
       <div className="mb-1.5 flex items-center justify-between">
         <div>
-          <div className="text-[13px] font-medium">Effects intensity</div>
+          <div className="text-[13px] font-medium">
+            Effects intensity
+            <span className="ml-1.5 rounded bg-panel/60 px-1.5 py-0.5 text-[9px] uppercase tracking-widest text-muted">
+              {themeLabel} theme
+            </span>
+          </div>
           <div className="text-[11px] text-muted mt-0.5">{EFFECTS_HINT[v]}</div>
         </div>
         <div

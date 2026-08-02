@@ -4,9 +4,16 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.2.5-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.2.6-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.2.5 (Installer fix · Deals expanded · News popup · Effects dial)
+### Latest — v1.2.6 (Live news pill · Ubisoft deals · Frosted panels)
+- **Live news pill** — every selected game shows a small pulsing "Latest news" pill above its description; click to expand, click "Read full" to open the source.
+- **Ubisoft deals** — deals bar now pulls Ubisoft Store offers alongside Steam / Epic / GOG / IG / Fanatical.
+- **Frosted panels** — primary surfaces (sidebar, About, gallery, showcase cards, deals bar) now use backdrop-blurred glass so the theme background breathes through.
+- **Toolbar refresh** — Library / Tools / News is now a proper frosted top-bar with bigger icons and a gradient underline.
+- **Effects per theme** — the intensity slider remembers a different level for each theme.
+
+### v1.2.5 (Installer fix · Deals expanded · News popup · Effects dial)
 - **Installer fix** — "Run NEO-LIB after install" checkbox now actually launches the app (custom NSIS hook bypasses the flaky electron-builder finish-page behaviour).
 - **Deals expanded** — GOG discounts + Fanatical star deal (covers EA / Ubisoft titles), platform badges on every card so you see the source at a glance.
 - **All N pill** — animated pulse + flame icon + accent gradient. Impossible to miss.

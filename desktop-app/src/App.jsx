@@ -27,7 +27,7 @@ import TidyUpModal from './components/TidyUpModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.2.5';
+const APP_VERSION = '1.2.6';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin } from './lib/utils';
 import { setSoundPack } from './lib/sound';
@@ -1565,10 +1565,16 @@ export default function App() {
 
 function BgAmbience({ theme, settings = {}, game = null }) {
   if (settings.synthGridEnabled === false) return null;
-  // Effects Level (0=None, 1=Low, 2=Med, 3=High, 4=Max) — one slider governs
-  // particles, sakura, glow, and the ambient overlay opacity. Legacy per-effect
-  // toggles still hard-disable, but the level controls how *much* of each.
-  const level = Math.max(0, Math.min(4, Number.isFinite(settings.effectsLevel) ? settings.effectsLevel : 2));
+  // Effects Level (0=None, 1=Low, 2=Med, 3=High, 4=Max) — persisted per-theme
+  // in settings.effectsLevelByTheme[theme], so Synthwave can be Max and Modern
+  // can be Low without cross-contamination. Falls back to settings.effectsLevel
+  // (legacy global) then to 2 (Medium) for first-run.
+  const perThemeMap = settings.effectsLevelByTheme || {};
+  const perTheme = perThemeMap[theme];
+  const rawLevel = Number.isFinite(perTheme)
+    ? perTheme
+    : (Number.isFinite(settings.effectsLevel) ? settings.effectsLevel : 2);
+  const level = Math.max(0, Math.min(4, rawLevel));
   const LEVEL_MAP = [
     { intensity: 0.00, particles: 0,  sakura: 0,  crimsonBoost: 0 },
     { intensity: 0.55, particles: 4,  sakura: 8,  crimsonBoost: 2 },
