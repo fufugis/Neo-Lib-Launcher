@@ -202,6 +202,22 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 6px 24px -12px rgb(0 0 0 / 0.5);
 }
 
+/* Settings modal — 2-column masonry via CSS columns so each <Section> stays
+   intact but the overall list shrinks vertically. Sections use inline-block
+   + break-inside:avoid to prevent orphaning across the gutter. */
+.settings-columns {
+  column-count: 2;
+  column-gap: 1.25rem;
+}
+@media (max-width: 720px) {
+  .settings-columns { column-count: 1; }
+}
+.settings-columns > * {
+  break-inside: avoid;
+  display: block;
+  margin-bottom: 1.25rem;
+}
+
 .kbd {
   display: inline-flex; align-items: center;
   padding: 1px 6px;

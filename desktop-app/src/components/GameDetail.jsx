@@ -768,33 +768,58 @@ function LatestNewsPill({ game }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28 }}
       onClick={() => setExpanded((v) => !v)}
-      className="group mb-4 cursor-pointer overflow-hidden rounded-xl"
+      className="group relative mb-4 cursor-pointer overflow-hidden rounded-xl"
       style={{
-        border: '1px solid rgb(var(--accent)/0.45)',
+        border: '1.5px solid rgb(var(--accent)/0.55)',
         background:
-          'linear-gradient(135deg, rgb(var(--accent)/0.10) 0%, rgb(var(--accent-2)/0.06) 100%)',
+          'linear-gradient(135deg, rgb(var(--accent)/0.14) 0%, rgb(var(--accent-2)/0.10) 100%)',
         boxShadow: expanded
-          ? '0 0 30px -8px rgb(var(--accent)/0.6), inset 0 1px 0 rgb(255,255,255,0.05)'
-          : '0 0 14px -6px rgb(var(--accent)/0.35), inset 0 1px 0 rgb(255,255,255,0.04)',
+          ? '0 0 30px -4px rgb(var(--accent)/0.75), inset 0 1px 0 rgb(255,255,255,0.08)'
+          : '0 0 18px -4px rgb(var(--accent)/0.55), inset 0 1px 0 rgb(255,255,255,0.06)',
       }}
       data-testid="latest-news-pill"
     >
-      <div className="flex items-center gap-3 px-4 py-3">
+      {/* Border pulse — animated gradient outline draws attention */}
+      <motion.span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 rounded-xl"
+        animate={{ opacity: [0.35, 0.75, 0.35] }}
+        transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+        style={{
+          boxShadow: 'inset 0 0 0 1.5px rgb(var(--accent))',
+        }}
+      />
+      {/* Shimmer sweep — a diagonal light beam that crosses the pill every 5s */}
+      <motion.span
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 w-1/3 -skew-x-12"
+        initial={{ x: '-120%' }}
+        animate={{ x: '380%' }}
+        transition={{ duration: 3.4, repeat: Infinity, repeatDelay: 2, ease: 'easeInOut' }}
+        style={{
+          background:
+            'linear-gradient(90deg, transparent 0%, rgb(255,255,255,0.10) 50%, transparent 100%)',
+        }}
+      />
+      <div className="relative flex items-center gap-3 px-4 py-3">
         {/* Left rail — big pulsing indicator + LIVE label */}
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2.5">
           <motion.span
-            animate={{ opacity: [0.4, 1, 0.4], scale: [1, 1.25, 1] }}
-            transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
-            className="inline-block h-2.5 w-2.5 rounded-full"
+            animate={{ opacity: [0.4, 1, 0.4], scale: [1, 1.35, 1] }}
+            transition={{ duration: 1.3, repeat: Infinity, ease: 'easeInOut' }}
+            className="inline-block h-3 w-3 rounded-full"
             style={{
               backgroundColor: 'rgb(var(--accent))',
-              boxShadow: '0 0 12px rgb(var(--accent)), 0 0 22px rgb(var(--accent)/0.6)',
+              boxShadow: '0 0 14px rgb(var(--accent)), 0 0 28px rgb(var(--accent)/0.7)',
             }}
           />
           <div className="flex flex-col leading-tight">
             <span
-              className="text-[10px] font-extrabold uppercase tracking-[0.24em]"
-              style={{ color: 'rgb(var(--accent))' }}
+              className="text-[10.5px] font-black uppercase tracking-[0.28em]"
+              style={{
+                color: 'rgb(var(--accent))',
+                textShadow: '0 0 10px rgb(var(--accent)/0.7)',
+              }}
             >
               Live news
             </span>
@@ -805,11 +830,11 @@ function LatestNewsPill({ game }) {
         </div>
 
         {/* Divider */}
-        <span className="h-8 w-px shrink-0" style={{ background: 'rgb(var(--accent)/0.25)' }} />
+        <span className="h-9 w-px shrink-0" style={{ background: 'rgb(var(--accent)/0.35)' }} />
 
         {/* Title */}
         <div className="min-w-0 flex-1">
-          <h4 className="truncate text-[14px] font-bold text-ink leading-snug group-hover:text-[rgb(var(--accent))] transition-colors">
+          <h4 className="truncate text-[14.5px] font-bold text-ink leading-snug group-hover:text-[rgb(var(--accent))] transition-colors">
             {item.title}
           </h4>
           {!expanded && item.snippet && (
@@ -823,10 +848,10 @@ function LatestNewsPill({ game }) {
         <motion.div
           animate={{ rotate: expanded ? 180 : 0 }}
           transition={{ duration: 0.2 }}
-          className="grid h-7 w-7 shrink-0 place-items-center rounded-full hairline"
-          style={{ backgroundColor: 'rgb(var(--accent)/0.12)', color: 'rgb(var(--accent))' }}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full hairline"
+          style={{ backgroundColor: 'rgb(var(--accent)/0.18)', color: 'rgb(var(--accent))' }}
         >
-          <ChevronDown size={14} />
+          <ChevronDown size={15} />
         </motion.div>
       </div>
 
@@ -840,7 +865,7 @@ function LatestNewsPill({ game }) {
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             className="overflow-hidden"
           >
-            <div className="px-4 pb-4 pt-2 border-t" style={{ borderColor: 'rgb(var(--accent)/0.25)' }}>
+            <div className="px-4 pb-4 pt-2 border-t" style={{ borderColor: 'rgb(var(--accent)/0.3)' }}>
               {item.snippet && (
                 <p className="text-[12.5px] leading-relaxed text-muted line-clamp-6">
                   {item.snippet}

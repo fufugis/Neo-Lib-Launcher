@@ -54,6 +54,7 @@ export default function Sidebar({
     font: Math.max(11, Math.min(16, Math.round(rowSize * 0.28))),
   };
   const [libSettingsOpen, setLibSettingsOpen] = React.useState(false);
+  const libSettingsBtnRef = React.useRef(null);
   const [refreshMenuOpen, setRefreshMenuOpen] = React.useState(false);
   const treeScrollRef = React.useRef(null);
   const isTools = mode === 'tools';
@@ -269,6 +270,7 @@ export default function Sidebar({
         )}
         <div className="relative">
           <SideBtn
+            ref={libSettingsBtnRef}
             icon={<Sliders size={14} />}
             onClick={() => setLibSettingsOpen((v) => !v)}
             testid="sidebar-lib-settings-btn"
@@ -277,6 +279,7 @@ export default function Sidebar({
           <AnimatePresence>
             {libSettingsOpen && (
               <LibrarySettingsPopover
+                anchorEl={libSettingsBtnRef.current}
                 librarySize={librarySize}
                 rowSize={rowSize}
                 catTextSize={catTextSize}
@@ -509,9 +512,10 @@ function SectionWrap({ s, idx, commonProps }) {
   );
 }
 
-function SideBtn({ icon, label, onClick, testid, title }) {
+const SideBtn = React.forwardRef(function SideBtn({ icon, label, onClick, testid, title }, ref) {
   return (
     <button
+      ref={ref}
       data-testid={testid}
       onClick={onClick}
       title={title || label}
@@ -521,7 +525,7 @@ function SideBtn({ icon, label, onClick, testid, title }) {
       {label && <span>{label}</span>}
     </button>
   );
-}
+});
 
 function TabPill({ label, icon, active, onClick, testid, big = false, badge = null }) {
   return (
@@ -619,6 +623,7 @@ function LauncherPill({ label, active, onClick, testid }) {
 
 /* ---------------- Library settings popover ---------------- */
 function LibrarySettingsPopover({
+  anchorEl,
   librarySize, rowSize = 44, catTextSize = 11, catGlow = 40, iconPosition = 'left',
   rowGap = 2, catGap = 8, catTopGap = 4, showCategoryDot = true,
   effectsLevel = 2, currentTheme = 'synthwave',
@@ -629,12 +634,27 @@ function LibrarySettingsPopover({
 }) {
   const ref = React.useRef(null);
   const dragControls = useDragControls();
+  // Anchor the popover to the trigger button's rect (portaled to body so no
+  // parent stacking context can hide it under the game preview).
+  const [pos, setPos] = React.useState(() => {
+    if (!anchorEl) return { top: 80, left: 12 };
+    const r = anchorEl.getBoundingClientRect();
+    return { top: r.bottom + 6, left: r.left };
+  });
   React.useEffect(() => {
-    const h = (e) => ref.current && !ref.current.contains(e.target) && onClose();
+    if (!anchorEl) return;
+    const r = anchorEl.getBoundingClientRect();
+    setPos({ top: r.bottom + 6, left: r.left });
+  }, [anchorEl]);
+  React.useEffect(() => {
+    const h = (e) => {
+      if (ref.current && !ref.current.contains(e.target)
+        && (!anchorEl || !anchorEl.contains(e.target))) onClose();
+    };
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
-  }, [onClose]);
-  return (
+  }, [onClose, anchorEl]);
+  const body = (
     <motion.div
       ref={ref}
       drag
@@ -647,8 +667,16 @@ function LibrarySettingsPopover({
       exit={{ opacity: 0, y: -6, scale: 0.96 }}
       transition={{ duration: 0.14 }}
       onMouseDown={(e) => e.stopPropagation()}
-      style={{ left: 0, top: '100%' }}
-      className="absolute z-[70] mt-1 w-72 max-w-[calc(100vw-32px)] max-h-[80vh] overflow-y-auto rounded-lg hairline glass-strong shadow-2xl p-3 space-y-3"
+      style={{
+        position: 'fixed',
+        top: pos.top,
+        left: pos.left,
+        // Opaque backdrop so the popover reads clearly whether it's over the
+        // sidebar (which has its own glass) or over the game preview area
+        // (which doesn't). No transparency at all here — this is a tool panel.
+        backgroundColor: 'rgb(var(--surface))',
+      }}
+      className="z-[9999] w-72 max-w-[calc(100vw-32px)] max-h-[80vh] overflow-y-auto rounded-lg hairline shadow-2xl p-3 space-y-3"
       data-testid="library-settings-popover"
     >
       <div
@@ -805,6 +833,8 @@ function LibrarySettingsPopover({
       </button>
     </motion.div>
   );
+  if (typeof document === 'undefined') return body;
+  return createPortal(body, document.body);
 }
 
 function PopSlider({ label, value, min, max, suffix = '', onChange, testid }) {

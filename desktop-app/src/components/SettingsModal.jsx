@@ -28,9 +28,12 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
 
   return (
     <Modal open={open} onClose={onClose} title="Settings" wide testid="settings-modal">
-      <div className="p-5 space-y-6">
-        {/* Themes — grouped by tone (dark vs bright) */}
-        <Section title="Theme">
+      {/* v1.2.8 — 2-column grid so fewer scrolls. Theme keeps full width because
+          the grid of theme swatches already tiles nicely. Everything else auto-
+          flows into masonry-ish columns via CSS. */}
+      <div className="p-5">
+        <div className="mb-5">
+          <Section title="Theme">
           {[
             { tone: 'dark',   label: 'Dark themes' },
             { tone: 'middle', label: 'Middle themes (in-between)' },
@@ -77,7 +80,11 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
             </div>
           ))}
         </Section>
+        </div>
 
+        {/* All other sections tile into a 2-column grid via CSS columns so
+            each Section stays intact and never breaks across columns. */}
+        <div className="settings-columns">
         {/* Library appearance — sliders moved to the Library popover (Sliders button next to Settings).
             Sound effects + sound pack live here. */}
         <Section title="Sounds">
@@ -318,7 +325,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
 
         <Section title="About">
           <p className="text-xs text-muted leading-relaxed">
-            NEO-LIB v1.2.7. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
+            NEO-LIB v1.2.8. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
             Library data lives in <span className="font-mono text-ink">%APPDATA%/NEO-LIB</span>.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -401,8 +408,10 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
             </div>
           </div>
         </Section>
+        </div>
+        {/* /settings-columns */}
 
-        <div className="flex justify-end pt-1">
+        <div className="flex justify-end pt-4">
           <button
             data-testid="settings-done-btn"
             onClick={onClose}

@@ -4,9 +4,17 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.2.7-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.2.8-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.2.7 (Category dot fixed · Effects moved · Time-bucketed showcase · Snappier news)
+### Latest — v1.2.8 (Tidy Up fix · Sliders portal · Every theme animated · Draggable news · 2-col Settings)
+- **CRITICAL FIX**: Tidy Up "remove duplicates" no longer wipes out your Steam library (over-eager Rule 3 dropped, cluster-size cap added).
+- **Sliders popover** portaled + fully opaque — always floats above the game preview.
+- **Every theme now animates** — particles + edge glow apply to synthwave, midnight, ocean, crimson, anime, mint, gaming, modern and any future theme automatically.
+- **News pill** = animated border pulse + diagonal shimmer sweep + thicker accent border.
+- **News popup** draggable by its header.
+- **Settings modal** = 2-column masonry layout.
+
+### v1.2.7 (Category dot fixed · Effects moved · Time-bucketed showcase · Snappier news)
 - **Bug fix**: Category dot toggle now hides both the meta dots AND the category header dot.
 - **Sliders popover** now floats above the preview pane (z-70 instead of z-30).
 - **Effects slider moved** from Settings to the sidebar Sliders menu; Max level is now genuinely maxed (64 particles, drifting blobs, pulsing viewport edge glow).

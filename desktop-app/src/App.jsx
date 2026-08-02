@@ -27,7 +27,7 @@ import TidyUpModal from './components/TidyUpModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.2.7';
+const APP_VERSION = '1.2.8';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin } from './lib/utils';
 import { setSoundPack } from './lib/sound';
@@ -1730,7 +1730,10 @@ function BgAmbience({ theme, settings = {}, game = null }) {
       </>
     );
   }
-  // All other themes get their own subtle ambient backdrop
+  // All other themes get their own subtle ambient backdrop.
+  // v1.2.8 — any theme (including future ones like Gaming/Modern that don't
+  // have a dedicated ambClass) still gets particles + edge glow so the
+  // effects slider is meaningful everywhere.
   const ambClass = {
     midnight: 'amb-midnight',
     daybreak: 'amb-daybreak',
@@ -1739,14 +1742,17 @@ function BgAmbience({ theme, settings = {}, game = null }) {
     anime:    'amb-anime',
     mint:     'amb-mint',
   }[theme];
-  if (!ambClass) return null;
   return (
     <>
       {extraLayersEl}
       <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden" style={{ opacity: intensity }}>
-        <div className={ambClass} />
+        {ambClass && <div className={ambClass} />}
         {theme === 'anime' && lvl.sakura > 0 && <Sakura count={lvl.sakura} />}
-        {showParticles && <Particles count={theme === 'crimson' ? lvl.particles + lvl.crimsonBoost : lvl.particles} />}
+        {showParticles && (
+          <Particles
+            count={theme === 'crimson' ? lvl.particles + lvl.crimsonBoost : lvl.particles}
+          />
+        )}
       </div>
       {edgeGlowLayer}
     </>

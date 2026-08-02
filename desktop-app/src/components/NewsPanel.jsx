@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Newspaper, RefreshCw, ExternalLink, MessageCircle, Sparkles,
-  Users, Megaphone, Globe2, Filter, Gamepad2, X,
+  Users, Megaphone, Globe2, Filter, Gamepad2, X, GripVertical,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 
 const isElectron = typeof window !== 'undefined' && !!window.api;
 
@@ -107,6 +107,8 @@ export default function NewsPanel({ games = [], onClose }) {
     return c;
   }, [state.items]);
 
+  const dragControls = useDragControls();
+
   const body = (
     <AnimatePresence>
       <motion.div
@@ -115,26 +117,34 @@ export default function NewsPanel({ games = [], onClose }) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.08 }}
-        className="fixed inset-0 z-[80] flex items-start justify-end p-3 pt-16"
-        onClick={onClose}
+        className="fixed inset-0 z-[80] pointer-events-none"
         data-testid="news-backdrop"
       >
         <motion.div
+          drag
+          dragControls={dragControls}
+          dragListener={false}
+          dragMomentum={false}
+          dragElastic={0}
           initial={{ opacity: 0, x: 12, scale: 0.98 }}
           animate={{ opacity: 1, x: 0, scale: 1 }}
           exit={{ opacity: 0, x: 12, scale: 0.98 }}
           transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
-          className="relative flex w-full max-w-[520px] max-h-[80vh] flex-col overflow-hidden rounded-2xl hairline"
+          className="pointer-events-auto absolute right-3 top-16 flex w-full max-w-[520px] max-h-[80vh] flex-col overflow-hidden rounded-2xl hairline"
           style={{
-            backgroundColor: 'rgb(var(--panel) / 0.96)',
+            backgroundColor: 'rgb(var(--panel) / 0.98)',
             border: '1px solid rgb(var(--accent) / 0.25)',
             boxShadow: '0 20px 60px -20px rgba(0,0,0,0.85), 0 0 30px -8px rgb(var(--accent)/0.35)',
           }}
           onClick={(e) => e.stopPropagation()}
           data-testid="news-panel"
         >
-          {/* HEADER — fixed, doesn't scroll */}
-          <div className="flex items-start gap-3 border-b hairline px-6 pt-5 pb-4">
+          {/* HEADER — fixed, doesn't scroll. Serves as drag handle. */}
+          <div
+            className="flex items-start gap-3 border-b hairline px-6 pt-5 pb-4 cursor-move select-none"
+            onPointerDown={(e) => dragControls.start(e)}
+            title="Drag to move"
+          >
             <div
               className="grid h-10 w-10 shrink-0 place-items-center rounded-full"
               style={{

@@ -15,6 +15,18 @@ import { Sparkles, Check, X } from 'lucide-react';
 
 export const CHANGELOG = [
   {
+    version: '1.2.8',
+    title: 'Tidy Up bug fix · Sliders portal · Every theme animated · Draggable news · 2-col Settings',
+    items: [
+      '**CRITICAL FIX** — Tidy Up "remove duplicates" no longer wipes out your Steam library. The over-eager Rule 3 (matched every game sharing `Steam\\steamapps\\common\\`) has been dropped; only same-exe and same-name rules remain. Clusters larger than 6 games are discarded as safety.',
+      'Sliders popover is now **portaled to document.body** — always floats above the game preview instead of hiding behind screenshots. Also fully opaque so it reads clearly over any background.',
+      '**Every theme now animates** — particles, sakura, edge glow all scale with the effects slider on synthwave, midnight, ocean, crimson, anime, mint, gaming and modern themes. Future themes automatically get particles too.',
+      'The "Latest news" pill on selected games is now impossible to miss — animated border pulse, diagonal shimmer sweep every 5s, thicker 1.5px accent border, bigger blinking dot.',
+      'News popup is now **draggable** by its header (grip cursor + drag from the title row). No backdrop overlay — clicks outside the popup work normally.',
+      'Settings modal is now **2 columns** (masonry via CSS columns) — theme picker stays wide at the top, everything else tiles into a compact grid. No more endless scrolling.',
+    ],
+  },
+  {
     version: '1.2.7',
     title: 'Category dot fixed · Effects moved · Time-bucketed showcase · Snappier news',
     items: [

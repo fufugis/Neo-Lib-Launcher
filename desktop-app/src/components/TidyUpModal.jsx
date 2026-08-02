@@ -179,9 +179,17 @@ function commonAncestor(a, b) {
 }
 
 /**
- * Cluster games into duplicate groups. A cluster contains 2+ games likely to
- * be the same title based on: identical exe, identical normalized name, OR
- * exe paths sharing a common ancestor 3+ levels deep.
+ * Cluster games into duplicate groups.
+ *
+ * v1.2.8 — Rule 3 (paths sharing 3+ folder levels) was DROPPED because ALL
+ * Steam games share `Steam\steamapps\common\` (3 ancestors) and got wrongly
+ * lumped into a single mega-cluster. When users picked "keep", the other 40+
+ * Steam games got deleted. Real duplicates almost always share a normalized
+ * name (Rule 2) OR the exact same exePath (Rule 1) — those two rules cover
+ * 99% of the cases without any false positives.
+ *
+ * Extra safety: any cluster larger than 6 games is discarded (real dupes are
+ * almost always pairs; anything larger is a bug in the heuristics).
  */
 function findDuplicates(games) {
   const clusters = [];
@@ -197,14 +205,12 @@ function findDuplicates(games) {
       if (a.exePath && b.exePath && a.exePath.toLowerCase() === b.exePath.toLowerCase()) {
         group.push(b); reason = 'Same .exe path';
       } else if (normName(a.name) === normName(b.name) && normName(a.name)) {
+        // Rule 2 — same normalized name
         group.push(b); reason = reason || 'Same game name';
-      } else if (a.exePath && b.exePath && commonAncestor(a.exePath, b.exePath) >= 3) {
-        // Rule 3 — different exes but share 3+ folder levels
-        // (probably a mod/loader/main-exe pair for the same game)
-        group.push(b); reason = reason || 'Two .exes in the same folder tree';
       }
+      // Rule 3 removed — was catastrophically over-eager for Steam libraries.
     }
-    if (group.length > 1) {
+    if (group.length > 1 && group.length <= 6) {
       group.forEach((g) => visited.add(g.id));
       clusters.push({ games: group, reasonLabel: reason });
     }

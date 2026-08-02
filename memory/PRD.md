@@ -11,6 +11,15 @@ and a non-intrusive monetization system (Deals banners via Affiliate links).
 - CI: GitHub Actions builds NSIS `.exe` + portable `.zip` on tag push.
 - System tray (Electron Tray API) for close-to-tray behavior.
 
+## Version 1.2.8 — Feb 2, 2026
+**Tidy Up bug fix · Sliders portal · Every theme animated · Draggable news · 2-col Settings:**
+- **CRITICAL fix in `TidyUpModal.jsx findDuplicates()`**: dropped Rule 3 (shared 3+ folder ancestors) which lumped ALL Steam library games into one cluster because they all share `Steam\steamapps\common\`. User reported: "I had those two games only and the other 42 games from steam were removed." Now only same-exe (Rule 1) and same normalized name (Rule 2) fire. Added cluster-size safety cap (max 6 games per cluster).
+- Sliders popover (`LibrarySettingsPopover`) portaled to `document.body` with `position: fixed` + `z-[9999]` and **fully opaque** `rgb(var(--surface))` background — no longer hides behind game preview and no longer see-through when hovering the preview pane. Anchor position computed from trigger button rect on open.
+- `BgAmbience`: removed the early `if (!ambClass) return null` bailout. Every theme now spawns particles/sakura/edgeGlow/extraLayers scaled by `LEVEL_MAP[level]`. Themes without a dedicated CSS class (Gaming, Modern, and any future ones) still get full effects.
+- `LatestNewsPill` polished: 1.5px accent border, animated `boxShadow` pulse (2.4s cycle), diagonal shimmer sweep every ~5s (`x: -120% → 380%`), thicker 12px blinking dot with double-radius shadow.
+- `NewsPanel` modal: drag-controlled via framer-motion. Header row is the drag handle. Backdrop is `pointer-events-none` so clicks outside pass through to the app.
+- `SettingsModal`: CSS columns 2-up layout for everything below the theme picker. Theme picker stays wide at top. Media query drops to 1 column below 720px.
+
 ## Version 1.2.7 — Feb 2, 2026
 **Category dot fixed · Effects moved · Time-bucketed showcase · Snappier news:**
 - Bug fix: Category dot toggle now hides both the meta dots (GameRow) AND the category header dot (`CategorySection`, line 900-911). Previously only the meta dots were gated.
