@@ -4,9 +4,15 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.2.3-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.2.4-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.2.3 (Steam News, live feed)
+### Latest — v1.2.4 (Build IDs, itch devlogs & GOG patch notes)
+- **Steam Build IDs on every card** — reads the local `appmanifest_<appid>.acf` and shows `Updated N days ago · Build 12345 · X GB on disk` under the exe path.
+- **News tab now covers itch.io** — parses `<user>.itch.io/<slug>/devlog.rss` for every itch game in your library.
+- **News tab now covers GOG** — reads `api.gog.com/products/<id>?expand=changelog` and pulls out per-date sections from the last 14 days.
+- New feed toggles for `itch devlog` and `GOG patch` alongside Official / Community / Third-party.
+
+### v1.2.3 (Steam News, live feed)
 - **News tab is live** — pulls announcements & patch notes from Steam for every Steam game in your library, restricted to the last **14 days**.
 - **Feed filters** — toggle Official / Community / Third-party posts with live counts.
 - **Rich cards** — game capsule, "time ago" stamp, snippet preview; click to open on Steam.

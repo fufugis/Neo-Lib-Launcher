@@ -15,6 +15,18 @@ import { Sparkles, Check, X } from 'lucide-react';
 
 export const CHANGELOG = [
   {
+    version: '1.2.4',
+    title: 'Build IDs, itch devlogs & GOG patch notes',
+    items: [
+      'New: Every Steam game card now shows "Updated N days ago · Build 12345 · X GB on disk" — read live from the local appmanifest_<appid>.acf file, cached 5 min.',
+      'New: News tab now aggregates three sources: Steam announcements, itch.io devlog RSS, and GOG patch notes (from api.gog.com changelog).',
+      'itch devlogs are pulled from <game>/devlog.rss for any game whose website is a *.itch.io page.',
+      'GOG changelogs are date-parsed from the HTML blob; only sections with a valid date within the last 14 days are surfaced.',
+      'Source badges + per-source feed counts + toggles for itch / GOG (added to the existing Official / Community / Third-party toggles).',
+      'Footer note now counts games that have no Steam / itch / GOG source so users know what\'s left out.',
+    ],
+  },
+  {
     version: '1.2.3',
     title: 'Steam News, live feed',
     items: [

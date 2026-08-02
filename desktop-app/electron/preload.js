@@ -64,6 +64,8 @@ contextBridge.exposeInMainWorld('api', {
 
   // steam news feed (last N days, all owned Steam games)
   fetchSteamNews: (opts) => ipcRenderer.invoke('news:fetchSteam', opts),
+  fetchAllNews: (opts) => ipcRenderer.invoke('news:fetchAll', opts),
+  getSteamManifest: (appid) => ipcRenderer.invoke('steam:manifest', appid),
 
   // launcher process detection
   detectLaunchers: () => ipcRenderer.invoke('launcher:detect'),

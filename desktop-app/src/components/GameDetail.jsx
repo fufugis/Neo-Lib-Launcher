@@ -198,6 +198,7 @@ export default function GameDetail({
             {game.appid && <span className="block mt-0.5">Steam App ID · {game.appid}</span>}
             {game.source && <span className="block mt-0.5">Source · {game.source}</span>}
           </div>
+          <SteamManifestLine game={game} />
         </section>
 
         {/* RIGHT — gallery: one big shot + clickable thumbnail strip */}
@@ -661,3 +662,65 @@ function EmptyState() {
     </div>
   );
 }
+
+function SteamManifestLine({ game }) {
+  const [info, setInfo] = React.useState(null);
+  const [state, setState] = React.useState('idle'); // 'idle' | 'loading' | 'ok' | 'none'
+
+  React.useEffect(() => {
+    let alive = true;
+    setInfo(null); setState('idle');
+    if (!game || game.source !== 'steam' || !game.appid) return () => { alive = false; };
+    if (!(typeof window !== 'undefined' && window.api?.getSteamManifest)) return () => { alive = false; };
+    setState('loading');
+    window.api.getSteamManifest(game.appid).then((res) => {
+      if (!alive) return;
+      if (res?.ok && (res.buildid || res.lastUpdated)) {
+        setInfo(res); setState('ok');
+      } else {
+        setState('none');
+      }
+    }).catch(() => { if (alive) setState('none'); });
+    return () => { alive = false; };
+  }, [game?.id, game?.appid, game?.source]);
+
+  if (state !== 'ok' || !info) return null;
+
+  const daysAgo = info.lastUpdated
+    ? Math.max(0, Math.floor((Date.now() - info.lastUpdated) / 86400000))
+    : null;
+  const updated = daysAgo == null
+    ? null
+    : daysAgo === 0 ? 'today'
+    : daysAgo === 1 ? 'yesterday'
+    : `${daysAgo} days ago`;
+  const sizeGb = info.sizeOnDisk ? (info.sizeOnDisk / (1024 ** 3)) : 0;
+  const sizeStr = sizeGb >= 1
+    ? `${sizeGb.toFixed(sizeGb >= 10 ? 0 : 1)} GB`
+    : info.sizeOnDisk ? `${Math.round(info.sizeOnDisk / (1024 ** 2))} MB` : '';
+
+  return (
+    <div
+      className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]"
+      data-testid="steam-manifest-line"
+    >
+      {updated && (
+        <span
+          className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 hairline bg-panel/40"
+          style={{ color: 'rgb(var(--accent-2))' }}
+          title={new Date(info.lastUpdated).toLocaleString()}
+        >
+          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: 'rgb(var(--accent-2))' }} />
+          Updated {updated}
+        </span>
+      )}
+      {info.buildid && (
+        <span className="font-mono text-muted">Build <span className="text-ink">{info.buildid}</span></span>
+      )}
+      {sizeStr && (
+        <span className="font-mono text-muted">· {sizeStr} on disk</span>
+      )}
+    </div>
+  );
+}
+

@@ -27,7 +27,7 @@ import TidyUpModal from './components/TidyUpModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.2.3';
+const APP_VERSION = '1.2.4';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin } from './lib/utils';
 import { setSoundPack } from './lib/sound';

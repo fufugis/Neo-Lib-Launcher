@@ -11,6 +11,15 @@ and a non-intrusive monetization system (Deals banners via Affiliate links).
 - CI: GitHub Actions builds NSIS `.exe` + portable `.zip` on tag push.
 - System tray (Electron Tray API) for close-to-tray behavior.
 
+## Version 1.2.4 — Feb 2, 2026
+**Build IDs, itch devlogs & GOG patch notes:**
+- New IPC `steam:manifest` — reads `%STEAM%\steamapps\appmanifest_<appid>.acf` on demand (5-min per-appid cache) and returns `buildid`, `LastUpdated`, `SizeOnDisk`.
+- `GameDetail.jsx` — `SteamManifestLine` component renders "Updated N days ago · Build 12345 · X GB on disk" below the exe path (Steam games only).
+- New IPC `news:fetchAll` — unifies Steam + itch.io devlog RSS + GOG changelog HTML into one 30-min cached feed. Preserves per-source badge/colour + per-source counts.
+- itch.io: parses `<user>.itch.io/<slug>/devlog.rss` for any game whose `website` matches `*.itch.io`.
+- GOG: reads `api.gog.com/products/<id>?expand=changelog`, extracts `<h1..h6>` sections whose heading contains an ISO date, long-form date (`30 March 2018`), or fragment. Only sections within the last 14 days are surfaced.
+- Feed toggle bar auto-adds `itch devlog` and `GOG patch` pills; hidden if count is 0.
+
 ## Version 1.2.3 — Feb 2, 2026
 **Steam News, live feed:**
 - New IPC handler `news:fetchSteam` in `electron/main.js` — queries `ISteamNews/GetNewsForApp` for every game with a Steam appid, parallel batches of 8, 30-min in-process cache, force-refresh flag.
@@ -53,8 +62,8 @@ and a non-intrusive monetization system (Deals banners via Affiliate links).
 ## Roadmap / Backlog
 
 ### P1 (active)
-- [ ] **Steam manifest reading** — show "Updated X days ago" + build IDs in Steam GameDetail.
-- [ ] **GOG / itch news feeds** — extend NewsPanel to pull GOG announcements + itch devlogs for owned non-Steam games.
+- [ ] **Xbox / EA / standalone launcher feeds** — extend NewsPanel beyond Steam / itch / GOG.
+- [ ] **News notification badge** — count of unread news items on the sidebar News tab.
 
 ### Deferred per user
 - Refactor `App.jsx` / `main.js` (only when regression-risk shrinks).

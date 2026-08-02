@@ -822,6 +822,7 @@ function parseAcfManifest(text) {
     installdir: get('installdir'),
     buildid: get('buildid'),
     lastUpdated: get('LastUpdated'),
+    sizeOnDisk: get('SizeOnDisk'),
   };
 }
 
@@ -2185,6 +2186,7 @@ ipcMain.handle('news:fetchSteam', async (_e, { games = [], days = 14, force = fa
               .slice(0, 320);
             out.push({
               id: `${g.appid}-${it.gid}`,
+              platform: 'steam',
               gameId: g.gameId,
               appid: g.appid,
               gameName: g.name,
@@ -2208,3 +2210,245 @@ ipcMain.handle('news:fetchSteam', async (_e, { games = [], days = 14, force = fa
   STEAM_NEWS_CACHE = { ts: Date.now(), keyHash, items: out };
   return { ok: true, items: out, fetchedAt: Date.now(), cached: false };
 });
+
+// ---------------- Steam Manifest (local disk) ---------------- //
+// Reads the appmanifest_<appid>.acf on disk for a single Steam appid, returns
+// buildid + LastUpdated + SizeOnDisk. Used by GameDetail to display
+// "Updated N days ago · Build 12345". Cached in-process for 5 min per appid.
+const STEAM_MANIFEST_CACHE = new Map(); // appid -> { ts, data }
+ipcMain.handle('steam:manifest', async (_e, appid) => {
+  if (!appid) return { ok: false, error: 'no appid' };
+  const key = String(appid);
+  const FIVE_MIN = 5 * 60 * 1000;
+  const cached = STEAM_MANIFEST_CACHE.get(key);
+  if (cached && Date.now() - cached.ts < FIVE_MIN) return { ok: true, ...cached.data, cached: true };
+
+  const steamPath = defaultSteamPath();
+  if (!steamPath) return { ok: false, error: 'Steam install not found.' };
+  const libraries = readSteamLibraryFolders(steamPath);
+  for (const lib of libraries) {
+    const file = path.join(lib, 'steamapps', `appmanifest_${key}.acf`);
+    try {
+      if (!fs.existsSync(file)) continue;
+      const text = fs.readFileSync(file, 'utf8');
+      const m = parseAcfManifest(text);
+      const data = {
+        appid: m.appid,
+        name: m.name,
+        buildid: m.buildid || '',
+        lastUpdated: m.lastUpdated ? Number(m.lastUpdated) * 1000 : 0,
+        sizeOnDisk: m.sizeOnDisk ? Number(m.sizeOnDisk) : 0,
+        library: lib,
+      };
+      STEAM_MANIFEST_CACHE.set(key, { ts: Date.now(), data });
+      return { ok: true, ...data, cached: false };
+    } catch { /* try next lib */ }
+  }
+  return { ok: false, error: 'Manifest not found (game not installed locally?).' };
+});
+
+// ---------------- itch.io devlog RSS ---------------- //
+// For each itch.io game (source === 'itch' OR website contains .itch.io),
+// fetch <base>/devlog.rss and extract items published in the last N days.
+function stripHtml(s) {
+  return String(s || '')
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+async function fetchItchDevlog(game, cutoffMs) {
+  const url = game.website || '';
+  if (!/itch\.io/.test(url)) return [];
+  const base = url.replace(/\/+$/, '').replace(/\/devlog(\.rss)?$/i, '');
+  const rssUrl = `${base}/devlog.rss`;
+  try {
+    const xml = await httpGetText(rssUrl);
+    const items = [];
+    const re = /<item>([\s\S]*?)<\/item>/g;
+    let m;
+    while ((m = re.exec(xml)) !== null) {
+      const block = m[1];
+      const title = stripHtml((block.match(/<title>([\s\S]*?)<\/title>/) || [])[1] || '');
+      const link = ((block.match(/<link>([\s\S]*?)<\/link>/) || [])[1] || '').trim();
+      const pub = (block.match(/<pubDate>([\s\S]*?)<\/pubDate>/) || [])[1] || '';
+      const desc = stripHtml((block.match(/<description>([\s\S]*?)<\/description>/) || [])[1] || '');
+      const dateMs = pub ? Date.parse(pub) : 0;
+      if (!dateMs || dateMs < cutoffMs) continue;
+      items.push({
+        id: `itch-${game.id}-${link || title}`,
+        platform: 'itch',
+        gameId: game.id,
+        gameName: game.name,
+        gameUrl: url,
+        title: title || '(untitled devlog)',
+        url: link || url,
+        author: '',
+        date: dateMs,
+        snippet: desc.slice(0, 320),
+      });
+    }
+    return items;
+  } catch {
+    return [];
+  }
+}
+
+// ---------------- GOG changelog (public product JSON) ---------------- //
+// GOG exposes each product's changelog as an HTML blob via api.gog.com. The
+// blob typically contains `<h4>YYYY-MM-DD</h4><p>notes</p>` sections; we parse
+// per-date sections and treat each as a news item.
+async function fetchGogChangelog(game, cutoffMs) {
+  const gid = game.gogId;
+  if (!gid) return [];
+  const url = `https://api.gog.com/products/${gid}?expand=changelog&locale=en-US`;
+  try {
+    const data = await httpGetJson(url, 8000);
+    const html = String(data?.changelog || '');
+    if (!html) return [];
+    // Split on <h1..h6> headings that look like dates OR contain a parseable
+    // date fragment (e.g. "Internal Update (30 March 2018)", "1.2.3 - 2024-05-01").
+    const re = /<h[1-6][^>]*>\s*([^<]{4,80}?)\s*<\/h[1-6]>([\s\S]*?)(?=<h[1-6][^>]*>|$)/g;
+    const items = [];
+    let m;
+    while ((m = re.exec(html)) !== null) {
+      const rawHeading = stripHtml(m[1]);
+      const body = stripHtml(m[2]).slice(0, 320);
+      // Try to parse a date from the heading. Look for common formats.
+      // 1) ISO/US: 2024-05-01, 2024/05/01, 05-01-2024
+      // 2) Long: "1 May 2024", "May 1 2024", "May 1, 2024"
+      // 3) With parens/prefix: "Update (30 March 2018)", "Patch 1.5 - 2024-05-01"
+      let dateMs = 0;
+      const iso = rawHeading.match(/\b(20\d{2}|19\d{2})[-/](0?[1-9]|1[0-2])[-/](0?[1-9]|[12]\d|3[01])\b/);
+      if (iso) {
+        const [, y, mo, d] = iso;
+        const ms = Date.parse(`${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`);
+        if (Number.isFinite(ms)) dateMs = ms;
+      }
+      if (!dateMs) {
+        const long = rawHeading.match(/\b(\d{1,2})\s+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(20\d{2}|19\d{2})\b/i);
+        if (long) {
+          const ms = Date.parse(`${long[1]} ${long[2]} ${long[3]}`);
+          if (Number.isFinite(ms)) dateMs = ms;
+        }
+      }
+      if (!dateMs) {
+        // Fallback: try raw heading (works for pure "2024-05-01" or "May 1, 2024")
+        const ms = Date.parse(rawHeading);
+        if (Number.isFinite(ms)) dateMs = ms;
+      }
+      if (!dateMs || dateMs < cutoffMs) continue;
+      items.push({
+        id: `gog-${game.id}-${dateMs}`,
+        platform: 'gog',
+        gameId: game.id,
+        gameName: game.name,
+        title: `Patch notes · ${rawHeading}`,
+        url: game.website || `https://www.gog.com/game/${gid}`,
+        author: '',
+        date: dateMs,
+        snippet: body,
+      });
+    }
+    return items;
+  } catch {
+    return [];
+  }
+}
+
+// ---------------- Unified news fetch ---------------- //
+// Wraps Steam + itch + GOG into one call. Cached 30 min by input signature.
+let NEWS_ALL_CACHE = { ts: 0, keyHash: '', payload: null };
+ipcMain.handle('news:fetchAll', async (_e, { games = [], days = 14, force = false } = {}) => {
+  const arr = Array.isArray(games) ? games : [];
+  const steamList = arr.filter((g) => g && g.appid);
+  const itchList  = arr.filter((g) => g && /itch\.io/.test(g.website || '') || (g && g.source === 'itch'));
+  const gogList   = arr.filter((g) => g && g.gogId);
+
+  const keyHash = JSON.stringify({
+    s: steamList.map((g) => g.appid).sort(),
+    i: itchList.map((g) => g.website).sort(),
+    g: gogList.map((g) => g.gogId).sort(),
+    days,
+  });
+  const THIRTY_MIN = 30 * 60 * 1000;
+  if (!force && NEWS_ALL_CACHE.keyHash === keyHash && Date.now() - NEWS_ALL_CACHE.ts < THIRTY_MIN) {
+    return { ok: true, ...NEWS_ALL_CACHE.payload, fetchedAt: NEWS_ALL_CACHE.ts, cached: true };
+  }
+  const cutoffMs = Date.now() - days * 24 * 60 * 60 * 1000;
+
+  const counts = { steam: 0, itch: 0, gog: 0 };
+  const out = [];
+
+  // --- Steam (parallel batched) ---
+  const batchSize = 8;
+  const cutoffSec = Math.floor(cutoffMs / 1000);
+  for (let i = 0; i < steamList.length; i += batchSize) {
+    const slice = steamList.slice(i, i + batchSize);
+    // eslint-disable-next-line no-await-in-loop
+    await Promise.all(slice.map(async (g) => {
+      const url = `https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${g.appid}&count=15&maxlength=400&format=json`;
+      try {
+        const data = await httpGetJson(url, 8000);
+        const items = data?.appnews?.newsitems || [];
+        for (const it of items) {
+          if (typeof it.date !== 'number' || it.date < cutoffSec) continue;
+          const raw = String(it.contents || '');
+          const snippet = raw
+            .replace(/\[img][\s\S]*?\[\/img]/gi, '')
+            .replace(/\[url=[^\]]*]([\s\S]*?)\[\/url]/gi, '$1')
+            .replace(/\[\/?[a-z0-9=*\s"'.:/#-]+]/gi, '')
+            .replace(/<[^>]+>/g, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 320);
+          out.push({
+            id: `steam-${g.appid}-${it.gid}`,
+            platform: 'steam',
+            gameId: g.id || null,
+            appid: String(g.appid),
+            gameName: g.name || '',
+            title: it.title || '(untitled)',
+            url: it.url,
+            author: it.author || '',
+            date: it.date * 1000,
+            feedname: it.feedname || '',
+            feedlabel: it.feedlabel || '',
+            feed_type: typeof it.feed_type === 'number' ? it.feed_type : null,
+            snippet,
+          });
+          counts.steam += 1;
+        }
+      } catch { /* per-game failure fine */ }
+    }));
+  }
+
+  // --- itch (parallel) ---
+  await Promise.all(itchList.map(async (g) => {
+    const items = await fetchItchDevlog(g, cutoffMs);
+    for (const it of items) { out.push(it); counts.itch += 1; }
+  }));
+
+  // --- GOG (parallel) ---
+  await Promise.all(gogList.map(async (g) => {
+    const items = await fetchGogChangelog(g, cutoffMs);
+    for (const it of items) { out.push(it); counts.gog += 1; }
+  }));
+
+  out.sort((a, b) => b.date - a.date);
+  const payload = {
+    items: out,
+    counts,
+    sources: {
+      steam: steamList.length,
+      itch: itchList.length,
+      gog: gogList.length,
+    },
+  };
+  NEWS_ALL_CACHE = { ts: Date.now(), keyHash, payload };
+  return { ok: true, ...payload, fetchedAt: Date.now(), cached: false };
+});
+
