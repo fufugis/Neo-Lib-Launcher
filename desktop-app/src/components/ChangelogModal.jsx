@@ -15,6 +15,18 @@ import { Sparkles, Check, X } from 'lucide-react';
 
 export const CHANGELOG = [
   {
+    version: '1.2.3',
+    title: 'Steam News, live feed',
+    items: [
+      'New: The News tab is live — pulls announcements, patch notes and press coverage from Steam for every Steam game in your library.',
+      'Only surfaces items from the last 14 days so the feed stays fresh (no ancient noise).',
+      'Feed filter toggles — flip Official / Community / Third-party posts on or off; live counts next to each toggle.',
+      'Per-item cards show the game capsule, "time ago" stamp, snippet preview, and open the post in your browser on click.',
+      'Cached for 30 minutes in the Electron process; hit Refresh to force a re-fetch.',
+      'Non-Steam games (GOG, itch, standalone) show a "coming soon" footer note — GOG / itch feeds are next.',
+    ],
+  },
+  {
     version: '1.2.2',
     title: 'Fixes + Tidy up + News tab',
     items: [

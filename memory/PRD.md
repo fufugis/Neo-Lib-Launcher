@@ -11,6 +11,18 @@ and a non-intrusive monetization system (Deals banners via Affiliate links).
 - CI: GitHub Actions builds NSIS `.exe` + portable `.zip` on tag push.
 - System tray (Electron Tray API) for close-to-tray behavior.
 
+## Version 1.2.3 — Feb 2, 2026
+**Steam News, live feed:**
+- New IPC handler `news:fetchSteam` in `electron/main.js` — queries `ISteamNews/GetNewsForApp` for every game with a Steam appid, parallel batches of 8, 30-min in-process cache, force-refresh flag.
+- Filters items to the last **14 days** (server-side), strips BBCode/HTML for a 320-char snippet.
+- `NewsPanel.jsx` rewritten from placeholder into full feed: game capsule, "time ago" stamp, snippet, click-to-open on Steam.
+- Feed classifier groups items into **Official / Community / Third-party** via `feedname` heuristic; UI toggle bar with live per-feed counts.
+- Non-Steam games surface a "coming soon" footer note (GOG / itch feeds are next).
+- Version bumped 1.2.2 → 1.2.3 across all 5 pinned locations.
+
+## Version 1.2.2 — Feb 1, 2026
+**Fixes + Tidy up + News placeholder** (see CHANGELOG for full list).
+
 ## Version 1.1.4 — Feb 16, 2026
 **Tray mode + Featured banner:**
 - Close-to-tray (Electron `Tray` + window `close` interception, persisted via `settings.minimizeToTray`).
@@ -42,6 +54,7 @@ and a non-intrusive monetization system (Deals banners via Affiliate links).
 
 ### P1 (active)
 - [ ] **Steam manifest reading** — show "Updated X days ago" + build IDs in Steam GameDetail.
+- [ ] **GOG / itch news feeds** — extend NewsPanel to pull GOG announcements + itch devlogs for owned non-Steam games.
 
 ### Deferred per user
 - Refactor `App.jsx` / `main.js` (only when regression-risk shrinks).

@@ -2140,3 +2140,71 @@ ipcMain.handle('deals:fetch', async () => {
   return items;
 });
 
+// ---------------- Steam News (per-appid, cached 30 min) ---------------- //
+// Renderer sends [{ appid, name }]. We fetch each app's latest news, keep
+// items posted in the last N days (default 14), and return a flat feed
+// sorted newest-first. Each item includes feedname/feed_type/feedlabel so
+// the UI can group / filter by source (official vs community vs 3rd party).
+let STEAM_NEWS_CACHE = { ts: 0, keyHash: '', items: [] };
+ipcMain.handle('news:fetchSteam', async (_e, { games = [], days = 14, force = false } = {}) => {
+  const list = (games || [])
+    .filter((g) => g && g.appid)
+    .map((g) => ({ appid: String(g.appid), name: g.name || String(g.appid), gameId: g.id || null }));
+  if (!list.length) return { ok: true, items: [], fetchedAt: Date.now() };
+
+  const keyHash = list.map((g) => g.appid).sort().join(',') + `|${days}`;
+  const THIRTY_MIN = 30 * 60 * 1000;
+  if (!force && STEAM_NEWS_CACHE.keyHash === keyHash && Date.now() - STEAM_NEWS_CACHE.ts < THIRTY_MIN) {
+    return { ok: true, items: STEAM_NEWS_CACHE.items, fetchedAt: STEAM_NEWS_CACHE.ts, cached: true };
+  }
+
+  const cutoffSec = Math.floor((Date.now() - days * 24 * 60 * 60 * 1000) / 1000);
+  const out = [];
+  // Fetch in parallel with a cap on concurrency (8 at a time) to be polite
+  const batchSize = 8;
+  for (let i = 0; i < list.length; i += batchSize) {
+    const slice = list.slice(i, i + batchSize);
+    // eslint-disable-next-line no-await-in-loop
+    await Promise.all(
+      slice.map(async (g) => {
+        const url = `https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${g.appid}&count=15&maxlength=400&format=json`;
+        try {
+          const data = await httpGetJson(url, 8000);
+          const items = data?.appnews?.newsitems || [];
+          for (const it of items) {
+            if (typeof it.date !== 'number' || it.date < cutoffSec) continue;
+            // Strip Steam BBCode-ish tags and heavy HTML for the snippet
+            const raw = String(it.contents || '');
+            const snippet = raw
+              .replace(/\[img][\s\S]*?\[\/img]/gi, '')
+              .replace(/\[url=[^\]]*]([\s\S]*?)\[\/url]/gi, '$1')
+              .replace(/\[\/?[a-z0-9=*\s"'.:/#-]+]/gi, '')
+              .replace(/<[^>]+>/g, '')
+              .replace(/\s+/g, ' ')
+              .trim()
+              .slice(0, 320);
+            out.push({
+              id: `${g.appid}-${it.gid}`,
+              gameId: g.gameId,
+              appid: g.appid,
+              gameName: g.name,
+              title: it.title || '(untitled)',
+              url: it.url,
+              author: it.author || '',
+              date: it.date * 1000,
+              feedname: it.feedname || '',
+              feedlabel: it.feedlabel || '',
+              feed_type: typeof it.feed_type === 'number' ? it.feed_type : null,
+              snippet,
+            });
+          }
+        } catch (err) {
+          // per-game failure is fine — keep going
+        }
+      })
+    );
+  }
+  out.sort((a, b) => b.date - a.date);
+  STEAM_NEWS_CACHE = { ts: Date.now(), keyHash, items: out };
+  return { ok: true, items: out, fetchedAt: Date.now(), cached: false };
+});

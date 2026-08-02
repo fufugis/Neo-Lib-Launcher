@@ -27,7 +27,7 @@ import TidyUpModal from './components/TidyUpModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.2.2';
+const APP_VERSION = '1.2.3';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin } from './lib/utils';
 import { setSoundPack } from './lib/sound';
@@ -1232,7 +1232,7 @@ export default function App() {
         <main className="relative flex min-w-0 flex-1 flex-col">
           <div className="flex-1 min-h-0 overflow-hidden">
             {settings.mode === 'news' ? (
-              <NewsPanel />
+              <NewsPanel games={library.games} />
             ) : (
               <AnimatePresence mode="wait">
                 <GameDetail

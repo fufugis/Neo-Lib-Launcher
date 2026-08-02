@@ -62,6 +62,9 @@ contextBridge.exposeInMainWorld('api', {
   // deals (Epic free + Steam specials)
   fetchDeals: () => ipcRenderer.invoke('deals:fetch'),
 
+  // steam news feed (last N days, all owned Steam games)
+  fetchSteamNews: (opts) => ipcRenderer.invoke('news:fetchSteam', opts),
+
   // launcher process detection
   detectLaunchers: () => ipcRenderer.invoke('launcher:detect'),
 });
