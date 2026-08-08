@@ -15,6 +15,19 @@ import { Sparkles, Check, X } from 'lucide-react';
 
 export const CHANGELOG = [
   {
+    version: '1.2.9',
+    title: 'Stats tab · 2 Special themes · Text-size slider · Subcat toggle · 3 new sound packs',
+    items: [
+      '**New: Stats tab** in the top toolbar — shows every launcher/client you have imports from (Steam, GOG, itch, EA, Ubisoft, Epic, Battle.net…), your most-played ranking filtered by This week / month / year / all time, total hours, and a Link Discord button. Not a social profile — just numbers.',
+      '**Two Special themes** — `Colorful` (pink / blue / carbon-black / textured-white with sparkles + shooting stars + bloom) and `Pro` (light/dark industrial grays with dark-orange edge glow, brushed-metal texture, and a subtle sweeping scanline). Both spawn 1.5× particles even at Medium.',
+      '**Sidebar tint** — per-theme accent wash behind the library so contrast stays readable on light-font vs dark-font themes.',
+      '**Text-size slider** independent of icon size — dial the game name font from 9 → 22px without changing the row height.',
+      '**Sub-category strip toggle** — the "Action, RPG" genre badges under each game can now be turned off separately from the category dot.',
+      '**News popup anchors next to News button** instead of the far right; opens in ~140ms with no darken/blur.',
+      '**Three new sound packs** — `Crystal` (bell-like glass ping), `Cyberpunk` (glitchy square + noise burst), `Bubble` (soft plop).',
+    ],
+  },
+  {
     version: '1.2.8',
     title: 'Tidy Up bug fix · Sliders portal · Every theme animated · Draggable news · 2-col Settings',
     items: [

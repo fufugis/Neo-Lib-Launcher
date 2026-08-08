@@ -37,7 +37,7 @@ function timeAgo(ms) {
   return `${d}d ago`;
 }
 
-export default function NewsPanel({ games = [], onClose }) {
+export default function NewsPanel({ games = [], onClose, anchorSelector }) {
   const eligibleGames = useMemo(
     () => (games || []).filter((g) => g && (g.appid || g.gogId || /itch\.io/.test(g.website || '') || g.source === 'itch')),
     [games]
@@ -109,6 +109,23 @@ export default function NewsPanel({ games = [], onClose }) {
 
   const dragControls = useDragControls();
 
+  // Anchor the panel to a target element (default: News tab). Portal positioning
+  // uses fixed coords so no parent stacking context can hide it.
+  const [anchorPos, setAnchorPos] = React.useState(() => {
+    if (typeof document === 'undefined' || !anchorSelector) return { top: 76, left: 220 };
+    const el = document.querySelector(anchorSelector);
+    if (!el) return { top: 76, left: 220 };
+    const r = el.getBoundingClientRect();
+    return { top: r.bottom + 8, left: r.left };
+  });
+  React.useEffect(() => {
+    if (typeof document === 'undefined' || !anchorSelector) return;
+    const el = document.querySelector(anchorSelector);
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setAnchorPos({ top: r.bottom + 8, left: r.left });
+  }, [anchorSelector]);
+
   const body = (
     <AnimatePresence>
       <motion.div
@@ -126,12 +143,14 @@ export default function NewsPanel({ games = [], onClose }) {
           dragListener={false}
           dragMomentum={false}
           dragElastic={0}
-          initial={{ opacity: 0, x: 12, scale: 0.98 }}
+          initial={{ opacity: 0, x: -8, scale: 0.98 }}
           animate={{ opacity: 1, x: 0, scale: 1 }}
-          exit={{ opacity: 0, x: 12, scale: 0.98 }}
+          exit={{ opacity: 0, x: -8, scale: 0.98 }}
           transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
-          className="pointer-events-auto absolute right-3 top-16 flex w-full max-w-[520px] max-h-[80vh] flex-col overflow-hidden rounded-2xl hairline"
+          className="pointer-events-auto absolute flex w-full max-w-[520px] max-h-[70vh] flex-col overflow-hidden rounded-2xl hairline"
           style={{
+            top: anchorPos.top,
+            left: anchorPos.left,
             backgroundColor: 'rgb(var(--panel) / 0.98)',
             border: '1px solid rgb(var(--accent) / 0.25)',
             boxShadow: '0 20px 60px -20px rgba(0,0,0,0.85), 0 0 30px -8px rgb(var(--accent)/0.35)',

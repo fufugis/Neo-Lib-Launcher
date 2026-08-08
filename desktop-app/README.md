@@ -4,9 +4,18 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.2.8-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.2.9-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.2.8 (Tidy Up fix · Sliders portal · Every theme animated · Draggable news · 2-col Settings)
+### Latest — v1.2.9 (Stats tab · Special themes · Text-size slider · Subcat toggle · 3 sound packs)
+- **Stats tab** — connected clients breakdown + most-played ranking filtered by week / month / year / all time.
+- **Colorful** and **Pro** — two Special themes with sparkles, shooting stars, carbon/textured surfaces, sweeping scanlines, and bumped particle counts.
+- **Sidebar tint** — subtle per-theme wash behind the library for readability.
+- **Text-size slider** independent of icon size.
+- **Sub-category toggle** — turn off "Action, RPG" genre badges without hiding the category dot.
+- **News popup** anchors next to the News button.
+- **3 new sound packs**: Crystal / Cyberpunk / Bubble.
+
+### v1.2.8 (Tidy Up fix · Sliders portal · Every theme animated · Draggable news · 2-col Settings)
 - **CRITICAL FIX**: Tidy Up "remove duplicates" no longer wipes out your Steam library (over-eager Rule 3 dropped, cluster-size cap added).
 - **Sliders popover** portaled + fully opaque — always floats above the game preview.
 - **Every theme now animates** — particles + edge glow apply to synthwave, midnight, ocean, crimson, anime, mint, gaming, modern and any future theme automatically.

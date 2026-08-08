@@ -157,11 +157,109 @@ const PACK_SCIFI = {
   },
 };
 
+/* ---------- Pack: crystal (bell-ish glass ping) ---------- */
+const PACK_CRYSTAL = {
+  hover() {
+    const ac = getCtx(); if (!ac) return;
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'sine';
+    o.frequency.value = 2400;
+    o.connect(g);
+    connectMaster(g, ac);
+    envelope(g, ac, 0.001, 0.11, 0.05);
+    o.start(); o.stop(ac.currentTime + 0.14);
+  },
+  launch() {
+    const ac = getCtx(); if (!ac) return;
+    // Two overlapping sines an octave apart → glass chime
+    [1760, 3520].forEach((freq, i) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine';
+      o.frequency.value = freq;
+      o.connect(g);
+      connectMaster(g, ac);
+      envelope(g, ac, 0.002, 0.55 - i * 0.15, 0.09 - i * 0.02);
+      o.start(); o.stop(ac.currentTime + 0.7);
+    });
+  },
+};
+
+/* ---------- Pack: cyberpunk (glitchy digital pop) ---------- */
+const PACK_CYBERPUNK = {
+  hover() {
+    const ac = getCtx(); if (!ac) return;
+    const o = ac.createOscillator(), g = ac.createGain();
+    const hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 900;
+    o.type = 'square';
+    o.frequency.setValueAtTime(1500, ac.currentTime);
+    o.frequency.exponentialRampToValueAtTime(2400, ac.currentTime + 0.025);
+    o.connect(hp).connect(g);
+    connectMaster(g, ac);
+    envelope(g, ac, 0.001, 0.04, 0.05);
+    o.start(); o.stop(ac.currentTime + 0.06);
+  },
+  launch() {
+    const ac = getCtx(); if (!ac) return;
+    // Descending square + a noise burst → cyberpunk "authenticated" chirp
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'square';
+    o.frequency.setValueAtTime(1200, ac.currentTime);
+    o.frequency.exponentialRampToValueAtTime(300, ac.currentTime + 0.18);
+    o.connect(g);
+    connectMaster(g, ac);
+    envelope(g, ac, 0.002, 0.22, 0.12);
+    o.start(); o.stop(ac.currentTime + 0.26);
+    // Short noise burst
+    const bufSize = ac.sampleRate * 0.08;
+    const buf = ac.createBuffer(1, bufSize, ac.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i += 1) data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+    const noise = ac.createBufferSource(); noise.buffer = buf;
+    const ng = ac.createGain(); ng.gain.value = 0.06;
+    const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2000; bp.Q.value = 3;
+    noise.connect(bp).connect(ng);
+    connectMaster(ng, ac);
+    noise.start();
+  },
+};
+
+/* ---------- Pack: bubble (soft plop, playful) ---------- */
+const PACK_BUBBLE = {
+  hover() {
+    const ac = getCtx(); if (!ac) return;
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(300, ac.currentTime);
+    o.frequency.exponentialRampToValueAtTime(500, ac.currentTime + 0.05);
+    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1400;
+    o.connect(lp).connect(g);
+    connectMaster(g, ac);
+    envelope(g, ac, 0.003, 0.08, 0.05);
+    o.start(); o.stop(ac.currentTime + 0.1);
+  },
+  launch() {
+    const ac = getCtx(); if (!ac) return;
+    // A "plop" — pitch sweep down inside a lowpass → water bubble
+    const o = ac.createOscillator(), g = ac.createGain();
+    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;
+    o.type = 'sine';
+    o.frequency.setValueAtTime(900, ac.currentTime);
+    o.frequency.exponentialRampToValueAtTime(200, ac.currentTime + 0.15);
+    o.connect(lp).connect(g);
+    connectMaster(g, ac);
+    envelope(g, ac, 0.004, 0.2, 0.10);
+    o.start(); o.stop(ac.currentTime + 0.22);
+  },
+};
+
 const PACKS = {
   synthwave: PACK_SYNTHWAVE,
   arcade:    PACK_ARCADE,
   minimal:   PACK_MINIMAL,
   scifi:     PACK_SCIFI,
+  crystal:   PACK_CRYSTAL,
+  cyberpunk: PACK_CYBERPUNK,
+  bubble:    PACK_BUBBLE,
   none:      { hover() {}, launch() {} },
 };
 
@@ -170,6 +268,9 @@ export const SOUND_PACKS = [
   { id: 'arcade',    label: 'Arcade (coin chirp)' },
   { id: 'minimal',   label: 'Minimal (soft tick)' },
   { id: 'scifi',     label: 'Sci-fi (filter sweep)' },
+  { id: 'crystal',   label: 'Crystal (glass ping)' },
+  { id: 'cyberpunk', label: 'Cyberpunk (glitch pop)' },
+  { id: 'bubble',    label: 'Bubble (soft plop)' },
   { id: 'none',      label: 'No sound' },
 ];
 

@@ -11,6 +11,16 @@ and a non-intrusive monetization system (Deals banners via Affiliate links).
 - CI: GitHub Actions builds NSIS `.exe` + portable `.zip` on tag push.
 - System tray (Electron Tray API) for close-to-tray behavior.
 
+## Version 1.2.9 — Feb 2, 2026
+**Stats tab · Two Special themes · Text-size slider · Sub-cat toggle · 3 sound packs · News anchoring:**
+- **Stats tab** (`StatsPanel.jsx`): draggable portal, anchors next to `tab-stats` button. Shows connected clients (Steam/GOG/itch/EA/Ubi/Epic/Battle.net), most-played ranking filtered by This week / month / year / all time (based on `lastPlayedAt`), total hours, Link Discord button. Placeholder for future Steam Web API playtime import.
+- Two Special themes (`colorful`, `pro`) added to `THEMES`, styles.css, and BgAmbience `ambClass` map. Colorful spawns extra `.shooting-stars` layer at effects level > 0; Pro gets brushed-metal texture + orange scanline. Both bump particle count 1.5× to feel more "premium".
+- New CSS var `--sidebar-tint` per theme + `.sidebar-tint` layer inside sidebar renders a soft accent wash behind the library for contrast.
+- Independent `nameTextSize` slider in `LibrarySettingsPopover` — clamps 9-22px, decouples from `rowSize`.
+- `showSubcatStrip` toggle — plumbed through Sidebar → SectionWrap → CategorySection → GameRow. Gates the genre/playtime meta strip line.
+- News popup: added `anchorSelector` prop; positions itself under `[data-testid="tab-news"]` via `getBoundingClientRect()`.
+- Sound packs: added `crystal` (bell chime), `cyberpunk` (glitch pop + noise), `bubble` (soft plop) to `sound.js` PACKS registry.
+
 ## Version 1.2.8 — Feb 2, 2026
 **Tidy Up bug fix · Sliders portal · Every theme animated · Draggable news · 2-col Settings:**
 - **CRITICAL fix in `TidyUpModal.jsx findDuplicates()`**: dropped Rule 3 (shared 3+ folder ancestors) which lumped ALL Steam library games into one cluster because they all share `Steam\steamapps\common\`. User reported: "I had those two games only and the other 42 games from steam were removed." Now only same-exe (Rule 1) and same normalized name (Rule 2) fire. Added cluster-size safety cap (max 6 games per cluster).

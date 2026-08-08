@@ -144,6 +144,39 @@
   --hairline-glow: 232 30 168;
 }
 
+/* ========== SPECIAL THEMES (extra eye-candy, sparkles + shooting stars + neon bloom) ========== */
+
+/* COLORFUL — pink + blue + black (carbon-textured) + white (textured):
+   playful pop palette with sparkles, shooting stars, and rainbow-tinted particles.
+   Blacks use a subtle carbon-fiber SVG weave; whites are textured off-white. */
+[data-theme='colorful'] {
+  --ink: 250 246 255;
+  --muted: 205 190 230;
+  --surface: 10 8 18;              /* near-black carbon-tinted */
+  --panel: 22 16 34;
+  --border: 220 90 180;
+  --accent: 255 90 190;            /* hot pink */
+  --accent-2: 90 160 255;          /* electric blue */
+  --accent-soft: 255 255 255;      /* pure white pop */
+  --hairline-glow: 255 90 190;
+  --sidebar-tint: 245 240 255;     /* used by .sidebar-tint layer for a soft accent wash */
+}
+
+/* PRO — light/dark gray industrial. Serious, readable, still animated.
+   Edges glow dark-orange so it never feels dull. */
+[data-theme='pro'] {
+  --ink: 240 240 240;
+  --muted: 168 168 174;
+  --surface: 30 30 34;             /* dark gray */
+  --panel: 44 44 50;
+  --border: 90 90 96;
+  --accent: 224 122 60;            /* dark orange edges */
+  --accent-2: 200 200 208;         /* light steel gray */
+  --accent-soft: 255 255 255;
+  --hairline-glow: 224 122 60;
+  --sidebar-tint: 210 210 216;
+}
+
 /* ========== Base ========== */
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; }
@@ -681,8 +714,114 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
 }
 
 /* ============================================================ */
-/* FLOATING PARTICLES — opt-in via .particles class               */
+/* SPECIAL — COLORFUL: sparkles, shooting stars, bloom particles */
 /* ============================================================ */
+.amb-colorful {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(255, 90, 190, 0.35), transparent 42%),
+    radial-gradient(circle at 85% 30%, rgba(90, 160, 255, 0.32), transparent 45%),
+    radial-gradient(circle at 40% 85%, rgba(255, 255, 255, 0.08), transparent 55%),
+    linear-gradient(180deg, rgba(10, 8, 18, 0.0) 0%, rgba(10, 8, 18, 0.5) 100%);
+}
+/* Carbon-fiber weave for the black surface — subtle diagonal SVG */
+.amb-colorful::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    repeating-linear-gradient(45deg, rgba(255,255,255,0.03) 0 2px, transparent 2px 6px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,0.025) 0 2px, transparent 2px 6px);
+  opacity: 0.9;
+}
+/* Sparkle field — tiny points that twinkle */
+.amb-colorful::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(2px 2px at 12% 22%, rgba(255,255,255,0.85), transparent 60%),
+    radial-gradient(2px 2px at 68% 44%, rgba(255,90,190,0.85), transparent 60%),
+    radial-gradient(2px 2px at 34% 78%, rgba(90,160,255,0.85), transparent 60%),
+    radial-gradient(3px 3px at 88% 82%, rgba(255,255,255,0.75), transparent 60%),
+    radial-gradient(2px 2px at 22% 58%, rgba(255,90,190,0.7), transparent 60%),
+    radial-gradient(2px 2px at 78% 18%, rgba(90,160,255,0.7), transparent 60%);
+  background-size: 240px 240px;
+  animation: colorfulTwinkle 6s ease-in-out infinite;
+}
+@keyframes colorfulTwinkle {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 1;    }
+}
+
+/* Shooting stars — a small strip of animated dashes that streak across */
+.shooting-stars {
+  position: absolute; inset: 0; pointer-events: none; overflow: hidden;
+}
+.shooting-stars span {
+  position: absolute;
+  top: 8%;
+  width: 2px; height: 2px;
+  background: #fff;
+  box-shadow: 0 0 8px 2px #fff, 0 0 18px 4px rgba(255,255,255,0.6);
+  border-radius: 50%;
+  animation: shootingStar 6.5s linear infinite;
+}
+.shooting-stars span::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 120px; height: 1.5px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.95), transparent);
+  transform-origin: left center;
+  transform: rotate(-14deg);
+}
+@keyframes shootingStar {
+  0%   { transform: translate(-10vw, 0) rotate(-14deg); opacity: 0; }
+  8%   { opacity: 1; }
+  40%  { opacity: 1; }
+  60%  { transform: translate(110vw, 42vh) rotate(-14deg); opacity: 0; }
+  100% { opacity: 0; }
+}
+
+/* ============================================================ */
+/* SPECIAL — PRO: industrial gray with dark-orange edge glow    */
+/* ============================================================ */
+.amb-pro {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(circle at 10% 15%, rgba(224, 122, 60, 0.16), transparent 42%),
+    radial-gradient(circle at 90% 85%, rgba(180, 180, 190, 0.10), transparent 50%),
+    linear-gradient(180deg, rgba(30, 30, 34, 0.0) 0%, rgba(30, 30, 34, 0.55) 100%);
+}
+/* Subtle brushed-metal texture — tight horizontal lines */
+.amb-pro::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 3px);
+  opacity: 0.6;
+}
+/* Sweeping scanline for the "industrial monitor" feel */
+.amb-pro::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, transparent 46%, rgba(224, 122, 60, 0.06) 50%, transparent 54%);
+  background-size: 100% 300px;
+  animation: proScanline 6s linear infinite;
+}
+@keyframes proScanline {
+  0%   { background-position: 0 -100px; }
+  100% { background-position: 0 100vh; }
+}
+
+/* ============================================================ */
+/* Sidebar tint — light accent wash per theme, applied by App    */
+/* ============================================================ */
+.sidebar-tint {
+  position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  opacity: 0.14;
+  background: radial-gradient(ellipse at 20% 30%, rgb(var(--sidebar-tint, var(--accent))), transparent 65%);
+}
+
 .particles {
   position: absolute; inset: 0; pointer-events: none;
   overflow: hidden;

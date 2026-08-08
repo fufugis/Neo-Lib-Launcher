@@ -23,11 +23,12 @@ import AcceptMetadataModal from './components/AcceptMetadataModal';
 import FetchSourcePicker from './components/FetchSourcePicker';
 import ChangelogModal from './components/ChangelogModal';
 import NewsPanel from './components/NewsPanel';
+import StatsPanel from './components/StatsPanel';
 import TidyUpModal from './components/TidyUpModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.2.8';
+const APP_VERSION = '1.2.9';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin } from './lib/utils';
 import { setSoundPack } from './lib/sound';
@@ -1235,6 +1236,10 @@ export default function App() {
           onChangeCatTopGap={(v) => updateSetting({ catTopGap: v })}
           onChangeIconPosition={(v) => updateSetting({ iconPosition: v })}
           onToggleCategoryDot={(v) => updateSetting({ showCategoryDot: v })}
+          showSubcatStrip={settings.showSubcatStrip !== false}
+          onToggleSubcatStrip={(v) => updateSetting({ showSubcatStrip: v })}
+          nameTextSize={Number.isFinite(settings.nameTextSize) ? settings.nameTextSize : null}
+          onChangeNameTextSize={(v) => updateSetting({ nameTextSize: v })}
           unseenNewsCount={unseenNewsCount}
           effectsLevel={(() => {
             const map = settings.effectsLevelByTheme || {};
@@ -1294,7 +1299,7 @@ export default function App() {
           </div>
 
           {/* Showcase strip below preview — only on Library tab */}
-          {!isTools && settings.mode !== 'news' && (
+          {!isTools && settings.mode !== 'news' && settings.mode !== 'stats' && (
             <ShowcaseStrip
               games={visibleGames}
               mode={settings.showcaseMode || 'recent_added'}
@@ -1307,11 +1312,21 @@ export default function App() {
         </main>
       </div>
 
-      {/* News modal — floating popup overlay. Click backdrop / Esc / X to close. */}
+      {/* News modal — floats next to the News tab button. Click backdrop / Esc / X to close. */}
       {settings.mode === 'news' && (
         <NewsPanel
           games={library.games}
           onClose={() => setMode('library')}
+          anchorSelector='[data-testid="tab-news"]'
+        />
+      )}
+
+      {/* Stats panel — floats next to the Stats tab button. */}
+      {settings.mode === 'stats' && (
+        <StatsPanel
+          games={library.games}
+          onClose={() => setMode('library')}
+          anchorSelector='[data-testid="tab-stats"]'
         />
       )}
 
@@ -1734,6 +1749,8 @@ function BgAmbience({ theme, settings = {}, game = null }) {
   // v1.2.8 — any theme (including future ones like Gaming/Modern that don't
   // have a dedicated ambClass) still gets particles + edge glow so the
   // effects slider is meaningful everywhere.
+  // v1.2.9 — Special themes (colorful, pro) get amb-* backdrops PLUS extra
+  // shooting-star and sparkle layers on top of the standard particle count.
   const ambClass = {
     midnight: 'amb-midnight',
     daybreak: 'amb-daybreak',
@@ -1741,18 +1758,36 @@ function BgAmbience({ theme, settings = {}, game = null }) {
     crimson:  'amb-crimson',
     anime:    'amb-anime',
     mint:     'amb-mint',
+    colorful: 'amb-colorful',
+    pro:      'amb-pro',
   }[theme];
+  const isSpecial = theme === 'colorful' || theme === 'pro';
+  // Special themes bump particle count so they always feel "extra"
+  const particleCount = isSpecial
+    ? Math.max(lvl.particles * 1.5, 12) | 0
+    : (theme === 'crimson' ? lvl.particles + lvl.crimsonBoost : lvl.particles);
   return (
     <>
       {extraLayersEl}
       <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden" style={{ opacity: intensity }}>
         {ambClass && <div className={ambClass} />}
         {theme === 'anime' && lvl.sakura > 0 && <Sakura count={lvl.sakura} />}
-        {showParticles && (
-          <Particles
-            count={theme === 'crimson' ? lvl.particles + lvl.crimsonBoost : lvl.particles}
-          />
+        {/* Shooting stars — only for Colorful theme, only if effects level >= Low */}
+        {theme === 'colorful' && level > 0 && (
+          <div className="shooting-stars">
+            {Array.from({ length: Math.max(2, level + 1) }).map((_, i) => (
+              <span
+                key={i}
+                style={{
+                  top: `${8 + i * 22}%`,
+                  animationDelay: `${i * 1.6}s`,
+                  animationDuration: `${5 + (i % 3)}s`,
+                }}
+              />
+            ))}
+          </div>
         )}
+        {showParticles && <Particles count={particleCount} />}
       </div>
       {edgeGlowLayer}
     </>

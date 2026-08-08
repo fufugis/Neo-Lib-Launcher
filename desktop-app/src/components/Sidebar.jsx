@@ -5,7 +5,7 @@ import {
   Plus, Wand2, Settings, RefreshCw, Trash2, Pencil, FolderOpen, MoreVertical, Sparkles,
   Lock, ChevronRight, ChevronDown, Tag, GripVertical, Terminal,
   Info, ArrowUp, ArrowDown, Palette, Eye, EyeOff, Sliders, Library as LibIcon,
-  Wrench, Columns, Pin, PinOff, X as XIcon, Newspaper,
+  Wrench, Columns, Pin, PinOff, X as XIcon, Newspaper, BarChart3,
 } from 'lucide-react';
 import { cn, colorFromId, sizeById } from '../lib/utils';
 
@@ -29,11 +29,14 @@ export default function Sidebar({
   iconPosition = 'left', rowSize = 44, catTextSize = 11, catGlow = 40,
   rowGap = 2, catGap = 8, catTopGap = 4,
   showCategoryDot = true,
+  showSubcatStrip = true,
+  nameTextSize = null,
   effectsLevel = 2, currentTheme = 'synthwave', onChangeEffectsLevel,
   unseenNewsCount = 0,
   pinnedIds = [],
   onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
   onChangeRowGap, onChangeCatGap, onChangeCatTopGap, onToggleCategoryDot,
+  onToggleSubcatStrip, onChangeNameTextSize,
   onSelect,
   onAddManual, onOpenWizard, onOpenSettings, onUpdateAll, onTidyUp,
   onCreateCategory, onCategoryContext, onGameContext,
@@ -46,12 +49,16 @@ export default function Sidebar({
   onStartResize,
   updatingAll,
 }) {
-  // size based on rowSize slider (in px)
+  // size based on rowSize slider (in px).
+  // v1.2.9 — text size can now be overridden explicitly via nameTextSize
+  // slider (independent of icon size). If null, it derives from rowSize
+  // like before so the sliders still play nicely together.
+  const derivedFont = Math.max(11, Math.min(16, Math.round(rowSize * 0.28)));
   const size = {
     id: rowSize < 32 ? 'small' : rowSize > 60 ? 'big' : 'medium',
     rowH: rowSize,
     icon: Math.max(14, Math.round(rowSize * 0.72)),
-    font: Math.max(11, Math.min(16, Math.round(rowSize * 0.28))),
+    font: Number.isFinite(nameTextSize) ? Math.max(9, Math.min(22, nameTextSize)) : derivedFont,
   };
   const [libSettingsOpen, setLibSettingsOpen] = React.useState(false);
   const libSettingsBtnRef = React.useRef(null);
@@ -114,6 +121,10 @@ export default function Sidebar({
       className="relative flex h-full shrink-0 flex-col border-r hairline glass-soft"
       style={{ width: sidebarWidth }}
     >
+      {/* Per-theme tint wash — subtle accent-colored glow behind sidebar content.
+          Uses --sidebar-tint CSS var which each theme sets to its own accent
+          hue, so Colorful gets a pinkish wash while Pro gets a warm steel one. */}
+      <span aria-hidden className="sidebar-tint" />
       {/* Resize handle on right edge */}
       <div
         data-testid="sidebar-resize-handle"
@@ -137,7 +148,7 @@ export default function Sidebar({
         <TabPill
           label="Library"
           icon={<LibIcon size={14} />}
-          active={mode !== 'tools' && mode !== 'news'}
+          active={mode !== 'tools' && mode !== 'news' && mode !== 'stats'}
           onClick={() => { onSetMode('library'); onSetLauncherFilter?.('all'); }}
           testid="tab-library"
           big
@@ -158,6 +169,14 @@ export default function Sidebar({
           testid="tab-news"
           big
           badge={typeof unseenNewsCount === 'number' && unseenNewsCount > 0 ? unseenNewsCount : null}
+        />
+        <TabPill
+          label="Stats"
+          icon={<BarChart3 size={14} />}
+          active={mode === 'stats'}
+          onClick={() => onSetMode('stats')}
+          testid="tab-stats"
+          big
         />
         {/* Bottom accent line separating the toolbar from what's underneath */}
         <span
@@ -298,6 +317,10 @@ export default function Sidebar({
                 onChangeCatTopGap={onChangeCatTopGap}
                 onChangeIconPosition={onChangeIconPosition}
                 onToggleCategoryDot={onToggleCategoryDot}
+                showSubcatStrip={showSubcatStrip}
+                onToggleSubcatStrip={onToggleSubcatStrip}
+                nameTextSize={nameTextSize}
+                onChangeNameTextSize={onChangeNameTextSize}
                 effectsLevel={effectsLevel}
                 currentTheme={currentTheme}
                 onChangeEffectsLevel={onChangeEffectsLevel}
@@ -402,6 +425,7 @@ export default function Sidebar({
               catGap={catGap}
               catTopGap={catTopGap}
               showCategoryDot={showCategoryDot}
+              showSubcatStrip={showSubcatStrip}
               pinnedIdsSet={pinnedIdsSet}
               selectedId={selectedId}
               onSelect={onSelect}
@@ -478,7 +502,7 @@ function TwoColumnSections({ sections, commonProps }) {
 
 function SectionWrap({ s, idx, commonProps }) {
   const { collapsed, size, iconPosition, catTextSize, catGlow, rowGap, catGap, catTopGap, selectedId,
-    showCategoryDot,
+    showCategoryDot, showSubcatStrip,
     pinnedIdsSet,
     onSelect, onGameContext, onCategoryContext, onUnlockCategory, onToggleCollapsed,
     onMoveGameToCategory, onReorderGameInCategory, onReorderCategory,
@@ -496,6 +520,7 @@ function SectionWrap({ s, idx, commonProps }) {
       catGap={catGap}
       catTopGap={catTopGap}
       showCategoryDot={showCategoryDot}
+      showSubcatStrip={showSubcatStrip}
       pinnedIdsSet={pinnedIdsSet}
       selectedId={selectedId}
       onSelect={onSelect}
@@ -626,9 +651,11 @@ function LibrarySettingsPopover({
   anchorEl,
   librarySize, rowSize = 44, catTextSize = 11, catGlow = 40, iconPosition = 'left',
   rowGap = 2, catGap = 8, catTopGap = 4, showCategoryDot = true,
+  showSubcatStrip = true, nameTextSize = null,
   effectsLevel = 2, currentTheme = 'synthwave',
   onSetLibrarySize, onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
   onChangeRowGap, onChangeCatGap, onChangeCatTopGap, onToggleCategoryDot,
+  onToggleSubcatStrip, onChangeNameTextSize,
   onChangeEffectsLevel,
   onClose, onCreateCategory,
 }) {
@@ -719,6 +746,15 @@ function LibrarySettingsPopover({
         suffix="px"
         onChange={onChangeRowSize}
         testid="pop-row-size"
+      />
+      <PopSlider
+        label="Game name text size"
+        value={Number.isFinite(nameTextSize) ? nameTextSize : Math.max(11, Math.min(16, Math.round(rowSize * 0.28)))}
+        min={9}
+        max={22}
+        suffix="px"
+        onChange={onChangeNameTextSize}
+        testid="pop-name-text-size"
       />
       <PopSlider
         label="Category text size"
@@ -814,6 +850,33 @@ function LibrarySettingsPopover({
         </span>
       </button>
 
+      {/* Sub-category strip toggle — hides the "Action, RPG" genre badges shown under each game name */}
+      <button
+        data-testid="pop-toggle-subcat-strip"
+        onClick={() => onToggleSubcatStrip && onToggleSubcatStrip(!showSubcatStrip)}
+        className={cn(
+          'flex w-full items-center justify-between rounded-md hairline px-2.5 py-2 text-[11px] transition-colors',
+          showSubcatStrip
+            ? 'border-[rgb(var(--accent)/0.5)] bg-[rgb(var(--accent)/0.08)] text-ink'
+            : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]'
+        )}
+        title="Toggle the genre/playtime strip shown under each game name"
+      >
+        <span className="flex items-center gap-2">
+          <span
+            className="h-1 w-4 rounded"
+            style={{
+              background: showSubcatStrip ? 'rgb(var(--accent))' : 'rgb(var(--muted))',
+              boxShadow: showSubcatStrip ? '0 0 4px rgb(var(--accent))' : 'none',
+            }}
+          />
+          Sub-category strip
+        </span>
+        <span className="text-[10px] uppercase tracking-wider">
+          {showSubcatStrip ? 'shown' : 'hidden'}
+        </span>
+      </button>
+
       {/* Effects intensity (per-theme) — sits under the layout knobs so users
           treat it as a "living room dimmer" for particles / sakura / glow. */}
       <div className="rounded-md hairline bg-panel/40 p-2.5">
@@ -906,6 +969,7 @@ function Section({
   unlockedCategories, categories,
   catTextSize = 11, catGlow = 40, rowGap = 2, catGap = 8, catTopGap = 4,
   showCategoryDot = true,
+  showSubcatStrip = true,
   pinnedIdsSet = new Set(),
 }) {
   const isUncat = section.id === '__uncat__';
@@ -1137,7 +1201,7 @@ function Section({
 function GameRow({
   g, size, selected, onClick, onContext, fromCatId, indexInCat,
   sectionGames, onReorderInCat, onMoveBetween, categories,
-  iconPosition = 'left', rowGap = 2, showCategoryDot = true, isPinned = false,
+  iconPosition = 'left', rowGap = 2, showCategoryDot = true, showSubcatStrip = true, isPinned = false,
 }) {
   const [menu, setMenu] = React.useState({ open: false, x: 0, y: 0 });
   const ref = React.useRef(null);
@@ -1256,9 +1320,10 @@ function GameRow({
         <div className={cn('truncate font-medium', `text-[${size.font}px]`)} style={{ fontSize: size.font }}>
           {g.name || 'Untitled'}
         </div>
-        {/* Genre/meta strip — always shown when not in small mode.
+        {/* Genre/meta strip — shown when the "Sub-category" toggle is on and
+            row size is not the compact "small" preset (where there's no room).
             Category color dots hide when the "Category dot" toggle is off. */}
-        {!isSmall && (
+        {!isSmall && showSubcatStrip && (
           <div className="flex items-center gap-1.5 truncate text-[10.5px] text-muted">
             {showCategoryDot && (g.categoryIds || []).slice(0, 3).map((cid) => {
               const cc = categories.find((x) => x.id === cid);

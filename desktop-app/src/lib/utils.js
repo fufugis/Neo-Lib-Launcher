@@ -18,6 +18,9 @@ export const guessNameFromPath = (filePath) => {
 export const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 
 export const THEMES = [
+  // Special themes — extra eye-candy (sparkles, shooting stars, textured surfaces)
+  { id: 'colorful',      label: 'Colorful',       swatch: '#ff5abe', tone: 'special' },
+  { id: 'pro',           label: 'Pro',            swatch: '#e07a3c', tone: 'special' },
   // Dark themes
   { id: 'synthwave',     label: 'Synthwave',      swatch: '#ff2a8a', tone: 'dark' },
   { id: 'anime',         label: 'Anime',          swatch: '#e81ea8', tone: 'dark' },
