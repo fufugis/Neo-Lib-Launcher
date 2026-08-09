@@ -189,47 +189,8 @@ export default function Sidebar({
         />
       </div>
 
-      {/* Secondary launcher filter row — only on Library tab */}
-      {mode !== 'tools' && (
-        <div className="flex items-center gap-1 px-2 pt-1.5 overflow-x-auto" data-testid="launcher-pane-row">
-          <LauncherPill
-            label="All"
-            active={(launcherFilter || 'all') === 'all'}
-            onClick={() => onSetLauncherFilter?.('all')}
-            testid="lp-all"
-          />
-          <LauncherPill
-            label="Steam"
-            active={launcherFilter === 'steam'}
-            onClick={() => onSetLauncherFilter?.('steam')}
-            testid="lp-steam"
-          />
-          <LauncherPill
-            label="Epic"
-            active={launcherFilter === 'epic'}
-            onClick={() => onSetLauncherFilter?.('epic')}
-            testid="lp-epic"
-          />
-          <LauncherPill
-            label="EA"
-            active={launcherFilter === 'ea'}
-            onClick={() => onSetLauncherFilter?.('ea')}
-            testid="lp-ea"
-          />
-          <LauncherPill
-            label="GOG"
-            active={launcherFilter === 'gog'}
-            onClick={() => onSetLauncherFilter?.('gog')}
-            testid="lp-gog"
-          />
-          <LauncherPill
-            label="Other"
-            active={launcherFilter === 'other'}
-            onClick={() => onSetLauncherFilter?.('other')}
-            testid="lp-other"
-          />
-        </div>
-      )}
+      {/* Secondary launcher filter row moved BELOW the Add/Wizard toolbar
+          in v1.3.1 — see the combined row below. */}
 
       {/* Toolbar */}
       <div className="flex items-center gap-1.5 p-3 pt-2">
@@ -346,17 +307,53 @@ export default function Sidebar({
         <SideBtn icon={<Settings size={14} />} onClick={onOpenSettings} testid="sidebar-settings-btn" />
       </div>
 
-      <div className="flex items-center justify-between px-4 pb-2">
-        <span className="text-[10px] uppercase tracking-[0.28em] text-muted">
-          {isTools ? 'Tools' : 'Library'}
-        </span>
-        <div className="flex items-center gap-1.5">
-          {!isTools && onAutoSort && (
+      {/* v1.3.1 — Combined filter + actions row (Library tab only).
+          Launcher filter pills on the left, Auto-sort + New category on the right. */}
+      {!isTools && (
+        <div className="flex items-center gap-1 px-3 pb-2 overflow-x-auto" data-testid="launcher-pane-row">
+          <LauncherPill
+            label="All"
+            active={(launcherFilter || 'all') === 'all'}
+            onClick={() => onSetLauncherFilter?.('all')}
+            testid="lp-all"
+          />
+          <LauncherPill
+            label="Steam"
+            active={launcherFilter === 'steam'}
+            onClick={() => onSetLauncherFilter?.('steam')}
+            testid="lp-steam"
+          />
+          <LauncherPill
+            label="Epic"
+            active={launcherFilter === 'epic'}
+            onClick={() => onSetLauncherFilter?.('epic')}
+            testid="lp-epic"
+          />
+          <LauncherPill
+            label="EA"
+            active={launcherFilter === 'ea'}
+            onClick={() => onSetLauncherFilter?.('ea')}
+            testid="lp-ea"
+          />
+          <LauncherPill
+            label="GOG"
+            active={launcherFilter === 'gog'}
+            onClick={() => onSetLauncherFilter?.('gog')}
+            testid="lp-gog"
+          />
+          <LauncherPill
+            label="Other"
+            active={launcherFilter === 'other'}
+            onClick={() => onSetLauncherFilter?.('other')}
+            testid="lp-other"
+          />
+          <div className="flex-1 min-w-[6px]" />
+          {onAutoSort && (
             <button
               data-testid="sidebar-autosort-btn"
               onClick={onAutoSort}
               title="Smart auto-sort into 6 default categories"
-              className="inline-flex items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] text-[rgb(var(--accent-2))] hover:text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)]"
+              className="inline-flex shrink-0 items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] text-[rgb(var(--accent-2))] hover:text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)]"
             >
               <Wand2 size={10} /> Auto-sort
             </button>
@@ -364,12 +361,20 @@ export default function Sidebar({
           <button
             data-testid="category-new-btn"
             onClick={onCreateCategory}
-            className="inline-flex items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)]"
+            title="Create a new category"
+            className="inline-flex shrink-0 items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)]"
           >
-          <Plus size={11} /> New category
-        </button>
+            <Plus size={11} /> New
+          </button>
         </div>
-      </div>
+      )}
+
+      {/* Tools mode keeps the simple label + auto-sort/new-category row */}
+      {isTools && (
+        <div className="flex items-center justify-between px-4 pb-2">
+          <span className="text-[10px] uppercase tracking-[0.28em] text-muted">Tools</span>
+        </div>
+      )}
 
       {/* Tree — single column or two-column (categories never split between columns).
           v1.2.2 — auto-scroll while dragging a game near the top/bottom edges so

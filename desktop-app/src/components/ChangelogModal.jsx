@@ -15,6 +15,15 @@ import { Sparkles, Check, X } from 'lucide-react';
 
 export const CHANGELOG = [
   {
+    version: '1.3.1',
+    title: 'Compact theme picker · Gradient theme swatches · Sidebar row reshuffle',
+    items: [
+      '**Compact theme picker** — the Settings > Theme grid is now a tight 4/5-column tile layout with icon-first swatches and labels below. Roughly half the vertical space, no info lost.',
+      '**Gradient theme swatches** — each theme button now shows a real linear-gradient of the theme\'s surface + accent + accent-2 colors instead of a flat pink dot. Now you can eyeball each theme\'s mood before switching.',
+      '**Sidebar row reshuffle** — the launcher filter row (All / Steam / Epic / EA / GOG / Other) moved **below** the Add / Wizard / Settings toolbar. Auto-sort and New category buttons joined the same row on the right side. One less strip of vertical space wasted.',
+    ],
+  },
+  {
     version: '1.3.0',
     title: 'Theme park rebalanced · Real Steam playtime · Sub-cat toggle fixed',
     items: [

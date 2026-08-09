@@ -11,6 +11,12 @@ and a non-intrusive monetization system (Deals banners via Affiliate links).
 - CI: GitHub Actions builds NSIS `.exe` + portable `.zip` on tag push.
 - System tray (Electron Tray API) for close-to-tray behavior.
 
+## Version 1.3.1 — Feb 2, 2026
+**Compact theme picker · Gradient theme swatches · Sidebar row reshuffle:**
+- **Compact theme picker** in `SettingsModal.jsx` — 4/5-column tile grid with icon-first swatch and label under, replaces the 2/3-column wide rows. Roughly half the vertical space.
+- **Gradient theme swatches** — added `gradient` field to every entry in `THEMES` (utils.js), a real `linear-gradient(135deg, surface → accent → accent-2)` per theme. The theme buttons now show the "average" mood, not a flat pink dot.
+- **Sidebar reshuffle** — deleted the pre-toolbar launcher filter row; moved the pills below the Add/Wizard/Settings toolbar. Deleted the standalone Auto-sort + New category strip and merged them into the right side of the new launcher-pills row. Tools mode keeps a simple `Tools` label.
+
 ## Version 1.3.0 — Feb 2, 2026
 **Theme park rebalanced · Real Steam playtime · Sub-cat toggle fixed:**
 - **Theme park rebalanced (less pink).** `synthwave-day` → vivid purple (138 79 255) + teal (22 176 176) on lavender wash. `daybreak` → deep teal (20 156 158) on warm paper. `gaming` → Twitch-style vivid purple (155 100 255) + electric blue on esports navy. `anime` → sorcerer purple (158 76 235) + electric blue + neon green. Synthwave and Colorful keep their signature pinks. `.vapor-sun` / `.vapor-floor` decorations retuned to match new palette. THEMES swatch registry updated.

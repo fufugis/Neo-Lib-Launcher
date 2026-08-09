@@ -4,9 +4,14 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.3.0-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.3.1-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.3.0 (Theme park rebalanced · Real Steam playtime · Sub-cat toggle fixed)
+### Latest — v1.3.1 (Compact theme picker · Gradient swatches · Sidebar reshuffle)
+- **Compact theme picker** — 4/5-column tile grid instead of 2/3 wide rows; roughly half the vertical space.
+- **Gradient theme swatches** — each button now shows a real surface→accent→accent-2 gradient (the "average" of the theme) so you can eyeball each mood before switching.
+- **Sidebar reshuffle** — launcher filter row (All / Steam / Epic / EA / GOG / Other) moved below the Add / Wizard toolbar; Auto-sort and New category buttons joined that row on the right side.
+
+### v1.3.0 (Theme park rebalanced · Real Steam playtime · Sub-cat toggle fixed)
 - **Themes rebalanced** — less pink, more variety. Vaporwave Day → purple + teal, Daybreak → teal, Gaming → Twitch purple + electric blue, Anime → sorcerer purple. Synthwave and Colorful keep their pink signatures; the rest now cover purple / teal / blue / black / orange evenly.
 - **Real Steam playtime import** — Stats panel reads `localconfig.vdf` across every Steam account on the machine (offline, no API key).
 - **Stats ranking icons** — every ranking row now shows the Steam capsule / cover / initials fallback.

@@ -19,21 +19,33 @@ export const uid = () => Math.random().toString(36).slice(2) + Date.now().toStri
 
 export const THEMES = [
   // Special themes — extra eye-candy (sparkles, shooting stars, textured surfaces)
-  { id: 'colorful',      label: 'Colorful',       swatch: '#ff5abe', tone: 'special' },
-  { id: 'pro',           label: 'Pro',            swatch: '#ff7620', tone: 'special' },
+  { id: 'colorful',      label: 'Colorful',       swatch: '#ff5abe', tone: 'special',
+    gradient: 'linear-gradient(135deg, #0c0a16 0%, #ff5abe 45%, #5aa0ff 100%)' },
+  { id: 'pro',           label: 'Pro',            swatch: '#ff7620', tone: 'special',
+    gradient: 'linear-gradient(135deg, #16161a 0%, #ff7620 55%, #3c8cd2 100%)' },
   // Dark themes
-  { id: 'synthwave',     label: 'Synthwave',      swatch: '#ff2a8a', tone: 'dark' },
-  { id: 'anime',         label: 'Anime',          swatch: '#9e4ceb', tone: 'dark' },
-  { id: 'midnight',      label: 'Midnight',       swatch: '#c4a56e', tone: 'dark' },
-  { id: 'ocean',         label: 'Ocean',          swatch: '#4ea8f0', tone: 'dark' },
-  { id: 'crimson',       label: 'Crimson',        swatch: '#dc263c', tone: 'dark' },
+  { id: 'synthwave',     label: 'Synthwave',      swatch: '#ff2a8a', tone: 'dark',
+    gradient: 'linear-gradient(135deg, #0a0416 0%, #ff2a8a 55%, #00e5ff 100%)' },
+  { id: 'anime',         label: 'Anime',          swatch: '#9e4ceb', tone: 'dark',
+    gradient: 'linear-gradient(135deg, #10081c 0%, #9e4ceb 50%, #38c8ff 100%)' },
+  { id: 'midnight',      label: 'Midnight',       swatch: '#c4a56e', tone: 'dark',
+    gradient: 'linear-gradient(135deg, #0a0a0c 0%, #c4a56e 100%)' },
+  { id: 'ocean',         label: 'Ocean',          swatch: '#4ea8f0', tone: 'dark',
+    gradient: 'linear-gradient(135deg, #050c16 0%, #4ea8f0 55%, #78dcff 100%)' },
+  { id: 'crimson',       label: 'Crimson',        swatch: '#dc263c', tone: 'dark',
+    gradient: 'linear-gradient(135deg, #080405 0%, #dc263c 55%, #ff5a6e 100%)' },
   // Middle themes (somewhere between dark and bright)
-  { id: 'gaming',        label: 'Gaming',         swatch: '#9b64ff', tone: 'middle' },
-  { id: 'modern',        label: 'Modern',         swatch: '#e07a3c', tone: 'middle' },
+  { id: 'gaming',        label: 'Gaming',         swatch: '#9b64ff', tone: 'middle',
+    gradient: 'linear-gradient(135deg, #141630 0%, #9b64ff 55%, #5ac8ff 100%)' },
+  { id: 'modern',        label: 'Modern',         swatch: '#e07a3c', tone: 'middle',
+    gradient: 'linear-gradient(135deg, #221c18 0%, #e07a3c 55%, #87c8f0 100%)' },
   // Bright themes
-  { id: 'synthwave-day', label: 'Vaporwave Day',  swatch: '#8a4fff', tone: 'bright' },
-  { id: 'daybreak',      label: 'Daybreak',       swatch: '#149c9e', tone: 'bright' },
-  { id: 'mint',          label: 'Mint Garden',    swatch: '#34c98a', tone: 'bright' },
+  { id: 'synthwave-day', label: 'Vaporwave Day',  swatch: '#8a4fff', tone: 'bright',
+    gradient: 'linear-gradient(135deg, #f0e8ff 0%, #8a4fff 55%, #16b0b0 100%)' },
+  { id: 'daybreak',      label: 'Daybreak',       swatch: '#149c9e', tone: 'bright',
+    gradient: 'linear-gradient(135deg, #f8f6f2 0%, #149c9e 60%, #1e1e24 100%)' },
+  { id: 'mint',          label: 'Mint Garden',    swatch: '#34c98a', tone: 'bright',
+    gradient: 'linear-gradient(135deg, #f4fcf6 0%, #34c98a 55%, #128ec8 100%)' },
 ];
 
 export const CATEGORY_COLORS = [

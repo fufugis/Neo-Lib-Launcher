@@ -35,48 +35,56 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
         <div className="mb-5">
           <Section title="Theme">
           {[
-            { tone: 'special', label: 'Special themes (extra eye-candy)' },
-            { tone: 'dark',    label: 'Dark themes' },
-            { tone: 'middle',  label: 'Middle themes (in-between)' },
-            { tone: 'bright',  label: 'Bright themes' },
+            { tone: 'special', label: 'Special (extra eye-candy)' },
+            { tone: 'dark',    label: 'Dark' },
+            { tone: 'middle',  label: 'Middle' },
+            { tone: 'bright',  label: 'Bright' },
           ].map((group) => (
-            <div key={group.tone} className="mb-3 last:mb-0">
-              <div className="mb-1.5 text-[10px] uppercase tracking-[0.22em] text-muted/80">
+            <div key={group.tone} className="mb-2 last:mb-0">
+              <div className="mb-1 text-[9.5px] uppercase tracking-[0.24em] text-muted/80">
                 {group.label}
               </div>
-              <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
-                {THEMES.filter((t) => t.tone === group.tone).map((t) => (
-                  <motion.button
-                    key={t.id}
-                    data-testid={`theme-${t.id}`}
-                    whileHover={{ y: -2 }}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => setKey({ theme: t.id })}
-                    className={
-                      'group relative flex items-center gap-3 rounded-lg hairline p-3 text-left transition-all ' +
-                      (settings.theme === t.id
-                        ? 'border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.08)]'
-                        : 'hover:border-[rgb(var(--accent)/0.4)]')
-                    }
-                  >
-                    <span
-                      className="h-8 w-8 rounded-md border border-white/10 shadow"
-                      style={{ background: t.swatch, boxShadow: `0 0 12px ${t.swatch}55` }}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium">{t.label}</div>
-                      <div className="text-[11px] text-muted capitalize">{t.id}</div>
-                    </div>
-                    {settings.theme === t.id && (
-                      <motion.span
-                        layoutId="theme-check"
-                        className="grid h-5 w-5 place-items-center rounded-full bg-[rgb(var(--accent))] text-[rgb(var(--surface))]"
-                      >
-                        <Check size={11} strokeWidth={3} />
-                      </motion.span>
-                    )}
-                  </motion.button>
-                ))}
+              <div className="grid grid-cols-4 gap-1.5 lg:grid-cols-5">
+                {THEMES.filter((t) => t.tone === group.tone).map((t) => {
+                  const active = settings.theme === t.id;
+                  return (
+                    <motion.button
+                      key={t.id}
+                      data-testid={`theme-${t.id}`}
+                      whileHover={{ y: -1, scale: 1.02 }}
+                      whileTap={{ scale: 0.96 }}
+                      onClick={() => setKey({ theme: t.id })}
+                      title={t.label}
+                      className={
+                        'group relative flex flex-col items-center gap-1 rounded-lg hairline px-1.5 py-1.5 text-center transition-all ' +
+                        (active
+                          ? 'border-[rgb(var(--accent)/0.8)] bg-[rgb(var(--accent)/0.10)]'
+                          : 'hover:border-[rgb(var(--accent)/0.4)]')
+                      }
+                    >
+                      <span
+                        className="h-8 w-full rounded-md border border-white/10 shadow-sm"
+                        style={{
+                          background: t.gradient || t.swatch,
+                          boxShadow: active
+                            ? `0 0 10px ${t.swatch}77, inset 0 0 6px rgba(255,255,255,0.15)`
+                            : `0 0 4px ${t.swatch}33`,
+                        }}
+                      />
+                      <div className="w-full truncate text-[10.5px] font-medium leading-tight">
+                        {t.label}
+                      </div>
+                      {active && (
+                        <motion.span
+                          layoutId="theme-check"
+                          className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-[rgb(var(--accent))] text-[rgb(var(--surface))]"
+                        >
+                          <Check size={9} strokeWidth={3.5} />
+                        </motion.span>
+                      )}
+                    </motion.button>
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -326,7 +334,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
 
         <Section title="About">
           <p className="text-xs text-muted leading-relaxed">
-            NEO-LIB v1.3.0. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
+            NEO-LIB v1.3.1. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
             Library data lives in <span className="font-mono text-ink">%APPDATA%/NEO-LIB</span>.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
