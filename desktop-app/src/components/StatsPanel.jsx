@@ -35,12 +35,16 @@ const CLIENT_META = {
 };
 
 function clientOf(g) {
-  // Any explicit `source` wins; otherwise best-effort by hint fields.
+  // Explicit `source` field always wins (Steam scanner/GOG scanner set this).
+  // Only fall back to heuristics when source is truly missing (e.g. legacy
+  // demo entries). v1.2.10 — no longer classifies "any game with an appid"
+  // as steam, because a manual itch game can pick up an appid from an
+  // accidental metadata fetch. Explicit source > appid > website > local.
   const s = (g?.source || '').toLowerCase();
   if (s && CLIENT_META[s]) return s;
-  if (g?.appid) return 'steam';
-  if (g?.gogId) return 'gog';
-  if (/itch\.io/i.test(g?.website || '')) return 'itch';
+  if (!s && /itch\.io/i.test(g?.website || '')) return 'itch';
+  if (!s && g?.gogId) return 'gog';
+  if (!s && g?.appid) return 'steam';
   return 'local';
 }
 
@@ -72,7 +76,43 @@ const RANGE_META = {
 
 export default function StatsPanel({ games = [], onClose, anchorSelector }) {
   const [range, setRange] = useState('all');
+  const [importState, setImportState] = useState({ loading: false, error: '', count: 0, accounts: 0, at: 0 });
+  const [steamPlaytime, setSteamPlaytime] = useState({}); // appid -> { playtime, lastPlayed }
   const dragControls = useDragControls();
+
+  // On open: import Steam playtime from localconfig.vdf so ranking is accurate.
+  const runImport = React.useCallback(async (force = false) => {
+    if (typeof window === 'undefined' || !window.api?.importSteamPlaytime) return;
+    setImportState((s) => ({ ...s, loading: true, error: '' }));
+    try {
+      const res = await window.api.importSteamPlaytime({ force });
+      if (!res?.ok) {
+        setImportState({ loading: false, error: res?.error || 'Import failed.', count: 0, accounts: 0, at: 0 });
+        return;
+      }
+      setSteamPlaytime(res.data || {});
+      setImportState({ loading: false, error: '', count: res.count || 0, accounts: res.accounts || 0, at: Date.now() });
+    } catch (e) {
+      setImportState({ loading: false, error: String(e.message || e), count: 0, accounts: 0, at: 0 });
+    }
+  }, []);
+  useEffect(() => { runImport(false); }, [runImport]);
+
+  // Merge Steam-imported playtime into game objects for ranking/aggregation.
+  // The merged playtime is Math.max(local session tracking, Steam total)
+  // — Steam almost always wins, but local tracks itch/GOG/EA games too.
+  const mergedGames = useMemo(() => {
+    return games.map((g) => {
+      if (g.source !== 'steam' && !(g.appid && !g.source)) return g;
+      const steam = steamPlaytime[String(g.appid || '')];
+      if (!steam) return g;
+      return {
+        ...g,
+        playtime: Math.max(Number(g.playtime || 0), Number(steam.playtime || 0)),
+        lastPlayedAt: Math.max(Number(g.lastPlayedAt || 0), Number(steam.lastPlayed || 0)),
+      };
+    });
+  }, [games, steamPlaytime]);
 
   const [anchorPos, setAnchorPos] = useState(() => {
     if (typeof document === 'undefined' || !anchorSelector) return { top: 76, left: 260 };
@@ -98,15 +138,15 @@ export default function StatsPanel({ games = [], onClose, anchorSelector }) {
 
   // Filter games by range using their lastPlayedAt (falls back to addedAt for "all")
   const filtered = useMemo(() => {
-    if (range === 'all') return games.slice();
+    if (range === 'all') return mergedGames.slice();
     const cutoff = Date.now() - RANGE_META[range].days * 86400000;
-    return games.filter((g) => Number(g.lastPlayedAt || 0) >= cutoff);
-  }, [games, range]);
+    return mergedGames.filter((g) => Number(g.lastPlayedAt || 0) >= cutoff);
+  }, [mergedGames, range]);
 
   // Aggregate per client
   const clientRows = useMemo(() => {
     const m = new Map();
-    for (const g of games) {
+    for (const g of mergedGames) {
       const c = clientOf(g);
       if (!m.has(c)) m.set(c, { key: c, count: 0, mins: 0 });
       const row = m.get(c);
@@ -114,7 +154,7 @@ export default function StatsPanel({ games = [], onClose, anchorSelector }) {
       row.mins += Number(g.playtime || 0);
     }
     return Array.from(m.values()).sort((a, b) => b.count - a.count);
-  }, [games]);
+  }, [mergedGames]);
 
   // Most played ranking (within range filter, sorted by playtime desc)
   const ranking = useMemo(() => {
@@ -190,8 +230,20 @@ export default function StatsPanel({ games = [], onClose, anchorSelector }) {
               </div>
               <p className="text-[11px] text-muted">
                 {games.length} games · {fmtHours(totalMins)} tracked · {clientRows.length} client{clientRows.length === 1 ? '' : 's'}
+                {importState.count > 0 && (
+                  <> · <span className="text-[rgb(var(--accent-2))]">{importState.count} imported from Steam</span></>
+                )}
               </p>
             </div>
+            <button
+              onClick={() => runImport(true)}
+              disabled={importState.loading}
+              title="Re-import Steam playtime"
+              data-testid="stats-reimport-btn"
+              className="grid h-8 w-8 place-items-center rounded-md text-muted hover:text-ink hover:bg-panel/60 disabled:opacity-40"
+            >
+              <RefreshCw size={13} className={importState.loading ? 'animate-spin' : ''} />
+            </button>
             {onClose && (
               <button
                 onClick={onClose}
@@ -301,7 +353,12 @@ export default function StatsPanel({ games = [], onClose, anchorSelector }) {
                 </div>
               ) : (
                 <ol className="space-y-1.5" data-testid="stats-ranking-list">
-                  {ranking.map((g, i) => (
+                  {ranking.map((g, i) => {
+                    const client = clientOf(g);
+                    const meta = CLIENT_META[client] || CLIENT_META.local;
+                    const icon = g.headerImage || g.coverUrl
+                      || (g.appid ? `https://cdn.akamai.steamstatic.com/steam/apps/${g.appid}/capsule_184x69.jpg` : '');
+                    return (
                     <li
                       key={g.id}
                       className="flex items-center gap-3 rounded-lg hairline bg-panel/30 px-2.5 py-1.5"
@@ -317,16 +374,28 @@ export default function StatsPanel({ games = [], onClose, anchorSelector }) {
                       >
                         {i + 1}
                       </span>
+                      {icon ? (
+                        <img
+                          src={icon}
+                          alt=""
+                          className="h-8 w-14 shrink-0 rounded object-cover hairline"
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                      ) : (
+                        <div
+                          className="grid h-8 w-14 shrink-0 place-items-center rounded hairline bg-panel/60 text-[10px] font-bold uppercase text-muted"
+                        >
+                          {g.name?.slice(0, 2)}
+                        </div>
+                      )}
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-[13px] font-semibold text-ink">{g.name}</div>
                         <div className="flex items-center gap-1.5 text-[10.5px] text-muted">
                           <span
                             className="inline-block h-1.5 w-1.5 rounded-full"
-                            style={{
-                              background: (CLIENT_META[clientOf(g)] || CLIENT_META.local).color,
-                            }}
+                            style={{ background: meta.color }}
                           />
-                          <span>{(CLIENT_META[clientOf(g)] || CLIENT_META.local).label}</span>
+                          <span>{meta.label}</span>
                           <span>·</span>
                           <CalendarDays size={10} />
                           <span>{fmtDate(g.lastPlayedAt)}</span>
@@ -336,7 +405,7 @@ export default function StatsPanel({ games = [], onClose, anchorSelector }) {
                         {fmtHours(g.playtime)}
                       </span>
                     </li>
-                  ))}
+                  );})}
                 </ol>
               )}
             </section>

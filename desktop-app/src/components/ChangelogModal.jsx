@@ -15,6 +15,19 @@ import { Sparkles, Check, X } from 'lucide-react';
 
 export const CHANGELOG = [
   {
+    version: '1.3.0',
+    title: 'Theme park rebalanced · Real Steam playtime · Sub-cat toggle fixed',
+    items: [
+      '**Themes rebalanced — less pink, more variety.** Vaporwave Day → vivid purple + teal daylight canvas. Daybreak → deep teal on warm paper. Gaming → Twitch-style vivid purple + electric blue. Anime → sorcerer purple + electric blue + neon green (kept the JJK Gojo vibe). Synthwave & Colorful still have their signature pinks; the other five now cover purple, teal, blue, black, orange more evenly.',
+      '**Real Steam playtime import** — Stats panel now reads `userdata/<steamid>/config/localconfig.vdf` on open and merges Playtime + LastPlayed for every appid, across every Steam account on the machine. Auto-runs on open (5-min cached), manual re-import button available.',
+      '**Stats ranking now shows game icons** — Steam capsule / user cover / initials fallback beside every entry, plus per-client color dot and last-played date.',
+      '**Sub-cat toggle bug fixed** — the "hide sub cat" switch also plumbs through the 2-column layout (`SectionWrap`) now, so it takes effect in every sidebar mode.',
+      '**Non-Steam games no longer misattributed to Steam** — Stats client detection is now `source > appid > website > local`, so a manual itch game that accidentally picked up an appid won\'t get bucketed under Steam.',
+      '**Colorful theme** — carbon-black base, blue balance behind the library, pink kept but no longer dominant.',
+      '**Pro theme** — saturated hot-orange primary, marine-blue accent-2, darker gray surfaces.',
+    ],
+  },
+  {
     version: '1.2.9',
     title: 'Stats tab · 2 Special themes · Text-size slider · Subcat toggle · 3 new sound packs',
     items: [

@@ -4,9 +4,16 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.2.9-ff2bd6) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.3.0-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.2.9 (Stats tab · Special themes · Text-size slider · Subcat toggle · 3 sound packs)
+### Latest — v1.3.0 (Theme park rebalanced · Real Steam playtime · Sub-cat toggle fixed)
+- **Themes rebalanced** — less pink, more variety. Vaporwave Day → purple + teal, Daybreak → teal, Gaming → Twitch purple + electric blue, Anime → sorcerer purple. Synthwave and Colorful keep their pink signatures; the rest now cover purple / teal / blue / black / orange evenly.
+- **Real Steam playtime import** — Stats panel reads `localconfig.vdf` across every Steam account on the machine (offline, no API key).
+- **Stats ranking icons** — every ranking row now shows the Steam capsule / cover / initials fallback.
+- **Sub-cat toggle bug fixed** — hide-sub-cat also propagates through the 2-column sidebar mode.
+- **Client attribution fixed** — non-Steam games with an accidental appid are no longer bucketed under Steam.
+
+### v1.2.9 (Stats tab · Special themes · Text-size slider · Subcat toggle · 3 sound packs)
 - **Stats tab** — connected clients breakdown + most-played ranking filtered by week / month / year / all time.
 - **Colorful** and **Pro** — two Special themes with sparkles, shooting stars, carbon/textured surfaces, sweeping scanlines, and bumped particle counts.
 - **Sidebar tint** — subtle per-theme wash behind the library for readability.

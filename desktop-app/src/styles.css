@@ -20,21 +20,21 @@
   --grad-2: 36 8 60;
 }
 
-/* VAPORWAVE DAY — soft sunrise pastels, hot pink + electric cyan + deep indigo accents.
-   Light backdrop with creamy peach + lilac wash, kept readable; dark accents for punch.
-   Decorative graphics provided in styles.css via .vapor-sun / .vapor-palms. */
+/* VAPORWAVE DAY — v1.3.0 rebalanced: was too pink. Now a bright lilac + teal
+   daylight canvas. Pale lavender wash, vivid purple lead, deep teal accent.
+   Readable, still cheerful, no longer pink-dominant. */
 [data-theme='synthwave-day'] {
-  --ink: 38 14 70;               /* deep indigo text */
-  --muted: 120 92 168;
-  --surface: 255 232 246;        /* peach-pink wash */
-  --panel: 255 244 252;          /* near-white pink */
-  --border: 240 178 220;
-  --accent: 255 0 144;           /* hot magenta */
-  --accent-2: 0 192 232;         /* electric cyan */
-  --accent-soft: 255 214 240;
-  --hairline-glow: 255 0 144;
-  --grad-1: 255 232 246;
-  --grad-2: 220 200 255;
+  --ink: 32 18 62;               /* deep indigo text */
+  --muted: 110 96 158;
+  --surface: 240 232 255;        /* pale lavender wash */
+  --panel: 250 246 255;          /* near-white lilac */
+  --border: 208 190 240;
+  --accent: 138 79 255;          /* vivid purple */
+  --accent-2: 22 176 176;        /* teal */
+  --accent-soft: 216 204 250;
+  --hairline-glow: 138 79 255;
+  --grad-1: 240 232 255;
+  --grad-2: 200 220 250;
 }
 
 [data-theme='midnight'] {
@@ -55,10 +55,10 @@
   --surface: 248 246 242;
   --panel: 255 254 251;
   --border: 220 215 205;
-  --accent: 222 65 130;
+  --accent: 20 156 158;          /* deep teal — v1.3.0 (was pink) */
   --accent-2: 30 30 36;
   --accent-soft: 220 215 205;
-  --hairline-glow: 222 65 130;
+  --hairline-glow: 20 156 158;
 }
 
 [data-theme='ocean'] {
@@ -100,19 +100,19 @@
   --hairline-glow: 52 201 138;
 }
 
-/* GAMING — medium-tone esports vibe: muted navy surface, hot pink primary, electric
-   light-blue secondary. Lighter than the Dark themes but never washes out screenshots
-   like the Bright themes do. */
+/* GAMING — v1.3.0 rebalanced: was pink, now Twitch-style purple + electric blue.
+   Deep esports navy surface, vivid purple primary, clean sky-blue secondary.
+   Lighter than the Dark themes but never washes out screenshots. */
 [data-theme='gaming'] {
   --ink: 240 245 255;
   --muted: 175 188 220;
-  --surface: 22 28 56;
-  --panel: 32 40 78;
-  --border: 58 78 118;
-  --accent: 255 95 174;            /* hot pink */
-  --accent-2: 110 196 255;         /* electric light blue */
-  --accent-soft: 255 95 174;
-  --hairline-glow: 255 95 174;
+  --surface: 20 22 48;
+  --panel: 30 34 72;
+  --border: 60 72 132;
+  --accent: 155 100 255;           /* Twitch-esque vivid purple */
+  --accent-2: 90 200 255;          /* electric blue */
+  --accent-soft: 130 90 220;
+  --hairline-glow: 155 100 255;
 }
 
 /* MODERN — warm mid-tone: charcoal-with-warmth surface, dark-orange primary, soft
@@ -129,8 +129,8 @@
   --hairline-glow: 224 122 60;
 }
 
-/* ANIME — bold modern anime (Jujutsu Kaisen / Demon Slayer style):
-   deep magenta, electric blue, neon green accents on a dark indigo void.
+/* ANIME — v1.3.0 rebalanced from magenta to deep sorcerer purple (JJK Gojo vibe):
+   vivid purple, electric blue, neon green accents on a dark indigo void.
    High-contrast, energetic, distinctively different from Vaporwave-Day. */
 [data-theme='anime'] {
   --ink: 245 235 255;
@@ -138,43 +138,44 @@
   --surface: 16 8 28;
   --panel: 26 14 44;
   --border: 92 50 142;
-  --accent: 232 30 168;          /* hot magenta */
+  --accent: 158 76 235;          /* sorcerer purple */
   --accent-2: 56 200 255;        /* electric blue */
   --accent-soft: 92 230 140;     /* neon green pop */
-  --hairline-glow: 232 30 168;
+  --hairline-glow: 158 76 235;
 }
 
 /* ========== SPECIAL THEMES (extra eye-candy, sparkles + shooting stars + neon bloom) ========== */
 
 /* COLORFUL — pink + blue + black (carbon-textured) + white (textured):
    playful pop palette with sparkles, shooting stars, and rainbow-tinted particles.
-   Blacks use a subtle carbon-fiber SVG weave; whites are textured off-white. */
+   v1.2.10 — palette rebalanced: pink is one of four equal players, not the star. */
 [data-theme='colorful'] {
   --ink: 250 246 255;
   --muted: 205 190 230;
-  --surface: 10 8 18;              /* near-black carbon-tinted */
-  --panel: 22 16 34;
-  --border: 220 90 180;
+  --surface: 12 10 22;             /* near-black carbon-tinted */
+  --panel: 22 18 40;
+  --border: 180 120 220;
   --accent: 255 90 190;            /* hot pink */
   --accent-2: 90 160 255;          /* electric blue */
   --accent-soft: 255 255 255;      /* pure white pop */
   --hairline-glow: 255 90 190;
-  --sidebar-tint: 245 240 255;     /* used by .sidebar-tint layer for a soft accent wash */
+  --sidebar-tint: 90 160 255;      /* library gets a blue wash to balance the pink */
 }
 
 /* PRO — light/dark gray industrial. Serious, readable, still animated.
-   Edges glow dark-orange so it never feels dull. */
+   v1.2.10 — orange much more saturated (crayon-hot), gray darker, marine blue
+   flourishes for the accent-2 highlights. */
 [data-theme='pro'] {
-  --ink: 240 240 240;
-  --muted: 168 168 174;
-  --surface: 30 30 34;             /* dark gray */
-  --panel: 44 44 50;
-  --border: 90 90 96;
-  --accent: 224 122 60;            /* dark orange edges */
-  --accent-2: 200 200 208;         /* light steel gray */
+  --ink: 246 246 246;
+  --muted: 158 160 168;
+  --surface: 22 22 26;             /* darker dark gray */
+  --panel: 36 36 42;
+  --border: 84 84 92;
+  --accent: 255 118 32;            /* saturated hot orange */
+  --accent-2: 60 140 210;          /* marine blue */
   --accent-soft: 255 255 255;
-  --hairline-glow: 224 122 60;
-  --sidebar-tint: 210 210 216;
+  --hairline-glow: 255 118 32;
+  --sidebar-tint: 60 140 210;      /* marine blue wash behind the library */
 }
 
 /* ========== Base ========== */
@@ -405,11 +406,11 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
   pointer-events: none;
   border-radius: 9999px;
   background: linear-gradient(180deg,
-    #ffd86b 0%, #ff7ab8 45%, #ff0090 75%, #b32a8c 100%
+    #ffd86b 0%, #b78aff 45%, #6a3fff 75%, #3a1e9a 100%
   );
   box-shadow:
-    0 0 90px rgba(255,128,200,0.55),
-    0 0 220px rgba(255,80,180,0.35);
+    0 0 90px rgba(160,130,255,0.55),
+    0 0 220px rgba(110,80,240,0.35);
   /* horizontal slits to give that vaporwave sun effect */
   mask-image:
     linear-gradient(to bottom,
@@ -435,8 +436,8 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
   animation: vaporSunPulse 6s ease-in-out infinite;
 }
 @keyframes vaporSunPulse {
-  0%, 100% { filter: drop-shadow(0 0 30px rgba(255,128,200,0.4)); }
-  50%      { filter: drop-shadow(0 0 60px rgba(255,128,200,0.7)); }
+  0%, 100% { filter: drop-shadow(0 0 30px rgba(160,130,255,0.4)); }
+  50%      { filter: drop-shadow(0 0 60px rgba(160,130,255,0.7)); }
 }
 
 .vapor-floor {
@@ -447,8 +448,8 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
   height: 65%;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(255, 0, 144, 0.55) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 192, 232, 0.45) 1px, transparent 1px);
+    linear-gradient(rgba(138, 79, 255, 0.55) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(22, 176, 176, 0.45) 1px, transparent 1px);
   background-size: 70px 70px;
   transform: perspective(700px) rotateX(62deg);
   transform-origin: center top;
@@ -553,7 +554,7 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
   content: '';
   position: absolute; inset: 0;
   background:
-    radial-gradient(circle at 80% 0%, rgba(222,65,130,0.06), transparent 50%),
+    radial-gradient(circle at 80% 0%, rgba(20,156,158,0.08), transparent 50%),
     radial-gradient(circle at 0% 100%, rgba(30,30,36,0.06), transparent 60%);
 }
 .amb-daybreak::after {
@@ -662,7 +663,7 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
   100% { background-position: 200px 120px, 260px 150px, 320px 210px; }
 }
 
-/* Anime — bold magenta + electric blue + neon green starfield over deep indigo void */
+/* Anime — v1.3.0 sorcerer-purple + electric blue + neon green starfield over deep indigo void */
 .amb-anime {
   position: absolute; inset: 0; pointer-events: none;
 }
@@ -670,7 +671,7 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
   content: '';
   position: absolute; inset: 0;
   background:
-    radial-gradient(circle at 16% 18%, rgba(232, 30, 168, 0.42), transparent 45%),
+    radial-gradient(circle at 16% 18%, rgba(158, 76, 235, 0.42), transparent 45%),
     radial-gradient(circle at 84% 78%, rgba(56, 200, 255, 0.32), transparent 50%),
     radial-gradient(circle at 50% 50%, rgba(92, 230, 140, 0.10), transparent 65%),
     linear-gradient(180deg, rgba(16, 8, 28, 0.0) 0%, rgba(16, 8, 28, 0.65) 100%);
@@ -683,7 +684,7 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
     115deg,
     transparent 0px,
     transparent 22px,
-    rgba(232, 30, 168, 0.06) 23px,
+    rgba(158, 76, 235, 0.06) 23px,
     transparent 24px
   );
   mask-image: radial-gradient(ellipse 90% 70% at 50% 50%, black 30%, transparent 80%);

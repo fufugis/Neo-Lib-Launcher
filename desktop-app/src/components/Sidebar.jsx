@@ -405,7 +405,7 @@ export default function Sidebar({
         {twoRow ? (
           <TwoColumnSections sections={sections} commonProps={{
             collapsed, size, iconPosition, catTextSize, catGlow, rowGap, catGap, catTopGap, selectedId,
-            showCategoryDot, pinnedIdsSet,
+            showCategoryDot, showSubcatStrip, pinnedIdsSet,
             onSelect, onGameContext, onCategoryContext, onUnlockCategory, onToggleCollapsed,
             onMoveGameToCategory, onReorderGameInCategory, onReorderCategory,
             unlockedCategories, categories,

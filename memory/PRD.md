@@ -11,6 +11,15 @@ and a non-intrusive monetization system (Deals banners via Affiliate links).
 - CI: GitHub Actions builds NSIS `.exe` + portable `.zip` on tag push.
 - System tray (Electron Tray API) for close-to-tray behavior.
 
+## Version 1.3.0 — Feb 2, 2026
+**Theme park rebalanced · Real Steam playtime · Sub-cat toggle fixed:**
+- **Theme park rebalanced (less pink).** `synthwave-day` → vivid purple (138 79 255) + teal (22 176 176) on lavender wash. `daybreak` → deep teal (20 156 158) on warm paper. `gaming` → Twitch-style vivid purple (155 100 255) + electric blue on esports navy. `anime` → sorcerer purple (158 76 235) + electric blue + neon green. Synthwave and Colorful keep their signature pinks. `.vapor-sun` / `.vapor-floor` decorations retuned to match new palette. THEMES swatch registry updated.
+- **Real Steam playtime import** — `steam:importPlaytime` IPC in `main.js` walks `userdata/<steamid>/config/localconfig.vdf` for every Steam account, extracts Playtime + LastPlayed per appid, merges across accounts. 5-min in-process cache, force-refresh flag. Offline, no API key.
+- **StatsPanel** auto-runs the import on open, merges Steam totals via `Math.max(local, steam)` into `mergedGames` used by all aggregates.
+- **Client attribution** in StatsPanel fixed: explicit `source > appid > website > local`. A manual itch game with an accidental appid no longer buckets under Steam.
+- **Stats ranking icons** — every row now shows Steam capsule / cover / initials fallback.
+- **Sub-cat toggle** fully plumbed through `SectionWrap` for 2-column sidebar mode.
+
 ## Version 1.2.9 — Feb 2, 2026
 **Stats tab · Two Special themes · Text-size slider · Sub-cat toggle · 3 sound packs · News anchoring:**
 - **Stats tab** (`StatsPanel.jsx`): draggable portal, anchors next to `tab-stats` button. Shows connected clients (Steam/GOG/itch/EA/Ubi/Epic/Battle.net), most-played ranking filtered by This week / month / year / all time (based on `lastPlayedAt`), total hours, Link Discord button. Placeholder for future Steam Web API playtime import.

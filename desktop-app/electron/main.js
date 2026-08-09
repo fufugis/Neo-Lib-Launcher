@@ -2605,3 +2605,69 @@ ipcMain.handle('news:latestForGame', async (_e, game) => {
   return { ok: true, item, cached: false };
 });
 
+
+// ---------------- Steam Playtime Import (localconfig.vdf) ---------------- //
+// Reads Steam's per-user localconfig.vdf to pull real per-game Playtime
+// (minutes) + LastPlayed (unix seconds) for every appid. Merges results from
+// every userdata/<steamid>/config/localconfig.vdf so multiple accounts on the
+// same machine all count. Returns { <appid>: { playtime, lastPlayed } }.
+//
+// This is 100% offline — no Steam Web API key, no login, works if Steam is
+// installed even when the user is signed out. Cached 5 min per session.
+let STEAM_PLAYTIME_CACHE = { ts: 0, data: null };
+ipcMain.handle('steam:importPlaytime', async (_e, { force = false } = {}) => {
+  const FIVE_MIN = 5 * 60 * 1000;
+  if (!force && STEAM_PLAYTIME_CACHE.data && Date.now() - STEAM_PLAYTIME_CACHE.ts < FIVE_MIN) {
+    return { ok: true, ...STEAM_PLAYTIME_CACHE.data, cached: true };
+  }
+  const steamPath = defaultSteamPath();
+  if (!steamPath) return { ok: false, error: 'Steam install not found.' };
+  const userdata = path.join(steamPath, 'userdata');
+  if (!fs.existsSync(userdata)) return { ok: false, error: 'No userdata folder found.' };
+
+  const merged = {}; // appid -> { playtime, lastPlayed, users }
+  let accounts = 0;
+  try {
+    const userDirs = fs.readdirSync(userdata, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && /^\d+$/.test(d.name));
+    for (const dir of userDirs) {
+      const cfg = path.join(userdata, dir.name, 'config', 'localconfig.vdf');
+      if (!fs.existsSync(cfg)) continue;
+      accounts += 1;
+      let text = '';
+      try { text = fs.readFileSync(cfg, 'utf8'); } catch { continue; }
+      // Slice to the "apps" block under Software > Valve > Steam so we don't
+      // accidentally match unrelated "Playtime" keys elsewhere in the file.
+      const appsIdx = text.search(/"apps"\s*\{/i);
+      if (appsIdx < 0) continue;
+      // Walk brace-matched region
+      let depth = 0, start = -1;
+      for (let i = appsIdx; i < text.length; i += 1) {
+        const ch = text[i];
+        if (ch === '{') { if (start < 0) start = i; depth += 1; }
+        else if (ch === '}') { depth -= 1; if (depth === 0) { text = text.slice(start + 1, i); break; } }
+      }
+      // Per-app blocks: "<appid>" { ... }
+      const blockRe = /"(\d+)"\s*\{([\s\S]*?)\}/g;
+      let m;
+      while ((m = blockRe.exec(text)) !== null) {
+        const appid = m[1];
+        const body = m[2];
+        const pMatch = body.match(/"Playtime"\s*"(\d+)"/i);
+        const lpMatch = body.match(/"LastPlayed"\s*"(\d+)"/i);
+        const playtime = pMatch ? Number(pMatch[1]) : 0;
+        const lastPlayed = lpMatch ? Number(lpMatch[1]) * 1000 : 0;
+        if (!merged[appid]) merged[appid] = { playtime: 0, lastPlayed: 0 };
+        merged[appid].playtime = Math.max(merged[appid].playtime, playtime);
+        merged[appid].lastPlayed = Math.max(merged[appid].lastPlayed, lastPlayed);
+      }
+    }
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  }
+
+  const payload = { data: merged, accounts, count: Object.keys(merged).length };
+  STEAM_PLAYTIME_CACHE = { ts: Date.now(), data: payload };
+  return { ok: true, ...payload, cached: false };
+});
+

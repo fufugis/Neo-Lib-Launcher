@@ -67,6 +67,7 @@ contextBridge.exposeInMainWorld('api', {
   fetchAllNews: (opts) => ipcRenderer.invoke('news:fetchAll', opts),
   latestNewsForGame: (game) => ipcRenderer.invoke('news:latestForGame', game),
   getSteamManifest: (appid) => ipcRenderer.invoke('steam:manifest', appid),
+  importSteamPlaytime: (opts) => ipcRenderer.invoke('steam:importPlaytime', opts),
 
   // launcher process detection
   detectLaunchers: () => ipcRenderer.invoke('launcher:detect'),

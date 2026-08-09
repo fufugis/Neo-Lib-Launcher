@@ -20,19 +20,19 @@ export const uid = () => Math.random().toString(36).slice(2) + Date.now().toStri
 export const THEMES = [
   // Special themes — extra eye-candy (sparkles, shooting stars, textured surfaces)
   { id: 'colorful',      label: 'Colorful',       swatch: '#ff5abe', tone: 'special' },
-  { id: 'pro',           label: 'Pro',            swatch: '#e07a3c', tone: 'special' },
+  { id: 'pro',           label: 'Pro',            swatch: '#ff7620', tone: 'special' },
   // Dark themes
   { id: 'synthwave',     label: 'Synthwave',      swatch: '#ff2a8a', tone: 'dark' },
-  { id: 'anime',         label: 'Anime',          swatch: '#e81ea8', tone: 'dark' },
+  { id: 'anime',         label: 'Anime',          swatch: '#9e4ceb', tone: 'dark' },
   { id: 'midnight',      label: 'Midnight',       swatch: '#c4a56e', tone: 'dark' },
   { id: 'ocean',         label: 'Ocean',          swatch: '#4ea8f0', tone: 'dark' },
   { id: 'crimson',       label: 'Crimson',        swatch: '#dc263c', tone: 'dark' },
   // Middle themes (somewhere between dark and bright)
-  { id: 'gaming',        label: 'Gaming',         swatch: '#ff5fae', tone: 'middle' },
+  { id: 'gaming',        label: 'Gaming',         swatch: '#9b64ff', tone: 'middle' },
   { id: 'modern',        label: 'Modern',         swatch: '#e07a3c', tone: 'middle' },
   // Bright themes
-  { id: 'synthwave-day', label: 'Vaporwave Day',  swatch: '#ff0090', tone: 'bright' },
-  { id: 'daybreak',      label: 'Daybreak',       swatch: '#1c1c20', tone: 'bright' },
+  { id: 'synthwave-day', label: 'Vaporwave Day',  swatch: '#8a4fff', tone: 'bright' },
+  { id: 'daybreak',      label: 'Daybreak',       swatch: '#149c9e', tone: 'bright' },
   { id: 'mint',          label: 'Mint Garden',    swatch: '#34c98a', tone: 'bright' },
 ];
 
