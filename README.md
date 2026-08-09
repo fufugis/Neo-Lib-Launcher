@@ -2,7 +2,7 @@
 
 > A synthwave-flavored, **fully portable Windows game library** that unifies every game on your PC — Steam, Epic, EA App, GOG, standalone — into one neon-lit interface. No accounts. No cloud. No telemetry.
 
-![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.1.0-1a1a2e) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.3.1-8a4fff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
 ---
 
@@ -55,7 +55,98 @@ Library + settings live at `%APPDATA%\NEO-LIB\`. Delete that folder to factory-r
 
 ## 📜 Patch notes
 
-### v1.1.0 — GameDetail rework + accept-before-add preview *(current)*
+### v1.3.1 — Compact theme picker · Gradient swatches · Sidebar reshuffle *(current)*
+- **New:** 🎨 **Compact theme picker.** Settings > Theme is now a tight 4/5-column tile grid with icon-first swatch and label under. Roughly half the vertical space, no info lost.
+- **New:** 🌈 **Gradient theme swatches.** Every theme button now shows a real `linear-gradient(surface → accent → accent-2)` blend of the actual palette. No more misleading flat pink dots — you can eyeball each theme's mood before switching.
+- **New:** 🧭 **Sidebar reshuffle.** Launcher filter row (All / Steam / Epic / EA / GOG / Other) moved **below** the Add / Wizard / Settings toolbar. Auto-sort and New-category buttons joined that same row on the right side. One fewer strip of vertical space wasted.
+
+### v1.3.0 — Theme park rebalanced · Real Steam playtime · Sub-cat toggle fixed
+- **New:** 🎨 **Themes rebalanced — less pink, more variety.** Vaporwave Day → vivid purple + teal on lavender wash. Daybreak → deep teal on warm paper. Gaming → Twitch-style vivid purple + electric blue. Anime → sorcerer purple + electric blue + neon green (kept the JJK Gojo vibe). Synthwave and Colorful keep their signature pinks; the palette now covers purple / teal / blue / black / orange evenly.
+- **New:** ⏱️ **Real Steam playtime import.** Stats panel now reads `userdata/<steamid>/config/localconfig.vdf` on open and merges Playtime + LastPlayed for every appid, across every Steam account on the machine. 100% offline, no API key, works even signed-out. 5-min cache with a manual re-import button.
+- **New:** 🏆 **Stats ranking icons.** Every ranking row now shows Steam capsule / cover / initials fallback.
+- **Fixed:** Sub-category toggle now propagates through the 2-column sidebar layout (previously only worked in single-column mode).
+- **Fixed:** Non-Steam games with an accidental appid are no longer bucketed under Steam. Client attribution is now `source > appid > website > local`.
+
+### v1.2.9 — Stats tab · 2 Special themes · Text-size slider · Sub-cat toggle · 3 sound packs
+- **New:** 📊 **Stats tab** in the top toolbar — connected clients breakdown (Steam / GOG / itch / EA / Ubisoft / Epic / Battle.net), most-played ranking filtered by week / month / year / all time, total hours, and a Link Discord button. Not a social profile, just numbers.
+- **New:** 💫 **Two Special themes** — `Colorful` (pink + blue + carbon-black + textured-white with sparkles + shooting stars) and `Pro` (dark industrial gray with orange edge glow + brushed-metal texture + sweeping scanline). Both spawn 1.5× particles.
+- **New:** 🎨 **Sidebar tint** — subtle per-theme accent wash behind the library for readability.
+- **New:** Independent text-size slider (game name font 9-22px, decoupled from icon size).
+- **New:** Sub-category strip toggle — hide the "Action, RPG" genre badges separately from the category dot.
+- **New:** News popup anchors next to the News button instead of the far right.
+- **New:** 🔊 Three new sound packs — `Crystal` (glass ping), `Cyberpunk` (glitch pop + noise), `Bubble` (soft plop).
+
+### v1.2.8 — Tidy Up bug fix · Sliders portal · Every theme animated · Draggable news · 2-col Settings
+- **🔴 CRITICAL FIX:** Tidy Up "remove duplicates" no longer wipes out your entire Steam library. Over-eager rule that clustered every game sharing `Steam\steamapps\common\` has been dropped; cluster-size safety cap added.
+- **New:** Sliders popover portaled to `document.body` + fully opaque — always floats above the game preview.
+- **New:** Every theme now animates — particles + edge glow apply to synthwave, midnight, ocean, crimson, anime, mint, gaming, modern and any future theme automatically.
+- **Polish:** Latest news pill = animated border pulse + diagonal shimmer sweep + thicker accent border + bigger blinking dot.
+- **New:** News popup draggable by its header (grip cursor). No backdrop overlay — clicks outside pass through.
+- **New:** Settings modal is now 2-column masonry (CSS columns). Theme picker stays wide at the top, everything else tiles.
+
+### v1.2.7 — Category dot fixed · Effects moved · Time-bucketed showcase · Snappier news
+- **Fixed:** Category dot toggle now hides both the meta dots AND the category header dot.
+- Sliders popover z-70 (was 30) — floats above the GameDetail hero.
+- **New:** Effects intensity slider moved from Settings to the Library sliders popover; Max level now genuinely maxed (64 particles, drifting radial blobs, pulsing viewport edge glow).
+- **New:** Full-width latest-news pill in GameDetail — LIVE label, gradient tint, big blinking dot, gradient "Read full" CTA.
+- News popup snappier — 220ms → 140ms, no darkening backdrop, top-right notification-tray position.
+- **New:** Time-bucketed Showcase strip — This Week (72px tiles) · This Month (56px) · Long Ago (44px icon-only w/ hover tooltip) based on `lastPlayedAt`.
+- **New:** Unread news badge (pulsing red) on the sidebar News tab.
+
+### v1.2.6 — Live news pill · Ubisoft deals · Frosted panels · Per-theme effects · Toolbar refresh
+- **New:** 📰 **Live "Latest news" pill** in every GameDetail — pulsing indicator, platform label, click-to-expand snippet, "Read full" deep link. 15-min compact cache.
+- **New:** 🛍️ **Ubisoft deals** scraped from `store.ubisoft.com/us/deals` — 6 titles per fetch (images + links, prices skipped since Ubisoft loads them via JS). Wrapped through Skimlinks.
+- **New:** Global `.glass` / `.glass-soft` / `.glass-strong` CSS utilities — applied to sidebar, GameDetail About/gallery, ShowcaseStrip tiles, DealsBar.
+- **New:** Sidebar top tabs rebuilt as a proper frosted toolbar — bigger icon tiles, active-state gradient, bottom accent line.
+- **New:** Effects intensity slider now stores per-theme values in `settings.effectsLevelByTheme`.
+
+### v1.2.5 — Installer fix · Deals expansion · News popup · Effects dial
+- **🔴 Fixed:** Installer "run after install" bug. Replaced flaky `MUI_FINISHPAGE_RUN` checkbox with a custom NSIS `installer.nsh` hook that ExecShells the app from `customInstall` — guaranteed non-elevated launch after files are copied.
+- **New:** Deals expanded — GOG discounted catalog (up to 12 items, 40%+ off) and Fanatical `stardeal` (covers EA/Ubisoft titles).
+- **New:** Platform badge overlay on every deal card — STEAM / EPIC / GOG / IG / FAN with brand-matched gradients.
+- **New:** News tab converted from full-panel replacement to a floating modal (portal + backdrop + Esc/X/backdrop-click to close).
+- **New:** Effects Level slider (5 discrete stages: None / Low / Medium / High / Max) — scales particles, sakura, and overlay opacity together.
+
+### v1.2.4 — Build IDs, itch devlogs & GOG patch notes
+- **New:** Steam manifest reading — every Steam game shows "Updated N days ago · Build 12345 · X GB on disk" below the exe path.
+- **New:** itch.io devlog RSS support — any game whose `website` matches `*.itch.io` now surfaces its devlog updates.
+- **New:** GOG changelog reader — parses the last 14 days of changelog sections from `api.gog.com/products/<id>?expand=changelog`.
+- **New:** Feed toggle bar auto-adds `itch devlog` and `GOG patch` pills.
+
+### v1.2.3 — Steam News, live feed
+- **New:** 📰 Full Steam News implementation via `ISteamNews/GetNewsForApp` — 14-day window, 30-min cache, parallel batches of 8 games.
+- **New:** Feed classifier groups items into Official / Community / Third-party with per-feed toggles and live counts.
+- BBCode/HTML stripped, 320-char snippets, click-to-open on Steam.
+
+### v1.2.2 — Fixes + Tidy up + News placeholder
+- **New:** Tidy Up modal — duplicate finder with side-by-side compare (later revamped in 1.2.8).
+- **New:** News tab placeholder — implemented for real in v1.2.3.
+
+### v1.2.1 — Community access
+- Community access polish and infrastructure prep for the deals / news expansion.
+
+### v1.2.0 — Unified multi-source metadata fetch picker
+- **New:** Dedicated buttons in the metadata picker for Steam / Epic / GOG / itch.io / VNDB / DLsite / DuckDuckGo / Google — pick your source instead of relying on the auto-chain.
+- **New:** Smart query seeding — when you open the picker, NEO-LIB auto-fills the query from the exe name + parent folder (strips version tags, x64, repack noise).
+
+### v1.1.4 — Tray mode + Featured banner
+- **New:** Close-to-tray behavior — hitting X on the window minimizes to the system tray instead of quitting (opt-in via Settings). Tray icon with Show / Quit context menu; left-click toggles the window.
+- **New:** Slim "featured" deal banner (56px) above the Deals bar — rotates hot Instant Gaming deals for extra visibility.
+
+### v1.1.3 — More deals (revenue), still subtle
+- **New:** Instant Gaming scraper added with regex-based parsing and defensive try/catch.
+- Steam deals supply bumped 8 → 15, discount threshold relaxed 25% → 20%.
+- **New:** "All N" popover in the Deals bar — see every current deal in a compact grid.
+
+### v1.1.2 — What's-new toast
+- **New:** Changelog modal auto-opens 2.2s after boot when a new version is detected. Skipped on first-ever run (tutorial owns that moment).
+
+### v1.1.1 — Polish & QoL
+- **New:** Per-game ambient backdrop tint from the selected game's hero image (subtle wash, never overpowers the theme).
+- **New:** Deep Scan toggle in the Wizard for exhaustive folder recursion.
+- **New:** Drop-folder auto-scan and selective metadata accept.
+
+### v1.1.0 — GameDetail rework + accept-before-add preview
 - **New:** 🖼️ **GameDetail layout redesign.** Hero banner shrunk by ~35% (aspect 16:2.1 vs old 16:3.2) to free up vertical space. Below the hero is now a true two-pane layout:
   - **Left pane (scrollable)** — About text + Developer/Publisher/Released/Metacritic cells + executable path footer. Has its own scroll independent of the page.
   - **Right pane (gallery)** — One big screenshot preview that swaps when you click any thumbnail below. Active thumb gets an accent ring + offset, inactive thumbs dim to 55% opacity. Smooth motion fade on swap.
