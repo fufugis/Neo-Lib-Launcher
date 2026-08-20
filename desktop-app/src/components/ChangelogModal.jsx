@@ -15,6 +15,25 @@ import { Sparkles, Check, X } from 'lucide-react';
 
 export const CHANGELOG = [
   {
+    version: '1.4.0',
+    title: '5-star ratings · Startup intro · News alerts · Background textures · Playtime unit fix',
+    items: [
+      '**Star ratings** — click stars at the top of the game preview to rate 1-5. Games rated 5⭐ get a subtle warm-gold gradient wash behind their name in the library. Rating is preview-only, never clutters the sidebar.',
+      '**Sidebar reshuffle** — Settings moved next to Stats in the top TabPill row; cog-wheel button removed from the mid toolbar. Sliders renamed to **Visuals** (wider, more prominent pill).',
+      '**Background textures** — 5 built-in patterns (Grain / Grid / Diagonal / Hex / Dots) with a transparency dial, both inside the Visuals popover. Adds subtle depth behind the library.',
+      '**Startup intro** — 3-second synthwave logo reveal with a WebAudio-synthesized "hook" jingle on every boot. Skippable by clicking anywhere. Muted if UI sounds are off.',
+      '**Watched-game news alerts** — for favorited (pinned) OR 5⭐-rated games, NEO-LIB polls news once per hour and pops a center-screen alert with soft chime when something new lands. Click outside to dismiss, or hit "Read news" to open the article.',
+      '**"This Week" showcase now = most played** — regardless of the current showcase mode, the This Week bucket sorts by playtime desc so you always see what you\'re currently sinking hours into.',
+      '**Hours badges on tiles** — This Week and This Month showcase tiles show a small gradient hours-played badge in the top-right corner.',
+      '**Fixed:** playtime numbers. The `playtime` field is now consistently stored in **MINUTES** across the entire app. `formatPlaytime()` was interpreting values as seconds while everyone else stored minutes → wildly inflated readouts. Game-exit tracking also fixed to convert seconds → minutes on write.',
+      '**Fixed:** News modal now dismisses on click-outside.',
+      '**Fixed:** Category-dot toggle in Visuals now also affects the category header itself. When hidden, a colored backdrop stripe replaces the dot so the category identity signal stays visible.',
+      '**Fixed:** Drag-and-drop reorder in Uncategorized. Now uses an explicit `__uncat__` sentinel in the drag-data so the reorder-vs-move check no longer relies on the null/empty-string edge case.',
+      '**Compact theme picker** — grid tightened to 6/7 columns, tile ~50% smaller. Fits everything without scrolling.',
+      '**Settings > Visual effects** — collapsed to a redirect hint; all controls now live in the sidebar Visuals popover, arranged in a compact CSS-columns masonry.',
+    ],
+  },
+  {
     version: '1.3.1',
     title: 'Compact theme picker · Gradient theme swatches · Sidebar row reshuffle',
     items: [

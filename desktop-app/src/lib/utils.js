@@ -87,12 +87,18 @@ export const SHOWCASE_MODES = [
   { id: 'random',        label: 'Random pick' },
 ];
 
-export const formatPlaytime = (sec) => {
-  if (!sec || sec < 60) return `${sec || 0}s`;
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
+// v1.4.0 — `playtime` field is now consistently stored in MINUTES across the
+// entire app (Steam import already returns minutes, demo data is minutes,
+// StatsPanel already reads minutes). Prior versions had `formatPlaytime()`
+// interpreting the value as seconds and the game-exit handler in App.jsx adding
+// raw seconds — that produced wildly inflated numbers. Standardized here.
+export const formatPlaytime = (min) => {
+  const m = Math.max(0, Math.round(Number(min) || 0));
+  if (m < 1)  return '—';
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  const rem = m % 60;
+  return rem ? `${h}h ${rem}m` : `${h}h`;
 };
 
 // Relative-time formatter: "just now", "5m ago", "3 days ago", "2 weeks ago", "Jan 12, 2024"

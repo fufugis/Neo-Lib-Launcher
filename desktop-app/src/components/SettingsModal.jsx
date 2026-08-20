@@ -44,42 +44,42 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
               <div className="mb-1 text-[9.5px] uppercase tracking-[0.24em] text-muted/80">
                 {group.label}
               </div>
-              <div className="grid grid-cols-4 gap-1.5 lg:grid-cols-5">
+              <div className="grid grid-cols-6 gap-1 lg:grid-cols-7">
                 {THEMES.filter((t) => t.tone === group.tone).map((t) => {
                   const active = settings.theme === t.id;
                   return (
                     <motion.button
                       key={t.id}
                       data-testid={`theme-${t.id}`}
-                      whileHover={{ y: -1, scale: 1.02 }}
-                      whileTap={{ scale: 0.96 }}
+                      whileHover={{ y: -1, scale: 1.04 }}
+                      whileTap={{ scale: 0.95 }}
                       onClick={() => setKey({ theme: t.id })}
                       title={t.label}
                       className={
-                        'group relative flex flex-col items-center gap-1 rounded-lg hairline px-1.5 py-1.5 text-center transition-all ' +
+                        'group relative flex flex-col items-center gap-0.5 rounded-md hairline px-1 py-1 text-center transition-all ' +
                         (active
-                          ? 'border-[rgb(var(--accent)/0.8)] bg-[rgb(var(--accent)/0.10)]'
+                          ? 'border-[rgb(var(--accent)/0.85)] bg-[rgb(var(--accent)/0.12)]'
                           : 'hover:border-[rgb(var(--accent)/0.4)]')
                       }
                     >
                       <span
-                        className="h-8 w-full rounded-md border border-white/10 shadow-sm"
+                        className="h-5 w-full rounded-sm border border-white/10"
                         style={{
                           background: t.gradient || t.swatch,
                           boxShadow: active
-                            ? `0 0 10px ${t.swatch}77, inset 0 0 6px rgba(255,255,255,0.15)`
-                            : `0 0 4px ${t.swatch}33`,
+                            ? `0 0 8px ${t.swatch}88, inset 0 0 4px rgba(255,255,255,0.15)`
+                            : `0 0 2px ${t.swatch}33`,
                         }}
                       />
-                      <div className="w-full truncate text-[10.5px] font-medium leading-tight">
+                      <div className="w-full truncate text-[9px] font-medium leading-tight opacity-90">
                         {t.label}
                       </div>
                       {active && (
                         <motion.span
                           layoutId="theme-check"
-                          className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-[rgb(var(--accent))] text-[rgb(var(--surface))]"
+                          className="absolute -right-0.5 -top-0.5 grid h-3 w-3 place-items-center rounded-full bg-[rgb(var(--accent))] text-[rgb(var(--surface))]"
                         >
-                          <Check size={9} strokeWidth={3.5} />
+                          <Check size={7} strokeWidth={4} />
                         </motion.span>
                       )}
                     </motion.button>
@@ -154,82 +154,17 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
           </div>
         </Section>
 
-        {/* Visual effects */}
+        {/* v1.4.0 — All visual settings live in the sidebar "Visuals" menu now.
+            Keeping only a redirect hint here so users know where to look. */}
         <Section title="Visual effects">
-          <div className="space-y-3">
-            <div className="rounded-md hairline bg-panel/30 p-2.5 text-[11px] text-muted flex items-start gap-2">
-              <span className="mt-0.5 text-[rgb(var(--accent))]">→</span>
-              <span>
-                <strong className="text-ink">Effects intensity</strong> lives on the sidebar
-                — click the <em>sliders</em> icon in the top toolbar to dial it.
-              </span>
-            </div>
-            <Toggle
-              label="Animations"
-              hint="Smooth transitions, hover lifts, page reveals."
-              value={settings.animationsEnabled !== false}
-              onChange={(v) => setKey({ animationsEnabled: v })}
-              testid="opt-animations"
-            />
-            <Toggle
-              label="Synthwave grid background"
-              hint="Animated retro grid behind the app."
-              value={settings.synthGridEnabled !== false}
-              onChange={(v) => setKey({ synthGridEnabled: v })}
-              testid="opt-synth-grid"
-            />
-            <Toggle
-              label="Sparkle highlights"
-              hint="Tiny accent flickers on selected items."
-              value={!!settings.sparklesEnabled}
-              onChange={(v) => setKey({ sparklesEnabled: v })}
-              testid="opt-sparkles"
-            />
-            <Toggle
-              label="Scanlines on banners"
-              hint="Subtle retro CRT lines over hero images."
-              value={settings.scanlinesEnabled !== false}
-              onChange={(v) => setKey({ scanlinesEnabled: v })}
-              testid="opt-scanlines"
-            />
-            <Toggle
-              label="Floating particles"
-              hint="Soft accent-colored particles drift up behind the app."
-              value={settings.particlesEnabled !== false}
-              onChange={(v) => setKey({ particlesEnabled: v })}
-              testid="opt-particles"
-            />
-            <Toggle
-              label="Per-game ambient backdrop"
-              hint="Tints the background with the selected game's hero image (subtle wash, never overwhelms the theme)."
-              value={!!settings.perGameBg}
-              onChange={(v) => setKey({ perGameBg: v })}
-              testid="opt-per-game-bg"
-            />
-            <Toggle
-              label="CRT boot animation"
-              hint="Old-TV power-on flash on app start (1.4s)."
-              value={settings.crtBootEnabled !== false}
-              onChange={(v) => setKey({ crtBootEnabled: v })}
-              testid="opt-crt-boot"
-            />
-            <Slider
-              label="Background grid intensity"
-              value={settings.gridIntensity ?? 100}
-              min={0}
-              max={150}
-              onChange={(v) => setKey({ gridIntensity: v })}
-              testid="opt-grid-intensity"
-            />
-            <Slider
-              label="Banner blend (how much the hero image fades into the app)"
-              value={settings.bannerBlend ?? 60}
-              min={0}
-              max={100}
-              suffix="%"
-              onChange={(v) => setKey({ bannerBlend: v })}
-              testid="opt-banner-blend"
-            />
+          <div className="rounded-md hairline bg-panel/30 p-3 text-[11.5px] text-muted flex items-start gap-2">
+            <span className="mt-0.5 text-[rgb(var(--accent))]">→</span>
+            <span>
+              All visual controls — <strong className="text-ink">theme effects intensity, background
+              texture &amp; opacity, row size, category text, glow, spacing, icon position, category
+              dot, sub-category strip</strong> — live in the new <em>Visuals</em> button in the sidebar
+              toolbar. Look for the pill between <em>Refresh</em> and <em>Two-column</em>.
+            </span>
           </div>
         </Section>
 
@@ -334,7 +269,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
 
         <Section title="About">
           <p className="text-xs text-muted leading-relaxed">
-            NEO-LIB v1.3.1. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
+            NEO-LIB v1.4.0. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
             Library data lives in <span className="font-mono text-ink">%APPDATA%/NEO-LIB</span>.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">

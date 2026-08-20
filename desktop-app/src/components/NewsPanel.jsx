@@ -134,8 +134,13 @@ export default function NewsPanel({ games = [], onClose, anchorSelector }) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.08 }}
-        className="fixed inset-0 z-[80] pointer-events-none"
+        className="fixed inset-0 z-[80]"
         data-testid="news-backdrop"
+        onMouseDown={(e) => {
+          // v1.4.0 — click outside the panel closes it. The panel itself calls
+          // stopPropagation on its own onMouseDown so only outside clicks fire.
+          if (e.target === e.currentTarget && onClose) onClose();
+        }}
       >
         <motion.div
           drag
@@ -155,6 +160,7 @@ export default function NewsPanel({ games = [], onClose, anchorSelector }) {
             border: '1px solid rgb(var(--accent) / 0.25)',
             boxShadow: '0 20px 60px -20px rgba(0,0,0,0.85), 0 0 30px -8px rgb(var(--accent)/0.35)',
           }}
+          onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
           data-testid="news-panel"
         >

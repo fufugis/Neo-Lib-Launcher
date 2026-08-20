@@ -18,6 +18,8 @@ import TroubleshootModal from './components/TroubleshootModal';
 import TutorialModal from './components/TutorialModal';
 import CategoryModal from './components/CategoryModal';
 import Confetti from './components/Confetti';
+import StartupIntro from './components/StartupIntro';
+import GameNewsAlert from './components/GameNewsAlert';
 import EditMetadataModal from './components/EditMetadataModal';
 import AcceptMetadataModal from './components/AcceptMetadataModal';
 import FetchSourcePicker from './components/FetchSourcePicker';
@@ -28,7 +30,7 @@ import TidyUpModal from './components/TidyUpModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.3.1';
+const APP_VERSION = '1.4.0';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin } from './lib/utils';
 import { setSoundPack } from './lib/sound';
@@ -450,16 +452,19 @@ export default function App() {
         if (firstVisible) setSelectedId(firstVisible.id);
 
         // Wire playtime tracking event
+        // v1.4.0 — playtime is stored in MINUTES throughout the app (matches
+        // Steam's localconfig.vdf unit and StatsPanel expectations). Convert
+        // the raw session seconds → minutes here so we stop inflating values.
         window.api.onGameExited(({ gameId, seconds }) => {
           if (!gameId) return;
-          // We need access to library here — use a setter to avoid stale closure
+          const addMinutes = (Number(seconds) || 0) / 60;
           setLibrary((curr) => ({
             ...curr,
             games: curr.games.map((g) =>
               g.id === gameId
                 ? {
                     ...g,
-                    playtime: (g.playtime || 0) + seconds,
+                    playtime: (Number(g.playtime) || 0) + addMinutes,
                     lastPlayedAt: Date.now(),
                   }
                 : g
@@ -642,6 +647,59 @@ export default function App() {
     const iv = setInterval(check, 10 * 60 * 1000);
     return () => { cancelled = true; clearInterval(iv); };
   }, [library.games, settings.newsLastSeenAt]);
+
+  // v1.4.0 — Watched games news alert.
+  // For games that are either pinned (favorited) OR rated 5⭐, poll once per
+  // hour and pop a center-screen popup with chime if any news items are newer
+  // than `settings.newsAlertLastAt`. State is persisted so we don't re-fire
+  // for the same batch.
+  const [newsAlert, setNewsAlert] = React.useState(null);
+  const [introHiddenThisSession, setIntroHiddenThisSession] = React.useState(false);
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || !window.api?.fetchAllNews) return undefined;
+    let cancelled = false;
+    const pinnedSet = new Set(settings.pinnedGameIds || []);
+    const watched = (library.games || []).filter((g) =>
+      g && (pinnedSet.has(g.id) || Number(g.rating) === 5) &&
+      (g.appid || g.gogId || /itch\.io/.test(g.website || '') || g.source === 'itch')
+    );
+    const check = async () => {
+      if (!watched.length) return;
+      try {
+        const res = await window.api.fetchAllNews({
+          games: watched.map((g) => ({ id: g.id, appid: g.appid, name: g.name, website: g.website, source: g.source, gogId: g.gogId })),
+          days: 3,
+          force: false,
+        });
+        if (cancelled) return;
+        const items = res?.items || [];
+        const lastAt = Number(settings.newsAlertLastAt || Date.now() - 60 * 60 * 1000);
+        const fresh = items
+          .filter((it) => Number(it.date || 0) > lastAt)
+          .sort((a, b) => Number(b.date || 0) - Number(a.date || 0));
+        if (fresh.length) {
+          const it = fresh[0];
+          const game = watched.find((g) => g.id === it.gameId) || {};
+          setNewsAlert({
+            id: `${it.gameId}-${it.date}`,
+            gameId: it.gameId,
+            gameName: game.name || it.gameName || 'Watched game',
+            source: it.source || 'update',
+            title: it.title || 'New update',
+            snippet: it.snippet || it.contents || '',
+            url: it.url,
+            timeLabel: 'just now',
+          });
+          updateSetting({ newsAlertLastAt: Date.now() });
+        }
+      } catch { /* ignore */ }
+    };
+    // First check happens ~30s after mount so the app finishes boot animations
+    const first = setTimeout(check, 30_000);
+    const iv = setInterval(check, 60 * 60 * 1000); // hourly
+    return () => { cancelled = true; clearTimeout(first); clearInterval(iv); };
+  }, [library.games, settings.pinnedGameIds, settings.newsAlertLastAt]);
+
 
   /* --- Helpers --- */
   const ensureOrder = (catId, gameIds) => {
@@ -1200,6 +1258,8 @@ export default function App() {
       {/* Window edge glow — soft inner halo around the frameless window (Riot/Discord style) */}
       <div className="window-edge-glow" aria-hidden="true" />
       <BgAmbience theme={settings.theme} settings={settings} game={selected} />
+      {/* v1.4.0 — global background texture layer (behind everything except BgAmbience) */}
+      <BgTexture textureId={settings.bgTextureId || 'none'} opacity={Number.isFinite(settings.bgTextureOpacity) ? settings.bgTextureOpacity : 12} />
       <TitleBar
         search={search}
         setSearch={setSearch}
@@ -1253,6 +1313,10 @@ export default function App() {
             map[settings.theme || 'synthwave'] = v;
             updateSetting({ effectsLevelByTheme: map, effectsLevel: v });
           }}
+          bgTextureId={settings.bgTextureId || 'none'}
+          bgTextureOpacity={Number.isFinite(settings.bgTextureOpacity) ? settings.bgTextureOpacity : 12}
+          onChangeBgTextureId={(v) => updateSetting({ bgTextureId: v })}
+          onChangeBgTextureOpacity={(v) => updateSetting({ bgTextureOpacity: v })}
           mode={settings.mode || 'library'}
           onSetMode={setMode}
           launcherFilter={launcherFilter}
@@ -1294,6 +1358,7 @@ export default function App() {
                   onRevealFolder={(g) => (isElectron ? window.api.revealInFolder(g.exePath) : notify('Open: ' + g.exePath))}
                   onToggleCategory={toggleGameInCategory}
                   onCustomize={(g) => setEditMetaGame(g)}
+                  onUpdateGame={updateGame}
                 />
               </AnimatePresence>
           </div>
@@ -1511,6 +1576,28 @@ export default function App() {
 
       {/* Theme-aware confetti — bumps key when fired, auto-cleans */}
       <Confetti triggerKey={confetti.key} label={confetti.label} origin={confetti.origin} />
+
+      {/* v1.4.0 — 3-second synthwave intro on every boot (skippable) */}
+      {(introHiddenThisSession || settings.skipIntro) ? null : (
+        <StartupIntro
+          muted={settings.soundsEnabled === false}
+          onDone={() => setIntroHiddenThisSession(true)}
+        />
+      )}
+
+      {/* v1.4.0 — watched-game news alert (favorited / 5⭐) */}
+      <GameNewsAlert
+        alert={newsAlert}
+        muted={settings.soundsEnabled === false}
+        onDismiss={() => setNewsAlert(null)}
+        onOpen={(a) => {
+          if (a?.url) {
+            if (isElectron && window.api?.openExternal) window.api.openExternal(a.url);
+            else window.open(a.url, '_blank');
+          }
+          setNewsAlert(null);
+        }}
+      />
 
       {/* Drag-drop overlay — neon "Drop to add" banner appears when files are over the window */}
       <AnimatePresence>
@@ -1844,5 +1931,53 @@ function Particles({ count = 10 }) {
         />
       ))}
     </div>
+  );
+}
+
+
+/* ---------- Background texture layer (v1.4.0) ----------
+   Full-viewport overlay that sits between the ambient backdrop and content.
+   Gives the "library" a subtle pattern instead of a plain wash.
+   Never intercepts pointer events. Opacity controlled by user (0-40). */
+function BgTexture({ textureId = 'none', opacity = 12 }) {
+  if (!textureId || textureId === 'none' || opacity <= 0) return null;
+  const patterns = {
+    grain: {
+      backgroundImage: 'radial-gradient(rgb(var(--ink)) 1px, transparent 1px)',
+      backgroundSize: '3px 3px',
+    },
+    grid: {
+      backgroundImage:
+        'linear-gradient(rgb(var(--accent) / 0.7) 1px, transparent 1px),' +
+        'linear-gradient(90deg, rgb(var(--accent-2) / 0.55) 1px, transparent 1px)',
+      backgroundSize: '32px 32px',
+    },
+    diagonal: {
+      backgroundImage:
+        'repeating-linear-gradient(135deg, rgb(var(--accent) / 0.55) 0 1px, transparent 1px 14px)',
+    },
+    hex: {
+      backgroundImage:
+        'radial-gradient(circle at 25% 25%, rgb(var(--accent) / 0.7) 1.5px, transparent 2px),' +
+        'radial-gradient(circle at 75% 75%, rgb(var(--accent-2) / 0.6) 1.5px, transparent 2px)',
+      backgroundSize: '28px 28px',
+    },
+    dots: {
+      backgroundImage: 'radial-gradient(rgb(var(--accent) / 0.7) 1px, transparent 2px)',
+      backgroundSize: '18px 18px',
+    },
+  };
+  const style = patterns[textureId] || {};
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none fixed inset-0"
+      style={{
+        ...style,
+        opacity: Math.max(0, Math.min(40, opacity)) / 100,
+        zIndex: 1,
+      }}
+      data-testid="bg-texture-layer"
+    />
   );
 }

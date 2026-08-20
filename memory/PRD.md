@@ -11,6 +11,21 @@ and a non-intrusive monetization system (Deals banners via Affiliate links).
 - CI: GitHub Actions builds NSIS `.exe` + portable `.zip` on tag push.
 - System tray (Electron Tray API) for close-to-tray behavior.
 
+## Version 1.4.0 — Feb 2, 2026
+**Star ratings · Startup intro · News alerts · Background textures · Playtime unit fix:**
+- **5-star ratings** — click stars at top of GameDetail. 5⭐ games get warm-gold gradient wash behind their name in Sidebar. `game.rating` (0–5) persisted via `onUpdateGame`. New `StarRating` component in `GameDetail.jsx`.
+- **Sidebar reshuffle** — Settings moved next to Stats in top TabPill row; cog-wheel SideBtn removed from mid toolbar. Sliders renamed to **Visuals** (wider pill).
+- **5 background textures** — Grain / Grid / Diagonal / Hex / Dots + opacity slider. Rendered by new `<BgTexture>` global layer in App.jsx; picker in `BgTexturePicker` inside Visuals popover. Settings `bgTextureId`, `bgTextureOpacity`.
+- **Startup intro** — new `StartupIntro.jsx` with 3-sec synthwave logo reveal + WebAudio-synthesized jingle (pad chord + kick x2 + lead pluck). Skippable. Gated by session ref + `settings.skipIntro`.
+- **Watched-game news alerts** — new `GameNewsAlert.jsx` popup with soft chime. `App.jsx` polls `window.api.fetchAllNews` hourly for pinned OR 5⭐ games; new items > `settings.newsAlertLastAt` trigger the popup.
+- **Deck showcase** — This Week bucket now sorts by playtime desc regardless of mode. Hours badge overlaid on This Week & This Month tiles.
+- **🐛 Playtime unit fix** — standardized on MINUTES across the app. `formatPlaytime()` now takes minutes; `App.jsx` game-exit handler divides seconds by 60 before adding. Sidebar row and TidyUpModal updated.
+- **🐛 News modal** — click-outside on backdrop now dismisses (backdrop no longer has pointer-events: none).
+- **🐛 Category-dot toggle** — now hides the category-header dot too. When hidden, section renders a colored backdrop stripe + left border in the category color.
+- **🐛 Uncategorized drag-drop** — explicit `__uncat__` sentinel in drag-data; both row-drop and section-drop normalize the sentinel.
+- **Theme picker** — 6/7-col grid, ~50% smaller tiles.
+- **Settings > Visual effects** — collapsed to a redirect hint; controls moved to Visuals popover with `.settings-columns` two-col masonry.
+
 ## Version 1.3.1 — Feb 2, 2026
 **Compact theme picker · Gradient theme swatches · Sidebar row reshuffle:**
 - **Compact theme picker** in `SettingsModal.jsx` — 4/5-column tile grid with icon-first swatch and label under, replaces the 2/3-column wide rows. Roughly half the vertical space.

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play, RefreshCw, Calendar, Award, Building2, Globe, FolderOpen,
-  Tag, Sparkles, ChevronLeft, ChevronRight, ChevronDown, Youtube, FileText, Wrench, Wand2, ExternalLink,
+  Tag, Sparkles, ChevronLeft, ChevronRight, ChevronDown, Youtube, FileText, Wrench, Wand2, ExternalLink, Star,
 } from 'lucide-react';
 import { cn, colorFromId } from '../lib/utils';
 import { hoverThrottled, playLaunch } from '../lib/sound';
@@ -18,7 +18,7 @@ import { hoverThrottled, playLaunch } from '../lib/sound';
  */
 export default function GameDetail({
   game, categories, onLaunch, onRefetch, onRevealFolder,
-  onToggleCategory, onCustomize, fetching, settings = {},
+  onToggleCategory, onCustomize, onUpdateGame, fetching, settings = {},
 }) {
   if (!game) return <EmptyState />;
   const bg = game.background || game.headerImage || game.coverUrl;
@@ -140,7 +140,7 @@ export default function GameDetail({
         {settings.scanlinesEnabled !== false && <div className="scanlines pointer-events-none absolute inset-0 opacity-30" />}
 
         {/* Hero text block */}
-        <HeroTitle game={game} />
+        <HeroTitle game={game} onUpdateGame={onUpdateGame} />
 
         {/* Action bar — sits over backdrop, glass blur */}
         <ActionBar
@@ -278,7 +278,7 @@ function GalleryBox({ shots }) {
 }
 
 /* ---------- Hero title block (text only, sits over backdrop) ---------- */
-function HeroTitle({ game }) {
+function HeroTitle({ game, onUpdateGame }) {
   return (
     <div className="relative aspect-[16/2.1] w-full">
       <div className="absolute inset-0 flex items-end px-8 pb-3">
@@ -287,10 +287,16 @@ function HeroTitle({ game }) {
             initial={{ y: 8, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.05 }}
-            className="mb-1.5 flex items-center gap-2 text-[9.5px] uppercase tracking-[0.32em] text-[rgb(var(--accent-2))] neon-text-cyan"
+            className="mb-1.5 flex items-center gap-3 text-[9.5px] uppercase tracking-[0.32em] text-[rgb(var(--accent-2))] neon-text-cyan"
           >
-            <span className="h-1 w-1 rounded-full bg-[rgb(var(--accent-2))]" />
-            Now viewing
+            <span className="flex items-center gap-2">
+              <span className="h-1 w-1 rounded-full bg-[rgb(var(--accent-2))]" />
+              Now viewing
+            </span>
+            <StarRating
+              value={Number(game.rating) || 0}
+              onChange={(v) => onUpdateGame?.(game.id, { rating: v })}
+            />
           </motion.div>
           <motion.h1
             initial={{ y: 12, opacity: 0 }}
@@ -887,5 +893,45 @@ function LatestNewsPill({ game }) {
         )}
       </AnimatePresence>
     </motion.div>
+  );
+}
+
+
+/* ---------- 5-star rating (v1.4.0) ---------- */
+function StarRating({ value = 0, onChange }) {
+  const [hover, setHover] = React.useState(0);
+  const shown = hover || value;
+  return (
+    <span
+      className="inline-flex items-center gap-0.5"
+      onMouseLeave={() => setHover(0)}
+      data-testid="game-star-rating"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {[1, 2, 3, 4, 5].map((i) => {
+        const filled = i <= shown;
+        return (
+          <button
+            key={i}
+            data-testid={`star-${i}`}
+            title={`${i} star${i > 1 ? 's' : ''}`}
+            onMouseEnter={() => setHover(i)}
+            onClick={(e) => {
+              e.stopPropagation();
+              // Clicking the currently-set star wipes the rating back to 0.
+              onChange?.(value === i ? 0 : i);
+            }}
+            className="grid place-items-center transition-transform hover:scale-110"
+            style={{
+              padding: 2,
+              color: filled ? '#ffcc4a' : 'rgb(var(--muted) / 0.5)',
+              filter: filled ? 'drop-shadow(0 0 4px rgba(255,204,74,0.7))' : 'none',
+            }}
+          >
+            <Star size={13} strokeWidth={2} fill={filled ? '#ffcc4a' : 'none'} />
+          </button>
+        );
+      })}
+    </span>
   );
 }

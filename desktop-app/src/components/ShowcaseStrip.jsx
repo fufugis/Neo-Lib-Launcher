@@ -121,10 +121,19 @@ export default function ShowcaseStrip({ games, mode, setMode, onSelect, selected
             else if (age <= MONTH) buckets.month.push(g);
             else                    buckets.long.push(g);
           }
+          // v1.4.0 — "This week" is always ranked by most-played (regardless
+          // of the current showcase mode). Games with no playtime fall to the
+          // bottom by lastPlayedAt.
+          buckets.week.sort((a, b) => {
+            const pa = Number(a.playtime) || 0;
+            const pb = Number(b.playtime) || 0;
+            if (pb !== pa) return pb - pa;
+            return (Number(b.lastPlayedAt) || 0) - (Number(a.lastPlayedAt) || 0);
+          });
           const groups = [
-            { key: 'week',  label: 'This week',  tone: 'accent',   size: 'lg', games: buckets.week },
-            { key: 'month', label: 'This month', tone: 'accent-2', size: 'md', games: buckets.month },
-            { key: 'long',  label: 'Long ago',   tone: 'muted',    size: 'sm', games: buckets.long },
+            { key: 'week',  label: 'This week',  tone: 'accent',   size: 'lg', games: buckets.week,  showHoursBadge: true },
+            { key: 'month', label: 'This month', tone: 'accent-2', size: 'md', games: buckets.month, showHoursBadge: true },
+            { key: 'long',  label: 'Long ago',   tone: 'muted',    size: 'sm', games: buckets.long,  showHoursBadge: false },
           ];
           const nonEmpty = groups.filter((gr) => gr.games.length > 0);
           if (nonEmpty.length === 0) {
@@ -141,6 +150,7 @@ export default function ShowcaseStrip({ games, mode, setMode, onSelect, selected
                   size={gr.size}
                   games={gr.games}
                   mode={mode}
+                  showHoursBadge={gr.showHoursBadge}
                   onSelect={onSelect}
                   selectedId={selectedId}
                   showSeparator={gi > 0}
@@ -154,7 +164,7 @@ export default function ShowcaseStrip({ games, mode, setMode, onSelect, selected
   );
 }
 
-function ShowcaseGroup({ label, tone, size, games, mode, onSelect, selectedId, showSeparator }) {
+function ShowcaseGroup({ label, tone, size, games, mode, showHoursBadge, onSelect, selectedId, showSeparator }) {
   const toneColor =
     tone === 'accent'   ? 'rgb(var(--accent))'   :
     tone === 'accent-2' ? 'rgb(var(--accent-2))' :
@@ -187,6 +197,7 @@ function ShowcaseGroup({ label, tone, size, games, mode, onSelect, selectedId, s
               g={g}
               size={size}
               mode={mode}
+              showHoursBadge={showHoursBadge}
               selected={selectedId === g.id}
               index={i}
               onClick={() => onSelect(g.id)}
@@ -209,7 +220,7 @@ function ScrollBtn({ children, onClick }) {
   );
 }
 
-function ShowcaseTile({ g, size, mode, selected, index, onClick }) {
+function ShowcaseTile({ g, size, mode, showHoursBadge, selected, index, onClick }) {
   const stat = (() => {
     if (mode === 'most_played')  return g.playtime ? formatPlaytime(g.playtime) : '';
     if (mode === 'recent_played') return g.lastPlayedAt ? formatRelative(g.lastPlayedAt) : '';
@@ -217,6 +228,10 @@ function ShowcaseTile({ g, size, mode, selected, index, onClick }) {
     if (mode === 'untouched')     return g.addedAt ? formatRelative(g.addedAt) : '';
     return '';
   })();
+  // v1.4.0 — hours-played badge on This Week & This Month tiles
+  const hoursBadge = (showHoursBadge && Number(g.playtime) > 0)
+    ? formatPlaytime(g.playtime)
+    : '';
   const dims =
     size === 'lg' ? 'h-[72px] w-[128px]' :
     size === 'md' ? 'h-[56px] w-[92px]'  :
@@ -251,6 +266,21 @@ function ShowcaseTile({ g, size, mode, selected, index, onClick }) {
         </div>
       )}
       {!isSm && <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />}
+      {/* v1.4.0 — hours-played badge for This Week / This Month tiles */}
+      {hoursBadge && (
+        <span
+          className="absolute right-1 top-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold tabular-nums"
+          style={{
+            background: 'linear-gradient(135deg, rgb(var(--accent) / 0.9), rgb(var(--accent-2) / 0.9))',
+            color: 'white',
+            boxShadow: '0 0 6px rgba(0,0,0,0.5), 0 0 8px rgb(var(--accent) / 0.5)',
+            textShadow: '0 1px 2px rgba(0,0,0,0.6)',
+          }}
+          data-testid={`hours-badge-${g.id}`}
+        >
+          {hoursBadge}
+        </span>
+      )}
       {!isSm && (
         <div className="absolute inset-0 flex flex-col justify-end p-1.5">
           <div className={cn(

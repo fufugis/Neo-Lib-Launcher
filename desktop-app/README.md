@@ -4,9 +4,20 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.3.1-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.4.0-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.3.1 (Compact theme picker · Gradient swatches · Sidebar reshuffle)
+### Latest — v1.4.0 (Star ratings · Startup intro · News alerts · Textures · Playtime fix)
+- **Star ratings** — 5-star click-to-rate at the top of every game preview; 5⭐ games get a subtle warm-gold wash behind their name in the library.
+- **Sidebar reshuffle** — Settings moved into the top TabPill row next to Stats; the cog-wheel is gone. Sliders renamed to **Visuals** (wider, more important pill).
+- **Background textures** — Grain / Grid / Diagonal / Hex / Dots with a transparency slider, all inside Visuals.
+- **Startup intro** — 3-second synthwave logo reveal with a WebAudio-synthesized jingle every boot. Skippable.
+- **Watched-game news alerts** — favorited (pinned) or 5⭐ games trigger a centered chime + popup once/hour when new news arrives. Click outside to dismiss, "Read news" opens the article.
+- **Showcase deck** — "This Week" now always sorts by most-played; This Week & This Month tiles get an hours-played badge overlay.
+- **Fixed** playtime numbers (units were mixed seconds/minutes; now consistently minutes everywhere).
+- **Fixed** News modal click-outside dismiss, category-dot toggle for the category header itself (colored backdrop stripe replaces it), and drag-drop reorder in Uncategorized.
+- **Compact theme picker** — 6/7-column tile grid, ~50% smaller.
+
+### v1.3.1 (Compact theme picker · Gradient swatches · Sidebar reshuffle)
 - **Compact theme picker** — 4/5-column tile grid instead of 2/3 wide rows; roughly half the vertical space.
 - **Gradient theme swatches** — each button now shows a real surface→accent→accent-2 gradient (the "average" of the theme) so you can eyeball each mood before switching.
 - **Sidebar reshuffle** — launcher filter row (All / Steam / Epic / EA / GOG / Other) moved below the Add / Wizard toolbar; Auto-sort and New category buttons joined that row on the right side.

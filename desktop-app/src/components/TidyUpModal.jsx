@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { Sparkles, Trash2, Check, X, GripVertical, ArrowRight, AlertCircle } from 'lucide-react';
+import { formatPlaytime } from '../lib/utils';
 
 /**
  * TidyUpModal — Duplicate finder.
@@ -111,7 +112,7 @@ export default function TidyUpModal({ open, games, onDelete, onClose }) {
                       <div className="text-[10.5px] text-muted font-mono truncate" title={g.exePath}>{shorten(g.exePath)}</div>
                       <div className="flex items-center gap-1.5 text-[10.5px] text-muted">
                         {g.source && <span className="rounded-full hairline px-1.5">{g.source}</span>}
-                        {g.playtime ? <span>{Math.round(g.playtime / 60)}m played</span> : <span>never played</span>}
+                        {g.playtime ? <span>{formatPlaytime(g.playtime)} played</span> : <span>never played</span>}
                         {g.manualOverride && <span className="text-[rgb(var(--accent-2))]">manual edits</span>}
                       </div>
                       <button

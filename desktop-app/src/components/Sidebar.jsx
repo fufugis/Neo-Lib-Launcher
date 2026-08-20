@@ -7,7 +7,7 @@ import {
   Info, ArrowUp, ArrowDown, Palette, Eye, EyeOff, Sliders, Library as LibIcon,
   Wrench, Columns, Pin, PinOff, X as XIcon, Newspaper, BarChart3,
 } from 'lucide-react';
-import { cn, colorFromId, sizeById } from '../lib/utils';
+import { cn, colorFromId, sizeById, formatPlaytime } from '../lib/utils';
 
 /**
  * Sidebar (tree view)
@@ -37,6 +37,8 @@ export default function Sidebar({
   onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
   onChangeRowGap, onChangeCatGap, onChangeCatTopGap, onToggleCategoryDot,
   onToggleSubcatStrip, onChangeNameTextSize,
+  bgTextureId, bgTextureOpacity,
+  onChangeBgTextureId, onChangeBgTextureOpacity,
   onSelect,
   onAddManual, onOpenWizard, onOpenSettings, onUpdateAll, onTidyUp,
   onCreateCategory, onCategoryContext, onGameContext,
@@ -178,6 +180,14 @@ export default function Sidebar({
           testid="tab-stats"
           big
         />
+        <TabPill
+          label="Settings"
+          icon={<Settings size={14} />}
+          active={false}
+          onClick={onOpenSettings}
+          testid="tab-settings"
+          big
+        />
         {/* Bottom accent line separating the toolbar from what's underneath */}
         <span
           aria-hidden
@@ -249,13 +259,29 @@ export default function Sidebar({
           </div>
         )}
         <div className="relative">
-          <SideBtn
+          <button
             ref={libSettingsBtnRef}
-            icon={<Sliders size={14} />}
             onClick={() => setLibSettingsOpen((v) => !v)}
-            testid="sidebar-lib-settings-btn"
-            title="Library settings"
-          />
+            data-testid="sidebar-visuals-btn"
+            title="Visuals — themes-adjacent library dials, textures & effects"
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-md hairline px-3 h-7 text-[11.5px] font-bold transition-all',
+              libSettingsOpen
+                ? 'text-ink border-[rgb(var(--accent)/0.8)] bg-[rgb(var(--accent)/0.14)]'
+                : 'text-ink/90 hover:text-ink hover:border-[rgb(var(--accent)/0.55)] hover:bg-[rgb(var(--accent)/0.10)]'
+            )}
+            style={{
+              background: libSettingsOpen
+                ? 'linear-gradient(135deg, rgb(var(--accent)/0.18) 0%, rgb(var(--accent-2)/0.14) 100%)'
+                : undefined,
+              boxShadow: libSettingsOpen
+                ? '0 0 10px -2px rgb(var(--accent)/0.5)'
+                : undefined,
+            }}
+          >
+            <Sliders size={13} className="text-[rgb(var(--accent))]" />
+            Visuals
+          </button>
           <AnimatePresence>
             {libSettingsOpen && (
               <LibrarySettingsPopover
@@ -285,6 +311,10 @@ export default function Sidebar({
                 effectsLevel={effectsLevel}
                 currentTheme={currentTheme}
                 onChangeEffectsLevel={onChangeEffectsLevel}
+                bgTextureId={bgTextureId}
+                bgTextureOpacity={bgTextureOpacity}
+                onChangeBgTextureId={onChangeBgTextureId}
+                onChangeBgTextureOpacity={onChangeBgTextureOpacity}
                 onClose={() => setLibSettingsOpen(false)}
                 onCreateCategory={onCreateCategory}
               />
@@ -304,7 +334,7 @@ export default function Sidebar({
         >
           <Columns size={13} className={twoRow ? 'text-[rgb(var(--accent))]' : 'text-[rgb(var(--accent))]'} />
         </button>
-        <SideBtn icon={<Settings size={14} />} onClick={onOpenSettings} testid="sidebar-settings-btn" />
+        {/* v1.4.0 — cog-wheel Settings button removed; Settings now lives in the top TabPill row next to Stats. */}
       </div>
 
       {/* v1.3.1 — Combined filter + actions row (Library tab only).
@@ -658,10 +688,12 @@ function LibrarySettingsPopover({
   rowGap = 2, catGap = 8, catTopGap = 4, showCategoryDot = true,
   showSubcatStrip = true, nameTextSize = null,
   effectsLevel = 2, currentTheme = 'synthwave',
+  bgTextureId = 'none', bgTextureOpacity = 12,
   onSetLibrarySize, onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
   onChangeRowGap, onChangeCatGap, onChangeCatTopGap, onToggleCategoryDot,
   onToggleSubcatStrip, onChangeNameTextSize,
   onChangeEffectsLevel,
+  onChangeBgTextureId, onChangeBgTextureOpacity,
   onClose, onCreateCategory,
 }) {
   const ref = React.useRef(null);
@@ -708,16 +740,19 @@ function LibrarySettingsPopover({
         // (which doesn't). No transparency at all here — this is a tool panel.
         backgroundColor: 'rgb(var(--surface))',
       }}
-      className="z-[9999] w-72 max-w-[calc(100vw-32px)] max-h-[80vh] overflow-y-auto rounded-lg hairline shadow-2xl p-3 space-y-3"
+      className="z-[9999] w-[420px] max-w-[calc(100vw-32px)] max-h-[80vh] overflow-y-auto rounded-lg hairline shadow-2xl p-3"
       data-testid="library-settings-popover"
     >
       <div
         onPointerDown={(e) => dragControls.start(e)}
-        className="cursor-move -mt-1 -mx-1 mb-1 px-2 py-1 text-[9px] uppercase tracking-[0.22em] text-muted/80 flex items-center gap-1.5 select-none border-b border-[rgb(var(--border))]/60"
+        className="cursor-move -mt-1 -mx-1 mb-2 px-2 py-1 text-[10px] uppercase tracking-[0.22em] text-[rgb(var(--accent))] flex items-center gap-1.5 select-none border-b border-[rgb(var(--border))]/60 font-bold"
         title="Drag to move"
       >
-        <GripVertical size={10} /> Library settings
+        <GripVertical size={10} /> Visuals
       </div>
+      {/* v1.4.0 — Visuals popover uses CSS columns (settings-columns) so all
+          dials fit in a compact two-column masonry without endless scroll. */}
+      <div className="settings-columns">
       <div>
         <div className="mb-1.5 text-[10px] uppercase tracking-wider text-muted">Quick preset</div>
         <div className="grid grid-cols-3 gap-1">
@@ -892,10 +927,22 @@ function LibrarySettingsPopover({
         />
       </div>
 
-      <div className="h-px bg-[rgb(var(--border))]" />
+      {/* v1.4.0 — Background texture picker + transparency dial.
+          Adds subtle patterns behind the library so it doesn't feel too plain. */}
+      <BgTexturePicker
+        textureId={bgTextureId}
+        opacity={bgTextureOpacity}
+        onChange={onChangeBgTextureId}
+        onChangeOpacity={onChangeBgTextureOpacity}
+      />
+
+      </div>
+      {/* end .settings-columns */}
+
+      <div className="mt-3 h-px bg-[rgb(var(--border))]" />
       <button
         onClick={() => { onCreateCategory(); onClose(); }}
-        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[12px] hover:bg-[rgb(var(--accent)/0.10)]"
+        className="mt-2 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[12px] hover:bg-[rgb(var(--accent)/0.10)]"
       >
         <Plus size={13} className="text-[rgb(var(--accent))]" /> New category…
       </button>
@@ -924,6 +971,116 @@ function PopSlider({ label, value, min, max, suffix = '', onChange, testid }) {
     </div>
   );
 }
+
+/* v1.4.0 — Background texture picker (5 built-ins + None) with transparency dial. */
+export const BG_TEXTURES = [
+  { id: 'none',     label: 'None' },
+  { id: 'grain',    label: 'Grain' },
+  { id: 'grid',     label: 'Grid' },
+  { id: 'diagonal', label: 'Diagonal' },
+  { id: 'hex',      label: 'Hex' },
+  { id: 'dots',     label: 'Dots' },
+];
+function BgTexturePicker({ textureId = 'none', opacity = 12, onChange, onChangeOpacity }) {
+  return (
+    <div className="rounded-md hairline bg-panel/40 p-2.5 space-y-2" data-testid="pop-bg-texture">
+      <div className="text-[10px] uppercase tracking-wider text-muted">Background texture</div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {BG_TEXTURES.map((t) => {
+          const active = textureId === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => onChange && onChange(t.id)}
+              data-testid={`bg-tex-${t.id}`}
+              className={cn(
+                'group relative overflow-hidden rounded-md hairline transition-all',
+                active ? 'border-[rgb(var(--accent)/0.85)]' : 'hover:border-[rgb(var(--accent)/0.5)]'
+              )}
+              style={{ aspectRatio: '3/2' }}
+              title={t.label}
+            >
+              <span
+                aria-hidden
+                className="absolute inset-0"
+                style={{
+                  background: 'rgb(var(--panel))',
+                  ...bgTexturePreview(t.id),
+                }}
+              />
+              <span
+                className="absolute bottom-0 left-0 right-0 px-1 py-0.5 text-[9px] font-medium"
+                style={{
+                  color: active ? 'rgb(var(--accent))' : 'rgb(var(--muted))',
+                  background: 'linear-gradient(0deg, rgb(var(--panel) / 0.92), transparent)',
+                  textAlign: 'center',
+                }}
+              >
+                {t.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {textureId !== 'none' && (
+        <div>
+          <div className="mb-1 flex items-center justify-between">
+            <div className="text-[11px] text-ink/90">Texture opacity</div>
+            <div className="text-[10.5px] text-[rgb(var(--accent-2))]">{opacity}%</div>
+          </div>
+          <input
+            type="range"
+            data-testid="pop-bg-tex-opacity"
+            min={0}
+            max={40}
+            value={opacity}
+            onChange={(e) => onChangeOpacity && onChangeOpacity(Number(e.target.value))}
+            className="w-full accent-[rgb(var(--accent))]"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+/* Small preview CSS snippets for each texture — keep in sync with BgTexture layer */
+function bgTexturePreview(id) {
+  switch (id) {
+    case 'grain':
+      return {
+        backgroundImage:
+          'radial-gradient(rgba(255,255,255,0.35) 1px, transparent 1px)',
+        backgroundSize: '6px 6px',
+      };
+    case 'grid':
+      return {
+        backgroundImage:
+          'linear-gradient(rgb(var(--accent)/0.35) 1px, transparent 1px),' +
+          'linear-gradient(90deg, rgb(var(--accent-2)/0.25) 1px, transparent 1px)',
+        backgroundSize: '10px 10px',
+      };
+    case 'diagonal':
+      return {
+        backgroundImage:
+          'repeating-linear-gradient(135deg, rgb(var(--accent)/0.3) 0 1px, transparent 1px 6px)',
+      };
+    case 'hex':
+      return {
+        backgroundImage:
+          'radial-gradient(circle at 25% 25%, rgb(var(--accent)/0.35) 1.5px, transparent 2px),' +
+          'radial-gradient(circle at 75% 75%, rgb(var(--accent-2)/0.35) 1.5px, transparent 2px)',
+        backgroundSize: '10px 10px',
+      };
+    case 'dots':
+      return {
+        backgroundImage:
+          'radial-gradient(rgb(var(--accent)/0.4) 1px, transparent 2px)',
+        backgroundSize: '8px 8px',
+      };
+    default:
+      return {};
+  }
+}
+
 
 const EFFECTS_STAGES = ['None', 'Low', 'Medium', 'High', 'Max'];
 const EFFECTS_HINT = {
@@ -997,10 +1154,12 @@ function Section({
     e.preventDefault();
     sectionRef.current?.classList.remove('drop-target');
     const gameId = e.dataTransfer.getData('text/game-id');
-    const fromCat = e.dataTransfer.getData('text/game-from-cat');
+    const rawFromCat = e.dataTransfer.getData('text/game-from-cat');
+    // v1.4.0 — treat the '__uncat__' sentinel as null when calling move handler
+    const fromCat = (!rawFromCat || rawFromCat === '__uncat__') ? null : rawFromCat;
     const catId = e.dataTransfer.getData('text/cat-id');
     if (gameId) {
-      onMoveGameToCategory(gameId, fromCat || null, isUncat ? null : c.id, { copy: e.ctrlKey });
+      onMoveGameToCategory(gameId, fromCat, isUncat ? null : c.id, { copy: e.ctrlKey });
       return;
     }
     if (catId && catId !== c.id && !isUncat) {
@@ -1040,6 +1199,18 @@ function Section({
           'group flex cursor-pointer select-none items-center gap-1 rounded-md px-1.5 py-1.5 transition-colors',
           'hover:bg-[rgb(var(--accent)/0.06)]'
         )}
+        style={
+          // v1.4.0 — when the category dot is disabled AND this isn't a ghost/
+          // locked or uncategorized row, use a subtle colored backdrop stripe
+          // matching the category color instead. Keeps the identity signal.
+          !showCategoryDot && !section.isGhost && !isUncat
+            ? {
+                background: `linear-gradient(90deg, ${color}26 0%, ${color}0a 55%, transparent 100%)`,
+                borderLeft: `2px solid ${color}`,
+                paddingLeft: '10px',
+              }
+            : undefined
+        }
       >
         {/* Drag handle */}
         <span
@@ -1070,6 +1241,11 @@ function Section({
           >
             {c.logoLabel}
           </span>
+        ) : !showCategoryDot ? (
+          // v1.4.0 — dot hidden; the section header uses a colored backdrop
+          // stripe instead (see parent style). Reserve a tiny spacer so the
+          // chevron alignment stays consistent.
+          <span aria-hidden className="shrink-0" style={{ width: 2, height: 2 }} />
         ) : (
           <span
             className="shrink-0 rounded-full cat-icon"
@@ -1251,7 +1427,10 @@ function GameRow({
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData('text/game-id', g.id);
-        if (fromCatId) e.dataTransfer.setData('text/game-from-cat', fromCatId);
+        // v1.4.0 — always set the from-cat key. Use '__uncat__' as the
+        // sentinel for uncategorized so the reorder-vs-move check below
+        // doesn't fall through to the fragile null/empty-string edge case.
+        e.dataTransfer.setData('text/game-from-cat', fromCatId || '__uncat__');
         e.dataTransfer.effectAllowed = 'copyMove';
         e.currentTarget.classList.add('is-dragging');
       }}
@@ -1268,14 +1447,17 @@ function GameRow({
         e.stopPropagation();
         e.currentTarget.style.boxShadow = '';
         const gameId = e.dataTransfer.getData('text/game-id');
-        const fromCat = e.dataTransfer.getData('text/game-from-cat') || null;
-        if (!gameId) return;
-        if (fromCat === fromCatId || (!fromCat && !fromCatId)) {
+        // v1.4.0 — normalize both sides to the '__uncat__' sentinel so drops
+        // WITHIN Uncategorized correctly enter the reorder branch.
+        const rawFromCat = e.dataTransfer.getData('text/game-from-cat') || '__uncat__';
+        const rawTargetCat = fromCatId || '__uncat__';
+        if (!gameId || gameId === g.id) return;
+        if (rawFromCat === rawTargetCat) {
           // Same category → reorder
           onReorderInCat(gameId, g.id);
         } else {
           // Move/copy across categories — drop before this game in the target cat
-          onMoveBetween(gameId, fromCat, fromCatId, { copy: e.ctrlKey, beforeGameId: g.id });
+          onMoveBetween(gameId, rawFromCat === '__uncat__' ? null : rawFromCat, fromCatId, { copy: e.ctrlKey, beforeGameId: g.id });
         }
       }}
       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); openMenuAt(e.clientX, e.clientY); }}
@@ -1292,6 +1474,16 @@ function GameRow({
         // Compress vertical padding aggressively when gap is small or negative
         paddingTop: Math.max(0, 6 + Math.min(0, rowGap) + (isBig ? 2 : 0)),
         paddingBottom: Math.max(0, 6 + Math.min(0, rowGap) + (isBig ? 2 : 0)),
+        // v1.4.0 — 5-star favorite games get a subtle warm-gold gradient wash
+        // behind the row. Kept intentionally soft so it never overpowers the
+        // selection highlight.
+        ...(Number(g.rating) === 5
+          ? {
+              background: selected
+                ? 'linear-gradient(90deg, rgba(255,204,74,0.16) 0%, rgba(255,204,74,0.06) 55%, rgb(var(--accent) / 0.10) 100%)'
+                : 'linear-gradient(90deg, rgba(255,204,74,0.11) 0%, rgba(255,204,74,0.03) 60%, transparent 100%)',
+            }
+          : {}),
       }}
     >
       {/* Selection bar */}
@@ -1342,7 +1534,7 @@ function GameRow({
               );
             })}
             <span className="truncate">
-              {g.playtime ? `${Math.floor(g.playtime / 60)}m played` : (g.genres?.[0] || 'Local game')}
+              {g.playtime ? formatPlaytime(g.playtime) + ' played' : (g.genres?.[0] || 'Local game')}
             </span>
           </div>
         )}

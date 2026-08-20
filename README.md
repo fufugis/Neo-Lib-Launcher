@@ -2,7 +2,7 @@
 
 > A synthwave-flavored, **fully portable Windows game library** that unifies every game on your PC — Steam, Epic, EA App, GOG, standalone — into one neon-lit interface. No accounts. No cloud. No telemetry.
 
-![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.3.1-8a4fff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.4.0-8a4fff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
 ---
 
@@ -55,7 +55,20 @@ Library + settings live at `%APPDATA%\NEO-LIB\`. Delete that folder to factory-r
 
 ## 📜 Patch notes
 
-### v1.3.1 — Compact theme picker · Gradient swatches · Sidebar reshuffle *(current)*
+### v1.4.0 — Star ratings · Startup intro · News alerts · Textures · Playtime fix *(current)*
+- **New:** ⭐ **5-star ratings.** Click stars at the top of any game's preview to rate it 1–5. Games rated 5⭐ get a subtle warm-gold gradient wash behind their name in the library. Rating is preview-only — never clutters the sidebar.
+- **New:** 🧭 **Sidebar reshuffle.** Settings moved into the top TabPill row next to Stats (cog-wheel button removed from the mid toolbar). Sliders renamed to **Visuals** — wider, more prominent pill.
+- **New:** 🎨 **5 background textures.** Grain · Grid · Diagonal · Hex · Dots — each with a transparency slider, all inside the Visuals popover. Adds subtle depth behind the library.
+- **New:** 🎬 **Startup intro.** 3-second synthwave logo reveal with a WebAudio-synthesized "hook" jingle on every boot. Skippable by clicking anywhere. Muted if UI sounds are off.
+- **New:** 🔔 **Watched-game news alerts.** For favorited (pinned) OR 5⭐-rated games, NEO-LIB polls news once per hour and pops a center-screen alert with soft chime when something new lands. Click outside to dismiss, "Read news" opens the article.
+- **New:** 🏆 **"This Week" showcase = most-played** (regardless of current showcase mode). This Week & This Month tiles show a gradient hours-played badge in the top-right corner.
+- **Fixed:** 🐛 Playtime numbers. The `playtime` field is now consistently stored in **minutes** across the entire app. `formatPlaytime()` was interpreting values as seconds while everyone else stored minutes → wildly inflated readouts. Game-exit tracking also fixed to convert seconds → minutes on write.
+- **Fixed:** News modal now dismisses on click-outside.
+- **Fixed:** Category-dot toggle in Visuals now also affects the category header itself. When hidden, a colored backdrop stripe replaces the dot so the category identity signal stays visible.
+- **Fixed:** Drag-and-drop reorder in Uncategorized. Now uses an explicit `__uncat__` sentinel in the drag-data.
+- **Improved:** Theme picker — 6/7-column tile grid, ~50% smaller. All Settings > Visual effects controls collapsed to a redirect hint; the actual controls live in the sidebar Visuals popover in a compact CSS-columns masonry.
+
+### v1.3.1 — Compact theme picker · Gradient swatches · Sidebar reshuffle
 - **New:** 🎨 **Compact theme picker.** Settings > Theme is now a tight 4/5-column tile grid with icon-first swatch and label under. Roughly half the vertical space, no info lost.
 - **New:** 🌈 **Gradient theme swatches.** Every theme button now shows a real `linear-gradient(surface → accent → accent-2)` blend of the actual palette. No more misleading flat pink dots — you can eyeball each theme's mood before switching.
 - **New:** 🧭 **Sidebar reshuffle.** Launcher filter row (All / Steam / Epic / EA / GOG / Other) moved **below** the Add / Wizard / Settings toolbar. Auto-sort and New-category buttons joined that same row on the right side. One fewer strip of vertical space wasted.
