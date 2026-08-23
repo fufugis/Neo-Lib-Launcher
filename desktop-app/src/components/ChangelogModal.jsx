@@ -16,6 +16,18 @@ import { sendChangelogReaction } from './FeedbackModal';
 
 export const CHANGELOG = [
   {
+    version: '1.6.1',
+    title: 'Ownership detection rewrite · Bulk playtime actions · Modal fixes · Feedback works in CI builds',
+    items: [
+      '**Fixed: Steam ownership detection.** The v1.6.0 parser used a non-greedy regex that broke on nested cloud/autocloud blocks inside game entries in `localconfig.vdf`, so most games came back as "unowned". Also, only the main Steam install\'s `steamapps/` was scanned for `appmanifest_*.acf` — games installed on secondary drives (like Icarus on a D:\\ library) were completely missed. Now uses proper brace-matched parsing AND walks `libraryfolders.vdf` to scan every Steam library folder on every drive.',
+      '**Fixed: import preview modal.** Checkboxes were disabled for "unowned" rows so you couldn\'t apply anything. Refresh buttons were passive. Both work now on every row.',
+      '**New bulk actions in the import modal** — "✓ Select all Steam-owned" · "⚠ Zero all unowned" · "💥 Reset all to 0" · "🔄 Re-fetch all from Steam". One click cleans up years of corrupted values.',
+      '**New: Playtime toolkit shortcut** in the Visuals menu — opens the import modal from outside the Stats panel so you can find it.',
+      '**Fixed: Feedback pill in shipped .exe builds.** The webhook URL was gitignored so CI-built releases showed "not configured". Added a hardcoded fallback URL alongside the env variable; feedback now sends from any build.',
+      '**Debug info** — the import modal header now shows a subtle "(?)" hover-tooltip with source counts (sharedconfig / localconfig / manifests / library folders) so you can see exactly what NEO-LIB detected.',
+    ],
+  },
+  {
     version: '1.6.0',
     title: 'Playtime import preview · True Steam ownership · Manual override · Safer reset',
     items: [

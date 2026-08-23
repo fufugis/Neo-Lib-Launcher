@@ -32,7 +32,7 @@ import TidyUpModal from './components/TidyUpModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.6.1';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin, formatPlaytime } from './lib/utils';
 import { setSoundPack } from './lib/sound';
@@ -681,6 +681,7 @@ export default function App() {
         data: res.data || {},
         ownedAppids: res.ownedAppids || [],
         currentAccount: res.currentAccount || null,
+        debug: res.debug || null,
       });
     } catch (e) {
       notify('Steam import error: ' + (e?.message || 'unknown'));
@@ -1419,6 +1420,7 @@ export default function App() {
           onCategoryContext={(category, anchor) => setCatCtx({ open: true, category, anchor })}
           onGameContext={handleGameContext}
           onSetLibrarySize={(s) => updateSetting({ librarySize: s })}
+          onOpenPlaytimeImport={() => openPlaytimeImport({ force: true })}
           onMoveGameToCategory={moveGameToCategory}
           onReorderGameInCategory={reorderGameInCategory}
           onReorderCategory={reorderCategory}
@@ -1701,12 +1703,26 @@ export default function App() {
         steamData={importPreview.data}
         ownedAppids={importPreview.ownedAppids}
         currentAccount={importPreview.currentAccount}
+        debug={importPreview.debug}
         onApply={applyImportPatches}
         onClose={() => setImportPreview((p) => ({ ...p, open: false }))}
         onRefreshSingle={async ({ appid }) => {
           if (!appid || !window.api?.importSteamPlaytime) return null;
           const res = await window.api.importSteamPlaytime({ force: true });
           return res?.data?.[String(appid)] || null;
+        }}
+        onRefreshAll={async () => {
+          if (!window.api?.importSteamPlaytime) return;
+          const res = await window.api.importSteamPlaytime({ force: true });
+          if (res?.ok) {
+            setImportPreview((p) => ({
+              ...p,
+              data: res.data || {},
+              ownedAppids: res.ownedAppids || [],
+              currentAccount: res.currentAccount || p.currentAccount,
+              debug: res.debug || p.debug,
+            }));
+          }
         }}
       />
 

@@ -4,9 +4,17 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.6.0-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.6.1-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.6.0 (Playtime import preview · True Steam ownership · Manual override · Safer reset)
+### Latest — v1.6.1 (Ownership rewrite · Bulk playtime actions · Modal fixes · CI feedback)
+- **Fixed** Steam ownership detection — brace-matched VDF parsing (was breaking on nested cloud blocks) + walks `libraryfolders.vdf` for multi-drive installs (Icarus & other secondary-drive games now detected).
+- **Fixed** modal — checkboxes and refresh buttons work on every row (were previously disabled for "unowned").
+- **New** bulk actions in preview modal: `✓ Select all Steam-owned` · `⚠ Zero all unowned` · `💥 Reset all to 0` · `🔄 Re-fetch all`.
+- **New** Playtime toolkit shortcut in the Visuals menu.
+- **Fixed** Feedback pill in CI-built .exes — hardcoded webhook fallback so it works without .env.
+- **Debug info** in the import header (source counts + library-folder list on hover).
+
+### v1.6.0 (Playtime import preview · True Steam ownership · Manual override · Safer reset)
 - **True Steam ownership** — derived from `sharedconfig.vdf` + `localconfig.vdf` + installed `appmanifest_*.acf` for the currently signed-in account only. Pirated repacks and manually-added games no longer get Steam hours merged in.
 - **Import preview modal** — scrollable list of every game with current vs Steam hours, per-row toggle / refresh / manual override. Nothing is written until you click Apply.
 - **Manual playtime override** — type your own hours; game tagged `[MANUAL]`, future Steam imports skip it.

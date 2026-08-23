@@ -14,9 +14,12 @@ import { Bug, Lightbulb, MessageCircle, Send, X, Check, AlertTriangle } from 'lu
  *  - feedback     → "💬 General feedback"
  *
  * The webhook URL is read from Vite's `import.meta.env.VITE_FEEDBACK_WEBHOOK_URL`.
- * If missing, the modal renders a "not configured" banner and disables submit.
+ * If missing, falls back to the hardcoded shipped URL so the CI-built .exe
+ * still works. (v1.6.1 — was returning "not configured" in CI builds because
+ * .env is gitignored and CI never had it.)
  */
-const WEBHOOK_URL = import.meta.env.VITE_FEEDBACK_WEBHOOK_URL || '';
+const FALLBACK_WEBHOOK = 'https://discord.com/api/webhooks/1541013194133217374/_cnKrRekALCFMMa5pQgnQ_eHO9HjKGy0KXUE67xt2V-mQAcvyYqUeoRRvZ3DrNirx54t';
+const WEBHOOK_URL = import.meta.env.VITE_FEEDBACK_WEBHOOK_URL || FALLBACK_WEBHOOK;
 
 const MODES = {
   bug: {

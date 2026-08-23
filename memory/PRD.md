@@ -11,6 +11,14 @@ and a non-intrusive monetization system (Deals banners via Affiliate links).
 - CI: GitHub Actions builds NSIS `.exe` + portable `.zip` on tag push.
 - System tray (Electron Tray API) for close-to-tray behavior.
 
+## Version 1.6.1 — Feb 2, 2026
+**Ownership rewrite · Bulk playtime actions · Modal fixes · Feedback works in CI builds:**
+- **`electron/main.js`** — Steam import rewritten. New `extractAppBlocks()` uses brace-matched parsing (previous non-greedy regex broke on nested `cloud`/`autocloud` blocks in `localconfig.vdf`). Now walks `steamapps/libraryfolders.vdf` to enumerate every Steam library folder across drives and scans `appmanifest_*.acf` in each — fixes secondary-drive installs (Icarus, etc.) previously being flagged "unowned". Returns `debug.sources` with per-source counts.
+- **`PlaytimeImportModal.jsx`** — removed `disabled` on unowned-row checkboxes, added `cursor-pointer` and `type=button` to refresh buttons. New bulk-action bar: `Select all Steam-owned`, `Zero all unowned`, `Reset all to 0`, `Re-fetch all from Steam`. New `debug` prop renders a "(?)" tooltip in header.
+- **`Sidebar.jsx`** — new "Playtime toolkit…" shortcut button at the bottom of the Visuals popover; plumbed `onOpenPlaytimeImport` from App.jsx.
+- **`FeedbackModal.jsx`** — added `FALLBACK_WEBHOOK` constant so shipped .exe builds without `.env` still POST feedback.
+- **`App.jsx`** — `onRefreshAll` handler wired to `PlaytimeImportModal`; `openPlaytimeImport` now stores `debug` field.
+
 ## Version 1.6.0 — Feb 2, 2026
 **Playtime import preview · True Steam ownership · Manual override · Safer reset:**
 - **`electron/main.js`** — rewrote Steam playtime import. Now scoped to the **currently signed-in** account (read from `loginusers.vdf` → `MostRecent=1`) only. Ownership set derived from `sharedconfig.vdf` apps block ∪ `localconfig.vdf` apps block ∪ installed `appmanifest_*.acf`. Returns `{ data, ownedAppids, currentAccount, count, ownedCount }`.

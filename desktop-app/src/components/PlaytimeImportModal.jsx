@@ -29,9 +29,11 @@ export default function PlaytimeImportModal({
   steamData = {},        // { <appid>: { playtime, lastPlayed } }
   ownedAppids = [],      // string[] — whitelist for steamOwned=true
   currentAccount = null, // { steamid3, personaName }
+  debug = null,          // { steamPath, libraryFolders[], sources: {sharedConfig, localConfig, manifests} }
   onApply,
   onClose,
   onRefreshSingle,       // optional (game) => Promise<{ playtime, lastPlayed }>
+  onRefreshAll,          // optional () => Promise<void>  — re-fetch full Steam import
 }) {
   const ownedSet = React.useMemo(() => new Set(ownedAppids.map(String)), [ownedAppids]);
   const [rows, setRows] = React.useState([]);
@@ -121,6 +123,22 @@ export default function PlaytimeImportModal({
     onApply?.(patches);
   };
 
+  // v1.6.1 — Bulk actions. Wipe/reset/refresh multiple rows at once instead
+  // of clicking each. All actions stay in the modal until the user hits Apply.
+  const bulkResetAll = () => {
+    setRows((r) => r.map((row) => ({ ...row, overrideValue: 0, apply: true })));
+  };
+  const bulkZeroUnowned = () => {
+    setRows((r) => r.map((row) => (!row.owned
+      ? { ...row, overrideValue: 0, apply: true }
+      : row)));
+  };
+  const bulkApplyAllSteam = () => {
+    setRows((r) => r.map((row) => (row.owned && row.steamHours !== null && !row.wasManual
+      ? { ...row, apply: true }
+      : row)));
+  };
+
   const applyCount = rows.filter((r) => r.apply || r.overrideValue !== null).length;
   const totalChanges = rows.filter((r) =>
     (r.apply && r.proposedHours !== r.currentHours) || r.overrideValue !== null
@@ -165,6 +183,11 @@ export default function PlaytimeImportModal({
                 ) : 'Currently signed-in Steam account'}
                 {' · '}
                 {ownedAppids.length} owned appids
+                {debug?.sources && (
+                  <span className="ml-2 opacity-70" title={`sharedconfig: ${debug.sources.sharedConfig} · localconfig: +${debug.sources.localConfig} · manifests: +${debug.sources.manifests} · libs: ${(debug.libraryFolders || []).length}`}>
+                    (?)
+                  </span>
+                )}
               </div>
             </div>
             <button
@@ -174,6 +197,45 @@ export default function PlaytimeImportModal({
             >
               <X size={14} />
             </button>
+          </div>
+
+          {/* v1.6.1 — Bulk actions bar. High-visibility "Reset all" +
+              "Refresh from Steam" + "Zero unowned" + "Select all owned" so
+              users don't have to click every row. */}
+          <div className="flex flex-wrap items-center gap-1.5 border-b border-[rgb(var(--border))] px-4 py-2 text-[11px]">
+            <button
+              onClick={bulkApplyAllSteam}
+              data-testid="import-bulk-apply-steam"
+              className="rounded-md hairline px-2.5 py-1 text-ink hover:border-[rgb(var(--accent)/0.6)] hover:bg-[rgb(var(--accent)/0.10)]"
+            >
+              ✓ Select all Steam-owned
+            </button>
+            <button
+              onClick={bulkZeroUnowned}
+              data-testid="import-bulk-zero-unowned"
+              title="Set every non-owned game's playtime to 0 (wipes phantom hours from pre-v1.6 bugs)"
+              className="rounded-md hairline px-2.5 py-1 text-ink hover:border-[rgb(var(--accent)/0.6)] hover:bg-[rgb(var(--accent)/0.10)]"
+            >
+              ⚠ Zero all unowned
+            </button>
+            <button
+              onClick={bulkResetAll}
+              data-testid="import-bulk-reset-all"
+              title="Set every game's playtime to 0. Nuclear option — for cleaning up years of corrupted data."
+              className="rounded-md hairline px-2.5 py-1 text-[#ff5a6e] hover:border-[#ff5a6e88] hover:bg-[rgba(255,90,110,0.10)]"
+            >
+              💥 Reset all to 0
+            </button>
+            {onRefreshAll && (
+              <button
+                onClick={onRefreshAll}
+                data-testid="import-bulk-refresh-all"
+                title="Re-read every game's hours from Steam right now"
+                className="ml-auto inline-flex items-center gap-1 rounded-md hairline px-2.5 py-1 text-[rgb(var(--accent-2))] hover:border-[rgb(var(--accent)/0.6)] hover:bg-[rgb(var(--accent)/0.10)]"
+              >
+                <RefreshCw size={11} /> Re-fetch all from Steam
+              </button>
+            )}
           </div>
 
           {/* Filter bar */}
@@ -290,7 +352,6 @@ function ImportRow({ row, onToggle, onManualEdit, onRefresh, hasRefresh }) {
         onChange={onToggle}
         data-testid={`import-check-${row.id}`}
         className="h-4 w-4 accent-[rgb(var(--accent))] cursor-pointer"
-        disabled={!row.owned && row.overrideValue === null}
       />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
@@ -364,7 +425,8 @@ function ImportRow({ row, onToggle, onManualEdit, onRefresh, hasRefresh }) {
             onClick={onRefresh}
             data-testid={`import-refresh-${row.id}`}
             title="Re-read this game's hours from Steam"
-            className="grid h-7 w-7 place-items-center rounded-md hairline text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)]"
+            className="grid h-7 w-7 place-items-center rounded-md hairline text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)] cursor-pointer"
+            type="button"
           >
             <RefreshCw size={11} />
           </button>

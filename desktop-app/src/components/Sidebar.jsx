@@ -41,7 +41,7 @@ export default function Sidebar({
   bgTextureId, bgTextureOpacity,
   onChangeBgTextureId, onChangeBgTextureOpacity,
   onSelect,
-  onAddManual, onOpenWizard, onOpenSettings, onOpenFeedback, onUpdateAll, onTidyUp,
+  onAddManual, onOpenWizard, onOpenSettings, onOpenFeedback, onOpenPlaytimeImport, onUpdateAll, onTidyUp,
   onCreateCategory, onCategoryContext, onGameContext,
   onSetLibrarySize, onMoveGameToCategory,
   onReorderGameInCategory, onReorderCategory,
@@ -344,6 +344,7 @@ export default function Sidebar({
                 onClose={() => setLibSettingsOpen(false)}
                 onCreateCategory={onCreateCategory}
                 onOpenFeedback={onOpenFeedback}
+                onOpenPlaytimeImport={onOpenPlaytimeImport}
               />
             )}
           </AnimatePresence>
@@ -722,6 +723,7 @@ function LibrarySettingsPopover({
   onChangeEffectsLevel,
   onChangeBgTextureId, onChangeBgTextureOpacity,
   onOpenFeedback,
+  onOpenPlaytimeImport,
   onClose, onCreateCategory,
 }) {
   const ref = React.useRef(null);
@@ -974,6 +976,20 @@ function LibrarySettingsPopover({
       >
         <Plus size={13} className="text-[rgb(var(--accent))]" /> New category…
       </button>
+
+      {/* v1.6.1 — Playtime toolkit shortcut. Opens the import preview modal
+          which also contains bulk "Reset all / Zero unowned / Re-fetch" actions. */}
+      {onOpenPlaytimeImport && (
+        <button
+          onClick={() => { onOpenPlaytimeImport(); onClose(); }}
+          data-testid="visuals-playtime-toolkit"
+          className="mt-1 flex w-full items-center gap-2 rounded-md hairline px-2 py-1.5 text-[12px] text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)]"
+          title="Import & clean playtime — bulk reset, zero unowned, re-fetch from Steam"
+        >
+          <RotateCcw size={13} className="text-[rgb(var(--accent-2))]" />
+          Playtime toolkit…
+        </button>
+      )}
 
       {/* v1.5.0 — Feedback / Bug / Suggestion text buttons inside Visuals menu.
           Same three actions the top Feedback pill triggers, but always visible here too. */}
