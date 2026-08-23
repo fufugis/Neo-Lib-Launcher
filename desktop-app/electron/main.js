@@ -2727,10 +2727,18 @@ ipcMain.handle('steam:importPlaytime', async (_e, { force = false } = {}) => {
   const ownedFromSharedConfig = ownedAppids.size;
 
   // --- 3) Read localconfig.vdf → playtime for current account. ---
+  // v1.6.3 — CRITICAL FIX: DO NOT treat every appid in localconfig.vdf as
+  // "owned". Steam writes localconfig entries for free trials, playtests,
+  // launcher-shortcut games, and appids Steam auto-migrated between users.
+  // The only reliable ownership signals are sharedconfig.vdf and installed
+  // appmanifest_*.acf. Previously, non-Steam games (Hellclock/Solarpunk)
+  // happened to have appids that collided with unrelated localconfig entries
+  // carrying 500+ hours — the merge then bulldozed local playtime because
+  // ownership check said "yes".
   const merged = {};
   const cfg = path.join(acctDir, 'config', 'localconfig.vdf');
   debug.localCfg = cfg;
-  let ownedFromLocalConfig = 0;
+  let ownedFromLocalConfig = 0; // kept for debug parity; no longer adds to ownedAppids
   if (fs.existsSync(cfg)) {
     let text = '';
     try { text = fs.readFileSync(cfg, 'utf8'); } catch { /* ignore */ }
@@ -2739,9 +2747,13 @@ ipcMain.handle('steam:importPlaytime', async (_e, { force = false } = {}) => {
       const lpMatch = body.match(/"LastPlayed"\s*"(\d+)"/i);
       const playtime = pMatch ? Number(pMatch[1]) : 0;
       const lastPlayed = lpMatch ? Number(lpMatch[1]) * 1000 : 0;
-      merged[appid] = { playtime, lastPlayed };
+      // Only remember playtime if there's a real signal (playtime > 0 OR
+      // lastPlayed set). Empty/dormant entries just pollute the merge map.
+      if (playtime > 0 || lastPlayed > 0) {
+        merged[appid] = { playtime, lastPlayed };
+      }
       if (!ownedAppids.has(appid)) ownedFromLocalConfig += 1;
-      ownedAppids.add(appid);
+      // NOTE: intentionally do NOT `ownedAppids.add(appid)` here anymore.
     }
   }
 

@@ -2,7 +2,7 @@
 
 > A synthwave-flavored, **fully portable Windows game library** that unifies every game on your PC — Steam, Epic, EA App, GOG, standalone — into one neon-lit interface. No accounts. No cloud. No telemetry.
 
-![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.6.1-8a4fff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.6.3-8a4fff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
 ---
 
@@ -55,7 +55,22 @@ Library + settings live at `%APPDATA%\NEO-LIB\`. Delete that folder to factory-r
 
 ## 📜 Patch notes
 
-### v1.6.1 — Ownership rewrite · Bulk playtime actions · Modal fixes · Feedback works in CI *(current)*
+### v1.6.3 — Fixed: phantom hours on non-Steam games · Aligned toolbar · Textures visible · Louder Special themes *(current)*
+- **🔴 Fixed:** Hellclock / Solarpunk (and other non-Steam games) getting 500+ phantom hours after a Steam import. localconfig.vdf is no longer treated as an ownership signal — only sharedconfig.vdf and installed appmanifest_*.acf count. Apply now double-checks ownership even when the user hits "Select all".
+- **Fixed:** background textures were invisible behind the frosted library. Texture layer now paints on top via `mix-blend-mode: overlay`. Opacity slider bumped to 0–100%.
+- **Toolbar alignment** — Feedback pill matches the Library/Tools/News/Stats/Settings row height. Tab & sidebar icons enlarged ~20%.
+- **Renamed** "Add" → "Add Game".
+- **Moved** Playtime toolkit out of the Visuals menu — now exclusively in the Stats panel.
+- **Special themes turned up** — Colorful gets a slow-rotating conic prism aura + denser twinkle field; Pro gains hazard-chevron march, brushed-metal sheen and corner emergency pulses.
+- **Theme picker readable again** — swatches enlarged, labels bumped to 11.5px.
+
+### v1.6.2 — Fixed: Steam hours after Reset · Select-all bulk
+- **🔴 Fixed:** after Reset, Steam hours never came back. Bulk reset was stamping every game with `playtimeManual: true` — which then locked them out of every future Steam import. Bulk resets now explicitly clear `playtimeManual`, so a Reset → Select all Steam-owned → Apply flow actually pulls Steam values in again.
+- **Fixed:** "Select all Steam-owned" and per-row Apply no longer refuse to override `playtimeManual` when you explicitly check the row. Your intent wins.
+- **New:** gradient **"✓ Select all"** bulk button — marks every row for apply in one click. Steam-owned rows pull Steam hours, others get their current value written back cleanly. Companion **"Deselect all"** button too.
+- **Renamed:** previous button to **"✓ Select Steam-owned only"** so the two are unambiguous.
+
+### v1.6.1 — Ownership rewrite · Bulk playtime actions · Modal fixes · Feedback works in CI
 - **Fixed:** 🎯 **Steam ownership detection.** v1.6.0 parser used a non-greedy regex that broke on nested `cloud`/`autocloud` blocks in `localconfig.vdf` — most games came back "unowned". Also only scanned the main Steam install's `steamapps/` for `appmanifest_*.acf` — **games on secondary drives (like Icarus on a D:\ library) were completely missed**. Rewritten with proper brace-matched parsing + walks `libraryfolders.vdf` to scan every Steam library folder on every drive.
 - **Fixed:** 📋 **Import preview modal usability.** Checkboxes for "unowned" rows were disabled — you couldn't do anything. Refresh buttons were passive. Both work on every row now.
 - **New:** 🚀 **Bulk actions in the import modal:**

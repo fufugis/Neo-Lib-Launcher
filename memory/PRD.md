@@ -11,6 +11,32 @@ and a non-intrusive monetization system (Deals banners via Affiliate links).
 - CI: GitHub Actions builds NSIS `.exe` + portable `.zip` on tag push.
 - System tray (Electron Tray API) for close-to-tray behavior.
 
+## Version 1.6.3 — Feb 23, 2026
+**Fixed: phantom Steam hours on non-Steam games · Aligned toolbar · Visible textures · Louder Special themes:**
+- **`electron/main.js`** — Steam import no longer treats `localconfig.vdf` appids as ownership. Only `sharedconfig.vdf` + installed `appmanifest_*.acf` count. Empty/dormant localconfig entries (playtime=0, lastPlayed=0) are also dropped from the merge map. Fixes Hellclock / Solarpunk (and other non-Steam games) inheriting phantom 500+ hour numbers on import.
+- **`PlaytimeImportModal.jsx` `apply()`** — Added `row.owned` guard to the Steam-hours branch. Even under "Select all" bulk action, Steam playtime is never applied to a row that isn't verified-owned in the currently signed-in Steam account.
+- **`App.jsx` `BgTexture`** — Textures now paint on top of the frosted sidebar/main at `z-index: 50` with `mix-blend-mode: overlay` so they're actually visible over the library pane. Default opacity bumped from 12 → 40; slider max increased from 40% → 100%. Pattern rgba values darkened for contrast.
+- **`Sidebar.jsx` top toolbar** — Rebuilt as flex row with progressive-collapse labels: at `sidebarWidth ≥ 340px`, Library / Tools / News / Stats show icon + label; below 340px, labels hide and tabs go icon-only. TabPill has a hairline border + subtle panel bg even when inactive, so it always looks like a button. Settings and Feedback are icon-only pills aligned at `h-9` for perfect flush alignment.
+- **`Sidebar.jsx` toolbar row 2** — Same progressive-collapse: Add Game / Wizard / Visuals labels hide below 340px. Add Game button renamed from "Add".
+- **`Sidebar.jsx` Visuals popover** — Removed the "Playtime toolkit" shortcut; playtime access now lives exclusively in the Stats panel via "Import hours".
+- **`SettingsModal.jsx` theme picker** — Grid changed from 6-column to 4/5-column so labels have room. Font bumped `text-[9px]` → `text-[11.5px]`, swatch enlarged `h-5` → `h-7`.
+- **`styles.css` `.amb-colorful`** — Added conic-gradient prism aura with slow rotation, hue-drift animation, extra rainbow bloom radials, denser sparkle field.
+- **`styles.css` `.amb-pro`** — Added hazard-chevron march animation, brushed-metal sheen, corner emergency pulses via layered radials.
+
+## Version 1.6.2 — Feb 2, 2026
+**Fixed: Steam hours coming back after Reset · Proper Select-all bulk button:**
+- **`PlaytimeImportModal.jsx`** — bulk resets (`bulkResetAll`, `bulkZeroUnowned`) now stamp rows with `_bulkReset: true` and clear `wasManual`. In `apply()`, the `_bulkReset` branch writes `playtimeManual: false` — which unlocks the game for future Steam imports. Previously the reset was writing `playtimeManual: true` and permanently locking Steam merges.
+- **`apply()` steam branch** — dropped the `!row.wasManual` guard. If the user explicitly checks a row (or hits "Select all Steam-owned"), Steam value wins even for previously-manual games.
+- **New bulk buttons** `bulkSelectAll` / `bulkDeselectAll` — one-click flip of every row. Renamed the ownership-filtered one to "Select Steam-owned only" to distinguish.
+- **Per-row `refreshOne`** — also clears wasManual / overrideValue / _bulkReset so a per-row refresh always writes cleanly.
+
+## Version 1.6.1 — Feb 2, 2026
+**Fixed: Steam hours coming back after Reset · Proper Select-all bulk button:**
+- **`PlaytimeImportModal.jsx`** — bulk resets (`bulkResetAll`, `bulkZeroUnowned`) now stamp rows with `_bulkReset: true` and clear `wasManual`. In `apply()`, the `_bulkReset` branch writes `playtimeManual: false` — which unlocks the game for future Steam imports. Previously the reset was writing `playtimeManual: true` and permanently locking Steam merges.
+- **`apply()` steam branch** — dropped the `!row.wasManual` guard. If the user explicitly checks a row (or hits "Select all Steam-owned"), Steam value wins even for previously-manual games.
+- **New bulk buttons** `bulkSelectAll` / `bulkDeselectAll` — one-click flip of every row. Renamed the ownership-filtered one to "Select Steam-owned only" to distinguish.
+- **Per-row `refreshOne`** — also clears wasManual / overrideValue / _bulkReset so a per-row refresh always writes cleanly.
+
 ## Version 1.6.1 — Feb 2, 2026
 **Ownership rewrite · Bulk playtime actions · Modal fixes · Feedback works in CI builds:**
 - **`electron/main.js`** — Steam import rewritten. New `extractAppBlocks()` uses brace-matched parsing (previous non-greedy regex broke on nested `cloud`/`autocloud` blocks in `localconfig.vdf`). Now walks `steamapps/libraryfolders.vdf` to enumerate every Steam library folder across drives and scans `appmanifest_*.acf` in each — fixes secondary-drive installs (Icarus, etc.) previously being flagged "unowned". Returns `debug.sources` with per-source counts.

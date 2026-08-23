@@ -83,7 +83,7 @@ export default function PlaytimeImportModal({
   };
   const setManual = (id, minutes) => {
     setRows((r) => r.map((row) => row.id === id
-      ? { ...row, overrideValue: Math.max(0, Math.round(Number(minutes) || 0)), apply: true }
+      ? { ...row, overrideValue: Math.max(0, Math.round(Number(minutes) || 0)), apply: true, _bulkReset: false }
       : row
     ));
   };
@@ -95,7 +95,7 @@ export default function PlaytimeImportModal({
       const res = await onRefreshSingle({ id, appid: row.appid });
       if (res && res.playtime !== undefined) {
         setRows((r) => r.map((rr) => rr.id === id
-          ? { ...rr, steamHours: Number(res.playtime), proposedHours: Number(res.playtime), lastPlayed: Number(res.lastPlayed) || rr.lastPlayed, apply: true }
+          ? { ...rr, steamHours: Number(res.playtime), proposedHours: Number(res.playtime), lastPlayed: Number(res.lastPlayed) || rr.lastPlayed, apply: true, wasManual: false, overrideValue: null, _bulkReset: false }
           : rr
         ));
       }
@@ -109,11 +109,28 @@ export default function PlaytimeImportModal({
       // this modal. Playtime is only written if the row is checked (or user
       // typed a manual value).
       const patch = { id: row.id, steamOwned: !!row.owned };
-      if (row.overrideValue !== null) {
+      if (row._bulkReset) {
+        // v1.6.2 — Bulk reset explicitly clears playtimeManual so subsequent
+        // Steam imports work again. Previously bulk reset stamped rows as
+        // "manual", which locked them out of future Steam merges forever.
+        patch.playtime = row.overrideValue ?? 0;
+        patch.playtimeManual = false;
+        patch.lastPlayedAt = 0;
+      } else if (row.overrideValue !== null) {
+        // User typed the value in the manual input — mark it as manual so
+        // future Steam imports skip it.
         patch.playtime = row.overrideValue;
         patch.playtimeManual = true;
         patch.lastPlayedAt = row.overrideValue > 0 ? Date.now() : 0;
-      } else if (row.apply && row.steamHours !== null && !row.wasManual) {
+      } else if (row.apply && row.steamHours !== null && row.owned) {
+        // v1.6.3 — Guard: only apply Steam hours if this appid is verified
+        // OWNED in the currently-signed-in Steam account. Prevents
+        // Hellclock/Solarpunk (non-Steam games) from inheriting phantom
+        // 500+ hour numbers when localconfig.vdf has a stale entry with
+        // that appid.
+        // v1.6.2 — Dropped the `!row.wasManual` guard here. If the user
+        // explicitly checked the row (or hit "Select all Steam-owned"), we
+        // honor that intent even if the game was previously manual.
         patch.playtime = row.steamHours;
         patch.playtimeManual = false;
         if (row.lastPlayed) patch.lastPlayedAt = row.lastPlayed;
@@ -125,18 +142,43 @@ export default function PlaytimeImportModal({
 
   // v1.6.1 — Bulk actions. Wipe/reset/refresh multiple rows at once instead
   // of clicking each. All actions stay in the modal until the user hits Apply.
+  // v1.6.2 — Reset bulks now mark rows with `_bulkReset: true` so they
+  // clear playtimeManual instead of setting it (fixes: after Reset, Steam
+  // imports never re-populated because games were locked as "manual").
   const bulkResetAll = () => {
-    setRows((r) => r.map((row) => ({ ...row, overrideValue: 0, apply: true })));
+    setRows((r) => r.map((row) => ({ ...row, overrideValue: 0, apply: true, _bulkReset: true, wasManual: false })));
   };
   const bulkZeroUnowned = () => {
     setRows((r) => r.map((row) => (!row.owned
-      ? { ...row, overrideValue: 0, apply: true }
+      ? { ...row, overrideValue: 0, apply: true, _bulkReset: true, wasManual: false }
       : row)));
   };
   const bulkApplyAllSteam = () => {
-    setRows((r) => r.map((row) => (row.owned && row.steamHours !== null && !row.wasManual
-      ? { ...row, apply: true }
+    // v1.6.2 — Clear wasManual + overrideValue so Steam values actually land
+    // even if the game was previously flagged manual (which happens after Reset).
+    setRows((r) => r.map((row) => (row.owned && row.steamHours !== null
+      ? { ...row, apply: true, wasManual: false, overrideValue: null, _bulkReset: false }
       : row)));
+  };
+  // v1.6.2 — "Select all" — marks every row checked. Actually applies whatever
+  // action makes sense per row: Steam value for owned games, keep manual /
+  // reset for others. Nothing gets written until Apply.
+  const bulkSelectAll = () => {
+    setRows((r) => r.map((row) => ({
+      ...row,
+      apply: true,
+      wasManual: false,
+      overrideValue: null,
+      _bulkReset: false,
+    })));
+  };
+  const bulkDeselectAll = () => {
+    setRows((r) => r.map((row) => ({
+      ...row,
+      apply: false,
+      overrideValue: null,
+      _bulkReset: false,
+    })));
   };
 
   const applyCount = rows.filter((r) => r.apply || r.overrideValue !== null).length;
@@ -204,11 +246,29 @@ export default function PlaytimeImportModal({
               users don't have to click every row. */}
           <div className="flex flex-wrap items-center gap-1.5 border-b border-[rgb(var(--border))] px-4 py-2 text-[11px]">
             <button
+              onClick={bulkSelectAll}
+              data-testid="import-bulk-select-all"
+              title="Check every row (Steam-owned rows will pull Steam hours; others keep current)"
+              className="rounded-md px-2.5 py-1 text-white font-semibold hover:scale-[1.03] transition-transform"
+              style={{ background: 'linear-gradient(135deg, rgb(var(--accent)) 0%, rgb(var(--accent-2)) 100%)' }}
+            >
+              ✓ Select all
+            </button>
+            <button
+              onClick={bulkDeselectAll}
+              data-testid="import-bulk-deselect-all"
+              title="Uncheck every row"
+              className="rounded-md hairline px-2.5 py-1 text-muted hover:text-ink"
+            >
+              Deselect all
+            </button>
+            <span className="mx-1 h-4 w-px bg-[rgb(var(--border))]" />
+            <button
               onClick={bulkApplyAllSteam}
               data-testid="import-bulk-apply-steam"
               className="rounded-md hairline px-2.5 py-1 text-ink hover:border-[rgb(var(--accent)/0.6)] hover:bg-[rgb(var(--accent)/0.10)]"
             >
-              ✓ Select all Steam-owned
+              ✓ Select Steam-owned only
             </button>
             <button
               onClick={bulkZeroUnowned}

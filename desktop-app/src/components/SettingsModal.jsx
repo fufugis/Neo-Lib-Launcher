@@ -44,7 +44,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
               <div className="mb-1 text-[9.5px] uppercase tracking-[0.24em] text-muted/80">
                 {group.label}
               </div>
-              <div className="grid grid-cols-6 gap-1 lg:grid-cols-7">
+              <div className="grid grid-cols-4 gap-1.5 lg:grid-cols-5">
                 {THEMES.filter((t) => t.tone === group.tone).map((t) => {
                   const active = settings.theme === t.id;
                   return (
@@ -56,14 +56,14 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
                       onClick={() => setKey({ theme: t.id })}
                       title={t.label}
                       className={
-                        'group relative flex flex-col items-center gap-0.5 rounded-md hairline px-1 py-1 text-center transition-all ' +
+                        'group relative flex flex-col items-center gap-1 rounded-md hairline px-1.5 py-1.5 text-center transition-all ' +
                         (active
                           ? 'border-[rgb(var(--accent)/0.85)] bg-[rgb(var(--accent)/0.12)]'
                           : 'hover:border-[rgb(var(--accent)/0.4)]')
                       }
                     >
                       <span
-                        className="h-5 w-full rounded-sm border border-white/10"
+                        className="h-7 w-full rounded-sm border border-white/10"
                         style={{
                           background: t.gradient || t.swatch,
                           boxShadow: active
@@ -71,15 +71,15 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
                             : `0 0 2px ${t.swatch}33`,
                         }}
                       />
-                      <div className="w-full truncate text-[9px] font-medium leading-tight opacity-90">
+                      <div className="w-full truncate text-[11.5px] font-semibold leading-tight opacity-95">
                         {t.label}
                       </div>
                       {active && (
                         <motion.span
                           layoutId="theme-check"
-                          className="absolute -right-0.5 -top-0.5 grid h-3 w-3 place-items-center rounded-full bg-[rgb(var(--accent))] text-[rgb(var(--surface))]"
+                          className="absolute -right-0.5 -top-0.5 grid h-3.5 w-3.5 place-items-center rounded-full bg-[rgb(var(--accent))] text-[rgb(var(--surface))]"
                         >
-                          <Check size={7} strokeWidth={4} />
+                          <Check size={8} strokeWidth={4} />
                         </motion.span>
                       )}
                     </motion.button>
@@ -269,7 +269,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
 
         <Section title="About">
           <p className="text-xs text-muted leading-relaxed">
-            NEO-LIB v1.6.1. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
+            NEO-LIB v1.6.3. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
             Library data lives in <span className="font-mono text-ink">%APPDATA%/NEO-LIB</span>.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">

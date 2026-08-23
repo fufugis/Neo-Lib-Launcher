@@ -16,6 +16,29 @@ import { sendChangelogReaction } from './FeedbackModal';
 
 export const CHANGELOG = [
   {
+    version: '1.6.3',
+    title: 'Fixed: phantom Steam hours on non-Steam games · Toolbar aligned · Bigger themes · Textures actually visible',
+    items: [
+      '**🔴 Fixed: Hellclock / Solarpunk (and other non-Steam games) getting 500+ phantom hours after a Steam import.** localconfig.vdf was being treated as an ownership signal — but Steam writes entries there for demos, playtests, and launcher shortcuts too. Only `sharedconfig.vdf` and installed `appmanifest_*.acf` files count now. The import also now double-checks ownership at apply time, so even "Select all" can no longer bulldoze a local/pirated copy with Steam hours.',
+      '**Background textures now actually cover the library pane.** The texture layer used to sit behind the frosted sidebar/main panels and get almost fully hidden. It now paints on top at `mix-blend-mode: overlay`, so patterns are visible across the whole app. Opacity slider bumped to 0–100%.',
+      '**Toolbar aligned & icons enlarged.** Feedback pill now matches the Library/Tools/News/Stats/Settings row height perfectly. Tab icons and sidebar buttons are ~20% larger. Settings tab still shows the cog wheel.',
+      '**Renamed "Add" → "Add Game"** so the button label is unambiguous.',
+      '**Moved Playtime toolkit out of the Visuals menu** — it now lives exclusively in the Stats panel via "Import hours". Visual dials stay with visual dials.',
+      '**Special themes turned up to eleven** — Colorful now has a slow-rotating conic prism aura, hue-drift, and a denser twinkle field. Pro gains hazard-chevron march, brushed-metal sheen, and corner emergency pulses. Reads as truly "special" now.',
+      '**Theme picker fonts readable again** — swatches enlarged, labels bumped to 11.5px, grid changed from 6-columns to 4/5 so each button has room to breathe.',
+    ],
+  },
+  {
+    version: '1.6.2',
+    title: 'Fixed: Steam hours coming back after Reset · Select-all bulk button',
+    items: [
+      '**🔴 Fixed: after Reset, Steam hours never came back.** Bulk "Reset all" was stamping every game with `playtimeManual: true` — which then locked them out of every future Steam import. Bulk resets now explicitly clear `playtimeManual`, so subsequent "Select all Steam-owned" + Apply actually pulls Steam values in again.',
+      '**Fixed:** "Select all Steam-owned" and the per-row Apply also no longer refuse to override a `playtimeManual` game when you\'ve explicitly checked its box. Your intent wins.',
+      '**New: proper "✓ Select all" bulk button** in gradient accent. Marks every row for apply in one click — Steam-owned rows pull Steam hours, others get their current value written back cleanly. Companion "Deselect all" button too.',
+      '**Renamed** the previous button to "✓ Select Steam-owned only" so the two are unambiguous.',
+    ],
+  },
+  {
     version: '1.6.1',
     title: 'Ownership detection rewrite · Bulk playtime actions · Modal fixes · Feedback works in CI builds',
     items: [

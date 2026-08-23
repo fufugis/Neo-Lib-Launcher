@@ -137,9 +137,16 @@ export default function Sidebar({
         style={{ touchAction: 'none' }}
       />
       {/* Top toolbar — Library / Tools / News. Frosted band that stretches
-          across the sidebar, gradient underline separates it from category tree. */}
+          across the sidebar, gradient underline separates it from category tree.
+          v1.6.3 — Labels collapse to icon-only when the sidebar is dragged
+          under ~340px so nothing gets truncated to a single letter. */}
+      {(() => {
+        // Enough room for icon + label per tab? 4 label tabs + 2 icon-only pills
+        // + gaps + padding needs ~340px total.
+        const showLabels = sidebarWidth >= 340;
+        return (
       <div
-        className="relative flex items-stretch gap-0.5 px-2 pt-2.5 pb-2"
+        className="relative flex items-stretch gap-1 px-2 pt-2.5 pb-2"
         style={{
           background:
             'linear-gradient(180deg, rgb(var(--surface)/0.55) 0%, rgb(var(--surface)/0.15) 100%)',
@@ -150,64 +157,69 @@ export default function Sidebar({
       >
         <TabPill
           label="Library"
-          icon={<LibIcon size={14} />}
+          icon={<LibIcon size={15} />}
+          showLabel={showLabels}
           active={mode !== 'tools' && mode !== 'news' && mode !== 'stats'}
           onClick={() => { onSetMode('library'); onSetLauncherFilter?.('all'); }}
           testid="tab-library"
-          big
         />
         <TabPill
           label="Tools"
-          icon={<Wrench size={14} />}
+          icon={<Wrench size={15} />}
+          showLabel={showLabels}
           active={mode === 'tools'}
           onClick={() => onSetMode('tools')}
           testid="tab-tools"
-          big
         />
         <TabPill
           label="News"
-          icon={<Newspaper size={14} />}
+          icon={<Newspaper size={15} />}
+          showLabel={showLabels}
           active={mode === 'news'}
           onClick={() => onSetMode('news')}
           testid="tab-news"
-          big
           badge={typeof unseenNewsCount === 'number' && unseenNewsCount > 0 ? unseenNewsCount : null}
         />
         <TabPill
           label="Stats"
-          icon={<BarChart3 size={14} />}
+          icon={<BarChart3 size={15} />}
+          showLabel={showLabels}
           active={mode === 'stats'}
           onClick={() => onSetMode('stats')}
           testid="tab-stats"
-          big
         />
-        <TabPill
-          label="Settings"
-          icon={<Settings size={14} />}
-          active={false}
+        {/* v1.6.3 — Settings + Feedback are icon-only pills aligned with the
+            TabPill row (h-9). Keeps the label tabs readable at narrow sidebar
+            widths while still exposing settings and feedback prominently. */}
+        <button
+          data-testid="tab-settings"
           onClick={onOpenSettings}
-          testid="tab-settings"
-          big
-        />
+          title="Settings"
+          className="shrink-0 inline-flex items-center justify-center rounded-lg h-9 w-9 hairline text-ink/85 hover:text-ink hover:border-[rgb(var(--accent)/0.55)] hover:bg-[rgb(var(--accent)/0.10)] transition-all"
+          style={{ background: 'rgb(var(--panel)/0.35)' }}
+        >
+          <Settings size={16} className="text-[rgb(var(--accent))] cog-hover-spin" />
+        </button>
         {/* v1.5.0 — very visible in-app feedback / bug / suggestion pill.
-            Uses the accent gradient so it stands out from the neutral tabs. */}
+            v1.6.3 — Icon-only, matches TabPill h-9 for perfect alignment.
+            Label still available via title tooltip + the three buttons at the
+            bottom of the Visuals popover. */}
         {onOpenFeedback && (
           <button
             data-testid="tab-feedback"
             onClick={() => onOpenFeedback('feedback')}
             title="Send feedback, report a bug, or suggest a feature"
-            className="ml-1 relative inline-flex items-center gap-1.5 rounded-md px-3 h-[30px] text-[12px] font-bold text-white transition-all hover:scale-[1.04] active:scale-[0.97]"
+            className="relative shrink-0 inline-flex items-center justify-center rounded-lg h-9 w-9 text-white transition-all hover:scale-[1.06] active:scale-[0.94]"
             style={{
               background: 'linear-gradient(135deg, rgb(var(--accent)) 0%, rgb(var(--accent-2)) 100%)',
               boxShadow: '0 0 14px -3px rgb(var(--accent)/0.65), 0 0 24px -12px rgb(var(--accent-2)/0.55)',
               border: '1px solid rgb(var(--accent) / 0.5)',
             }}
           >
-            <MessageCircle size={13} />
-            Feedback
+            <MessageCircle size={16} />
             <motion.span
               aria-hidden
-              className="absolute -right-1 -top-1 h-2 w-2 rounded-full"
+              className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full"
               style={{ background: '#ffcc4a', boxShadow: '0 0 6px #ffcc4a' }}
               animate={{ scale: [1, 1.3, 1], opacity: [0.85, 1, 0.85] }}
               transition={{ duration: 1.8, repeat: Infinity }}
@@ -224,21 +236,28 @@ export default function Sidebar({
           }}
         />
       </div>
+        );
+      })()}
 
       {/* Secondary launcher filter row moved BELOW the Add/Wizard toolbar
           in v1.3.1 — see the combined row below. */}
 
-      {/* Toolbar */}
+      {/* Toolbar row 2 — Add / Wizard / (flex) / Refresh / Visuals / TwoRow.
+          v1.6.3 — Labels collapse to icon-only when sidebar < 340px so the
+          row stays tidy without wrapping or truncating. */}
+      {(() => {
+        const showLabels = sidebarWidth >= 340;
+        return (
       <div className="flex items-center gap-1.5 p-3 pt-2">
-        <SideBtn label="Add" icon={<Plus size={14} />} onClick={onAddManual} testid="sidebar-add-btn" />
+        <SideBtn label={showLabels ? "Add Game" : null} icon={<Plus size={16} />} onClick={onAddManual} testid="sidebar-add-btn" title="Add game" />
         {!isTools && (
-          <SideBtn label="Wizard" icon={<Wand2 size={14} />} onClick={onOpenWizard} testid="sidebar-wizard-btn" />
+          <SideBtn label={showLabels ? "Wizard" : null} icon={<Wand2 size={16} />} onClick={onOpenWizard} testid="sidebar-wizard-btn" title="Wizard" />
         )}
         <div className="flex-1" />
         {!isTools && (
           <div className="relative">
             <SideBtn
-              icon={<RefreshCw size={14} className={updatingAll ? 'animate-spin' : ''} />}
+              icon={<RefreshCw size={16} className={updatingAll ? 'animate-spin' : ''} />}
               onClick={() => setRefreshMenuOpen((v) => !v)}
               testid="sidebar-refresh-menu-btn"
               title="Refresh · Tidy up"
@@ -291,7 +310,7 @@ export default function Sidebar({
             data-testid="sidebar-visuals-btn"
             title="Visuals — themes-adjacent library dials, textures & effects"
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-md hairline px-3 h-7 text-[11.5px] font-bold transition-all',
+              'inline-flex items-center gap-1.5 rounded-md hairline px-3 h-8 text-[12px] font-bold transition-all',
               libSettingsOpen
                 ? 'text-ink border-[rgb(var(--accent)/0.8)] bg-[rgb(var(--accent)/0.14)]'
                 : 'text-ink/90 hover:text-ink hover:border-[rgb(var(--accent)/0.55)] hover:bg-[rgb(var(--accent)/0.10)]'
@@ -305,8 +324,8 @@ export default function Sidebar({
                 : undefined,
             }}
           >
-            <Sliders size={13} className="text-[rgb(var(--accent))]" />
-            Visuals
+            <Sliders size={15} className="text-[rgb(var(--accent))]" />
+            {showLabels && 'Visuals'}
           </button>
           <AnimatePresence>
             {libSettingsOpen && (
@@ -354,16 +373,18 @@ export default function Sidebar({
           onClick={() => onToggleTwoRow?.(!twoRow)}
           title={twoRow ? 'Switch back to single column' : 'Two-column layout (categories never split)'}
           className={cn(
-            'inline-flex items-center gap-1.5 rounded-md hairline px-2 h-7 text-xs transition-all',
+            'inline-flex items-center gap-1.5 rounded-md hairline px-2.5 h-8 text-xs transition-all',
             twoRow
               ? 'text-ink border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.12)]'
               : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)]'
           )}
         >
-          <Columns size={13} className={twoRow ? 'text-[rgb(var(--accent))]' : 'text-[rgb(var(--accent))]'} />
+          <Columns size={15} className={twoRow ? 'text-[rgb(var(--accent))]' : 'text-[rgb(var(--accent))]'} />
         </button>
         {/* v1.4.0 — cog-wheel Settings button removed; Settings now lives in the top TabPill row next to Stats. */}
       </div>
+        );
+      })()}
 
       {/* v1.3.1 — Combined filter + actions row (Library tab only).
           Launcher filter pills on the left, Auto-sort + New category on the right. */}
@@ -607,7 +628,7 @@ const SideBtn = React.forwardRef(function SideBtn({ icon, label, onClick, testid
       data-testid={testid}
       onClick={onClick}
       title={title || label}
-      className="group inline-flex items-center gap-1.5 rounded-md hairline px-2.5 h-7 text-xs text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)] transition-all"
+      className="group inline-flex items-center gap-1.5 rounded-md hairline px-3 h-8 text-[12px] font-semibold text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)] transition-all"
     >
       <span className="text-[rgb(var(--accent))] transition-transform group-hover:scale-110">{icon}</span>
       {label && <span>{label}</span>}
@@ -615,43 +636,44 @@ const SideBtn = React.forwardRef(function SideBtn({ icon, label, onClick, testid
   );
 });
 
-function TabPill({ label, icon, active, onClick, testid, big = false, badge = null }) {
+function TabPill({ label, icon, active, onClick, testid, big = false, badge = null, showLabel = true }) {
   return (
     <button
       data-testid={testid}
       onClick={onClick}
+      title={label}
       className={cn(
-        'group relative inline-flex flex-1 items-center justify-center gap-2 rounded-lg transition-all overflow-hidden',
-        big ? 'px-3.5 h-11 text-[12px]' : 'px-3 h-8 text-[11px]',
-        'font-bold uppercase tracking-[0.24em]',
+        'group relative inline-flex flex-1 min-w-0 items-center justify-center gap-1.5 rounded-lg transition-all overflow-hidden',
+        big ? 'px-3 h-11 text-[12px]' : 'px-2 h-9 text-[10.5px]',
+        'font-bold uppercase tracking-[0.14em]',
         active
           ? 'text-ink'
-          : 'text-muted/80 hover:text-ink'
+          : 'text-ink/85 hover:text-ink'
       )}
       style={{
         background: active
           ? 'linear-gradient(180deg, rgb(var(--accent)/0.22) 0%, rgb(var(--accent)/0.08) 100%)'
-          : 'transparent',
-        border: `1px solid ${active ? 'rgb(var(--accent)/0.55)' : 'transparent'}`,
+          : 'rgb(var(--panel)/0.35)',
+        border: `1px solid ${active ? 'rgb(var(--accent)/0.6)' : 'rgb(var(--border)/0.55)'}`,
         boxShadow: active
           ? '0 0 16px -4px rgb(var(--accent)/0.55), inset 0 1px 0 rgb(255,255,255,0.05)'
-          : 'none',
+          : 'inset 0 1px 0 rgb(255,255,255,0.03)',
       }}
       onMouseEnter={(e) => {
         if (!active) {
-          e.currentTarget.style.background = 'rgb(var(--panel)/0.55)';
-          e.currentTarget.style.borderColor = 'rgb(var(--border)/0.6)';
+          e.currentTarget.style.background = 'rgb(var(--panel)/0.75)';
+          e.currentTarget.style.borderColor = 'rgb(var(--accent)/0.45)';
         }
       }}
       onMouseLeave={(e) => {
         if (!active) {
-          e.currentTarget.style.background = 'transparent';
-          e.currentTarget.style.borderColor = 'transparent';
+          e.currentTarget.style.background = 'rgb(var(--panel)/0.35)';
+          e.currentTarget.style.borderColor = 'rgb(var(--border)/0.55)';
         }
       }}
     >
       <span
-        className="grid h-6 w-6 place-items-center rounded transition-colors"
+        className="grid h-5 w-5 shrink-0 place-items-center rounded transition-colors"
         style={{
           backgroundColor: active ? 'rgb(var(--accent)/0.2)' : 'transparent',
           color: active ? 'rgb(var(--accent))' : 'currentColor',
@@ -659,9 +681,11 @@ function TabPill({ label, icon, active, onClick, testid, big = false, badge = nu
       >
         {icon}
       </span>
-      <span className="relative">
-        {label}
-      </span>
+      {showLabel && (
+        <span className="relative truncate">
+          {label}
+        </span>
+      )}
       {/* Live badge — pulses when there's unseen news; also visible when tab isn't active */}
       {badge != null && badge > 0 && (
         <motion.span
@@ -977,19 +1001,9 @@ function LibrarySettingsPopover({
         <Plus size={13} className="text-[rgb(var(--accent))]" /> New category…
       </button>
 
-      {/* v1.6.1 — Playtime toolkit shortcut. Opens the import preview modal
-          which also contains bulk "Reset all / Zero unowned / Re-fetch" actions. */}
-      {onOpenPlaytimeImport && (
-        <button
-          onClick={() => { onOpenPlaytimeImport(); onClose(); }}
-          data-testid="visuals-playtime-toolkit"
-          className="mt-1 flex w-full items-center gap-2 rounded-md hairline px-2 py-1.5 text-[12px] text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)]"
-          title="Import & clean playtime — bulk reset, zero unowned, re-fetch from Steam"
-        >
-          <RotateCcw size={13} className="text-[rgb(var(--accent-2))]" />
-          Playtime toolkit…
-        </button>
-      )}
+      {/* v1.6.3 — Playtime toolkit REMOVED from Visuals menu. It now lives
+          exclusively in the Stats panel via the "Import hours" button so
+          playtime management stays with playtime UI (not visual dials). */}
 
       {/* v1.5.0 — Feedback / Bug / Suggestion text buttons inside Visuals menu.
           Same three actions the top Feedback pill triggers, but always visible here too. */}
@@ -1112,7 +1126,7 @@ function BgTexturePicker({ textureId = 'none', opacity = 12, onChange, onChangeO
             type="range"
             data-testid="pop-bg-tex-opacity"
             min={0}
-            max={40}
+            max={100}
             value={opacity}
             onChange={(e) => onChangeOpacity && onChangeOpacity(Number(e.target.value))}
             className="w-full accent-[rgb(var(--accent))]"

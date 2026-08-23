@@ -4,9 +4,24 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.6.1-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.6.3-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.6.1 (Ownership rewrite · Bulk playtime actions · Modal fixes · CI feedback)
+### Latest — v1.6.3 (Fixed: phantom hours on non-Steam games · Aligned toolbar · Textures visible · Louder Special themes)
+- **🔴 Fixed** Hellclock / Solarpunk (and any other non-Steam game) getting 500+ phantom hours after a Steam import. localconfig.vdf is no longer treated as ownership — only sharedconfig + installed manifests count. Apply now double-checks ownership even under "Select all".
+- **Fixed** background textures were invisible over the library pane. Texture layer now paints on top of the frosted panels via `mix-blend-mode: overlay`. Opacity slider bumped to 0–100%.
+- **Toolbar alignment** — Feedback pill matches the Library / Tools / News / Stats / Settings row height. Tab & sidebar icons enlarged ~20%.
+- **Renamed** "Add" → **"Add Game"**.
+- **Moved** Playtime toolkit out of the Visuals menu — now exclusively in the Stats panel.
+- **Special themes turned up** — Colorful has a slow-rotating conic prism aura + denser twinkle field; Pro gains hazard-chevron march, brushed-metal sheen and corner emergency pulses.
+- **Theme picker readable again** — swatches enlarged, labels bumped to 11.5px.
+
+### v1.6.2 (Fixed: Steam hours after Reset · Select-all bulk)
+- **🔴 Fixed** after Reset, Steam hours never came back. Bulk reset was setting `playtimeManual` which then blocked every future Steam import. Reset now explicitly clears the flag.
+- **Fixed** "Select all Steam-owned" no longer refuses to override manual flag when you check a box explicitly.
+- **New** gradient **"✓ Select all"** bulk button — marks every row in one click. Companion "Deselect all" too.
+- Previous button renamed **"✓ Select Steam-owned only"**.
+
+### v1.6.1 (Ownership rewrite · Bulk playtime actions · Modal fixes · CI feedback)
 - **Fixed** Steam ownership detection — brace-matched VDF parsing (was breaking on nested cloud blocks) + walks `libraryfolders.vdf` for multi-drive installs (Icarus & other secondary-drive games now detected).
 - **Fixed** modal — checkboxes and refresh buttons work on every row (were previously disabled for "unowned").
 - **New** bulk actions in preview modal: `✓ Select all Steam-owned` · `⚠ Zero all unowned` · `💥 Reset all to 0` · `🔄 Re-fetch all`.

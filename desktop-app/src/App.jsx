@@ -32,7 +32,7 @@ import TidyUpModal from './components/TidyUpModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.6.1';
+const APP_VERSION = '1.6.3';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin, formatPlaytime } from './lib/utils';
 import { setSoundPack } from './lib/sound';
@@ -1342,7 +1342,7 @@ export default function App() {
       <div className="window-edge-glow" aria-hidden="true" />
       <BgAmbience theme={settings.theme} settings={settings} game={selected} />
       {/* v1.4.0 — global background texture layer (behind everything except BgAmbience) */}
-      <BgTexture textureId={settings.bgTextureId || 'none'} opacity={Number.isFinite(settings.bgTextureOpacity) ? settings.bgTextureOpacity : 12} />
+      <BgTexture textureId={settings.bgTextureId || 'none'} opacity={Number.isFinite(settings.bgTextureOpacity) ? settings.bgTextureOpacity : 40} />
       <TitleBar
         search={search}
         setSearch={setSearch}
@@ -1397,7 +1397,7 @@ export default function App() {
             updateSetting({ effectsLevelByTheme: map, effectsLevel: v });
           }}
           bgTextureId={settings.bgTextureId || 'none'}
-          bgTextureOpacity={Number.isFinite(settings.bgTextureOpacity) ? settings.bgTextureOpacity : 12}
+          bgTextureOpacity={Number.isFinite(settings.bgTextureOpacity) ? settings.bgTextureOpacity : 40}
           onChangeBgTextureId={(v) => updateSetting({ bgTextureId: v })}
           onChangeBgTextureOpacity={(v) => updateSetting({ bgTextureOpacity: v })}
           mode={settings.mode || 'library'}
@@ -2062,35 +2062,42 @@ function Particles({ count = 10 }) {
 }
 
 
-/* ---------- Background texture layer (v1.4.0) ----------
+/* ---------- Background texture layer (v1.4.0, revised v1.6.3) ----------
    Full-viewport overlay that sits between the ambient backdrop and content.
    Gives the "library" a subtle pattern instead of a plain wash.
-   Never intercepts pointer events. Opacity controlled by user (0-40). */
-function BgTexture({ textureId = 'none', opacity = 12 }) {
+   Never intercepts pointer events. Opacity controlled by user (0-100).
+   v1.6.3 — Pattern now paints on TOP of the frosted sidebar/main so it's
+   actually visible instead of being buried under `bg-surface` + `glass-soft`.
+   Uses `mix-blend-mode: overlay` so it reads as a texture over whatever
+   theme surface is behind it (light or dark). */
+function BgTexture({ textureId = 'none', opacity = 40 }) {
   if (!textureId || textureId === 'none' || opacity <= 0) return null;
   const patterns = {
     grain: {
-      backgroundImage: 'radial-gradient(rgb(var(--ink)) 1px, transparent 1px)',
-      backgroundSize: '3px 3px',
+      backgroundImage:
+        'radial-gradient(rgba(255,255,255,0.55) 1px, transparent 1px),' +
+        'radial-gradient(rgba(0,0,0,0.35) 1px, transparent 1px)',
+      backgroundSize: '3px 3px, 5px 5px',
+      backgroundPosition: '0 0, 1px 1px',
     },
     grid: {
       backgroundImage:
-        'linear-gradient(rgb(var(--accent) / 0.7) 1px, transparent 1px),' +
-        'linear-gradient(90deg, rgb(var(--accent-2) / 0.55) 1px, transparent 1px)',
+        'linear-gradient(rgb(var(--accent) / 0.85) 1px, transparent 1px),' +
+        'linear-gradient(90deg, rgb(var(--accent-2) / 0.75) 1px, transparent 1px)',
       backgroundSize: '32px 32px',
     },
     diagonal: {
       backgroundImage:
-        'repeating-linear-gradient(135deg, rgb(var(--accent) / 0.55) 0 1px, transparent 1px 14px)',
+        'repeating-linear-gradient(135deg, rgb(var(--accent) / 0.7) 0 1px, transparent 1px 14px)',
     },
     hex: {
       backgroundImage:
-        'radial-gradient(circle at 25% 25%, rgb(var(--accent) / 0.7) 1.5px, transparent 2px),' +
-        'radial-gradient(circle at 75% 75%, rgb(var(--accent-2) / 0.6) 1.5px, transparent 2px)',
+        'radial-gradient(circle at 25% 25%, rgb(var(--accent) / 0.9) 1.5px, transparent 2px),' +
+        'radial-gradient(circle at 75% 75%, rgb(var(--accent-2) / 0.8) 1.5px, transparent 2px)',
       backgroundSize: '28px 28px',
     },
     dots: {
-      backgroundImage: 'radial-gradient(rgb(var(--accent) / 0.7) 1px, transparent 2px)',
+      backgroundImage: 'radial-gradient(rgb(var(--accent) / 0.85) 1.2px, transparent 2px)',
       backgroundSize: '18px 18px',
     },
   };
@@ -2101,8 +2108,12 @@ function BgTexture({ textureId = 'none', opacity = 12 }) {
       className="pointer-events-none fixed inset-0"
       style={{
         ...style,
-        opacity: Math.max(0, Math.min(40, opacity)) / 100,
-        zIndex: 1,
+        opacity: Math.max(0, Math.min(100, opacity)) / 100,
+        // z:50 puts the texture ABOVE the frosted sidebar (z:10) and main
+        // (z:10) but BELOW every popover / modal (z:80+). Pointer-events
+        // are disabled so it never eats clicks.
+        zIndex: 50,
+        mixBlendMode: 'overlay',
       }}
       data-testid="bg-texture-layer"
     />
