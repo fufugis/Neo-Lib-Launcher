@@ -20,6 +20,7 @@ import CategoryModal from './components/CategoryModal';
 import Confetti from './components/Confetti';
 import StartupIntro from './components/StartupIntro';
 import GameNewsAlert from './components/GameNewsAlert';
+import FeedbackModal from './components/FeedbackModal';
 import EditMetadataModal from './components/EditMetadataModal';
 import AcceptMetadataModal from './components/AcceptMetadataModal';
 import FetchSourcePicker from './components/FetchSourcePicker';
@@ -30,7 +31,7 @@ import TidyUpModal from './components/TidyUpModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.5.0';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin } from './lib/utils';
 import { setSoundPack } from './lib/sound';
@@ -655,6 +656,12 @@ export default function App() {
   // for the same batch.
   const [newsAlert, setNewsAlert] = React.useState(null);
   const [introHiddenThisSession, setIntroHiddenThisSession] = React.useState(false);
+  const [feedbackOpen, setFeedbackOpen] = React.useState(false);
+  const [feedbackInitialMode, setFeedbackInitialMode] = React.useState('feedback');
+  const openFeedback = React.useCallback((m = 'feedback') => {
+    setFeedbackInitialMode(m);
+    setFeedbackOpen(true);
+  }, []);
   React.useEffect(() => {
     if (typeof window === 'undefined' || !window.api?.fetchAllNews) return undefined;
     let cancelled = false;
@@ -1124,6 +1131,49 @@ export default function App() {
       else notify('Open: ' + g.exePath);
       return;
     }
+    // v1.5.0 — Reset a single game's playtime to 0. Useful when Steam import
+    // (or the old buggy game-exit tracker) inflated numbers.
+    if (action === 'reset-playtime') {
+      const ok = await askConfirm({
+        title: 'Reset playtime?',
+        message: `"${g.name}" — current: ${(Number(g.playtime) || 0).toFixed(0)} min. This wipes local tracking. Steam imports may re-populate on next Stats-panel open.`,
+        confirmLabel: 'Reset to 0',
+        cancelLabel: 'Cancel',
+        destructive: true,
+      });
+      if (!ok) return;
+      updateGame(g.id, { playtime: 0, lastPlayedAt: 0 });
+      notify(`Playtime reset for ${g.name}`);
+      return;
+    }
+    // v1.5.0 — Re-import Steam playtime for this one game (best-effort).
+    // Delegates to the same IPC as the Stats panel but scoped to one appid.
+    if (action === 'reimport-steam') {
+      if (!isElectron || !window.api?.importSteamPlaytime) {
+        notify('Steam import only available in the desktop build.');
+        return;
+      }
+      if (!g.appid) {
+        notify('This game has no Steam appid — nothing to re-import.');
+        return;
+      }
+      try {
+        const res = await window.api.importSteamPlaytime({ force: true });
+        const rec = res?.playtime?.[String(g.appid)];
+        if (!rec) {
+          notify(`No Steam playtime found for ${g.name}.`);
+          return;
+        }
+        updateGame(g.id, {
+          playtime: Number(rec.playtime) || 0,
+          lastPlayedAt: Number(rec.lastPlayed) || Date.now(),
+        });
+        notify(`Re-imported ${g.name} — ${Math.round((rec.playtime || 0) / 60)}h from Steam`);
+      } catch (e) {
+        notify('Steam re-import failed: ' + (e?.message || 'unknown error'));
+      }
+      return;
+    }
     if (action === 'refetch') {
       // Open the Troubleshoot modal instead of immediately refetching
       setTroubleshoot({ open: true, game: g });
@@ -1330,6 +1380,7 @@ export default function App() {
           onAddManual={() => setShowAdd(true)}
           onOpenWizard={() => setShowWizard(true)}
           onOpenSettings={() => setShowSettings(true)}
+          onOpenFeedback={openFeedback}
           onUpdateAll={refetchAll}
           onTidyUp={() => setTidyOpen(true)}
           onCreateCategory={() => setCatModal({ open: true, initial: null })}
@@ -1455,6 +1506,7 @@ export default function App() {
         open={changelogOpen}
         currentVersion={APP_VERSION}
         lastSeenVersion={settings.lastSeenVersion}
+        theme={settings.theme}
         onClose={() => {
           setChangelogOpen(false);
           // Persist so we don't show it again for this version
@@ -1597,6 +1649,15 @@ export default function App() {
           }
           setNewsAlert(null);
         }}
+      />
+
+      {/* v1.5.0 — Feedback / Bug / Suggestion modal (Discord webhook) */}
+      <FeedbackModal
+        open={feedbackOpen}
+        initialMode={feedbackInitialMode}
+        appVersion={APP_VERSION}
+        theme={settings.theme}
+        onClose={() => setFeedbackOpen(false)}
       />
 
       {/* Drag-drop overlay — neon "Drop to add" banner appears when files are over the window */}

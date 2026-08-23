@@ -5,6 +5,7 @@ import {
   GripVertical, RefreshCw,
 } from 'lucide-react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
+import { playtimeSource } from '../lib/utils';
 
 /**
  * StatsPanel — a "stats & connected clients" side panel that pops up next
@@ -389,7 +390,27 @@ export default function StatsPanel({ games = [], onClose, anchorSelector }) {
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-[13px] font-semibold text-ink">{g.name}</div>
+                        <div className="truncate text-[13px] font-semibold text-ink flex items-center gap-1.5">
+                          {(() => {
+                            const src = playtimeSource(g);
+                            if (!src) return null;
+                            return (
+                              <span
+                                className="rounded px-1 py-[1px] text-[8px] font-bold tracking-wider shrink-0"
+                                style={{
+                                  background: `${src.color}25`,
+                                  color: src.color,
+                                  border: `1px solid ${src.color}55`,
+                                }}
+                                title={`Playtime source: ${src.label}`}
+                                data-testid={`stats-playtime-src-${src.id}`}
+                              >
+                                {src.label}
+                              </span>
+                            );
+                          })()}
+                          <span className="truncate">{g.name}</span>
+                        </div>
                         <div className="flex items-center gap-1.5 text-[10.5px] text-muted">
                           <span
                             className="inline-block h-1.5 w-1.5 rounded-full"

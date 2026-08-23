@@ -3,3 +3,7 @@ dist/
 dist-renderer/
 *.log
 .DS_Store
+# Local secrets — never commit
+.env
+.env.local
+.env.*.local

@@ -4,9 +4,17 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.4.0-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.5.0-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.4.0 (Star ratings · Startup intro · News alerts · Textures · Playtime fix)
+### Latest — v1.5.0 (Feedback pill · Rate this update · Playtime source tags · Reset & Re-import)
+- **Feedback / Bug / Suggestion pill** in the top toolbar + 3 shortcut buttons inside Visuals menu. All post to a Discord webhook. Version, theme, and platform auto-attached.
+- **Rate this update** — 3-emoji reaction (😍 😐 😕) at the bottom of every "What's new" modal, fires to the same webhook.
+- **Playtime source tags** — Steam / GOG / itch / Epic / EA / Ubisoft chips beside game names in Sidebar and Stats, so you can eyeball where each hour count came from.
+- **Reset playtime** — right-click → wipes local tracking to 0.
+- **Re-import from Steam** — right-click any Steam game → pulls the latest `localconfig.vdf` value.
+- Webhook URL is read from `desktop-app/.env` (`VITE_FEEDBACK_WEBHOOK_URL`, gitignored). `.env.example` template committed.
+
+### v1.4.0 (Star ratings · Startup intro · News alerts · Textures · Playtime fix)
 - **Star ratings** — 5-star click-to-rate at the top of every game preview; 5⭐ games get a subtle warm-gold wash behind their name in the library.
 - **Sidebar reshuffle** — Settings moved into the top TabPill row next to Stats; the cog-wheel is gone. Sliders renamed to **Visuals** (wider, more important pill).
 - **Background textures** — Grain / Grid / Diagonal / Hex / Dots with a transparency slider, all inside Visuals.

@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Check, X } from 'lucide-react';
+import { sendChangelogReaction } from './FeedbackModal';
 
 /**
  * Changelog / "What's new" modal.
@@ -14,6 +15,18 @@ import { Sparkles, Check, X } from 'lucide-react';
  */
 
 export const CHANGELOG = [
+  {
+    version: '1.5.0',
+    title: 'Feedback pill · Rate this update · Playtime source tags · Reset & Re-import playtime',
+    items: [
+      '**Feedback / Bug / Suggestion pill** — a very visible neon "Feedback" pill next to Stats & Settings, plus three shortcut buttons (🐛 Bug · 💡 Idea · 💬 Say hi) inside the Visuals menu. All post straight to a Discord webhook — no signup, no email, just type and send. Your app version, theme, and platform are auto-attached so bug reports come pre-diagnosed.',
+      '**Rate this update** — a small three-emoji reaction (😍 😐 😕) at the bottom of every "What\'s new" changelog modal. One tap fires to the same Discord webhook.',
+      '**Playtime source tags** — Steam-imported hours now show a small `[STEAM]` chip beside the game name in the Sidebar and the Stats ranking. GOG / itch / Epic / EA / Ubisoft tags too. Locally-tracked games show no tag, so you can instantly tell "did this hour count come from an import or from my sessions?".',
+      '**Reset playtime** — right-click any game → "Reset playtime to 0". Wipes local tracking; Steam imports may re-populate on next Stats-panel open.',
+      '**Re-import from Steam** — right-click any Steam game → "Re-import from Steam" pulls the latest `localconfig.vdf` playtime for that appid and overwrites the local value.',
+      '**.env-configured Discord endpoint** — the webhook URL lives in `desktop-app/.env` (gitignored) as `VITE_FEEDBACK_WEBHOOK_URL`, baked at build time. A `.env.example` is committed as a template for forks.',
+    ],
+  },
   {
     version: '1.4.0',
     title: '5-star ratings · Startup intro · News alerts · Background textures · Playtime unit fix',
@@ -282,7 +295,7 @@ function getChangesSince(lastSeen) {
   return CHANGELOG.slice(0, idx);
 }
 
-export default function ChangelogModal({ open, currentVersion, lastSeenVersion, onClose }) {
+export default function ChangelogModal({ open, currentVersion, lastSeenVersion, onClose, theme }) {
   const entries = React.useMemo(
     () => getChangesSince(lastSeenVersion),
     [lastSeenVersion]
@@ -355,9 +368,8 @@ export default function ChangelogModal({ open, currentVersion, lastSeenVersion, 
             </div>
 
             <div className="flex items-center justify-between gap-2 border-t border-[rgb(var(--border))]/60 bg-panel/70 backdrop-blur px-5 py-3">
-              <span className="text-[11px] text-muted">
-                Shown once per update. You can re-read it any time from the About section.
-              </span>
+              {/* v1.5.0 — Rate this update: three emoji reactions fire to Discord */}
+              <RateThisUpdate version={currentVersion} theme={theme} />
               <button
                 data-testid="changelog-got-it"
                 onClick={onClose}
@@ -370,5 +382,42 @@ export default function ChangelogModal({ open, currentVersion, lastSeenVersion, 
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+/* v1.5.0 — 3-emoji reaction to fire from a changelog view. Once picked,
+   swaps to a thank-you row. Never asks again for the same version. */
+function RateThisUpdate({ version, theme }) {
+  const [picked, setPicked] = React.useState(null);
+  const [sending, setSending] = React.useState(false);
+  const fire = async (reaction) => {
+    if (sending || picked) return;
+    setSending(true);
+    setPicked(reaction);
+    try { await sendChangelogReaction({ version, reaction, theme }); } catch { /* ignore */ }
+    setSending(false);
+  };
+  if (picked) {
+    return (
+      <span className="text-[11px] text-muted inline-flex items-center gap-1.5" data-testid="rate-thanks">
+        <span className="text-[14px]">{picked}</span> Thanks — noted!
+      </span>
+    );
+  }
+  return (
+    <div className="flex items-center gap-2" data-testid="rate-this-update">
+      <span className="text-[10.5px] uppercase tracking-wider text-muted">Rate this update</span>
+      {['😍', '😐', '😕'].map((e) => (
+        <button
+          key={e}
+          onClick={() => fire(e)}
+          data-testid={`rate-${e}`}
+          className="grid h-7 w-7 place-items-center rounded-full hairline text-[14px] transition-transform hover:scale-125 hover:border-[rgb(var(--accent)/0.6)] hover:bg-[rgb(var(--accent)/0.10)]"
+          title={`Rate: ${e}`}
+        >
+          {e}
+        </button>
+      ))}
+    </div>
   );
 }

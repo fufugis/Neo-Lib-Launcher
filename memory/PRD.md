@@ -11,6 +11,16 @@ and a non-intrusive monetization system (Deals banners via Affiliate links).
 - CI: GitHub Actions builds NSIS `.exe` + portable `.zip` on tag push.
 - System tray (Electron Tray API) for close-to-tray behavior.
 
+## Version 1.5.0 — Feb 2, 2026
+**Feedback pill · Rate this update · Playtime source tags · Reset & Re-import playtime:**
+- **`FeedbackModal.jsx`** — new component. Three modes (bug / suggestion / feedback) posting to a Discord webhook. Also exports `sendChangelogReaction()` and `FEEDBACK_ENABLED` flag.
+- **Very visible Feedback pill** in Sidebar top TabPill row (gradient accent → accent-2 background, pulsing gold dot). Plus 3 shortcut buttons at the bottom of the Visuals popover: Bug / Idea / Say hi.
+- **Rate this update** — `RateThisUpdate` component in `ChangelogModal.jsx` renders 3-emoji reactions (😍 😐 😕) in the modal footer. Fires `sendChangelogReaction()` on click; once picked, swaps to a thank-you row.
+- **Playtime source tags** — new `playtimeSource()` helper in `utils.js` returns `{ id, label, color }` for Steam / GOG / itch / Epic / EA / Ubisoft (or `null` for local). Rendered as a small chip in `Sidebar.jsx` game rows and `StatsPanel.jsx` ranking rows.
+- **Reset playtime** — right-click menu → "Reset playtime to 0" in Sidebar; handled in `handleGameContext('reset-playtime')` in App.jsx via `updateGame(g.id, { playtime: 0, lastPlayedAt: 0 })`.
+- **Re-import from Steam** — right-click menu → calls `window.api.importSteamPlaytime({ force: true })` and writes back to the game.
+- **`desktop-app/.env`** — created with `VITE_FEEDBACK_WEBHOOK_URL`; added to `.gitignore`. `.env.example` committed as template.
+
 ## Version 1.4.0 — Feb 2, 2026
 **Star ratings · Startup intro · News alerts · Background textures · Playtime unit fix:**
 - **5-star ratings** — click stars at top of GameDetail. 5⭐ games get warm-gold gradient wash behind their name in Sidebar. `game.rating` (0–5) persisted via `onUpdateGame`. New `StarRating` component in `GameDetail.jsx`.

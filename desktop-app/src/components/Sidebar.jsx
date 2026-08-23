@@ -5,9 +5,10 @@ import {
   Plus, Wand2, Settings, RefreshCw, Trash2, Pencil, FolderOpen, MoreVertical, Sparkles,
   Lock, ChevronRight, ChevronDown, Tag, GripVertical, Terminal,
   Info, ArrowUp, ArrowDown, Palette, Eye, EyeOff, Sliders, Library as LibIcon,
-  Wrench, Columns, Pin, PinOff, X as XIcon, Newspaper, BarChart3,
+  Wrench, Columns, Pin, PinOff, X as XIcon, Newspaper, BarChart3, MessageCircle,
+  Bug, Lightbulb, RotateCcw,
 } from 'lucide-react';
-import { cn, colorFromId, sizeById, formatPlaytime } from '../lib/utils';
+import { cn, colorFromId, sizeById, formatPlaytime, playtimeSource } from '../lib/utils';
 
 /**
  * Sidebar (tree view)
@@ -40,7 +41,7 @@ export default function Sidebar({
   bgTextureId, bgTextureOpacity,
   onChangeBgTextureId, onChangeBgTextureOpacity,
   onSelect,
-  onAddManual, onOpenWizard, onOpenSettings, onUpdateAll, onTidyUp,
+  onAddManual, onOpenWizard, onOpenSettings, onOpenFeedback, onUpdateAll, onTidyUp,
   onCreateCategory, onCategoryContext, onGameContext,
   onSetLibrarySize, onMoveGameToCategory,
   onReorderGameInCategory, onReorderCategory,
@@ -188,6 +189,31 @@ export default function Sidebar({
           testid="tab-settings"
           big
         />
+        {/* v1.5.0 — very visible in-app feedback / bug / suggestion pill.
+            Uses the accent gradient so it stands out from the neutral tabs. */}
+        {onOpenFeedback && (
+          <button
+            data-testid="tab-feedback"
+            onClick={() => onOpenFeedback('feedback')}
+            title="Send feedback, report a bug, or suggest a feature"
+            className="ml-1 relative inline-flex items-center gap-1.5 rounded-md px-3 h-[30px] text-[12px] font-bold text-white transition-all hover:scale-[1.04] active:scale-[0.97]"
+            style={{
+              background: 'linear-gradient(135deg, rgb(var(--accent)) 0%, rgb(var(--accent-2)) 100%)',
+              boxShadow: '0 0 14px -3px rgb(var(--accent)/0.65), 0 0 24px -12px rgb(var(--accent-2)/0.55)',
+              border: '1px solid rgb(var(--accent) / 0.5)',
+            }}
+          >
+            <MessageCircle size={13} />
+            Feedback
+            <motion.span
+              aria-hidden
+              className="absolute -right-1 -top-1 h-2 w-2 rounded-full"
+              style={{ background: '#ffcc4a', boxShadow: '0 0 6px #ffcc4a' }}
+              animate={{ scale: [1, 1.3, 1], opacity: [0.85, 1, 0.85] }}
+              transition={{ duration: 1.8, repeat: Infinity }}
+            />
+          </button>
+        )}
         {/* Bottom accent line separating the toolbar from what's underneath */}
         <span
           aria-hidden
@@ -317,6 +343,7 @@ export default function Sidebar({
                 onChangeBgTextureOpacity={onChangeBgTextureOpacity}
                 onClose={() => setLibSettingsOpen(false)}
                 onCreateCategory={onCreateCategory}
+                onOpenFeedback={onOpenFeedback}
               />
             )}
           </AnimatePresence>
@@ -694,6 +721,7 @@ function LibrarySettingsPopover({
   onToggleSubcatStrip, onChangeNameTextSize,
   onChangeEffectsLevel,
   onChangeBgTextureId, onChangeBgTextureOpacity,
+  onOpenFeedback,
   onClose, onCreateCategory,
 }) {
   const ref = React.useRef(null);
@@ -946,6 +974,42 @@ function LibrarySettingsPopover({
       >
         <Plus size={13} className="text-[rgb(var(--accent))]" /> New category…
       </button>
+
+      {/* v1.5.0 — Feedback / Bug / Suggestion text buttons inside Visuals menu.
+          Same three actions the top Feedback pill triggers, but always visible here too. */}
+      {onOpenFeedback && (
+        <>
+          <div className="mt-3 mb-1 text-[9.5px] uppercase tracking-[0.24em] text-muted/80">
+            Share with the developer
+          </div>
+          <div className="grid grid-cols-3 gap-1">
+            <button
+              onClick={() => { onOpenFeedback('bug'); onClose(); }}
+              data-testid="visuals-feedback-bug"
+              className="flex items-center gap-1.5 rounded-md hairline px-2 py-1.5 text-[11px] text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)]"
+              title="Report a bug"
+            >
+              <Bug size={12} style={{ color: '#ff5a6e' }} /> Bug
+            </button>
+            <button
+              onClick={() => { onOpenFeedback('suggestion'); onClose(); }}
+              data-testid="visuals-feedback-suggestion"
+              className="flex items-center gap-1.5 rounded-md hairline px-2 py-1.5 text-[11px] text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)]"
+              title="Suggest a feature"
+            >
+              <Lightbulb size={12} style={{ color: '#ffcc4a' }} /> Idea
+            </button>
+            <button
+              onClick={() => { onOpenFeedback('feedback'); onClose(); }}
+              data-testid="visuals-feedback-general"
+              className="flex items-center gap-1.5 rounded-md hairline px-2 py-1.5 text-[11px] text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)]"
+              title="Send feedback"
+            >
+              <MessageCircle size={12} className="text-[rgb(var(--accent))]" /> Say hi
+            </button>
+          </div>
+        </>
+      )}
     </motion.div>
   );
   if (typeof document === 'undefined') return body;
@@ -1533,8 +1597,32 @@ function GameRow({
                 />
               );
             })}
-            <span className="truncate">
-              {g.playtime ? formatPlaytime(g.playtime) + ' played' : (g.genres?.[0] || 'Local game')}
+            <span className="truncate flex items-center gap-1">
+              {g.playtime ? (
+                <>
+                  {(() => {
+                    const src = playtimeSource(g);
+                    if (!src) return null;
+                    return (
+                      <span
+                        className="rounded px-1 py-[1px] text-[8px] font-bold tracking-wider shrink-0"
+                        style={{
+                          background: `${src.color}25`,
+                          color: src.color,
+                          border: `1px solid ${src.color}55`,
+                        }}
+                        title={`Playtime imported from ${src.label}`}
+                        data-testid={`playtime-src-${src.id}`}
+                      >
+                        {src.label}
+                      </span>
+                    );
+                  })()}
+                  <span className="truncate">{formatPlaytime(g.playtime)} played</span>
+                </>
+              ) : (
+                <span>{g.genres?.[0] || 'Local game'}</span>
+              )}
             </span>
           </div>
         )}
@@ -1598,6 +1686,9 @@ function GameRow({
           <Divider />
           <Item icon={<Tag size={13} />} label="Manage categories…" onClick={() => { setMenu({ ...menu, open: false }); onContext('manage-categories'); }} testid={`game-ctx-cats-${g.id}`} />
           <Item icon={<FolderOpen size={13} />} label="Reveal in folder" onClick={() => { setMenu({ ...menu, open: false }); onContext('reveal'); }} testid={`game-ctx-reveal-${g.id}`} />
+          <Divider />
+          <Item icon={<RotateCcw size={13} />} label="Reset playtime to 0" onClick={() => { setMenu({ ...menu, open: false }); onContext('reset-playtime'); }} testid={`game-ctx-reset-playtime-${g.id}`} />
+          <Item icon={<RefreshCw size={13} />} label="Re-import from Steam" onClick={() => { setMenu({ ...menu, open: false }); onContext('reimport-steam'); }} testid={`game-ctx-reimport-steam-${g.id}`} />
           <Divider />
           <Item icon={<Trash2 size={13} />} label="Remove from library" danger onClick={() => { setMenu({ ...menu, open: false }); onContext('remove'); }} testid={`game-ctx-remove-${g.id}`} />
         </motion.div>,

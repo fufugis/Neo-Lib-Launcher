@@ -101,6 +101,23 @@ export const formatPlaytime = (min) => {
   return rem ? `${h}h ${rem}m` : `${h}h`;
 };
 
+// v1.5.0 — where did this game's playtime come from?
+// Returns { id, label, color } for Steam / GOG / itch, or null for local/manual.
+// Used to render a small chip beside playtime so users can trace inflated
+// numbers back to imports vs local session tracking.
+export const playtimeSource = (g) => {
+  if (!g) return null;
+  const src = String(g.source || '').toLowerCase();
+  const web = String(g.website || '').toLowerCase();
+  if (src === 'steam' || (g.appid && !src)) return { id: 'steam', label: 'STEAM',  color: '#1b8fe3' };
+  if (src === 'gog'   || g.gogId)           return { id: 'gog',   label: 'GOG',    color: '#a8339a' };
+  if (src === 'itch'  || /itch\.io/.test(web)) return { id: 'itch', label: 'ITCH', color: '#fa5c5c' };
+  if (src === 'epic')     return { id: 'epic',  label: 'EPIC',  color: '#e5e5e5' };
+  if (src === 'ea')       return { id: 'ea',    label: 'EA',    color: '#ff2b3d' };
+  if (src === 'ubisoft')  return { id: 'ubi',   label: 'UBI',   color: '#1c8fe0' };
+  return null;
+};
+
 // Relative-time formatter: "just now", "5m ago", "3 days ago", "2 weeks ago", "Jan 12, 2024"
 export const formatRelative = (ts) => {
   if (!ts) return '—';
