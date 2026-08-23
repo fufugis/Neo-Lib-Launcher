@@ -16,6 +16,18 @@ import { sendChangelogReaction } from './FeedbackModal';
 
 export const CHANGELOG = [
   {
+    version: '1.6.0',
+    title: 'Playtime import preview · True Steam ownership · Manual override · Safer reset',
+    items: [
+      '**True Steam ownership** — NEO-LIB now derives ownership from **Steam\'s own signals** for the currently signed-in account only: `sharedconfig.vdf` (tagged/owned appids) + `localconfig.vdf` (played appids) + installed `appmanifest_*.acf` files. Games with an `appid` in metadata but NOT in that ownership list (pirated repacks, manually-added exes, games from other Steam accounts on the same machine) are treated as local-only and get no Steam merge and no `[STEAM]` chip.',
+      '**Playtime import preview modal** — every import (from Stats panel or right-click "Re-import from Steam") now opens a scrollable preview showing the signed-in account name, every game with its current vs Steam hours, an ownership badge, per-row toggle, per-row refresh, and per-row **manual override**. Nothing is written until you click Apply.',
+      '**Manual playtime override** — click any game\'s hour cell in the preview modal, type your own number in minutes. The game gets tagged `[MANUAL]` and is skipped by all future Steam imports so you\'re never overwritten again.',
+      '**Only signed-in Steam account is imported** — reads `loginusers.vdf` → `MostRecent=1`. Multi-account shared machines no longer bleed playtime across users.',
+      '**Safer Reset playtime** — right-click Reset now shows the exact current hours, explains Steam records are never touched, and requires typing `RESET` for values > 100 hours. Also clears the `playtimeManual` flag.',
+      '**`[MANUAL]` source chip** — appears beside game names anywhere playtime is shown when the user has manually overridden it.',
+    ],
+  },
+  {
     version: '1.5.0',
     title: 'Feedback pill · Rate this update · Playtime source tags · Reset & Re-import playtime',
     items: [

@@ -102,16 +102,20 @@ export const formatPlaytime = (min) => {
 };
 
 // v1.5.0 — where did this game's playtime come from?
-// Returns { id, label, color } for Steam / GOG / itch, or null for local/manual.
-// Used to render a small chip beside playtime so users can trace inflated
-// numbers back to imports vs local session tracking.
+// Returns { id, label, color } for Steam / GOG / itch / Manual, or null for local/manual.
+// v1.6.0 — Steam requires explicit `steamOwned: true` (set at import time from
+// Steam's own account signals — sharedconfig + localconfig + installed manifests).
+// This stops pirated repacks / manually-added games with a metadata `appid`
+// from being tagged as Steam-owned.
 export const playtimeSource = (g) => {
   if (!g) return null;
+  // Manual override wins (user typed the number in the preview modal)
+  if (g.playtimeManual) return { id: 'manual', label: 'MANUAL', color: '#ffcc4a' };
   const src = String(g.source || '').toLowerCase();
   const web = String(g.website || '').toLowerCase();
-  if (src === 'steam' || (g.appid && !src)) return { id: 'steam', label: 'STEAM',  color: '#1b8fe3' };
-  if (src === 'gog'   || g.gogId)           return { id: 'gog',   label: 'GOG',    color: '#a8339a' };
-  if (src === 'itch'  || /itch\.io/.test(web)) return { id: 'itch', label: 'ITCH', color: '#fa5c5c' };
+  if (g.steamOwned === true)                    return { id: 'steam', label: 'STEAM',  color: '#1b8fe3' };
+  if (src === 'gog'   || g.gogId)               return { id: 'gog',   label: 'GOG',    color: '#a8339a' };
+  if (src === 'itch'  || /itch\.io/.test(web))  return { id: 'itch',  label: 'ITCH',   color: '#fa5c5c' };
   if (src === 'epic')     return { id: 'epic',  label: 'EPIC',  color: '#e5e5e5' };
   if (src === 'ea')       return { id: 'ea',    label: 'EA',    color: '#ff2b3d' };
   if (src === 'ubisoft')  return { id: 'ubi',   label: 'UBI',   color: '#1c8fe0' };

@@ -4,9 +4,17 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.5.0-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.6.0-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.5.0 (Feedback pill · Rate this update · Playtime source tags · Reset & Re-import)
+### Latest — v1.6.0 (Playtime import preview · True Steam ownership · Manual override · Safer reset)
+- **True Steam ownership** — derived from `sharedconfig.vdf` + `localconfig.vdf` + installed `appmanifest_*.acf` for the currently signed-in account only. Pirated repacks and manually-added games no longer get Steam hours merged in.
+- **Import preview modal** — scrollable list of every game with current vs Steam hours, per-row toggle / refresh / manual override. Nothing is written until you click Apply.
+- **Manual playtime override** — type your own hours; game tagged `[MANUAL]`, future Steam imports skip it.
+- **Only signed-in Steam account** — reads `loginusers.vdf` → `MostRecent=1`. No more shared-machine bleed.
+- **Safer Reset** — explicit copy, requires typing `RESET` for > 100h. Never touches Steam records.
+- New `[MANUAL]` source chip.
+
+### v1.5.0 (Feedback pill · Rate this update · Playtime source tags · Reset & Re-import)
 - **Feedback / Bug / Suggestion pill** in the top toolbar + 3 shortcut buttons inside Visuals menu. All post to a Discord webhook. Version, theme, and platform auto-attached.
 - **Rate this update** — 3-emoji reaction (😍 😐 😕) at the bottom of every "What's new" modal, fires to the same webhook.
 - **Playtime source tags** — Steam / GOG / itch / Epic / EA / Ubisoft chips beside game names in Sidebar and Stats, so you can eyeball where each hour count came from.

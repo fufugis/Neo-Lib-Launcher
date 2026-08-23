@@ -11,6 +11,16 @@ and a non-intrusive monetization system (Deals banners via Affiliate links).
 - CI: GitHub Actions builds NSIS `.exe` + portable `.zip` on tag push.
 - System tray (Electron Tray API) for close-to-tray behavior.
 
+## Version 1.6.0 — Feb 2, 2026
+**Playtime import preview · True Steam ownership · Manual override · Safer reset:**
+- **`electron/main.js`** — rewrote Steam playtime import. Now scoped to the **currently signed-in** account (read from `loginusers.vdf` → `MostRecent=1`) only. Ownership set derived from `sharedconfig.vdf` apps block ∪ `localconfig.vdf` apps block ∪ installed `appmanifest_*.acf`. Returns `{ data, ownedAppids, currentAccount, count, ownedCount }`.
+- **`utils.js` `playtimeSource(g)`** — v1.6.0 requires `g.steamOwned === true` for the STEAM tag. Also handles `g.playtimeManual` returning `MANUAL` chip.
+- **`StatsPanel.jsx` `mergedGames`** — only merges Steam playtime when `g.steamOwned === true`. Manual overrides (`playtimeManual`) short-circuit the merge.
+- **New `PlaytimeImportModal.jsx`** — scrollable list of every game with current vs Steam hours, ownership badge, per-row toggle / refresh / manual override. Applies patches setting `steamOwned`, `playtime`, `lastPlayedAt`, and optional `playtimeManual`.
+- **Stats "Import hours" button** — now opens the preview modal via `onOpenImportPreview` prop. Right-click "Re-import from Steam" also opens it.
+- **`ConfirmModal.jsx`** — added `typedConfirm` prop. Confirm button stays disabled until the user types the exact string. Used for large-value playtime resets (`> 100h`).
+- **`handleGameContext('reset-playtime')`** — new copy explicitly says "LOCAL playtime, Steam records not touched", uses `typedConfirm='RESET'` for large values, and clears `playtimeManual`.
+
 ## Version 1.5.0 — Feb 2, 2026
 **Feedback pill · Rate this update · Playtime source tags · Reset & Re-import playtime:**
 - **`FeedbackModal.jsx`** — new component. Three modes (bug / suggestion / feedback) posting to a Discord webhook. Also exports `sendChangelogReaction()` and `FEEDBACK_ENABLED` flag.

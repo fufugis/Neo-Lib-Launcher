@@ -75,7 +75,7 @@ const RANGE_META = {
   all:   { label: 'All time',   days: 0 },
 };
 
-export default function StatsPanel({ games = [], onClose, anchorSelector }) {
+export default function StatsPanel({ games = [], onClose, anchorSelector, onOpenImportPreview }) {
   const [range, setRange] = useState('all');
   const [importState, setImportState] = useState({ loading: false, error: '', count: 0, accounts: 0, at: 0 });
   const [steamPlaytime, setSteamPlaytime] = useState({}); // appid -> { playtime, lastPlayed }
@@ -100,11 +100,13 @@ export default function StatsPanel({ games = [], onClose, anchorSelector }) {
   useEffect(() => { runImport(false); }, [runImport]);
 
   // Merge Steam-imported playtime into game objects for ranking/aggregation.
-  // The merged playtime is Math.max(local session tracking, Steam total)
-  // — Steam almost always wins, but local tracks itch/GOG/EA games too.
+  // v1.6.0 — Only merge for games with `steamOwned === true` (set at import
+  // preview time based on Steam's own ownership signals). Manual overrides
+  // (playtimeManual) always win — never overwritten.
   const mergedGames = useMemo(() => {
     return games.map((g) => {
-      if (g.source !== 'steam' && !(g.appid && !g.source)) return g;
+      if (g.playtimeManual) return g;
+      if (g.steamOwned !== true) return g;
       const steam = steamPlaytime[String(g.appid || '')];
       if (!steam) return g;
       return {
@@ -237,13 +239,14 @@ export default function StatsPanel({ games = [], onClose, anchorSelector }) {
               </p>
             </div>
             <button
-              onClick={() => runImport(true)}
+              onClick={() => onOpenImportPreview ? onOpenImportPreview({ force: true }) : runImport(true)}
               disabled={importState.loading}
-              title="Re-import Steam playtime"
+              title="Preview & apply Steam playtime import"
               data-testid="stats-reimport-btn"
-              className="grid h-8 w-8 place-items-center rounded-md text-muted hover:text-ink hover:bg-panel/60 disabled:opacity-40"
+              className="inline-flex items-center gap-1 rounded-md hairline px-2 h-8 text-[11px] text-ink hover:text-ink hover:border-[rgb(var(--accent)/0.6)] hover:bg-[rgb(var(--accent)/0.10)] disabled:opacity-40"
             >
-              <RefreshCw size={13} className={importState.loading ? 'animate-spin' : ''} />
+              <RefreshCw size={12} className={importState.loading ? 'animate-spin' : ''} />
+              Import hours
             </button>
             {onClose && (
               <button

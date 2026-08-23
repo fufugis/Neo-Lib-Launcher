@@ -2607,13 +2607,18 @@ ipcMain.handle('news:latestForGame', async (_e, game) => {
 
 
 // ---------------- Steam Playtime Import (localconfig.vdf) ---------------- //
-// Reads Steam's per-user localconfig.vdf to pull real per-game Playtime
-// (minutes) + LastPlayed (unix seconds) for every appid. Merges results from
-// every userdata/<steamid>/config/localconfig.vdf so multiple accounts on the
-// same machine all count. Returns { <appid>: { playtime, lastPlayed } }.
+// v1.6.0 — Now scopes to the CURRENTLY SIGNED-IN Steam account only (read
+// from config/loginusers.vdf → MostRecent="1"). Other accounts on the same
+// machine are ignored so shared-machine playtime doesn't bleed across users.
 //
-// This is 100% offline — no Steam Web API key, no login, works if Steam is
-// installed even when the user is signed out. Cached 5 min per session.
+// Ownership is derived from TWO Steam-local signals for that current account:
+//   1. sharedconfig.vdf → apps blocks (tagged/owned)
+//   2. localconfig.vdf  → apps blocks (played)
+// Only appids in `ownedAppids` are considered "truly owned via Steam". A game
+// with an appid that ISN'T in this set is a pirated/repack/manual-add and
+// NEO-LIB tracks its hours locally without Steam merging.
+//
+// 100% offline. No Steam Web API. Cached 5 min per session.
 let STEAM_PLAYTIME_CACHE = { ts: 0, data: null };
 ipcMain.handle('steam:importPlaytime', async (_e, { force = false } = {}) => {
   const FIVE_MIN = 5 * 60 * 1000;
@@ -2625,29 +2630,78 @@ ipcMain.handle('steam:importPlaytime', async (_e, { force = false } = {}) => {
   const userdata = path.join(steamPath, 'userdata');
   if (!fs.existsSync(userdata)) return { ok: false, error: 'No userdata folder found.' };
 
-  const merged = {}; // appid -> { playtime, lastPlayed, users }
-  let accounts = 0;
+  // --- 1) Find currently-signed-in Steam account (MostRecent="1"). ---
+  const loginUsersPath = path.join(steamPath, 'config', 'loginusers.vdf');
+  let currentSteamId3 = null;
+  let currentPersonaName = null;
   try {
-    const userDirs = fs.readdirSync(userdata, { withFileTypes: true })
-      .filter((d) => d.isDirectory() && /^\d+$/.test(d.name));
-    for (const dir of userDirs) {
-      const cfg = path.join(userdata, dir.name, 'config', 'localconfig.vdf');
-      if (!fs.existsSync(cfg)) continue;
-      accounts += 1;
-      let text = '';
-      try { text = fs.readFileSync(cfg, 'utf8'); } catch { continue; }
-      // Slice to the "apps" block under Software > Valve > Steam so we don't
-      // accidentally match unrelated "Playtime" keys elsewhere in the file.
-      const appsIdx = text.search(/"apps"\s*\{/i);
-      if (appsIdx < 0) continue;
-      // Walk brace-matched region
+    if (fs.existsSync(loginUsersPath)) {
+      const raw = fs.readFileSync(loginUsersPath, 'utf8');
+      // Match "<steamid64>" { ... "MostRecent"		"1" ... }
+      const userRe = /"(\d{17})"\s*\{([\s\S]*?)\}/g;
+      let um;
+      while ((um = userRe.exec(raw)) !== null) {
+        const steamid64 = um[1];
+        const body = um[2];
+        const mostRecent = /"MostRecent"\s*"1"/i.test(body);
+        if (mostRecent) {
+          // Convert SteamID64 → SteamID3 (userdata folders use ID3)
+          const id3 = String(BigInt(steamid64) - 76561197960265728n);
+          currentSteamId3 = id3;
+          const personaMatch = body.match(/"PersonaName"\s*"([^"]+)"/i);
+          currentPersonaName = personaMatch ? personaMatch[1] : null;
+          break;
+        }
+      }
+    }
+  } catch { /* fall through */ }
+
+  // Fallback: if we couldn't detect the current user, pick the first userdata folder
+  const userDirs = fs.readdirSync(userdata, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && /^\d+$/.test(d.name));
+  if (!currentSteamId3 && userDirs.length > 0) currentSteamId3 = userDirs[0].name;
+  if (!currentSteamId3) return { ok: false, error: 'No Steam account detected.' };
+
+  const acctDir = path.join(userdata, currentSteamId3);
+  if (!fs.existsSync(acctDir)) return { ok: false, error: `Steam account folder missing: ${currentSteamId3}` };
+
+  // --- 2) Read sharedconfig.vdf → ownership signal (all tagged/owned appids). ---
+  const ownedAppids = new Set();
+  const sharedCfg = path.join(acctDir, '7', 'remote', 'sharedconfig.vdf');
+  try {
+    if (fs.existsSync(sharedCfg)) {
+      const raw = fs.readFileSync(sharedCfg, 'utf8');
+      // apps { "<appid>" { ... } "<appid>" { ... } }
+      const appsIdx = raw.search(/"apps"\s*\{/i);
+      if (appsIdx >= 0) {
+        // Slice brace-matched region
+        let depth = 0, start = -1, body = '';
+        for (let i = appsIdx; i < raw.length; i += 1) {
+          const ch = raw[i];
+          if (ch === '{') { if (start < 0) start = i; depth += 1; }
+          else if (ch === '}') { depth -= 1; if (depth === 0) { body = raw.slice(start + 1, i); break; } }
+        }
+        const idRe = /"(\d+)"\s*\{/g;
+        let idm;
+        while ((idm = idRe.exec(body)) !== null) ownedAppids.add(idm[1]);
+      }
+    }
+  } catch { /* ignore */ }
+
+  // --- 3) Read localconfig.vdf → playtime for current account. ---
+  const merged = {};
+  const cfg = path.join(acctDir, 'config', 'localconfig.vdf');
+  if (fs.existsSync(cfg)) {
+    let text = '';
+    try { text = fs.readFileSync(cfg, 'utf8'); } catch { /* ignore */ }
+    const appsIdx = text.search(/"apps"\s*\{/i);
+    if (appsIdx >= 0) {
       let depth = 0, start = -1;
       for (let i = appsIdx; i < text.length; i += 1) {
         const ch = text[i];
         if (ch === '{') { if (start < 0) start = i; depth += 1; }
         else if (ch === '}') { depth -= 1; if (depth === 0) { text = text.slice(start + 1, i); break; } }
       }
-      // Per-app blocks: "<appid>" { ... }
       const blockRe = /"(\d+)"\s*\{([\s\S]*?)\}/g;
       let m;
       while ((m = blockRe.exec(text)) !== null) {
@@ -2657,16 +2711,33 @@ ipcMain.handle('steam:importPlaytime', async (_e, { force = false } = {}) => {
         const lpMatch = body.match(/"LastPlayed"\s*"(\d+)"/i);
         const playtime = pMatch ? Number(pMatch[1]) : 0;
         const lastPlayed = lpMatch ? Number(lpMatch[1]) * 1000 : 0;
-        if (!merged[appid]) merged[appid] = { playtime: 0, lastPlayed: 0 };
-        merged[appid].playtime = Math.max(merged[appid].playtime, playtime);
-        merged[appid].lastPlayed = Math.max(merged[appid].lastPlayed, lastPlayed);
+        merged[appid] = { playtime, lastPlayed };
+        // localconfig presence also proves ownership (played by this account)
+        ownedAppids.add(appid);
       }
     }
-  } catch (e) {
-    return { ok: false, error: String(e.message || e) };
   }
 
-  const payload = { data: merged, accounts, count: Object.keys(merged).length };
+  // --- 4) Also add appids from installed appmanifest_*.acf files. ---
+  // (These may be installed but never played — still owned.)
+  const steamapps = path.join(steamPath, 'steamapps');
+  try {
+    if (fs.existsSync(steamapps)) {
+      const files = fs.readdirSync(steamapps).filter((n) => /^appmanifest_\d+\.acf$/i.test(n));
+      for (const f of files) {
+        const m = f.match(/^appmanifest_(\d+)\.acf$/i);
+        if (m) ownedAppids.add(m[1]);
+      }
+    }
+  } catch { /* ignore */ }
+
+  const payload = {
+    data: merged,
+    ownedAppids: Array.from(ownedAppids),
+    currentAccount: { steamid3: currentSteamId3, personaName: currentPersonaName },
+    count: Object.keys(merged).length,
+    ownedCount: ownedAppids.size,
+  };
   STEAM_PLAYTIME_CACHE = { ts: Date.now(), data: payload };
   return { ok: true, ...payload, cached: false };
 });

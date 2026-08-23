@@ -21,6 +21,7 @@ import Confetti from './components/Confetti';
 import StartupIntro from './components/StartupIntro';
 import GameNewsAlert from './components/GameNewsAlert';
 import FeedbackModal from './components/FeedbackModal';
+import PlaytimeImportModal from './components/PlaytimeImportModal';
 import EditMetadataModal from './components/EditMetadataModal';
 import AcceptMetadataModal from './components/AcceptMetadataModal';
 import FetchSourcePicker from './components/FetchSourcePicker';
@@ -31,9 +32,9 @@ import TidyUpModal from './components/TidyUpModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.6.0';
 import PinModal from './components/PinModal';
-import { uid, guessNameFromPath, hashPin } from './lib/utils';
+import { uid, guessNameFromPath, hashPin, formatPlaytime } from './lib/utils';
 import { setSoundPack } from './lib/sound';
 
 const isElectron = typeof window !== 'undefined' && !!window.api;
@@ -405,10 +406,10 @@ export default function App() {
 
   /* --- Confirm dialog state --- */
   const [confirmCfg, setConfirmCfg] = React.useState({ open: false });
-  const askConfirm = ({ title, message, confirmLabel = 'Yes', cancelLabel = 'No', destructive = false }) =>
+  const askConfirm = ({ title, message, confirmLabel = 'Yes', cancelLabel = 'No', destructive = false, typedConfirm = undefined }) =>
     new Promise((resolve) => {
       setConfirmCfg({
-        open: true, title, message, confirmLabel, cancelLabel, destructive,
+        open: true, title, message, confirmLabel, cancelLabel, destructive, typedConfirm,
         onConfirm: () => resolve(true),
         onCancel: () => resolve(false),
       });
@@ -661,6 +662,44 @@ export default function App() {
   const openFeedback = React.useCallback((m = 'feedback') => {
     setFeedbackInitialMode(m);
     setFeedbackOpen(true);
+  }, []);
+
+  // v1.6.0 — Playtime Import preview modal state.
+  // Populated when the user opens the Stats panel OR clicks "Refresh hours"
+  // from the Visuals menu / right-click. Empty payload = closed.
+  const [importPreview, setImportPreview] = React.useState({ open: false, data: {}, ownedAppids: [], currentAccount: null });
+  const openPlaytimeImport = React.useCallback(async ({ force = false } = {}) => {
+    if (!isElectron || !window.api?.importSteamPlaytime) {
+      notify('Steam import only available in the desktop build.');
+      return;
+    }
+    try {
+      const res = await window.api.importSteamPlaytime({ force });
+      if (!res?.ok) { notify(res?.error || 'Steam import failed.'); return; }
+      setImportPreview({
+        open: true,
+        data: res.data || {},
+        ownedAppids: res.ownedAppids || [],
+        currentAccount: res.currentAccount || null,
+      });
+    } catch (e) {
+      notify('Steam import error: ' + (e?.message || 'unknown'));
+    }
+  }, []);
+  const applyImportPatches = React.useCallback((patches) => {
+    if (!Array.isArray(patches) || patches.length === 0) {
+      setImportPreview((p) => ({ ...p, open: false }));
+      return;
+    }
+    setLibrary((curr) => ({
+      ...curr,
+      games: curr.games.map((g) => {
+        const p = patches.find((x) => x.id === g.id);
+        return p ? { ...g, ...p } : g;
+      }),
+    }));
+    setImportPreview((p) => ({ ...p, open: false }));
+    notify(`Applied ${patches.filter((p) => p.playtime !== undefined).length} playtime change(s).`);
   }, []);
   React.useEffect(() => {
     if (typeof window === 'undefined' || !window.api?.fetchAllNews) return undefined;
@@ -1133,45 +1172,38 @@ export default function App() {
     }
     // v1.5.0 — Reset a single game's playtime to 0. Useful when Steam import
     // (or the old buggy game-exit tracker) inflated numbers.
+    // v1.6.0 — Confirmation copy made painfully explicit + requires
+    // typed-confirmation for values > 100h. Only resets NEO-LIB's local
+    // playtime record; Steam's own records are never touched.
     if (action === 'reset-playtime') {
+      const currentMins = Number(g.playtime) || 0;
+      const currentH = Math.floor(currentMins / 60);
+      const requireTyping = currentH > 100;
       const ok = await askConfirm({
-        title: 'Reset playtime?',
-        message: `"${g.name}" — current: ${(Number(g.playtime) || 0).toFixed(0)} min. This wipes local tracking. Steam imports may re-populate on next Stats-panel open.`,
-        confirmLabel: 'Reset to 0',
-        cancelLabel: 'Cancel',
+        title: 'Reset LOCAL playtime?',
+        message:
+          `"${g.name}" — currently ${formatPlaytime(currentMins)}.\n\n` +
+          `This wipes NEO-LIB's local playtime record only. Steam's own records are NEVER touched. ` +
+          `If this game is Steam-owned and signed-in on your machine, the next import will re-add Steam's hours (unless you also uncheck it in the import preview).\n\n` +
+          (requireTyping ? `Type RESET to confirm — this is a large value.` : ''),
+        confirmLabel: requireTyping ? 'Yes, RESET' : 'Reset to 0',
+        cancelLabel: 'Keep it',
         destructive: true,
+        typedConfirm: requireTyping ? 'RESET' : undefined,
       });
       if (!ok) return;
-      updateGame(g.id, { playtime: 0, lastPlayedAt: 0 });
-      notify(`Playtime reset for ${g.name}`);
+      updateGame(g.id, { playtime: 0, lastPlayedAt: 0, playtimeManual: false });
+      notify(`Local playtime reset for ${g.name}`);
       return;
     }
-    // v1.5.0 — Re-import Steam playtime for this one game (best-effort).
-    // Delegates to the same IPC as the Stats panel but scoped to one appid.
+    // v1.5.0 / v1.6.0 — Re-import Steam playtime — now opens the preview modal
+    // instead of silently writing, so user sees exactly what will change.
     if (action === 'reimport-steam') {
       if (!isElectron || !window.api?.importSteamPlaytime) {
         notify('Steam import only available in the desktop build.');
         return;
       }
-      if (!g.appid) {
-        notify('This game has no Steam appid — nothing to re-import.');
-        return;
-      }
-      try {
-        const res = await window.api.importSteamPlaytime({ force: true });
-        const rec = res?.playtime?.[String(g.appid)];
-        if (!rec) {
-          notify(`No Steam playtime found for ${g.name}.`);
-          return;
-        }
-        updateGame(g.id, {
-          playtime: Number(rec.playtime) || 0,
-          lastPlayedAt: Number(rec.lastPlayed) || Date.now(),
-        });
-        notify(`Re-imported ${g.name} — ${Math.round((rec.playtime || 0) / 60)}h from Steam`);
-      } catch (e) {
-        notify('Steam re-import failed: ' + (e?.message || 'unknown error'));
-      }
+      openPlaytimeImport({ force: true });
       return;
     }
     if (action === 'refetch') {
@@ -1443,6 +1475,7 @@ export default function App() {
           games={library.games}
           onClose={() => setMode('library')}
           anchorSelector='[data-testid="tab-stats"]'
+          onOpenImportPreview={openPlaytimeImport}
         />
       )}
 
@@ -1563,6 +1596,7 @@ export default function App() {
         confirmLabel={confirmCfg.confirmLabel}
         cancelLabel={confirmCfg.cancelLabel}
         destructive={confirmCfg.destructive}
+        typedConfirm={confirmCfg.typedConfirm}
         onConfirm={() => { confirmCfg.onConfirm && confirmCfg.onConfirm(); }}
         onClose={() => {
           setConfirmCfg((p) => {
@@ -1658,6 +1692,22 @@ export default function App() {
         appVersion={APP_VERSION}
         theme={settings.theme}
         onClose={() => setFeedbackOpen(false)}
+      />
+
+      {/* v1.6.0 — Playtime Import Preview */}
+      <PlaytimeImportModal
+        open={importPreview.open}
+        games={library.games || []}
+        steamData={importPreview.data}
+        ownedAppids={importPreview.ownedAppids}
+        currentAccount={importPreview.currentAccount}
+        onApply={applyImportPatches}
+        onClose={() => setImportPreview((p) => ({ ...p, open: false }))}
+        onRefreshSingle={async ({ appid }) => {
+          if (!appid || !window.api?.importSteamPlaytime) return null;
+          const res = await window.api.importSteamPlaytime({ force: true });
+          return res?.data?.[String(appid)] || null;
+        }}
       />
 
       {/* Drag-drop overlay — neon "Drop to add" banner appears when files are over the window */}

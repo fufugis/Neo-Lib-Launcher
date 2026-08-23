@@ -2,7 +2,7 @@
 
 > A synthwave-flavored, **fully portable Windows game library** that unifies every game on your PC — Steam, Epic, EA App, GOG, standalone — into one neon-lit interface. No accounts. No cloud. No telemetry.
 
-![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.5.0-8a4fff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.6.0-8a4fff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
 ---
 
@@ -55,7 +55,15 @@ Library + settings live at `%APPDATA%\NEO-LIB\`. Delete that folder to factory-r
 
 ## 📜 Patch notes
 
-### v1.5.0 — Feedback pill · Rate this update · Playtime source tags · Reset & Re-import *(current)*
+### v1.6.0 — Playtime import preview · True Steam ownership · Manual override · Safer reset *(current)*
+- **New:** 🎯 **True Steam ownership.** NEO-LIB now derives ownership from Steam's OWN signals for the currently signed-in account only: `sharedconfig.vdf` (owned/tagged appids) + `localconfig.vdf` (played appids) + installed `appmanifest_*.acf` files. Games with an `appid` in metadata but NOT in that ownership list — **pirated repacks, manually-added games, games from other Steam accounts on the same machine** — are treated as local-only. They no longer get Steam hours merged in and no longer wear the `[STEAM]` chip.
+- **New:** 📋 **Playtime import preview modal.** Every import (from Stats panel or right-click "Re-import from Steam") opens a scrollable preview showing: signed-in account name · every game with current vs Steam hours · ownership badge · per-row toggle · per-row refresh · per-row **manual override**. Nothing writes until you click Apply.
+- **New:** ✏️ **Manual playtime override.** Click any game's hour cell in the preview modal, type your own number in minutes. The game gets tagged `[MANUAL]` and is skipped by all future Steam imports so you're never overwritten again.
+- **New:** 🎮 **Only signed-in Steam account is imported.** NEO-LIB reads `loginusers.vdf` → `MostRecent=1`. Multi-account shared machines no longer bleed playtime across users.
+- **Improved:** 🛡️ **Safer Reset playtime.** Right-click Reset now shows the exact current hours, explicitly notes that Steam records are never touched, and requires typing `RESET` for values > 100 hours. Also clears the `playtimeManual` flag.
+- **New:** 🏷️ `[MANUAL]` source chip appears beside game names anywhere playtime is shown when the user has manually overridden it.
+
+### v1.5.0 — Feedback pill · Rate this update · Playtime source tags · Reset & Re-import
 - **New:** 💬 **Feedback / Bug / Suggestion pill.** A very visible neon pill next to Stats & Settings, plus three shortcut buttons (🐛 Bug · 💡 Idea · 💬 Say hi) inside the Visuals menu. All post straight to a Discord webhook — no signup, no email. App version, theme, and platform auto-attached so bug reports come pre-diagnosed.
 - **New:** ⭐ **Rate this update.** A three-emoji reaction (😍 😐 😕) at the bottom of every "What's new" changelog modal. One tap fires to the same Discord webhook.
 - **New:** 🏷️ **Playtime source tags.** Steam-imported hours show a small `[STEAM]` chip beside the game name in the Sidebar and the Stats ranking. GOG / itch / Epic / EA / Ubisoft tags too. Locally-tracked games show no tag — instantly see which hours came from an import vs local sessions.
