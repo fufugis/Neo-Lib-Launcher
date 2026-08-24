@@ -875,6 +875,56 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
   background: radial-gradient(ellipse at 20% 30%, rgb(var(--sidebar-tint, var(--accent))), transparent 65%);
 }
 
+/* v1.6.4 — Subtle animated gold "electric" border around 5-star favourites.
+   Rotates a masked conic gradient so the highlight sweeps around the row,
+   feels alive without being flashy. Applied via `.row-5star-shimmer` class
+   set from GameRow when g.rating === 5. */
+.row-5star-shimmer {
+  position: relative;
+}
+.row-5star-shimmer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(from var(--gold-a, 0deg),
+    rgba(255, 204, 74, 0.0) 0deg,
+    rgba(255, 224, 128, 0.75) 40deg,
+    rgba(255, 204, 74, 0.35) 90deg,
+    rgba(255, 204, 74, 0.0) 160deg,
+    rgba(255, 204, 74, 0.0) 260deg,
+    rgba(255, 224, 128, 0.55) 320deg,
+    rgba(255, 204, 74, 0.0) 360deg);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+  animation: goldSparkSpin 5.5s linear infinite;
+  opacity: 0.85;
+}
+@property --gold-a {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes goldSparkSpin {
+  from { --gold-a: 0deg; }
+  to   { --gold-a: 360deg; }
+}
+/* Fallback for browsers without @property support: keyframes on background angle */
+@supports not (background: conic-gradient(from var(--gold-a) at 50% 50%, #000, #000)) {
+  .row-5star-shimmer::before {
+    animation: goldSparkPulse 3s ease-in-out infinite;
+  }
+  @keyframes goldSparkPulse {
+    0%, 100% { opacity: 0.4; }
+    50%      { opacity: 0.9; }
+  }
+}
+
 .particles {
   position: absolute; inset: 0; pointer-events: none;
   overflow: hidden;

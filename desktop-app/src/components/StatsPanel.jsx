@@ -79,6 +79,12 @@ export default function StatsPanel({ games = [], onClose, anchorSelector, onOpen
   const [range, setRange] = useState('all');
   const [importState, setImportState] = useState({ loading: false, error: '', count: 0, accounts: 0, at: 0 });
   const [steamPlaytime, setSteamPlaytime] = useState({}); // appid -> { playtime, lastPlayed }
+  // v1.6.4 — Per-appid playtime DELTA (minutes) over the currently-selected
+  // range window. Loaded from the local playtime-history.json via IPC. Used
+  // to power the "Most played · This week/Month/Year" ranking correctly
+  // (Steam's localconfig.vdf only stores lifetime totals, so without this
+  // the ranking is always by lifetime hours regardless of the range chip).
+  const [historyDeltas, setHistoryDeltas] = useState({});
   const dragControls = useDragControls();
 
   // On open: import Steam playtime from localconfig.vdf so ranking is accurate.
@@ -98,6 +104,20 @@ export default function StatsPanel({ games = [], onClose, anchorSelector, onOpen
     }
   }, []);
   useEffect(() => { runImport(false); }, [runImport]);
+
+  // v1.6.4 — Refetch playtime deltas whenever the range chip changes.
+  useEffect(() => {
+    if (range === 'all') { setHistoryDeltas({}); return undefined; }
+    if (typeof window === 'undefined' || !window.api?.playtimeHistory) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await window.api.playtimeHistory({ days: RANGE_META[range].days });
+        if (!cancelled && res?.ok) setHistoryDeltas(res.deltas || {});
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [range, importState.at]);
 
   // Merge Steam-imported playtime into game objects for ranking/aggregation.
   // v1.6.0 — Only merge for games with `steamOwned === true` (set at import
@@ -139,14 +159,31 @@ export default function StatsPanel({ games = [], onClose, anchorSelector, onOpen
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  // Filter games by range using their lastPlayedAt (falls back to addedAt for "all")
-  const filtered = useMemo(() => {
-    if (range === 'all') return mergedGames.slice();
+  // v1.6.4 — Range-aware "displayMinutes" per game. For "All time", that's
+  // the lifetime playtime. For week/month/year chips, it's the DELTA from
+  // playtime-history snapshots (falls back to lifetime playtime for local /
+  // non-Steam games that don't have snapshots). Also filters to games with
+  // any activity in the window.
+  const rangeGames = useMemo(() => {
+    if (range === 'all') {
+      return mergedGames.map((g) => ({ ...g, displayMinutes: Number(g.playtime || 0) }));
+    }
     const cutoff = Date.now() - RANGE_META[range].days * 86400000;
-    return mergedGames.filter((g) => Number(g.lastPlayedAt || 0) >= cutoff);
-  }, [mergedGames, range]);
+    return mergedGames
+      .map((g) => {
+        const appid = g.appid ? String(g.appid) : null;
+        const deltaMins = appid && historyDeltas[appid] ? Number(historyDeltas[appid]) : 0;
+        // Non-Steam games: no snapshot exists, but if lastPlayedAt is within
+        // the range, we can't compute a delta — show 0 rather than the full
+        // lifetime total so the ranking stays honest.
+        const inRange = Number(g.lastPlayedAt || 0) >= cutoff;
+        return { ...g, displayMinutes: deltaMins, _inRange: inRange };
+      })
+      .filter((g) => g.displayMinutes > 0 || g._inRange);
+  }, [mergedGames, range, historyDeltas]);
 
-  // Aggregate per client
+  // Aggregate per client (uses lifetime totals — "clients breakdown" is
+  // library composition, not a time-window stat).
   const clientRows = useMemo(() => {
     const m = new Map();
     for (const g of mergedGames) {
@@ -159,17 +196,20 @@ export default function StatsPanel({ games = [], onClose, anchorSelector, onOpen
     return Array.from(m.values()).sort((a, b) => b.count - a.count);
   }, [mergedGames]);
 
-  // Most played ranking (within range filter, sorted by playtime desc)
+  // Most played ranking — uses displayMinutes so the range chip actually
+  // influences the ordering.
   const ranking = useMemo(() => {
-    return filtered
-      .filter((g) => Number(g.playtime || 0) > 0)
-      .sort((a, b) => Number(b.playtime || 0) - Number(a.playtime || 0))
+    return rangeGames
+      .filter((g) => Number(g.displayMinutes || 0) > 0)
+      .sort((a, b) => Number(b.displayMinutes || 0) - Number(a.displayMinutes || 0))
       .slice(0, 15);
-  }, [filtered]);
+  }, [rangeGames]);
 
+  // "Tracked" total shown in the header — sum of the range's displayMinutes,
+  // not lifetime totals of games touched in-range.
   const totalMins = useMemo(
-    () => filtered.reduce((s, g) => s + Number(g.playtime || 0), 0),
-    [filtered]
+    () => rangeGames.reduce((s, g) => s + Number(g.displayMinutes || 0), 0),
+    [rangeGames]
   );
 
   const linkDiscord = () => {
@@ -425,8 +465,8 @@ export default function StatsPanel({ games = [], onClose, anchorSelector, onOpen
                           <span>{fmtDate(g.lastPlayedAt)}</span>
                         </div>
                       </div>
-                      <span className="font-mono text-[13px] font-bold text-[rgb(var(--accent-2))]">
-                        {fmtHours(g.playtime)}
+                      <span className="font-mono text-[13px] font-bold text-[rgb(var(--accent-2))]" title={range === 'all' ? 'Lifetime playtime' : `Playtime in the last ${RANGE_META[range].days} days`}>
+                        {fmtHours(g.displayMinutes)}
                       </span>
                     </li>
                   );})}

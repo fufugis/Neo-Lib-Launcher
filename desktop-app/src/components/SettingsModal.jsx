@@ -35,10 +35,10 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
         <div className="mb-5">
           <Section title="Theme">
           {[
-            { tone: 'special', label: 'Special (extra eye-candy)' },
-            { tone: 'dark',    label: 'Dark' },
-            { tone: 'middle',  label: 'Middle' },
             { tone: 'bright',  label: 'Bright' },
+            { tone: 'middle',  label: 'Middle' },
+            { tone: 'dark',    label: 'Dark' },
+            { tone: 'special', label: 'Special (extra eye-candy)' },
           ].map((group) => (
             <div key={group.tone} className="mb-2 last:mb-0">
               <div className="mb-1 text-[9.5px] uppercase tracking-[0.24em] text-muted/80">
@@ -269,7 +269,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
 
         <Section title="About">
           <p className="text-xs text-muted leading-relaxed">
-            NEO-LIB v1.6.3. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
+            NEO-LIB v1.6.4. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
             Library data lives in <span className="font-mono text-ink">%APPDATA%/NEO-LIB</span>.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">

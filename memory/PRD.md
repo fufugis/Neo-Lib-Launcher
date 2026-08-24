@@ -8,8 +8,26 @@ and a non-intrusive monetization system (Deals banners via Affiliate links).
 ## Architecture
 - Electron + React + Vite. Fully portable.
 - Library data: `%APPDATA%\NEO-LIB\library.json` (flat JSON).
+- Playtime history: `%APPDATA%\NEO-LIB\playtime-history.json` (daily per-appid snapshots).
 - CI: GitHub Actions builds NSIS `.exe` + portable `.zip` on tag push.
 - System tray (Electron Tray API) for close-to-tray behavior.
+
+## Version 1.6.4 — Feb 24, 2026
+**Genre hide fixed · Chromier toolbar · Column switcher in Visuals · Launcher dropdown · Vertical themes · Gold shimmer · Warp sci-fi sound · Range-aware Most Played · Webhook secured:**
+- **`Sidebar.jsx` Section → GameRow** — Forwarded `showSubcatStrip` prop that was previously dropped. The "Sub-category strip" toggle in the Visuals popover now actually hides the genre chips under game names. Third time was the charm.
+- **`Sidebar.jsx` toolbar bands** — Darkened both toolbar rows to `linear-gradient(rgb(0 0 0 / 0.38) → 0.20)` so the tab pills read as chrome, not more game rows.
+- **`App.jsx` `BgTexture`** — Removed the full-viewport `mix-blend-mode: overlay` layer. Sidebar now renders texture patterns via `BG_TEXTURE_PATTERNS` map as `background-image` inside its own body. Hero banners / preview images in the main pane stay pristine.
+- **`Sidebar.jsx` LibrarySettingsPopover** — Added Column Layout section (single / two columns). Removed the standalone Columns button from row-2 toolbar.
+- **`Sidebar.jsx` LauncherDropdown** — Replaced 6-pill launcher filter row with a single dropdown ("All launchers ▾"). Click-outside + Escape close, keyboard-nav ready. Frees ~200px of horizontal chrome.
+- **`Sidebar.jsx` "+ New" → "+ Category"** — Category-creation button relabeled for parity with "+ Add Game".
+- **`SettingsModal.jsx` theme picker order** — Reversed groups to Bright → Middle → Dark → Special (Special last as it's the "wildcard").
+- **`styles.css` `.row-5star-shimmer`** — New animated gold conic-gradient border for 5-star favourites. Uses `@property --gold-a` for smooth 360° rotation with graceful pulse fallback. Applied in `GameRow` when `g.rating === 5`.
+- **`lib/sound.js` PACK_SCIFI rebuilt** — Bandpass filter sweep replaced with a "warp punch": FM chirp descending zap on hover (carrier + square modulator, highpass @ 240Hz), ascending saw + noise burst warp-drive engage on launch. Actually audible now.
+- **`electron/main.js` playtime history** — On every `steam:importPlaytime`, snapshot each appid's lifetime playtime to `playtime-history.json` keyed by YYYY-MM-DD. Kept for 400 days.
+- **`electron/main.js` `playtime:history` IPC** — New handler returns per-appid delta minutes over the last N days. Baseline = latest snapshot ≤ (today - N days), falls back to earliest snapshot if we haven't been tracking that long.
+- **`StatsPanel.jsx`** — Uses `window.api.playtimeHistory({ days })` to compute a per-game `displayMinutes` for the ranking. "Most played · This week/Month/Year" now ranks by *hours in that window*, not lifetime totals. Header "tracked" count also range-aware.
+- **`FeedbackModal.jsx`** — Removed the hardcoded `FALLBACK_WEBHOOK` constant. `.env`-only path. `desktop-app/.env` rotated with fresh webhook URL. CI-built .exes will show "not configured" until a signed relay ships.
+- **`preload.js`** — Exposed `window.api.playtimeHistory(opts)`.
 
 ## Version 1.6.3 — Feb 23, 2026
 **Fixed: phantom Steam hours on non-Steam games · Aligned toolbar · Visible textures · Louder Special themes:**

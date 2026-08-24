@@ -129,31 +129,59 @@ const PACK_MINIMAL = {
   },
 };
 
-/* ---------- Pack: sci-fi (filter sweeps) ---------- */
+/* ---------- Pack: sci-fi (warp punch) ---------- */
+/* v1.6.4 — Replaced the barely-audible bandpass filter sweep with a punchier
+   "warp gate" sound: quick FM chirp + noise burst + short reverb tail.
+   Hover: a sharp descending zap. Launch: an ascending warp-drive engage. */
 const PACK_SCIFI = {
   hover() {
     const ac = getCtx(); if (!ac) return;
-    const o = ac.createOscillator(), g = ac.createGain();
-    o.type = 'sawtooth';
-    o.frequency.setValueAtTime(440, ac.currentTime);
-    o.frequency.exponentialRampToValueAtTime(1760, ac.currentTime + 0.07);
-    const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1200; bp.Q.value = 6;
-    o.connect(bp).connect(g);
+    // FM-ish descending zap using a modulator oscillator
+    const carrier = ac.createOscillator();
+    const mod = ac.createOscillator();
+    const modGain = ac.createGain();
+    const g = ac.createGain();
+    carrier.type = 'triangle';
+    carrier.frequency.setValueAtTime(1200, ac.currentTime);
+    carrier.frequency.exponentialRampToValueAtTime(320, ac.currentTime + 0.09);
+    mod.type = 'square';
+    mod.frequency.value = 90;
+    modGain.gain.value = 180;
+    mod.connect(modGain).connect(carrier.frequency);
+    const hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 240;
+    carrier.connect(hp).connect(g);
     connectMaster(g, ac);
-    envelope(g, ac, 0.002, 0.08, 0.06);
-    o.start(); o.stop(ac.currentTime + 0.1);
+    envelope(g, ac, 0.001, 0.10, 0.12);
+    carrier.start(); mod.start();
+    carrier.stop(ac.currentTime + 0.12); mod.stop(ac.currentTime + 0.12);
   },
   launch() {
     const ac = getCtx(); if (!ac) return;
+    // Ascending warp engage — pitched square + noise burst + slap-back tap
     const o = ac.createOscillator(), g = ac.createGain();
-    const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 800; bp.Q.value = 4;
     o.type = 'sawtooth';
-    o.frequency.setValueAtTime(110, ac.currentTime);
-    o.frequency.exponentialRampToValueAtTime(880, ac.currentTime + 0.22);
+    o.frequency.setValueAtTime(90, ac.currentTime);
+    o.frequency.exponentialRampToValueAtTime(1200, ac.currentTime + 0.28);
+    const bp = ac.createBiquadFilter(); bp.type = 'lowpass';
+    bp.frequency.setValueAtTime(600, ac.currentTime);
+    bp.frequency.exponentialRampToValueAtTime(4200, ac.currentTime + 0.28);
+    bp.Q.value = 6;
     o.connect(bp).connect(g);
     connectMaster(g, ac);
-    envelope(g, ac, 0.003, 0.3, 0.12);
-    o.start(); o.stop(ac.currentTime + 0.35);
+    envelope(g, ac, 0.005, 0.36, 0.18);
+    o.start(); o.stop(ac.currentTime + 0.4);
+    // Punchy noise burst at t=0
+    const bufSize = ac.sampleRate * 0.12;
+    const buf = ac.createBuffer(1, bufSize, ac.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i += 1) data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+    const noise = ac.createBufferSource(); noise.buffer = buf;
+    const nfilt = ac.createBiquadFilter(); nfilt.type = 'bandpass';
+    nfilt.frequency.value = 1400; nfilt.Q.value = 2.5;
+    const ng = ac.createGain(); ng.gain.value = 0.14;
+    noise.connect(nfilt).connect(ng);
+    connectMaster(ng, ac);
+    noise.start();
   },
 };
 
@@ -267,7 +295,7 @@ export const SOUND_PACKS = [
   { id: 'synthwave', label: 'Synthwave (neon sine)' },
   { id: 'arcade',    label: 'Arcade (coin chirp)' },
   { id: 'minimal',   label: 'Minimal (soft tick)' },
-  { id: 'scifi',     label: 'Sci-fi (filter sweep)' },
+  { id: 'scifi',     label: 'Sci-fi (warp punch)' },
   { id: 'crystal',   label: 'Crystal (glass ping)' },
   { id: 'cyberpunk', label: 'Cyberpunk (glitch pop)' },
   { id: 'bubble',    label: 'Bubble (soft plop)' },

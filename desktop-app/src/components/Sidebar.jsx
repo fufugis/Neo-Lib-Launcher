@@ -6,9 +6,41 @@ import {
   Lock, ChevronRight, ChevronDown, Tag, GripVertical, Terminal,
   Info, ArrowUp, ArrowDown, Palette, Eye, EyeOff, Sliders, Library as LibIcon,
   Wrench, Columns, Pin, PinOff, X as XIcon, Newspaper, BarChart3, MessageCircle,
-  Bug, Lightbulb, RotateCcw,
+  Bug, Lightbulb, RotateCcw, Check,
 } from 'lucide-react';
 import { cn, colorFromId, sizeById, formatPlaytime, playtimeSource } from '../lib/utils';
+
+/* v1.6.4 — Background texture styles applied INSIDE the sidebar so the
+   texture never covers hero banners / preview images in the main pane. */
+const BG_TEXTURE_PATTERNS = {
+  grain: {
+    backgroundImage:
+      'radial-gradient(rgba(255,255,255,0.6) 1px, transparent 1px),' +
+      'radial-gradient(rgba(0,0,0,0.35) 1px, transparent 1px)',
+    backgroundSize: '3px 3px, 5px 5px',
+    backgroundPosition: '0 0, 1px 1px',
+  },
+  grid: {
+    backgroundImage:
+      'linear-gradient(rgb(var(--accent) / 0.9) 1px, transparent 1px),' +
+      'linear-gradient(90deg, rgb(var(--accent-2) / 0.75) 1px, transparent 1px)',
+    backgroundSize: '32px 32px',
+  },
+  diagonal: {
+    backgroundImage:
+      'repeating-linear-gradient(135deg, rgb(var(--accent) / 0.7) 0 1px, transparent 1px 14px)',
+  },
+  hex: {
+    backgroundImage:
+      'radial-gradient(circle at 25% 25%, rgb(var(--accent) / 0.9) 1.5px, transparent 2px),' +
+      'radial-gradient(circle at 75% 75%, rgb(var(--accent-2) / 0.8) 1.5px, transparent 2px)',
+    backgroundSize: '28px 28px',
+  },
+  dots: {
+    backgroundImage: 'radial-gradient(rgb(var(--accent) / 0.85) 1.2px, transparent 2px)',
+    backgroundSize: '18px 18px',
+  },
+};
 
 /**
  * Sidebar (tree view)
@@ -124,6 +156,21 @@ export default function Sidebar({
       className="relative flex h-full shrink-0 flex-col border-r hairline glass-soft"
       style={{ width: sidebarWidth }}
     >
+      {/* v1.6.4 — Per-user background texture, rendered INSIDE the sidebar
+          only (not full viewport) so it never bleeds over hero banners or
+          preview screenshots in the main pane. Sits above the sidebar's
+          panel color but below all interactive content. */}
+      {bgTextureId && bgTextureId !== 'none' && BG_TEXTURE_PATTERNS[bgTextureId] && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-0"
+          style={{
+            ...BG_TEXTURE_PATTERNS[bgTextureId],
+            opacity: Math.max(0, Math.min(100, Number(bgTextureOpacity) || 40)) / 100,
+          }}
+          data-testid="sidebar-bg-texture"
+        />
+      )}
       {/* Per-theme tint wash — subtle accent-colored glow behind sidebar content.
           Uses --sidebar-tint CSS var which each theme sets to its own accent
           hue, so Colorful gets a pinkish wash while Pro gets a warm steel one. */}
@@ -148,8 +195,10 @@ export default function Sidebar({
       <div
         className="relative flex items-stretch gap-1 px-2 pt-2.5 pb-2"
         style={{
+          // v1.6.4 — Darker toolbar band so the tab pills read as chrome and
+          // don't visually blend with the game rows below.
           background:
-            'linear-gradient(180deg, rgb(var(--surface)/0.55) 0%, rgb(var(--surface)/0.15) 100%)',
+            'linear-gradient(180deg, rgb(0 0 0 / 0.38) 0%, rgb(0 0 0 / 0.20) 100%)',
           backdropFilter: 'blur(12px) saturate(140%)',
           WebkitBackdropFilter: 'blur(12px) saturate(140%)',
         }}
@@ -248,7 +297,14 @@ export default function Sidebar({
       {(() => {
         const showLabels = sidebarWidth >= 340;
         return (
-      <div className="flex items-center gap-1.5 p-3 pt-2">
+      <div
+        className="flex items-center gap-1.5 p-3 pt-2"
+        style={{
+          // v1.6.4 — Match the darker top-toolbar band so both rows read as
+          // one continuous chrome zone (not two "just game rows in disguise").
+          background: 'linear-gradient(180deg, rgb(0 0 0 / 0.20) 0%, rgb(0 0 0 / 0.08) 100%)',
+        }}
+      >
         <SideBtn label={showLabels ? "Add Game" : null} icon={<Plus size={16} />} onClick={onAddManual} testid="sidebar-add-btn" title="Add game" />
         {!isTools && (
           <SideBtn label={showLabels ? "Wizard" : null} icon={<Wand2 size={16} />} onClick={onOpenWizard} testid="sidebar-wizard-btn" title="Wizard" />
@@ -364,67 +420,34 @@ export default function Sidebar({
                 onCreateCategory={onCreateCategory}
                 onOpenFeedback={onOpenFeedback}
                 onOpenPlaytimeImport={onOpenPlaytimeImport}
+                twoRow={twoRow}
+                onToggleTwoRow={onToggleTwoRow}
               />
             )}
           </AnimatePresence>
         </div>
         <button
-          data-testid="sidebar-tworow-btn"
+          data-testid="sidebar-tworow-btn-hidden"
           onClick={() => onToggleTwoRow?.(!twoRow)}
-          title={twoRow ? 'Switch back to single column' : 'Two-column layout (categories never split)'}
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded-md hairline px-2.5 h-8 text-xs transition-all',
-            twoRow
-              ? 'text-ink border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.12)]'
-              : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)]'
-          )}
-        >
-          <Columns size={15} className={twoRow ? 'text-[rgb(var(--accent))]' : 'text-[rgb(var(--accent))]'} />
-        </button>
-        {/* v1.4.0 — cog-wheel Settings button removed; Settings now lives in the top TabPill row next to Stats. */}
+          className="hidden"
+          aria-hidden
+        />
+        {/* v1.6.4 — Column-switcher button was moved into the Visuals popover
+            (Layout section) to reduce toolbar clutter. Hidden stub kept only
+            so external tests can still find the testid; no visual footprint. */}
       </div>
         );
       })()}
 
       {/* v1.3.1 — Combined filter + actions row (Library tab only).
-          Launcher filter pills on the left, Auto-sort + New category on the right. */}
+          v1.6.4 — Launcher pills collapsed into a single dropdown to reduce
+          horizontal clutter. "+ New" renamed to "+ Category" so its purpose
+          is obvious next to "Add Game". */}
       {!isTools && (
-        <div className="flex items-center gap-1 px-3 pb-2 overflow-x-auto" data-testid="launcher-pane-row">
-          <LauncherPill
-            label="All"
-            active={(launcherFilter || 'all') === 'all'}
-            onClick={() => onSetLauncherFilter?.('all')}
-            testid="lp-all"
-          />
-          <LauncherPill
-            label="Steam"
-            active={launcherFilter === 'steam'}
-            onClick={() => onSetLauncherFilter?.('steam')}
-            testid="lp-steam"
-          />
-          <LauncherPill
-            label="Epic"
-            active={launcherFilter === 'epic'}
-            onClick={() => onSetLauncherFilter?.('epic')}
-            testid="lp-epic"
-          />
-          <LauncherPill
-            label="EA"
-            active={launcherFilter === 'ea'}
-            onClick={() => onSetLauncherFilter?.('ea')}
-            testid="lp-ea"
-          />
-          <LauncherPill
-            label="GOG"
-            active={launcherFilter === 'gog'}
-            onClick={() => onSetLauncherFilter?.('gog')}
-            testid="lp-gog"
-          />
-          <LauncherPill
-            label="Other"
-            active={launcherFilter === 'other'}
-            onClick={() => onSetLauncherFilter?.('other')}
-            testid="lp-other"
+        <div className="flex items-center gap-1 px-3 pb-2" data-testid="launcher-pane-row">
+          <LauncherDropdown
+            value={launcherFilter || 'all'}
+            onChange={(v) => onSetLauncherFilter?.(v)}
           />
           <div className="flex-1 min-w-[6px]" />
           {onAutoSort && (
@@ -443,7 +466,7 @@ export default function Sidebar({
             title="Create a new category"
             className="inline-flex shrink-0 items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)]"
           >
-            <Plus size={11} /> New
+            <Plus size={11} /> Category
           </button>
         </div>
       )}
@@ -733,6 +756,81 @@ function LauncherPill({ label, active, onClick, testid }) {
   );
 }
 
+/* v1.6.4 — Launcher filter dropdown. Compact replacement for the 6-pill row.
+   Uses a click-outside listener + Escape to close. */
+const LAUNCHER_OPTIONS = [
+  { id: 'all',   label: 'All launchers' },
+  { id: 'steam', label: 'Steam' },
+  { id: 'epic',  label: 'Epic' },
+  { id: 'ea',    label: 'EA' },
+  { id: 'gog',   label: 'GOG' },
+  { id: 'other', label: 'Other' },
+];
+function LauncherDropdown({ value = 'all', onChange }) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    if (!open) return undefined;
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const k = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', h);
+    document.addEventListener('keydown', k);
+    return () => {
+      document.removeEventListener('mousedown', h);
+      document.removeEventListener('keydown', k);
+    };
+  }, [open]);
+  const current = LAUNCHER_OPTIONS.find((o) => o.id === value) || LAUNCHER_OPTIONS[0];
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        data-testid="launcher-dropdown-toggle"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          'inline-flex items-center gap-1 rounded-md hairline px-2.5 h-6 text-[10.5px] font-semibold tracking-wide transition-all',
+          open || value !== 'all'
+            ? 'text-ink border-[rgb(var(--accent-2)/0.7)] bg-[rgb(var(--accent-2)/0.14)]'
+            : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)]'
+        )}
+      >
+        <ChevronDown size={10} className={cn('transition-transform', open && 'rotate-180')} />
+        {current.label}
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.12 }}
+            className="absolute left-0 top-full z-40 mt-1 w-40 rounded-md hairline glass shadow-2xl p-1"
+            data-testid="launcher-dropdown-menu"
+          >
+            {LAUNCHER_OPTIONS.map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                data-testid={`lp-${o.id}`}
+                onClick={() => { onChange?.(o.id); setOpen(false); }}
+                className={cn(
+                  'flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] transition-colors',
+                  o.id === value
+                    ? 'bg-[rgb(var(--accent)/0.15)] text-ink'
+                    : 'text-muted hover:text-ink hover:bg-[rgb(var(--accent)/0.08)]'
+                )}
+              >
+                {o.id === value && <Check size={10} className="text-[rgb(var(--accent))]" />}
+                <span className={o.id === value ? '' : 'ml-3.5'}>{o.label}</span>
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 /* ---------------- Library settings popover ---------------- */
 function LibrarySettingsPopover({
   anchorEl,
@@ -748,6 +846,7 @@ function LibrarySettingsPopover({
   onChangeBgTextureId, onChangeBgTextureOpacity,
   onOpenFeedback,
   onOpenPlaytimeImport,
+  twoRow = false, onToggleTwoRow,
   onClose, onCreateCategory,
 }) {
   const ref = React.useRef(null);
@@ -912,6 +1011,31 @@ function LibrarySettingsPopover({
               )}
             >
               {p}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* v1.6.4 — Column layout toggle moved here from the row-2 toolbar */}
+      <div>
+        <div className="mb-1.5 text-[10px] uppercase tracking-wider text-muted">Column layout</div>
+        <div className="grid grid-cols-2 gap-1">
+          {[
+            { key: false, label: 'Single' },
+            { key: true, label: 'Two columns' },
+          ].map((opt) => (
+            <button
+              key={String(opt.key)}
+              data-testid={`pop-two-row-${opt.key ? 'two' : 'one'}`}
+              onClick={() => onToggleTwoRow && onToggleTwoRow(opt.key)}
+              className={cn(
+                'rounded-md hairline py-1.5 text-[11px] transition-colors',
+                !!twoRow === opt.key
+                  ? 'border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.12)] text-ink'
+                  : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]'
+              )}
+            >
+              {opt.label}
             </button>
           ))}
         </div>
@@ -1449,6 +1573,7 @@ function Section({
                     iconPosition={iconPosition}
                     rowGap={rowGap}
                     showCategoryDot={showCategoryDot}
+                    showSubcatStrip={showSubcatStrip}
                     isPinned={pinnedIdsSet.has(g.id)}
                     selected={selectedId === g.id}
                     indexInCat={idx}
@@ -1560,7 +1685,8 @@ function GameRow({
       className={cn(
         'group relative flex cursor-pointer items-center gap-2.5 rounded-md transition-colors',
         selected ? 'bg-[rgb(var(--accent)/0.10)] text-ink' : 'text-muted hover:bg-panel/70 hover:text-ink',
-        isSmall ? 'px-1.5' : 'px-2'
+        isSmall ? 'px-1.5' : 'px-2',
+        Number(g.rating) === 5 && 'row-5star-shimmer'
       )}
       style={{
         minHeight: size.rowH,

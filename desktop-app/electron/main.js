@@ -35,6 +35,9 @@ const dataDir = () => app.getPath('userData');
 const libraryFile = () => path.join(dataDir(), 'library.json');
 const settingsFile = () => path.join(dataDir(), 'settings.json');
 const coversDir = () => path.join(dataDir(), 'covers');
+// v1.6.4 — Daily playtime snapshots so Stats can compute "played in the last N
+// days" (Steam's localconfig only stores lifetime totals, not deltas).
+const playtimeHistoryFile = () => path.join(dataDir(), 'playtime-history.json');
 
 async function ensureDirs() {
   await fsp.mkdir(coversDir(), { recursive: true });
@@ -2791,6 +2794,31 @@ ipcMain.handle('steam:importPlaytime', async (_e, { force = false } = {}) => {
   }
   debug.manifests = ownedFromManifests;
 
+  // v1.6.4 — Snapshot today's lifetime playtime per appid so Stats can compute
+  // "played in the last N days". One entry per appid per day; multiple imports
+  // in the same day overwrite the entry for that day. Kept for 400 days.
+  try {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const dayKey = today.toISOString().slice(0, 10); // YYYY-MM-DD
+    let history = {};
+    if (fs.existsSync(playtimeHistoryFile())) {
+      try { history = JSON.parse(fs.readFileSync(playtimeHistoryFile(), 'utf8')); } catch { history = {}; }
+    }
+    if (!history.byAppid) history.byAppid = {};
+    for (const [appid, rec] of Object.entries(merged)) {
+      if (!history.byAppid[appid]) history.byAppid[appid] = {};
+      history.byAppid[appid][dayKey] = Number(rec.playtime) || 0;
+      // Prune per-appid entries older than 400 days
+      const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 400);
+      const cutoffKey = cutoff.toISOString().slice(0, 10);
+      for (const k of Object.keys(history.byAppid[appid])) {
+        if (k < cutoffKey) delete history.byAppid[appid][k];
+      }
+    }
+    history.lastSnapshotAt = Date.now();
+    fs.writeFileSync(playtimeHistoryFile(), JSON.stringify(history));
+  } catch { /* ignore snapshot errors */ }
+
   const payload = {
     data: merged,
     ownedAppids: Array.from(ownedAppids),
@@ -2810,3 +2838,41 @@ ipcMain.handle('steam:importPlaytime', async (_e, { force = false } = {}) => {
   return { ok: true, ...payload, cached: false };
 });
 
+
+// v1.6.4 — Playtime history reader. Returns per-appid delta hours (in minutes)
+// over the last N days. Renderer uses this to power Stats "Most played · This
+// week" ranking correctly (Steam only stores lifetime totals).
+ipcMain.handle('playtime:history', async (_e, { days = 7 } = {}) => {
+  try {
+    if (!fs.existsSync(playtimeHistoryFile())) return { ok: true, deltas: {}, lastSnapshotAt: 0 };
+    const history = JSON.parse(fs.readFileSync(playtimeHistoryFile(), 'utf8')) || {};
+    const byAppid = history.byAppid || {};
+    // Find the oldest snapshot key ON OR BEFORE `days` ago per appid. Delta =
+    // latestSnapshot - baselineSnapshot. If no baseline (game not tracked
+    // that far back), report 0 so the row shows "no recent playtime" instead
+    // of hallucinating hours.
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days); cutoff.setHours(0, 0, 0, 0);
+    const cutoffKey = cutoff.toISOString().slice(0, 10);
+    const deltas = {};
+    for (const [appid, dayMap] of Object.entries(byAppid)) {
+      const keys = Object.keys(dayMap).sort(); // ascending YYYY-MM-DD
+      if (keys.length === 0) continue;
+      const latestKey = keys[keys.length - 1];
+      const latestVal = Number(dayMap[latestKey]) || 0;
+      // Baseline = latest key that is <= cutoffKey. If none (first ever
+      // record is AFTER cutoff), fall back to the earliest key we have —
+      // that's when tracking started, so delta = latest - earliest.
+      let baselineVal = null;
+      for (const k of keys) {
+        if (k <= cutoffKey) baselineVal = Number(dayMap[k]) || 0;
+        else break;
+      }
+      if (baselineVal === null) baselineVal = Number(dayMap[keys[0]]) || 0;
+      const delta = Math.max(0, latestVal - baselineVal);
+      if (delta > 0) deltas[appid] = delta;
+    }
+    return { ok: true, deltas, lastSnapshotAt: history.lastSnapshotAt || 0 };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e), deltas: {} };
+  }
+});

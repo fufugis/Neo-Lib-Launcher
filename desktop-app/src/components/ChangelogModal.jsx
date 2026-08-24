@@ -16,6 +16,23 @@ import { sendChangelogReaction } from './FeedbackModal';
 
 export const CHANGELOG = [
   {
+    version: '1.6.4',
+    title: 'Fixed: hide-genre toggle now works · Toolbar chrome darker · Column-switcher in Visuals · Launcher dropdown · Vertical theme picker · 5-star gold shimmer · Better sci-fi sound · Range-aware Most Played · Webhook secured',
+    items: [
+      '**Fixed the "hide genre strip under game names" toggle for real.** The Visuals popover was flipping the setting fine, but the prop was never actually forwarded from `Section` into `GameRow` — so nothing changed on screen. One-line fix, third time was the charm. Genre chips now hide/show instantly.',
+      '**Toolbar chrome darker** so the tab pills (Library / Tools / News / Stats / Settings / Feedback) and the row-2 buttons read as chrome instead of blending with the game rows underneath.',
+      '**Background texture no longer draws over hero banners / preview screenshots.** Moved from a full-viewport `mix-blend-mode: overlay` layer to a `background-image` INSIDE the sidebar body only. Main pane content stays pristine.',
+      '**Column-switcher moved into the Visuals popover** (Layout section). Row-2 toolbar is one button lighter as a result.',
+      '**Launcher filter is now a compact dropdown** — the six pills (All / Steam / Epic / EA / GOG / Other) collapsed into "▾ All launchers". Same functionality, way less clutter.',
+      '**"+ New" renamed to "+ Category"** so its purpose is unambiguous next to "+ Add Game".',
+      '**Theme picker restructured** to vertical layout, groups ordered Bright → Middle → Dark → Special. Special group is now the last thing you see (as it should be — it\'s the "wildcard" category).',
+      '**5-star favourites now sport a subtle animated gold shimmer border** — a slowly-rotating conic highlight that says "this is a top pick" without screaming for attention. Uses `@property --gold-a` for smooth 360° rotation; graceful fallback for older browsers.',
+      '**Sci-fi sound pack rebuilt** — the barely-audible bandpass filter sweep is gone. Replaced with a "warp punch": FM chirp descending zap on hover, ascending warp-drive engage with noise burst on launch. Now actually punches through your desk speakers.',
+      '**"Most played · This week/Month/Year" ranks correctly now.** Steam only stores lifetime totals, so we now snapshot per-appid playtime daily into `playtime-history.json` and compute deltas at render time. The header "tracked" hours also reflects the range, not a mystery number.',
+      '**🔒 Security:** Rotated the compromised Discord feedback webhook. Removed the hardcoded fallback URL from source — CI-built .exe releases now show "not configured" until a proper signed relay is set up. Local dev + hand-built releases read from `desktop-app/.env`.',
+    ],
+  },
+  {
     version: '1.6.3',
     title: 'Fixed: phantom Steam hours on non-Steam games · Toolbar aligned · Bigger themes · Textures actually visible',
     items: [

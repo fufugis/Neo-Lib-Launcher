@@ -14,12 +14,12 @@ import { Bug, Lightbulb, MessageCircle, Send, X, Check, AlertTriangle } from 'lu
  *  - feedback     → "💬 General feedback"
  *
  * The webhook URL is read from Vite's `import.meta.env.VITE_FEEDBACK_WEBHOOK_URL`.
- * If missing, falls back to the hardcoded shipped URL so the CI-built .exe
- * still works. (v1.6.1 — was returning "not configured" in CI builds because
- * .env is gitignored and CI never had it.)
+ * v1.6.4 — Removed the hardcoded fallback constant. Baking a real Discord
+ * webhook into shipped source is exactly what got the previous one abused by
+ * scanner-bots. CI-built .exes now show "not configured" until we ship a
+ * signed relay. Local dev + hand-built releases read from `desktop-app/.env`.
  */
-const FALLBACK_WEBHOOK = 'https://discord.com/api/webhooks/1541013194133217374/_cnKrRekALCFMMa5pQgnQ_eHO9HjKGy0KXUE67xt2V-mQAcvyYqUeoRRvZ3DrNirx54t';
-const WEBHOOK_URL = import.meta.env.VITE_FEEDBACK_WEBHOOK_URL || FALLBACK_WEBHOOK;
+const WEBHOOK_URL = import.meta.env.VITE_FEEDBACK_WEBHOOK_URL || '';
 
 const MODES = {
   bug: {

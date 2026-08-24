@@ -32,7 +32,7 @@ import TidyUpModal from './components/TidyUpModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.6.3';
+const APP_VERSION = '1.6.4';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin, formatPlaytime } from './lib/utils';
 import { setSoundPack } from './lib/sound';
@@ -1341,8 +1341,8 @@ export default function App() {
       {/* Window edge glow — soft inner halo around the frameless window (Riot/Discord style) */}
       <div className="window-edge-glow" aria-hidden="true" />
       <BgAmbience theme={settings.theme} settings={settings} game={selected} />
-      {/* v1.4.0 — global background texture layer (behind everything except BgAmbience) */}
-      <BgTexture textureId={settings.bgTextureId || 'none'} opacity={Number.isFinite(settings.bgTextureOpacity) ? settings.bgTextureOpacity : 40} />
+      {/* v1.6.4 — BgTexture no longer renders as full-viewport overlay.
+          Sidebar renders the texture inside its own body via bgTextureStyle. */}
       <TitleBar
         search={search}
         setSearch={setSearch}
@@ -2062,60 +2062,46 @@ function Particles({ count = 10 }) {
 }
 
 
-/* ---------- Background texture layer (v1.4.0, revised v1.6.3) ----------
-   Full-viewport overlay that sits between the ambient backdrop and content.
-   Gives the "library" a subtle pattern instead of a plain wash.
-   Never intercepts pointer events. Opacity controlled by user (0-100).
-   v1.6.3 — Pattern now paints on TOP of the frosted sidebar/main so it's
-   actually visible instead of being buried under `bg-surface` + `glass-soft`.
-   Uses `mix-blend-mode: overlay` so it reads as a texture over whatever
-   theme surface is behind it (light or dark). */
-function BgTexture({ textureId = 'none', opacity = 40 }) {
-  if (!textureId || textureId === 'none' || opacity <= 0) return null;
-  const patterns = {
-    grain: {
-      backgroundImage:
-        'radial-gradient(rgba(255,255,255,0.55) 1px, transparent 1px),' +
-        'radial-gradient(rgba(0,0,0,0.35) 1px, transparent 1px)',
-      backgroundSize: '3px 3px, 5px 5px',
-      backgroundPosition: '0 0, 1px 1px',
-    },
-    grid: {
-      backgroundImage:
-        'linear-gradient(rgb(var(--accent) / 0.85) 1px, transparent 1px),' +
-        'linear-gradient(90deg, rgb(var(--accent-2) / 0.75) 1px, transparent 1px)',
-      backgroundSize: '32px 32px',
-    },
-    diagonal: {
-      backgroundImage:
-        'repeating-linear-gradient(135deg, rgb(var(--accent) / 0.7) 0 1px, transparent 1px 14px)',
-    },
-    hex: {
-      backgroundImage:
-        'radial-gradient(circle at 25% 25%, rgb(var(--accent) / 0.9) 1.5px, transparent 2px),' +
-        'radial-gradient(circle at 75% 75%, rgb(var(--accent-2) / 0.8) 1.5px, transparent 2px)',
-      backgroundSize: '28px 28px',
-    },
-    dots: {
-      backgroundImage: 'radial-gradient(rgb(var(--accent) / 0.85) 1.2px, transparent 2px)',
-      backgroundSize: '18px 18px',
-    },
-  };
-  const style = patterns[textureId] || {};
-  return (
-    <div
-      aria-hidden
-      className="pointer-events-none fixed inset-0"
-      style={{
-        ...style,
-        opacity: Math.max(0, Math.min(100, opacity)) / 100,
-        // z:50 puts the texture ABOVE the frosted sidebar (z:10) and main
-        // (z:10) but BELOW every popover / modal (z:80+). Pointer-events
-        // are disabled so it never eats clicks.
-        zIndex: 50,
-        mixBlendMode: 'overlay',
-      }}
-      data-testid="bg-texture-layer"
-    />
-  );
+/* ---------- Background texture layer (v1.4.0, revised v1.6.4) ----------
+   v1.6.4 — Moved OUT of the fixed viewport overlay. The full-window mix-blend
+   overlay was muddying hero banners and preview screenshots on the right pane.
+   Now rendered as a `background-image` layer INSIDE the sidebar only, where
+   the user actually wanted the "not blank" look. Hero/preview area stays
+   pristine. Exposed as a helper hook that returns inline style — Sidebar
+   picks it up and applies it to its own background. */
+export function useBgTextureStyle(textureId = 'none', opacity = 40) {
+  return React.useMemo(() => {
+    if (!textureId || textureId === 'none' || opacity <= 0) return null;
+    const patterns = {
+      grain: {
+        backgroundImage:
+          'radial-gradient(rgba(255,255,255,0.6) 1px, transparent 1px),' +
+          'radial-gradient(rgba(0,0,0,0.35) 1px, transparent 1px)',
+        backgroundSize: '3px 3px, 5px 5px',
+        backgroundPosition: '0 0, 1px 1px',
+      },
+      grid: {
+        backgroundImage:
+          'linear-gradient(rgb(var(--accent) / 0.9) 1px, transparent 1px),' +
+          'linear-gradient(90deg, rgb(var(--accent-2) / 0.75) 1px, transparent 1px)',
+        backgroundSize: '32px 32px',
+      },
+      diagonal: {
+        backgroundImage:
+          'repeating-linear-gradient(135deg, rgb(var(--accent) / 0.7) 0 1px, transparent 1px 14px)',
+      },
+      hex: {
+        backgroundImage:
+          'radial-gradient(circle at 25% 25%, rgb(var(--accent) / 0.9) 1.5px, transparent 2px),' +
+          'radial-gradient(circle at 75% 75%, rgb(var(--accent-2) / 0.8) 1.5px, transparent 2px)',
+        backgroundSize: '28px 28px',
+      },
+      dots: {
+        backgroundImage: 'radial-gradient(rgb(var(--accent) / 0.85) 1.2px, transparent 2px)',
+        backgroundSize: '18px 18px',
+      },
+    };
+    return { ...patterns[textureId], opacity: Math.max(0, Math.min(100, opacity)) / 100 };
+  }, [textureId, opacity]);
 }
+function BgTexture() { return null; /* deprecated in v1.6.4 — see useBgTextureStyle */ }

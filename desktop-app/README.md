@@ -4,9 +4,22 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.6.3-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.6.4-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.6.3 (Fixed: phantom hours on non-Steam games · Aligned toolbar · Textures visible · Louder Special themes)
+### Latest — v1.6.4 (Genre hide fixed · Chromier toolbar · Column switcher in Visuals · Launcher dropdown · Vertical themes · Gold shimmer · New sci-fi sound · Range-aware Most Played · Webhook secured)
+- **🔴 Fixed** the "hide genre strip" toggle for real — prop was never forwarded from `Section` to `GameRow`. One-line fix, third time was the charm.
+- **Toolbar chrome darker** so tab pills read as chrome, not game rows.
+- **Background textures** no longer overlay hero banners / preview screenshots — moved inside the sidebar body only.
+- **Column layout switcher** moved from row-2 toolbar into the Visuals popover.
+- **Launcher filter → dropdown** ("▾ All launchers"). Six pills collapsed to one compact control.
+- **"+ New" → "+ Category"** for clarity.
+- **Theme picker vertical**, groups ordered Bright → Middle → Dark → Special.
+- **5-star favourites** get a subtle animated gold "electric" shimmer border.
+- **Sci-fi sound pack rebuilt** as a "warp punch" (FM zap + noise burst). Actually audible now.
+- **Most played · This week / Month / Year** ranks correctly — daily playtime snapshots power range deltas.
+- **🔒 Rotated the leaked feedback webhook** + removed the hardcoded fallback URL from source.
+
+### v1.6.3 (Fixed: phantom hours on non-Steam games · Aligned toolbar · Textures visible · Louder Special themes)
 - **🔴 Fixed** Hellclock / Solarpunk (and any other non-Steam game) getting 500+ phantom hours after a Steam import. localconfig.vdf is no longer treated as ownership — only sharedconfig + installed manifests count. Apply now double-checks ownership even under "Select all".
 - **Fixed** background textures were invisible over the library pane. Texture layer now paints on top of the frosted panels via `mix-blend-mode: overlay`. Opacity slider bumped to 0–100%.
 - **Toolbar alignment** — Feedback pill matches the Library / Tools / News / Stats / Settings row height. Tab & sidebar icons enlarged ~20%.

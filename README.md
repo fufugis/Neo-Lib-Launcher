@@ -2,7 +2,7 @@
 
 > A synthwave-flavored, **fully portable Windows game library** that unifies every game on your PC — Steam, Epic, EA App, GOG, standalone — into one neon-lit interface. No accounts. No cloud. No telemetry.
 
-![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.6.3-8a4fff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.6.4-8a4fff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
 ---
 
@@ -55,7 +55,20 @@ Library + settings live at `%APPDATA%\NEO-LIB\`. Delete that folder to factory-r
 
 ## 📜 Patch notes
 
-### v1.6.3 — Fixed: phantom hours on non-Steam games · Aligned toolbar · Textures visible · Louder Special themes *(current)*
+### v1.6.4 — Genre hide fixed · Chromier toolbar · Column switcher in Visuals · Launcher dropdown · Vertical themes · Gold shimmer · Warp sci-fi sound · Range-aware Most Played · Webhook secured *(current)*
+- **🔴 Fixed:** the "hide genre strip under game names" toggle now actually hides the chips (prop wasn't being forwarded from `Section` to `GameRow`).
+- **Toolbar chrome darker** so tab pills and the row-2 toolbar read as chrome instead of blending with game rows.
+- **Background textures** no longer overlay hero banners / preview screenshots — moved inside the sidebar body only.
+- **Column layout switcher** moved from row-2 toolbar into the Visuals popover (Layout section).
+- **Launcher filter → compact dropdown** ("▾ All launchers"). Six pills collapsed to one control.
+- **Renamed "+ New" → "+ Category"** for clarity.
+- **Theme picker restructured** to vertical layout, groups ordered Bright → Middle → Dark → Special.
+- **5-star favourites** get a subtle animated gold "electric" shimmer border.
+- **Sci-fi sound pack rebuilt** as a "warp punch" (FM zap + noise burst on launch).
+- **"Most played · This week/Month/Year"** ranks correctly — daily playtime snapshots stored in `playtime-history.json` power range deltas.
+- **🔒 Rotated leaked feedback webhook** and removed the hardcoded fallback URL from source. CI-built .exe releases will show "not configured" for feedback until a signed relay is set up.
+
+### v1.6.3 — Fixed: phantom hours on non-Steam games · Aligned toolbar · Textures visible · Louder Special themes
 - **🔴 Fixed:** Hellclock / Solarpunk (and other non-Steam games) getting 500+ phantom hours after a Steam import. localconfig.vdf is no longer treated as an ownership signal — only sharedconfig.vdf and installed appmanifest_*.acf count. Apply now double-checks ownership even when the user hits "Select all".
 - **Fixed:** background textures were invisible behind the frosted library. Texture layer now paints on top via `mix-blend-mode: overlay`. Opacity slider bumped to 0–100%.
 - **Toolbar alignment** — Feedback pill matches the Library/Tools/News/Stats/Settings row height. Tab & sidebar icons enlarged ~20%.
