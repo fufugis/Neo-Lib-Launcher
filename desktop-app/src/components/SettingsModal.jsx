@@ -34,62 +34,67 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
       <div className="p-5">
         <div className="mb-5">
           <Section title="Theme">
+          {/* v1.6.5 — actually vertical this time. Categories are columns,
+              left → right: Bright · Middle · Dark · Special. Themes stack
+              vertically inside their column instead of wrapping horizontally. */}
+          <div className="grid grid-cols-4 gap-2" data-testid="theme-picker-columns">
           {[
             { tone: 'bright',  label: 'Bright' },
-            { tone: 'middle',  label: 'Middle' },
+            { tone: 'middle',  label: 'Mid' },
             { tone: 'dark',    label: 'Dark' },
-            { tone: 'special', label: 'Special (extra eye-candy)' },
+            { tone: 'special', label: 'Special' },
           ].map((group) => (
-            <div key={group.tone} className="mb-2 last:mb-0">
-              <div className="mb-1 text-[9.5px] uppercase tracking-[0.24em] text-muted/80">
+            <div key={group.tone} className="flex flex-col gap-1.5">
+              <div className="mb-0.5 text-center text-[9.5px] uppercase tracking-[0.24em] text-muted/80">
                 {group.label}
               </div>
-              <div className="grid grid-cols-4 gap-1.5 lg:grid-cols-5">
-                {THEMES.filter((t) => t.tone === group.tone).map((t) => {
-                  const active = settings.theme === t.id;
-                  return (
-                    <motion.button
-                      key={t.id}
-                      data-testid={`theme-${t.id}`}
-                      whileHover={{ y: -1, scale: 1.04 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setKey({ theme: t.id })}
-                      title={t.label}
-                      className={
-                        'group relative flex flex-col items-center gap-1 rounded-md hairline px-1.5 py-1.5 text-center transition-all ' +
-                        (active
-                          ? 'border-[rgb(var(--accent)/0.85)] bg-[rgb(var(--accent)/0.12)]'
-                          : 'hover:border-[rgb(var(--accent)/0.4)]')
-                      }
-                    >
-                      <span
-                        className="h-7 w-full rounded-sm border border-white/10"
-                        style={{
-                          background: t.gradient || t.swatch,
-                          boxShadow: active
-                            ? `0 0 8px ${t.swatch}88, inset 0 0 4px rgba(255,255,255,0.15)`
-                            : `0 0 2px ${t.swatch}33`,
-                        }}
-                      />
-                      <div className="w-full truncate text-[11.5px] font-semibold leading-tight opacity-95">
-                        {t.label}
-                      </div>
-                      {active && (
-                        <motion.span
-                          layoutId="theme-check"
-                          className="absolute -right-0.5 -top-0.5 grid h-3.5 w-3.5 place-items-center rounded-full bg-[rgb(var(--accent))] text-[rgb(var(--surface))]"
-                        >
-                          <Check size={8} strokeWidth={4} />
-                        </motion.span>
-                      )}
-                    </motion.button>
-                  );
-                })}
-              </div>
+              {THEMES.filter((t) => t.tone === group.tone).map((t) => {
+                const active = settings.theme === t.id;
+                return (
+                  <motion.button
+                    key={t.id}
+                    data-testid={`theme-${t.id}`}
+                    whileHover={{ y: -1, scale: 1.03 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setKey({ theme: t.id })}
+                    title={t.label}
+                    className={
+                      'group relative flex w-full flex-col items-center gap-1 rounded-md hairline px-1.5 py-1.5 text-center transition-all ' +
+                      (active
+                        ? 'border-[rgb(var(--accent)/0.85)] bg-[rgb(var(--accent)/0.12)]'
+                        : 'hover:border-[rgb(var(--accent)/0.4)]')
+                    }
+                  >
+                    {/* Swatch ~20% shorter than before (28px → 22px); text size untouched. */}
+                    <span
+                      className="h-[22px] w-full rounded-sm border border-white/10"
+                      style={{
+                        background: t.gradient || t.swatch,
+                        boxShadow: active
+                          ? `0 0 8px ${t.swatch}88, inset 0 0 4px rgba(255,255,255,0.15)`
+                          : `0 0 2px ${t.swatch}33`,
+                      }}
+                    />
+                    <div className="w-full truncate text-[11.5px] font-semibold leading-tight opacity-95">
+                      {t.label}
+                    </div>
+                    {active && (
+                      <motion.span
+                        layoutId="theme-check"
+                        className="absolute -right-0.5 -top-0.5 grid h-3.5 w-3.5 place-items-center rounded-full bg-[rgb(var(--accent))] text-[rgb(var(--surface))]"
+                      >
+                        <Check size={8} strokeWidth={4} />
+                      </motion.span>
+                    )}
+                  </motion.button>
+                );
+              })}
             </div>
           ))}
+          </div>
         </Section>
         </div>
+
 
         {/* All other sections tile into a 2-column grid via CSS columns so
             each Section stays intact and never breaks across columns. */}
@@ -269,7 +274,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
 
         <Section title="About">
           <p className="text-xs text-muted leading-relaxed">
-            NEO-LIB v1.6.4. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
+            NEO-LIB v1.6.5. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
             Library data lives in <span className="font-mono text-ink">%APPDATA%/NEO-LIB</span>.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">

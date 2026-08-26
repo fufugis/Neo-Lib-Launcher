@@ -16,6 +16,18 @@ import { sendChangelogReaction } from './FeedbackModal';
 
 export const CHANGELOG = [
   {
+    version: '1.6.5',
+    title: 'Webhook re-rotated · News is English-only · Gold ring & category glow scale with text size · 3 new textures · ACTUALLY vertical theme picker',
+    items: [
+      '**🔒 Webhook rotated again.** The Discord channel was getting spammed a second time — old channel deleted, brand-new webhook wired in via `.env` only. Never hardcoded.',
+      '**News feed is English-only now.** Steam\'s `GetNewsForApp` has no working language filter, so publishers\' non-English translations of the same announcement (e.g. a Russian Witcher 3 post) were slipping through. Items whose title/snippet are dominated by a non-Latin script (Cyrillic, CJK, Arabic, Hebrew, Thai, etc.) are now filtered out before they reach the panel.',
+      '**Gold 5-star ring now scales with your name text size.** It used to be a fixed inset:0 ring sized to the whole row, so at very small text it visually bled into the row above/below. It now shrinks inward as `nameTextSize` drops below its baseline.',
+      '**Category glow does the same trick.** The halo/bloom behind category names was fixed-px regardless of the "Category text size" slider — now every glow dimension (and the color dot\'s glow) scales with it, so small text no longer washes into neighbouring categories.',
+      '**3 new background textures**: Scanlines, Circuit, Chevron — alongside Grain / Grid / Diagonal / Hex / Dots.',
+      '**The vertical theme picker, for real this time.** v1.6.4\'s changelog claimed this landed — it didn\'t; the code still rendered a horizontal wrapping grid. Now it\'s genuinely 4 columns left → right (Bright · Mid · Dark · Special), themes stacked vertically inside each column. Swatches are ~20% shorter; label text size unchanged.',
+    ],
+  },
+  {
     version: '1.6.4',
     title: 'Fixed: hide-genre toggle now works · Toolbar chrome darker · Column-switcher in Visuals · Launcher dropdown · Vertical theme picker · 5-star gold shimmer · Better sci-fi sound · Range-aware Most Played · Webhook secured',
     items: [

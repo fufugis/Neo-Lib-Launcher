@@ -2232,6 +2232,21 @@ ipcMain.handle('deals:fetch', async () => {
 // items posted in the last N days (default 14), and return a flat feed
 // sorted newest-first. Each item includes feedname/feed_type/feedlabel so
 // the UI can group / filter by source (official vs community vs 3rd party).
+//
+// v1.6.5 — GetNewsForApp has no working language filter (Valve confirmed the
+// `l=` param is ignored). Publishers routinely post the SAME announcement as
+// several separate feed items, one per language. We drop any item whose
+// title/snippet is dominated by a non-Latin script so the News panel stays
+// English-only without needing a translation service.
+function isLikelyEnglishNews(title, snippet) {
+  const text = `${title || ''} ${snippet || ''}`;
+  if (!text.trim()) return true;
+  const nonLatin = text.match(
+    /[\u0400-\u04FF\u0370-\u03FF\u0590-\u05FF\u0600-\u06FF\u0900-\u097F\u0E00-\u0E7F\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uAC00-\uD7A3]/g
+  );
+  return !nonLatin || nonLatin.length < 3;
+}
+
 let STEAM_NEWS_CACHE = { ts: 0, keyHash: '', items: [] };
 ipcMain.handle('news:fetchSteam', async (_e, { games = [], days = 14, force = false } = {}) => {
   const list = (games || [])
@@ -2270,6 +2285,7 @@ ipcMain.handle('news:fetchSteam', async (_e, { games = [], days = 14, force = fa
               .replace(/\s+/g, ' ')
               .trim()
               .slice(0, 320);
+            if (!isLikelyEnglishNews(it.title, snippet)) continue;
             out.push({
               id: `${g.appid}-${it.gid}`,
               platform: 'steam',
@@ -2491,6 +2507,7 @@ ipcMain.handle('news:fetchAll', async (_e, { games = [], days = 14, force = fals
             .replace(/\s+/g, ' ')
             .trim()
             .slice(0, 320);
+          if (!isLikelyEnglishNews(it.title, snippet)) continue;
           out.push({
             id: `steam-${g.appid}-${it.gid}`,
             platform: 'steam',
@@ -2571,6 +2588,7 @@ ipcMain.handle('news:latestForGame', async (_e, game) => {
           .replace(/\s+/g, ' ')
           .trim()
           .slice(0, 280);
+        if (!isLikelyEnglishNews(it.title, snippet)) continue;
         results.push({
           platform: 'steam',
           title: it.title,

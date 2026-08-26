@@ -885,9 +885,12 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
 .row-5star-shimmer::before {
   content: '';
   position: absolute;
-  inset: 0;
+  /* v1.6.5 — inset/padding scale with --ring-scale (set from nameTextSize in
+     GameRow) so tiny text gets a smaller, tighter ring instead of a fixed
+     full-row border that bleeds into neighbouring rows. */
+  inset: calc((1 - min(var(--ring-scale, 1), 1)) * 4px);
   border-radius: inherit;
-  padding: 1px;
+  padding: max(1px, calc(1px * var(--ring-scale, 1)));
   background: conic-gradient(from var(--gold-a, 0deg),
     rgba(255, 204, 74, 0.0) 0deg,
     rgba(255, 224, 128, 0.75) 40deg,

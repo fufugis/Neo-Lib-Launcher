@@ -40,6 +40,23 @@ const BG_TEXTURE_PATTERNS = {
     backgroundImage: 'radial-gradient(rgb(var(--accent) / 0.85) 1.2px, transparent 2px)',
     backgroundSize: '18px 18px',
   },
+  scanlines: {
+    backgroundImage:
+      'repeating-linear-gradient(0deg, rgb(var(--accent) / 0.85) 0 1px, transparent 1px 6px)',
+  },
+  circuit: {
+    backgroundImage:
+      'linear-gradient(rgb(var(--accent) / 0.7) 1px, transparent 1px),' +
+      'linear-gradient(90deg, rgb(var(--accent) / 0.7) 1px, transparent 1px),' +
+      'radial-gradient(rgb(var(--accent-2) / 0.9) 1.5px, transparent 2.5px)',
+    backgroundSize: '24px 24px, 24px 24px, 24px 24px',
+    backgroundPosition: '0 0, 0 0, 12px 12px',
+  },
+  chevron: {
+    backgroundImage:
+      'repeating-linear-gradient(45deg, rgb(var(--accent) / 0.8) 0 2px, transparent 2px 12px),' +
+      'repeating-linear-gradient(-45deg, rgb(var(--accent-2) / 0.7) 0 2px, transparent 2px 12px)',
+  },
 };
 
 /**
@@ -1198,6 +1215,9 @@ export const BG_TEXTURES = [
   { id: 'diagonal', label: 'Diagonal' },
   { id: 'hex',      label: 'Hex' },
   { id: 'dots',     label: 'Dots' },
+  { id: 'scanlines', label: 'Scanlines' },
+  { id: 'circuit',   label: 'Circuit' },
+  { id: 'chevron',   label: 'Chevron' },
 ];
 function BgTexturePicker({ textureId = 'none', opacity = 12, onChange, onChangeOpacity }) {
   return (
@@ -1294,6 +1314,26 @@ function bgTexturePreview(id) {
           'radial-gradient(rgb(var(--accent)/0.4) 1px, transparent 2px)',
         backgroundSize: '8px 8px',
       };
+    case 'scanlines':
+      return {
+        backgroundImage:
+          'repeating-linear-gradient(0deg, rgb(var(--accent)/0.5) 0 1px, transparent 1px 4px)',
+      };
+    case 'circuit':
+      return {
+        backgroundImage:
+          'linear-gradient(rgb(var(--accent)/0.4) 1px, transparent 1px),' +
+          'linear-gradient(90deg, rgb(var(--accent)/0.4) 1px, transparent 1px),' +
+          'radial-gradient(rgb(var(--accent-2)/0.55) 1.2px, transparent 2px)',
+        backgroundSize: '10px 10px, 10px 10px, 10px 10px',
+        backgroundPosition: '0 0, 0 0, 5px 5px',
+      };
+    case 'chevron':
+      return {
+        backgroundImage:
+          'repeating-linear-gradient(45deg, rgb(var(--accent)/0.4) 0 1px, transparent 1px 6px),' +
+          'repeating-linear-gradient(-45deg, rgb(var(--accent-2)/0.35) 0 1px, transparent 1px 6px)',
+      };
     default:
       return {};
   }
@@ -1355,6 +1395,10 @@ function Section({
   const isUncat = section.id === '__uncat__';
   const c = section.category;
   const color = colorFromId(c.colorId);
+  // v1.6.5 — glow/halo sizes used to be fixed px regardless of catTextSize,
+  // so a small text size + tight category gap let the bloom bleed into the
+  // section above/below. Scale every glow dimension off the same slider.
+  const catScale = Math.max(0.55, Math.min(1.3, (catTextSize || 11) / 11));
   const [hover, setHover] = React.useState(false);
   const sectionRef = React.useRef(null);
 
@@ -1471,7 +1515,7 @@ function Section({
               width: Math.round(catTextSize * 0.95),
               height: Math.round(catTextSize * 0.95),
               background: color,
-              boxShadow: `0 0 ${Math.round(4 + catGlow * 0.18)}px ${color}, 0 0 ${Math.round(catGlow * 0.35)}px ${color}80`,
+              boxShadow: `0 0 ${Math.round((4 + catGlow * 0.18) * catScale)}px ${color}, 0 0 ${Math.round(catGlow * 0.35 * catScale)}px ${color}80`,
               color, // for filter:drop-shadow on hover
             }}
           />
@@ -1493,9 +1537,9 @@ function Section({
             // smooth instead of "3 levels". Layered halos: inner (crisp core),
             // outer (soft bloom), punch (far diffuse), plus a super-bright
             // core kick that only engages above ~120% for extra pop.
-            const inner   = (3 + g * 8).toFixed(1);     // 3..27 px
-            const outer   = (10 + g * 22).toFixed(1);   // 10..76 px
-            const punch   = (12 + g * 26).toFixed(1);   // 12..90 px
+            const inner   = ((3 + g * 8) * catScale).toFixed(1);     // scales down at small catTextSize
+            const outer   = ((10 + g * 22) * catScale).toFixed(1);
+            const punch   = ((12 + g * 26) * catScale).toFixed(1);
             const coreG   = Math.max(0, g - 1.2);       // 0..1.8 kick at high glow
             const shadows = [
               `0 0 ${inner}px ${color}`,
@@ -1503,13 +1547,13 @@ function Section({
               `0 0 ${punch}px ${color}80`,
             ];
             if (coreG > 0) {
-              shadows.unshift(`0 0 ${(2 + coreG * 6).toFixed(1)}px #ffffff`);
-              shadows.push(`0 0 ${(20 + coreG * 30).toFixed(1)}px ${color}`);
+              shadows.unshift(`0 0 ${((2 + coreG * 6) * catScale).toFixed(1)}px #ffffff`);
+              shadows.push(`0 0 ${((20 + coreG * 30) * catScale).toFixed(1)}px ${color}`);
             }
             return {
               fontSize: base,
               textShadow: shadows.join(', '),
-              filter: g > 1.5 ? `drop-shadow(0 0 ${(g * 6).toFixed(1)}px ${color}) brightness(${(1 + coreG * 0.15).toFixed(2)})` : undefined,
+              filter: g > 1.5 ? `drop-shadow(0 0 ${(g * 6 * catScale).toFixed(1)}px ${color}) brightness(${(1 + coreG * 0.15).toFixed(2)})` : undefined,
               letterSpacing: '0.2em',
             };
           })()}
@@ -1634,6 +1678,11 @@ function GameRow({
 
   const isSmall = size.id === 'small';
   const isBig = size.id === 'big';
+  // v1.6.5 — the gold ring used to be a fixed inset:0 regardless of text
+  // size, so at very small nameTextSize the ring (sized to the full row box)
+  // visually overlapped the row above/below. Scale the ring inward as the
+  // font shrinks below the ~14px baseline.
+  const ringScale = Math.max(0.45, Math.min(1.15, (size?.font || 13) / 14));
 
   return (
     <motion.div
@@ -1691,6 +1740,7 @@ function GameRow({
       style={{
         minHeight: size.rowH,
         marginBottom: rowGap,
+        '--ring-scale': ringScale,
         // Compress vertical padding aggressively when gap is small or negative
         paddingTop: Math.max(0, 6 + Math.min(0, rowGap) + (isBig ? 2 : 0)),
         paddingBottom: Math.max(0, 6 + Math.min(0, rowGap) + (isBig ? 2 : 0)),
