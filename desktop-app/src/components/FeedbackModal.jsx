@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Bug, Lightbulb, MessageCircle, Send, X, Check, AlertTriangle } from 'lucide-react';
 
 /**
- * FeedbackModal — one modal, three modes. Posts to a Discord webhook.
+ * FeedbackModal — one modal, three modes. Posts to a Discord webhook via a
+ * signed Cloudflare Worker relay (see `cloudflare-relay/`).
  *
  * v1.5.0.
  *
@@ -13,13 +14,59 @@ import { Bug, Lightbulb, MessageCircle, Send, X, Check, AlertTriangle } from 'lu
  *  - suggestion   → "💡 Feature suggestion"
  *  - feedback     → "💬 General feedback"
  *
- * The webhook URL is read from Vite's `import.meta.env.VITE_FEEDBACK_WEBHOOK_URL`.
- * v1.6.4 — Removed the hardcoded fallback constant. Baking a real Discord
- * webhook into shipped source is exactly what got the previous one abused by
- * scanner-bots. CI-built .exes now show "not configured" until we ship a
- * signed relay. Local dev + hand-built releases read from `desktop-app/.env`.
+ * v1.6.4 — Removed the hardcoded fallback webhook constant; source never
+ * holds a live Discord webhook again.
+ * v1.6.6 — The .exe never gets a webhook at all now, even via .env: it POSTs
+ * to a Cloudflare Worker relay (`VITE_FEEDBACK_RELAY_URL` + HMAC-signed with
+ * `VITE_FEEDBACK_RELAY_KEY`) that holds the real webhook as a Worker secret.
+ * `VITE_FEEDBACK_WEBHOOK_URL` is kept ONLY as a local-dev convenience path
+ * (direct POST, no relay) when the relay env vars aren't set.
  */
+const RELAY_URL = import.meta.env.VITE_FEEDBACK_RELAY_URL || '';
+const RELAY_KEY = import.meta.env.VITE_FEEDBACK_RELAY_KEY || '';
 const WEBHOOK_URL = import.meta.env.VITE_FEEDBACK_WEBHOOK_URL || '';
+const RELAY_CONFIGURED = !!(RELAY_URL && RELAY_KEY);
+
+/** HMAC-SHA256 sign `${timestamp}.${rawBody}` with the shared relay key. */
+async function signRelayBody(rawBody) {
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw', enc.encode(RELAY_KEY), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(`${timestamp}.${rawBody}`));
+  const hex = [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return { timestamp, signature: hex };
+}
+
+/** Sends a Discord-embed-shaped payload via the relay (preferred) or direct webhook (dev fallback). */
+async function postFeedbackPayload(payload) {
+  const rawBody = JSON.stringify(payload);
+  if (RELAY_CONFIGURED) {
+    const { timestamp, signature } = await signRelayBody(rawBody);
+    const res = await fetch(RELAY_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Relay-Timestamp': timestamp,
+        'X-Relay-Signature': signature,
+      },
+      body: rawBody,
+    });
+    if (!res.ok && res.status !== 204) throw new Error(`Relay ${res.status}`);
+    return true;
+  }
+  if (WEBHOOK_URL) {
+    const res = await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: rawBody,
+    });
+    if (!res.ok && res.status !== 204) throw new Error(`Discord ${res.status}`);
+    return true;
+  }
+  throw new Error('Feedback endpoint not configured');
+}
 
 const MODES = {
   bug: {
@@ -70,7 +117,7 @@ export default function FeedbackModal({ open, initialMode = 'feedback', appVersi
 
   if (!open) return null;
   const cfg = MODES[mode] || MODES.feedback;
-  const disabled = !WEBHOOK_URL || status === 'sending' || text.trim().length < 3;
+  const disabled = !FEEDBACK_ENABLED || status === 'sending' || text.trim().length < 3;
 
   const submit = async () => {
     if (disabled) return;
@@ -96,12 +143,7 @@ export default function FeedbackModal({ open, initialMode = 'feedback', appVersi
           },
         ],
       };
-      const res = await fetch(WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok && res.status !== 204) throw new Error(`Discord ${res.status}`);
+      await postFeedbackPayload(payload);
       setStatus('ok');
       setTimeout(() => { onClose?.(); }, 1200);
     } catch (e) {
@@ -182,15 +224,16 @@ export default function FeedbackModal({ open, initialMode = 'feedback', appVersi
 
           {/* Body */}
           <div className="px-5 py-4 space-y-3">
-            {!WEBHOOK_URL && (
+            {!FEEDBACK_ENABLED && (
               <div
                 className="flex items-start gap-2 rounded-md border px-3 py-2 text-[11.5px]"
                 style={{ background: 'rgba(255,90,110,0.12)', borderColor: 'rgba(255,90,110,0.4)' }}
               >
                 <AlertTriangle size={14} className="mt-0.5 text-[#ff5a6e]" />
                 <span className="text-ink/90">
-                  Feedback endpoint not configured. Set <code className="text-[rgb(var(--accent))]">VITE_FEEDBACK_WEBHOOK_URL</code> in
-                  {' '}<code className="text-[rgb(var(--accent))]">desktop-app/.env</code> and rebuild.
+                  Feedback endpoint not configured. Set <code className="text-[rgb(var(--accent))]">VITE_FEEDBACK_RELAY_URL</code> +
+                  {' '}<code className="text-[rgb(var(--accent))]">VITE_FEEDBACK_RELAY_KEY</code> (see <code className="text-[rgb(var(--accent))]">cloudflare-relay/README.md</code>)
+                  {' '}in <code className="text-[rgb(var(--accent))]">desktop-app/.env</code> and rebuild.
                 </span>
               </div>
             )}
@@ -277,7 +320,7 @@ export default function FeedbackModal({ open, initialMode = 'feedback', appVersi
  * Emoji is one of 😍 / 😐 / 😕. Returns true if sent.
  */
 export async function sendChangelogReaction({ version, reaction, theme, note }) {
-  if (!WEBHOOK_URL) return false;
+  if (!FEEDBACK_ENABLED) return false;
   try {
     const payload = {
       username: 'NEO-LIB in-app',
@@ -295,12 +338,8 @@ export async function sendChangelogReaction({ version, reaction, theme, note }) 
         },
       ],
     };
-    const res = await fetch(WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    return res.ok || res.status === 204;
+    await postFeedbackPayload(payload);
+    return true;
   } catch { return false; }
 }
 
@@ -308,4 +347,4 @@ function modeEmoji(m) {
   return m === 'bug' ? '🐛' : m === 'suggestion' ? '💡' : '💬';
 }
 
-export const FEEDBACK_ENABLED = !!WEBHOOK_URL;
+export const FEEDBACK_ENABLED = RELAY_CONFIGURED || !!WEBHOOK_URL;

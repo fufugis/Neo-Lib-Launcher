@@ -16,6 +16,15 @@ import { sendChangelogReaction } from './FeedbackModal';
 
 export const CHANGELOG = [
   {
+    version: '1.6.6',
+    title: 'Feedback finally works in the compiled .exe — via a signed Cloudflare Worker relay',
+    items: [
+      '**Cloudflare Worker relay shipped** (`desktop-app/cloudflare-relay/`). The shipped `.exe` no longer needs a Discord webhook baked in at all — the app POSTs a HMAC-SHA256-signed payload to a Worker, which holds the real webhook as a server-side secret, rate-limits to 8 requests/hour/IP, and reshapes every payload before forwarding. Even a fully decompiled binary only yields the relay URL + a signing key, never posting power over the channel directly.',
+      '**`FeedbackModal.jsx`** now prefers `VITE_FEEDBACK_RELAY_URL` + `VITE_FEEDBACK_RELAY_KEY`; the old `VITE_FEEDBACK_WEBHOOK_URL` direct-POST path is kept only as a local-dev convenience fallback.',
+      '**CI (`build-windows.yml`)** now writes the relay URL + key (from `NEOLIB_FEEDBACK_RELAY_URL` / `NEOLIB_FEEDBACK_RELAY_KEY` GitHub secrets) into `.env` right before the Vite renderer build, so every CI-built `.exe` ships with a working feedback button. See `cloudflare-relay/README.md` for one-time setup.',
+    ],
+  },
+  {
     version: '1.6.5',
     title: 'Webhook re-rotated · News is English-only · Gold ring & category glow scale with text size · 3 new textures · ACTUALLY vertical theme picker',
     items: [

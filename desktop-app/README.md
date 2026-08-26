@@ -4,9 +4,11 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.6.5-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.6.6-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.6.5 (Webhook re-rotated · English-only news · Gold ring & category glow scale with text size · 3 new textures · Actually-vertical theme picker)
+### Latest — v1.6.6 (Feedback works in the compiled .exe via a signed Cloudflare Worker relay)
+
+### Previous — v1.6.5 (Webhook re-rotated · English-only news · Gold ring & category glow scale with text size · 3 new textures · Actually-vertical theme picker)
 
 ### Previous — v1.6.4 (Genre hide fixed · Chromier toolbar · Column switcher in Visuals · Launcher dropdown · Vertical themes · Gold shimmer · New sci-fi sound · Range-aware Most Played · Webhook secured)
 - **🔴 Fixed** the "hide genre strip" toggle for real — prop was never forwarded from `Section` to `GameRow`. One-line fix, third time was the charm.

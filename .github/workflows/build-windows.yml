@@ -51,7 +51,18 @@ jobs:
         shell: pwsh
 
       - name: Build renderer (Vite)
-        run: yarn build:renderer
+        # Bake the feedback-relay URL + signing key (never the raw Discord
+        # webhook — see cloudflare-relay/README.md) into the renderer build
+        # via a generated .env, so the compiled .exe's feedback button
+        # actually works instead of showing "not configured".
+        shell: pwsh
+        env:
+          NEOLIB_FEEDBACK_RELAY_URL: ${{ secrets.NEOLIB_FEEDBACK_RELAY_URL }}
+          NEOLIB_FEEDBACK_RELAY_KEY: ${{ secrets.NEOLIB_FEEDBACK_RELAY_KEY }}
+        run: |
+          "VITE_FEEDBACK_RELAY_URL=$env:NEOLIB_FEEDBACK_RELAY_URL" | Out-File -FilePath .env -Encoding utf8
+          "VITE_FEEDBACK_RELAY_KEY=$env:NEOLIB_FEEDBACK_RELAY_KEY" | Out-File -FilePath .env -Encoding utf8 -Append
+          yarn build:renderer
 
       - name: Verify renderer output exists
         run: |

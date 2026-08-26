@@ -12,6 +12,13 @@ and a non-intrusive monetization system (Deals banners via Affiliate links).
 - CI: GitHub Actions builds NSIS `.exe` + portable `.zip` on tag push.
 - System tray (Electron Tray API) for close-to-tray behavior.
 
+## Version 1.6.6 — Feb 25, 2026
+**Feedback finally works in the compiled .exe, via a signed Cloudflare Worker relay:**
+- **New `desktop-app/cloudflare-relay/`** — `worker.js` (Cloudflare Worker), `wrangler.toml`, `README.md`. The app now signs feedback payloads with HMAC-SHA256 (`VITE_FEEDBACK_RELAY_KEY`) and POSTs to `VITE_FEEDBACK_RELAY_URL`; the Worker verifies the signature (5-min replay window), rate-limits 8 req/hour/IP via Workers KV, reshapes the payload server-side (capped field lengths, fixed username, exactly 1 embed), then forwards to the real Discord webhook — which lives ONLY as a Worker secret, never in the repo or the shipped `.exe`.
+- **`FeedbackModal.jsx`** — new `postFeedbackPayload()` prefers the relay; `VITE_FEEDBACK_WEBHOOK_URL` direct-POST is now a local-dev-only fallback used when the relay env vars are empty. `FEEDBACK_ENABLED = RELAY_CONFIGURED || !!WEBHOOK_URL`.
+- **`.github/workflows/build-windows.yml`** — new step writes `desktop-app/.env` from `NEOLIB_FEEDBACK_RELAY_URL` / `NEOLIB_FEEDBACK_RELAY_KEY` GitHub secrets right before `yarn build:renderer`, so CI-built `.exe`/portable zips ship with a working feedback button. **User still needs to**: run `wrangler deploy` themselves (own free Cloudflare account, steps in `cloudflare-relay/README.md`) and add the two GitHub secrets — this wasn't done in this session since it requires the user's own Cloudflare account.
+- **Root cause of the "endpoint not configured" report**: `desktop-app/.env` is (by design) gitignored, so the webhook rotation done in v1.6.5 only ever existed in the sandbox — it never reached the user's compiled `.exe`. The relay solves this permanently: CI bakes in the relay URL+key via GitHub secrets instead of relying on a gitignored file.
+
 ## Version 1.6.5 — Feb 25, 2026
 **Webhook re-rotated · News is English-only · Gold ring & category glow scale with text size · 3 new textures · ACTUALLY vertical theme picker:**
 - **🔒 Webhook rotated again** — old Discord channel deleted (2nd spam-bot hit), new webhook wired into `desktop-app/.env` only, never hardcoded.

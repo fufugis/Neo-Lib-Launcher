@@ -1,0 +1,8 @@
+name = "neo-lib-feedback-relay"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# Created by `wrangler kv namespace create RATE_LIMIT_KV` — paste the real id below.
+kv_namespaces = [
+  { binding = "RATE_LIMIT_KV", id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID" }
+]
