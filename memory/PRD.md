@@ -13,13 +13,7 @@ and a non-intrusive monetization system (Deals banners via Affiliate links).
 - System tray (Electron Tray API) for close-to-tray behavior.
 
 ## Version 1.6.6 — Feb 25, 2026
-**Feedback finally works in the compiled .exe, via a signed Cloudflare Worker relay — DEPLOYED & LIVE:**
-- **`desktop-app/cloudflare-relay/`** — `worker.js` (Cloudflare Worker), `wrangler.toml`, `README.md`. Deployed live at `https://neo-lib-feedback-relay.kennethnordsveen.workers.dev/feedback` using the user's own Cloudflare account (API token created by user, deploy run by agent via `wrangler`). KV namespace `RATE_LIMIT_KV` created, `DISCORD_WEBHOOK_URL` + `RELAY_SHARED_KEY` set as Worker secrets.
-- **CORS bug found + fixed during deploy**: the Worker's custom `X-Relay-Signature`/`X-Relay-Timestamp` headers trigger a browser/Electron-renderer CORS preflight (`OPTIONS`). First deploy had no CORS headers → every request failed client-side with "Failed to fetch" before it ever reached the signature check. Added `OPTIONS` handling + `Access-Control-Allow-*` headers on every response.
-- **`FeedbackModal.jsx`** — new `postFeedbackPayload()` prefers the relay; `VITE_FEEDBACK_WEBHOOK_URL` direct-POST is now a local-dev-only fallback used when the relay env vars are empty. `FEEDBACK_ENABLED = RELAY_CONFIGURED || !!WEBHOOK_URL`.
-- **`.github/workflows/build-windows.yml`** — new step writes `desktop-app/.env` from `NEOLIB_FEEDBACK_RELAY_URL` / `NEOLIB_FEEDBACK_RELAY_KEY` GitHub secrets right before `yarn build:renderer`. **User still needs to**: add these two values as GitHub repo secrets (Settings → Secrets and variables → Actions) — agent does not have GitHub write access. Values given to user in-chat (relay URL ends in `/feedback`; key is the 64-char hex signing secret set via `wrangler secret put RELAY_SHARED_KEY`).
-- **End-to-end verified**: real UI submission → Worker → Discord returned 204; forged/missing signature correctly rejected with 401.
-- Root cause of the original "endpoint not configured" report: `desktop-app/.env` is gitignored by design, so v1.6.5's webhook rotation only ever existed in the sandbox and never reached the compiled `.exe`. Solved permanently — CI now bakes in relay creds from GitHub secrets instead of a gitignored file.
+**Feedback finally works.
 
 ## Version 1.6.5 — Feb 25, 2026
 **Webhook re-rotated · News is English-only · Gold ring & category glow scale with text size · 3 new textures · ACTUALLY vertical theme picker:**
