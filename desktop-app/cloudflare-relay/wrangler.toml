@@ -4,5 +4,5 @@ compatibility_date = "2026-01-01"
 
 # Created by `wrangler kv namespace create RATE_LIMIT_KV` — paste the real id below.
 kv_namespaces = [
-  { binding = "RATE_LIMIT_KV", id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID" }
+  { binding = "RATE_LIMIT_KV", id = "ee8bc4be6f604dd8874b838d110590ab" }
 ]

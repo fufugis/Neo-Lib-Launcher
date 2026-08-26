@@ -19,49 +19,67 @@ const MAX_BODY_BYTES = 8000;
 const REPLAY_WINDOW_SEC = 300; // signed requests older/newer than this are rejected
 const RATE_LIMIT_PER_HOUR = 8; // per source IP
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, X-Relay-Signature, X-Relay-Timestamp',
+};
+
+function withCors(res) {
+  const headers = new Headers(res.headers);
+  for (const [k, v] of Object.entries(CORS_HEADERS)) headers.set(k, v);
+  return new Response(res.body, { status: res.status, headers });
+}
+
 export default {
   async fetch(request, env) {
+    // Electron's renderer (Chromium) enforces CORS just like a browser tab —
+    // the custom X-Relay-* headers trigger a preflight OPTIONS request that
+    // must be answered before the real POST is ever sent.
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: CORS_HEADERS });
+    }
     if (request.method !== 'POST') {
-      return new Response('Method not allowed', { status: 405 });
+      return withCors(new Response('Method not allowed', { status: 405 }));
     }
     const url = new URL(request.url);
     if (url.pathname !== '/feedback') {
-      return new Response('Not found', { status: 404 });
+      return withCors(new Response('Not found', { status: 404 }));
     }
 
     const rawBody = await request.text();
     if (rawBody.length > MAX_BODY_BYTES) {
-      return new Response('Payload too large', { status: 413 });
+      return withCors(new Response('Payload too large', { status: 413 }));
     }
 
     const signature = request.headers.get('X-Relay-Signature') || '';
     const timestamp = request.headers.get('X-Relay-Timestamp') || '';
     if (!signature || !timestamp) {
-      return new Response('Missing signature', { status: 401 });
+      return withCors(new Response('Missing signature', { status: 401 }));
     }
 
     const now = Math.floor(Date.now() / 1000);
     const ts = parseInt(timestamp, 10);
     if (!Number.isFinite(ts) || Math.abs(now - ts) > REPLAY_WINDOW_SEC) {
-      return new Response('Stale or invalid timestamp', { status: 401 });
+      return withCors(new Response('Stale or invalid timestamp', { status: 401 }));
     }
 
     const validSig = await verifySignature(env.RELAY_SHARED_KEY, timestamp, rawBody, signature);
     if (!validSig) {
-      return new Response('Bad signature', { status: 401 });
+      return withCors(new Response('Bad signature', { status: 401 }));
     }
 
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     const allowed = await checkRateLimit(env, ip);
     if (!allowed) {
-      return new Response('Rate limit exceeded, try again later.', { status: 429 });
+      return withCors(new Response('Rate limit exceeded, try again later.', { status: 429 }));
     }
 
     let payload;
     try {
       payload = JSON.parse(rawBody);
     } catch {
-      return new Response('Invalid JSON', { status: 400 });
+      return withCors(new Response('Invalid JSON', { status: 400 }));
     }
 
     // Re-shape server-side — a validly-signed-but-malicious client can only
@@ -93,7 +111,7 @@ export default {
       body: JSON.stringify(safePayload),
     });
 
-    return new Response(null, { status: discordRes.status === 204 ? 204 : discordRes.status });
+    return withCors(new Response(null, { status: discordRes.status === 204 ? 204 : discordRes.status }));
   },
 };
 
