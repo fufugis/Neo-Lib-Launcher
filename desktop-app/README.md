@@ -4,9 +4,21 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.6.6-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.7.0-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.6.6 (Feedback works in the compiled .exe via a signed Cloudflare Worker relay)
+### Latest — v1.7.0 (Friends Hub — detect supported game clients and open their native social surfaces from NEO-LIB)
+
+- **Friends Hub** — a compact, theme-aware top-right panel detects Steam, Battle.net, Epic, EA app, and Ubisoft Connect locally.
+- **Setup that recovers gracefully** — the panel scans on open, distinguishes running / installed-but-off / not found states, and lets you locate a custom launcher executable once for future use.
+- **Theme artwork pass** — Anime now carries an original transparent manga-inspired scene behind the glass UI; Gaming and Modern receive their own arena and editorial ambient treatments. All respect Effects intensity.
+- **Every theme illustrated** — every theme now has its own original, low-opacity background motif; the Effects intensity control remains the master dial.
+- **Cleaner controls** — Settings, feedback, and Discord now live beside the version in the title bar, so the Library / Tools / News / Stats tabs keep their labels. The sidebar's compact **+ Add** menu now contains both Add game and Add category.
+- **Responsive sidebar labels** — toolbar text now scales down smoothly while resizing, becomes icon-only before it is unreadable, and scales back in when space returns.
+- **Game Ready footer** — a full-width, bottom-edge Library overlay keeps game rows visible behind its glass surface while showing local CPU/RAM health. Click it for tips; amber/red states pulse, and narrow windows reflow the bar instead of clipping text.
+- **Home Hub** — Home replaces the floating News and Stats panels with a full right-pane hub: date-sorted scrollable game news, Today / Week / Month activity, Top 5, and cover-led recent activity. One compact, labelled sponsored rail replaces the old activity deck and large featured banner.
+- **Safe native handoff** — open each platform's own social client from NEO-LIB. No launcher credentials, cookies, friend lists, or private chats are read.
+
+### Previous — v1.6.6 (Feedback works in the compiled .exe via a signed Cloudflare Worker relay)
 
 ### Previous — v1.6.5 (Webhook re-rotated · English-only news · Gold ring & category glow scale with text size · 3 new textures · Actually-vertical theme picker)
 

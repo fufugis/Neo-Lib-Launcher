@@ -100,33 +100,32 @@
   --hairline-glow: 52 201 138;
 }
 
-/* GAMING — v1.3.0 rebalanced: was pink, now Twitch-style purple + electric blue.
-   Deep esports navy surface, vivid purple primary, clean sky-blue secondary.
-   Lighter than the Dark themes but never washes out screenshots. */
+/* GAMING — a luminous esports navy midpoint. The lifted lavender and ice-blue
+   accents make it clearly brighter than the Dark group without becoming a light theme. */
 [data-theme='gaming'] {
   --ink: 240 245 255;
   --muted: 175 188 220;
   --surface: 20 22 48;
   --panel: 30 34 72;
   --border: 60 72 132;
-  --accent: 155 100 255;           /* Twitch-esque vivid purple */
-  --accent-2: 90 200 255;          /* electric blue */
-  --accent-soft: 130 90 220;
-  --hairline-glow: 155 100 255;
+  --accent: 184 137 255;           /* lifted lavender */
+  --accent-2: 114 214 255;         /* brighter ice blue */
+  --accent-soft: 169 135 236;
+  --hairline-glow: 184 137 255;
 }
 
-/* MODERN — warm mid-tone: charcoal-with-warmth surface, dark-orange primary, soft
-   sky-blue secondary. Feels like a premium app dark mode without being pitch black. */
+/* MODERN — a warm, polished midpoint: the amber and sky accents are bright enough
+   to sit between the Dark and Bright groups while the surface remains comfortably dark. */
 [data-theme='modern'] {
   --ink: 245 238 230;
   --muted: 198 188 174;
   --surface: 34 28 24;
   --panel: 50 42 36;
   --border: 86 72 60;
-  --accent: 224 122 60;            /* dark orange */
-  --accent-2: 135 200 240;         /* light sky blue */
-  --accent-soft: 255 168 110;
-  --hairline-glow: 224 122 60;
+  --accent: 243 154 85;            /* sunlit amber */
+  --accent-2: 158 220 255;         /* airy sky blue */
+  --accent-soft: 255 208 161;
+  --hairline-glow: 243 154 85;
 }
 
 /* ANIME — v1.3.0 rebalanced from magenta to deep sorcerer purple (JJK Gojo vibe):
@@ -691,6 +690,77 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
   -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 50%, black 30%, transparent 80%);
   opacity: 0.55;
 }
+/* Original anime-inspired artwork layer: abstract manga line work, moon,
+   shrine gate and distant city. Kept below panels and intentionally free of
+   characters or franchise imagery. BgAmbience scales its opacity per effect level. */
+.anime-sketches {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 18px rgba(112, 190, 255, 0.18));
+  animation: animeSketchFloat 28s ease-in-out infinite alternate;
+}
+/* Shared vector-art treatment for every non-Anime theme. Each SVG stays in
+   the furthest ambient layer and gets a theme-specific hue below. */
+.theme-illustration {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  animation: themeIllustrationFloat 32s ease-in-out infinite alternate;
+}
+.theme-illustration svg { width: 100%; height: 100%; min-width: 1000px; }
+.theme-illustration path,
+.theme-illustration circle {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.1;
+  vector-effect: non-scaling-stroke;
+}
+.theme-illustration--synthwave { color: rgba(255, 82, 164, 0.62); }
+.theme-illustration--synthwave-day { color: rgba(105, 150, 225, 0.45); }
+.theme-illustration--midnight { color: rgba(231, 204, 143, 0.55); }
+.theme-illustration--daybreak { color: rgba(20, 156, 158, 0.38); }
+.theme-illustration--ocean { color: rgba(143, 224, 255, 0.52); }
+.theme-illustration--crimson { color: rgba(255, 112, 126, 0.52); }
+.theme-illustration--mint { color: rgba(43, 177, 121, 0.42); }
+.theme-illustration--gaming { color: rgba(152, 209, 255, 0.48); }
+.theme-illustration--modern { color: rgba(247, 187, 128, 0.34); }
+.theme-illustration--colorful { color: rgba(255, 238, 248, 0.58); }
+.theme-illustration--pro { color: rgba(255, 145, 59, 0.42); }
+@keyframes themeIllustrationFloat {
+  from { transform: translate3d(-0.5%, 0.4%, 0) scale(1.012); }
+  to { transform: translate3d(0.75%, -0.45%, 0) scale(1.038); }
+}
+.anime-sketches svg {
+  width: 100%;
+  height: 100%;
+  min-width: 1000px;
+  color: rgba(202, 180, 255, 0.65);
+}
+.anime-sketches path,
+.anime-sketches circle {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.1;
+  vector-effect: non-scaling-stroke;
+}
+.anime-sketch-moon circle:first-child {
+  fill: rgba(86, 66, 170, 0.07);
+  stroke: rgba(153, 218, 255, 0.52);
+  stroke-width: 3;
+}
+.anime-sketch-city { color: rgba(122, 202, 255, 0.54); }
+.anime-sketch-gate { color: rgba(207, 154, 255, 0.60); }
+.anime-sketch-speed { color: rgba(190, 136, 255, 0.44); }
+.anime-sketch-frames { color: rgba(255, 255, 255, 0.22); }
+@keyframes animeSketchFloat {
+  from { transform: translate3d(-0.6%, 0.4%, 0) scale(1.01); }
+  to { transform: translate3d(0.8%, -0.5%, 0) scale(1.035); }
+}
 /* Sakura petals — animated, drifting down with rotation */
 .sakura {
   position: absolute; inset: 0; pointer-events: none; overflow: hidden;
@@ -712,6 +782,49 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
   10%  { opacity: 0.9; }
   50%  { transform: translate(20px, 50vh) rotate(180deg); opacity: 0.85; }
   100% { transform: translate(-20px, 105vh) rotate(360deg); opacity: 0; }
+}
+
+/* Gaming — an understated arena atmosphere: soft stadium beams, pitch lines,
+   and a slow electric sweep. It gives this middle theme a clear esports identity. */
+.amb-gaming {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 55vw 58vh at 50% -10%, rgba(114, 214, 255, 0.26), transparent 67%),
+    linear-gradient(112deg, transparent 35%, rgba(184, 137, 255, 0.14) 48%, transparent 61%),
+    linear-gradient(68deg, transparent 34%, rgba(114, 214, 255, 0.11) 50%, transparent 64%),
+    radial-gradient(ellipse 100vw 32vh at 50% 110%, rgba(80, 54, 170, 0.32), transparent 70%);
+  animation: gamingArenaSweep 15s ease-in-out infinite alternate;
+}
+.amb-gaming::after {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(rgba(114, 214, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(184, 137, 255, 0.05) 1px, transparent 1px);
+  background-size: 96px 96px;
+  mask-image: linear-gradient(to bottom, transparent 4%, black 50%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 4%, black 50%, transparent 100%);
+}
+@keyframes gamingArenaSweep { from { filter: brightness(0.92); } to { filter: brightness(1.12); } }
+
+/* Modern — quiet editorial geometry and a warm paper-grain wash instead of
+   more neon. This gives it a calm, premium identity between bright and dark. */
+.amb-modern {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(circle 280px at 83% 14%, rgba(243, 154, 85, 0.18), transparent 70%),
+    radial-gradient(circle 360px at 12% 86%, rgba(158, 220, 255, 0.13), transparent 70%),
+    linear-gradient(142deg, transparent 0 43%, rgba(255, 236, 216, 0.045) 43% 43.25%, transparent 43.25% 100%),
+    linear-gradient(322deg, transparent 0 57%, rgba(158, 220, 255, 0.07) 57% 57.25%, transparent 57.25% 100%);
+}
+.amb-modern::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(255, 235, 215, 0.14) 0.7px, transparent 0.8px);
+  background-size: 7px 7px;
+  opacity: 0.20;
+  mask-image: radial-gradient(ellipse 90% 80% at 50% 50%, black, transparent 92%);
+  -webkit-mask-image: radial-gradient(ellipse 90% 80% at 50% 50%, black, transparent 92%);
 }
 
 /* ============================================================ */

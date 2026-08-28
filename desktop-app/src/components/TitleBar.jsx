@@ -1,10 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Minus, Square, X, DownloadCloud, MessageCircle } from 'lucide-react';
+import { Minus, Square, X, DownloadCloud, MessageCircle, Settings } from 'lucide-react';
+import FriendsPanel from './FriendsPanel';
 
 const DISCORD_INVITE = 'https://discord.gg/spk6QWREk8';
 
-export default function TitleBar({ search, setSearch, currentVersion, updateAvailable, latestVersion, onClickUpdate }) {
+export default function TitleBar({ search, setSearch, currentVersion, updateAvailable, latestVersion, onClickUpdate, onOpenSettings, onOpenFeedback, friendsClientPaths, onUpdateFriendsClientPaths }) {
   const openDiscord = () => {
     if (typeof window !== 'undefined' && window.api?.openExternal) window.api.openExternal(DISCORD_INVITE);
     else window.open(DISCORD_INVITE, '_blank');
@@ -27,23 +28,47 @@ export default function TitleBar({ search, setSearch, currentVersion, updateAvai
         </span>
       )}
 
-      {/* Join Discord — submit bugs & suggestions, stay updated */}
-      <button
-        data-testid="titlebar-discord-btn"
-        onClick={openDiscord}
-        title="Join the NEO-LIB Discord — submit bugs, suggest features, stay updated"
-        className="titlebar-nodrag group inline-flex items-center gap-1.5 rounded-full px-2.5 h-6 text-[10.5px] font-bold transition-all hover:scale-[1.04]"
-        style={{
-          background: 'linear-gradient(135deg, #5865F2 0%, #7289DA 100%)',
-          color: '#fff',
-          boxShadow: '0 0 10px -3px rgba(88,101,242,0.6)',
-        }}
-      >
-        <MessageCircle size={11} className="transition-transform group-hover:rotate-[-6deg]" />
-        Discord
-      </button>
+      {/* Global actions live beside the brand, leaving the sidebar tabs room to breathe. */}
+      <div className="titlebar-nodrag flex items-center gap-1">
+        <button
+          data-testid="tab-settings"
+          onClick={onOpenSettings}
+          title="Settings"
+          className="group grid h-7 w-7 place-items-center rounded-md hairline text-muted transition-all hover:border-[rgb(var(--accent)/0.55)] hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink"
+        >
+          <Settings size={14} className="cog-hover-spin text-[rgb(var(--accent))]" />
+        </button>
+        {onOpenFeedback && (
+          <button
+            data-testid="tab-feedback"
+            onClick={() => onOpenFeedback('feedback')}
+            title="Send feedback, report a bug, or suggest a feature"
+            className="group inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[10px] font-bold text-white transition-all hover:scale-[1.03] active:scale-[0.96]"
+            style={{
+              background: 'linear-gradient(135deg, rgb(var(--accent)) 0%, rgb(var(--accent-2)) 100%)',
+              boxShadow: '0 0 12px -3px rgb(var(--accent)/0.65)',
+            }}
+          >
+            <MessageCircle size={12} className="transition-transform group-hover:rotate-[-6deg]" />
+            <span className="hidden min-[1100px]:inline">Feedback</span>
+          </button>
+        )}
+        <button
+          data-testid="titlebar-discord-btn"
+          onClick={openDiscord}
+          title="Join the NEO-LIB Discord — submit bugs, suggest features, stay updated"
+          className="group inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[10px] font-bold text-white transition-all hover:scale-[1.03] active:scale-[0.96]"
+          style={{
+            background: 'linear-gradient(135deg, #5865F2 0%, #7289DA 100%)',
+            boxShadow: '0 0 10px -3px rgba(88,101,242,0.6)',
+          }}
+        >
+          <MessageCircle size={12} className="transition-transform group-hover:rotate-[-6deg]" />
+          <span className="hidden min-[1100px]:inline">Discord</span>
+        </button>
+      </div>
 
-      <div className="titlebar-nodrag relative ml-2 flex-1 max-w-md">
+      <div className="titlebar-nodrag relative ml-1 flex-1 max-w-md min-w-[150px]">
         <input
           data-testid="library-search-input"
           value={search}
@@ -75,6 +100,8 @@ export default function TitleBar({ search, setSearch, currentVersion, updateAvai
           v{latestVersion}
         </motion.button>
       )}
+
+      <FriendsPanel manualPaths={friendsClientPaths} onUpdateManualPaths={onUpdateFriendsClientPaths} />
 
       <div className="titlebar-nodrag flex items-center">
         <WinBtn onClick={() => window.api?.minimize()} testid="titlebar-min">

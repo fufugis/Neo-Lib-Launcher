@@ -38,7 +38,7 @@ function PlatformBadge({ platform, size = 'md' }) {
 }
 
 /**
- * DealsBar — 50px tall bar at the bottom of the window showing rotating deals.
+ * DealsBar — a deliberately small, clearly labelled sponsored rail.
  * Pulls from Epic free games + Steam specials + Instant Gaming hot deals via
  * Electron IPC `fetchDeals`. Affiliate ID is automatically wrapped into links.
  *
@@ -87,7 +87,7 @@ export default function DealsBar({ settings = {}, onClose, onDonate }) {
   return (
     <div
       data-testid="deals-bar"
-      className="relative z-20 flex h-[50px] shrink-0 items-center gap-3 border-t hairline px-4 glass-soft"
+      className="relative z-20 flex h-[40px] shrink-0 items-center gap-2 border-t hairline px-3 glass-soft"
       style={{}}
     >
       {/* Sponsored label */}
@@ -108,13 +108,13 @@ export default function DealsBar({ settings = {}, onClose, onDonate }) {
             className="absolute inset-0 flex w-full items-center gap-3 text-left hover:bg-[rgb(var(--accent)/0.06)] rounded transition-colors px-1"
             data-testid={`deal-${d.platform}`}
           >
-            <div className="relative h-9 w-16 shrink-0 overflow-hidden rounded hairline bg-surface/60">
+            <div className="relative h-7 w-12 shrink-0 overflow-hidden rounded hairline bg-surface/60">
               {d.image && <img src={d.image} alt="" className="h-full w-full object-cover" />}
               <PlatformBadge platform={d.platform} size="sm" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-[12px] font-semibold text-ink">{d.title}</div>
-              <div className="truncate text-[10.5px] text-muted">{d.subtitle}</div>
+              <div className="truncate text-[11px] font-semibold text-ink">{d.title}</div>
+              <div className="hidden truncate text-[10px] text-muted min-[720px]:block">{d.subtitle}</div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {d.originalPrice && d.priceText !== d.originalPrice && (
@@ -137,7 +137,7 @@ export default function DealsBar({ settings = {}, onClose, onDonate }) {
       </div>
 
       {/* Indicator dots */}
-      <div className="hidden gap-1 sm:flex">
+      <div className="hidden gap-1 md:flex">
         {items.slice(0, Math.min(items.length, 6)).map((_, i) => (
           <span
             key={i}
@@ -159,7 +159,7 @@ export default function DealsBar({ settings = {}, onClose, onDonate }) {
         whileTap={{ scale: 0.96 }}
         animate={allOpen ? { scale: 1 } : { scale: [1, 1.04, 1] }}
         transition={allOpen ? { duration: 0.2 } : { duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-        className="relative flex items-center gap-1.5 rounded-full px-3 h-7 text-[10.5px] font-bold uppercase tracking-wider text-white"
+        className="relative flex items-center gap-1.5 rounded-full px-2.5 h-6 text-[10px] font-bold uppercase tracking-wider text-white"
         style={{
           background: allOpen
             ? 'linear-gradient(135deg, rgb(var(--accent)) 0%, rgb(var(--accent-2)) 100%)'
@@ -177,7 +177,7 @@ export default function DealsBar({ settings = {}, onClose, onDonate }) {
         data-testid="deals-bar-donate"
         onClick={onDonate}
         title="Buy KenLun a coffee — support NEO-LIB"
-        className="flex items-center gap-1 rounded-full px-2.5 h-7 text-[10.5px] font-bold transition-colors"
+        className="hidden min-[620px]:flex items-center gap-1 rounded-full px-2.5 h-6 text-[10px] font-bold transition-colors"
         style={{ background: '#FFD140', color: '#000' }}
       >
         <Heart size={11} fill="#000" /> Tip

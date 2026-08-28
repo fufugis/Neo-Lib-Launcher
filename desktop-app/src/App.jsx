@@ -3,9 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import TitleBar from './components/TitleBar';
 import Sidebar, { CategoryContextMenu } from './components/Sidebar';
 import GameDetail from './components/GameDetail';
-import ShowcaseStrip from './components/ShowcaseStrip';
 import DealsBar from './components/DealsBar';
-import FeaturedDealBanner from './components/FeaturedDealBanner';
 import DonateModal from './components/DonateModal';
 import LauncherDetectModal from './components/LauncherDetectModal';
 import SettingsModal from './components/SettingsModal';
@@ -26,13 +24,12 @@ import EditMetadataModal from './components/EditMetadataModal';
 import AcceptMetadataModal from './components/AcceptMetadataModal';
 import FetchSourcePicker from './components/FetchSourcePicker';
 import ChangelogModal from './components/ChangelogModal';
-import NewsPanel from './components/NewsPanel';
-import StatsPanel from './components/StatsPanel';
+import HomeHub from './components/HomeHub';
 import TidyUpModal from './components/TidyUpModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.6.6';
+const APP_VERSION = '1.7.0';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin, formatPlaytime } from './lib/utils';
 import { setSoundPack } from './lib/sound';
@@ -432,6 +429,9 @@ export default function App() {
         // Reset collapsed state each session by default — user wanted "always expanded unless I close them"
         const cleanSettings = { ...s };
         if (!s.categoriesCollapsedDefault) cleanSettings.collapsed = {};
+        // Home is the default landing screen. Tools is the only workspace that
+        // remains selected across restarts; legacy News/Stats modes migrate home.
+        if (cleanSettings.mode !== 'tools') cleanSettings.mode = 'home';
         setSettings((prev) => ({ ...prev, ...cleanSettings }));
 
         // "What's new" toast — show once per installed version. First-ever
@@ -442,16 +442,7 @@ export default function App() {
           // Slight delay so it doesn't collide with the tutorial / CRT boot.
           setTimeout(() => setChangelogOpen(true), 2200);
         }
-        // Privacy: never auto-select a game inside a private category on startup.
-        // If the first non-private game doesn't exist, leave selection empty.
-        const privateCatIds = new Set(
-          (lib.categories || []).filter((c) => c.private).map((c) => c.id)
-        );
-        const firstVisible = (lib.games || []).find((g) => {
-          const cats = g.categoryIds || [];
-          return !cats.some((cid) => privateCatIds.has(cid));
-        });
-        if (firstVisible) setSelectedId(firstVisible.id);
+        // Keep selection empty at startup so Home is never obscured by a game.
 
         // Wire playtime tracking event
         // v1.4.0 — playtime is stored in MINUTES throughout the app (matches
@@ -485,7 +476,7 @@ export default function App() {
           toolCategories: DEMO_TOOL_CATEGORIES,
           toolOrderByCategory: { 'tcat-hw': ['tool-1', 'tool-2'] },
         });
-        setSelectedId(DEMO_GAMES[0].id);
+        setSelectedId(null);
         setSelectedToolId(DEMO_TOOLS[0].id);
       }
     })();
@@ -615,11 +606,7 @@ export default function App() {
   const currentSelectedId = isTools ? selectedToolId : selectedId;
   const setCurrentSelectedId = isTools ? setSelectedToolId : setSelectedId;
 
-  const setMode = (m) => {
-    // Opening News: stamp the "last seen" timestamp so future items are counted as unseen.
-    if (m === 'news') updateSetting({ mode: m, newsLastSeenAt: Date.now() });
-    else updateSetting({ mode: m });
-  };
+  const setMode = (m) => updateSetting({ mode: m });
 
   // Background poll for unseen news — count items newer than settings.newsLastSeenAt.
   // Runs every 10 min while the app is open. Silent failure if not in Electron.
@@ -1350,6 +1337,10 @@ export default function App() {
         updateAvailable={updateInfo?.available || false}
         latestVersion={updateInfo?.latestVersion || ''}
         onClickUpdate={openReleasesPage}
+        onOpenSettings={() => setShowSettings(true)}
+        onOpenFeedback={openFeedback}
+        friendsClientPaths={settings.friendsClientPaths || {}}
+        onUpdateFriendsClientPaths={(friendsClientPaths) => updateSetting({ friendsClientPaths })}
       />
 
       <div className="relative z-10 flex min-h-0 flex-1">
@@ -1409,10 +1400,9 @@ export default function App() {
           onToggleTwoRow={(v) => updateSetting({ twoRow: v })}
           sidebarWidth={sidebarWidth}
           onStartResize={startResize}
-          onSelect={setCurrentSelectedId}
+          onSelect={(id) => { setCurrentSelectedId(id); if (id && settings.mode === 'home') setMode('library'); }}
           onAddManual={() => setShowAdd(true)}
           onOpenWizard={() => setShowWizard(true)}
-          onOpenSettings={() => setShowSettings(true)}
           onOpenFeedback={openFeedback}
           onUpdateAll={refetchAll}
           onTidyUp={() => setTidyOpen(true)}
@@ -1431,69 +1421,16 @@ export default function App() {
 
         <main className="relative flex min-w-0 flex-1 flex-col">
           <div className="flex-1 min-h-0 overflow-hidden">
-            <AnimatePresence mode="wait">
-              <GameDetail
-                key={selected?.id || 'empty'}
-                game={selected}
-                categories={currentCats.filter((c) => !c.private || unlockedCategories.includes(c.id))}
-                fetching={fetching}
-                settings={settings}
-                onLaunch={launchGame}
-                onRefetch={(g) => setFetchPickerGame(g)}
-                  onRevealFolder={(g) => (isElectron ? window.api.revealInFolder(g.exePath) : notify('Open: ' + g.exePath))}
-                  onToggleCategory={toggleGameInCategory}
-                  onCustomize={(g) => setEditMetaGame(g)}
-                  onUpdateGame={updateGame}
-                />
-              </AnimatePresence>
+            {!isTools && (settings.mode === 'home' || !selected) ? (
+              <HomeHub games={library.games || []} onSelect={(id) => { setSelectedId(id); setMode('library'); }} onOpenPlaytimeImport={() => openPlaytimeImport({ force: true })} />
+            ) : (
+              <AnimatePresence mode="wait"><GameDetail key={selected?.id || 'empty'} game={selected} categories={currentCats.filter((c) => !c.private || unlockedCategories.includes(c.id))} fetching={fetching} settings={settings} onLaunch={launchGame} onRefetch={(g) => setFetchPickerGame(g)} onRevealFolder={(g) => (isElectron ? window.api.revealInFolder(g.exePath) : notify('Open: ' + g.exePath))} onToggleCategory={toggleGameInCategory} onCustomize={(g) => setEditMetaGame(g)} onUpdateGame={updateGame} /></AnimatePresence>
+            )}
           </div>
-
-          {/* Showcase strip below preview — only on Library tab */}
-          {!isTools && settings.mode !== 'news' && settings.mode !== 'stats' && (
-            <ShowcaseStrip
-              games={visibleGames}
-              mode={settings.showcaseMode || 'recent_added'}
-              setMode={(m) => updateSetting({ showcaseMode: m })}
-              onSelect={setCurrentSelectedId}
-              selectedId={currentSelectedId}
-              settings={settings}
-            />
-          )}
         </main>
       </div>
 
-      {/* News modal — floats next to the News tab button. Click backdrop / Esc / X to close. */}
-      {settings.mode === 'news' && (
-        <NewsPanel
-          games={library.games}
-          onClose={() => setMode('library')}
-          anchorSelector='[data-testid="tab-news"]'
-        />
-      )}
-
-      {/* Stats panel — floats next to the Stats tab button. */}
-      {settings.mode === 'stats' && (
-        <StatsPanel
-          games={library.games}
-          onClose={() => setMode('library')}
-          anchorSelector='[data-testid="tab-stats"]'
-          onOpenImportPreview={openPlaytimeImport}
-        />
-      )}
-
-      {/* Featured deal banner — sits above the rotating DealsBar.
-          Only shown when deals are enabled, the featured slot isn't dismissed,
-          and the user opted into the visible banner (default ON for new users). */}
-      {settings.dealsEnabled !== false
-        && settings.featuredBannerEnabled !== false
-        && settings.featuredBannerHidden !== true && (
-        <FeaturedDealBanner
-          settings={settings}
-          onDismiss={() => updateSetting({ featuredBannerHidden: true })}
-        />
-      )}
-
-      {/* Bottom deals bar — across the full window */}
+      {/* One subtle sponsored rail — all deals remain available from its popover. */}
       {settings.dealsEnabled !== false && settings.dealsBarHidden !== true ? (
         <DealsBar
           settings={settings}
@@ -1972,6 +1909,8 @@ function BgAmbience({ theme, settings = {}, game = null }) {
     crimson:  'amb-crimson',
     anime:    'amb-anime',
     mint:     'amb-mint',
+    gaming:   'amb-gaming',
+    modern:   'amb-modern',
     colorful: 'amb-colorful',
     pro:      'amb-pro',
   }[theme];
@@ -1985,6 +1924,8 @@ function BgAmbience({ theme, settings = {}, game = null }) {
       {extraLayersEl}
       <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden" style={{ opacity: intensity }}>
         {ambClass && <div className={ambClass} />}
+        {theme !== 'anime' && level > 0 && <ThemeIllustration theme={theme} level={level} />}
+        {theme === 'anime' && level > 0 && <AnimeSketches level={level} />}
         {theme === 'anime' && lvl.sakura > 0 && <Sakura count={lvl.sakura} />}
         {/* Shooting stars — only for Colorful theme, only if effects level >= Low */}
         {theme === 'colorful' && level > 0 && (
@@ -2005,6 +1946,65 @@ function BgAmbience({ theme, settings = {}, game = null }) {
       </div>
       {edgeGlowLayer}
     </>
+  );
+}
+
+/** Original, low-opacity vector motifs for each theme. They are decorative
+ * rather than franchise artwork, so every theme gets a recognisable identity
+ * while the library and selected game's own art remain the focus. */
+function ThemeIllustration({ theme, level = 2 }) {
+  const art = {
+    synthwave: <><circle cx="1282" cy="262" r="144" /><path d="M1090 262h384M1116 308h332M1144 354h276M0 792l300-182 168 92 196-208 192 198 238-242 222 282" /></>,
+    'synthwave-day': <><path d="M0 610c132-104 232-82 346 12 122-118 248-130 384-14 144-92 276-84 402 18 144-112 290-118 468-14" /><path d="M160 752c80-170 168-246 254-244M212 704c84-36 164-28 236 18M1394 754c-72-160-154-238-244-246M1170 722c70-44 150-52 230-12" /><circle cx="1246" cy="212" r="98" /></>,
+    midnight: <><path d="M1250 110a144 144 0 1 0 122 214 132 132 0 1 1-122-214Z" /><path d="M122 672l162-106 128 76 146-170 112 160 162-92 118 132 148-182 148 182" /><path d="M408 184l26 52 56 8-41 39 10 56-51-28-50 28 10-56-42-39 57-8zM824 108l17 35 39 5-28 28 7 39-35-19-35 19 8-39-29-28 39-5z" /></>,
+    daybreak: <><circle cx="1250" cy="326" r="126" /><path d="M1042 612V370h416v242M1100 612V432h300v180M0 710h810M890 710h710M1120 760h360" /><path d="M1034 370c64-138 170-204 316-204s252 66 316 204" /></>,
+    ocean: <><path d="M1022 276c0-122 94-206 190-206s190 84 190 206c0 70-54 110-190 110s-190-40-190-110Z" /><path d="M1090 386c-36 98-22 166 28 244M1160 386c-20 128-8 220 42 306M1238 386c18 116 28 204-10 296M1308 386c38 96 44 178 10 246" /><path d="M0 690c142-86 278-86 420 0s280 86 426 0 290-86 454 0 230 86 300 0" /></>,
+    crimson: <><path d="M1210 304c-92-148-246-36-156 84-138-16-150 168-10 158-70 126 110 190 166 66 58 124 238 60 168-66 140 10 128-174-10-158 90-120-64-232-156-84Z" /><path d="M1210 386c-62 36-76 98-46 156M1210 386c70 22 100 82 60 148M1210 386c4 76-28 126-82 156M1134 628c-36 90-106 128-194 152M1288 628c36 90 104 128 194 152" /><path d="M78 788l282-114 92 52 174-168 154 174 204-118 218 162 330-176" /></>,
+    mint: <><path d="M244 770c32-232 126-384 286-466M276 620c-102-6-174-54-216-144 112-24 206 22 286 144M410 482c-30-98-2-178 84-242 48 94 18 176-84 242M1356 778c-26-216-114-366-270-450M1334 626c102-10 172-60 206-150-112-18-202 32-272 150M1194 494c28-102-4-180-94-240-44 96-12 176 94 240" /><path d="M440 764c160-102 540-102 712 0" /></>,
+    gaming: <><path d="M72 696h1456M196 696V432h1208v264M344 432l100-160h712l100 160M588 696V540h424v156" /><path d="M682 504c0-74 58-132 130-132s130 58 130 132c0 84-76 136-130 170-54-34-130-86-130-170Z" /></>,
+    modern: <><path d="M1042 736V240h154v496M1218 736V382h128v354M1370 736V172h170v564M92 736V454h244v282M362 736V292h196v444M590 736V510h176v226" /><path d="M54 146h526M54 190h404M1008 112h532M1170 764h370" /></>,
+    colorful: <><path d="M1210 128l42 116 120 4-94 76 32 118-100-62-102 62 34-118-96-76 122-4z" /><path d="M144 716l192-120 178 110 190-220 192 212 194-130 170 150 178-106" /><circle cx="418" cy="214" r="64" /><circle cx="630" cy="330" r="28" /><circle cx="1468" cy="620" r="52" /></>,
+    pro: <><path d="M1030 178h378l118 116v378l-118 116h-378l-118-116V294zM1110 258h218l78 78v294l-78 78h-218l-78-78V336z" /><path d="M0 704h900M0 750h900M100 704l72 46 72-46 72 46 72-46 72 46 72-46 72 46 72-46 72 46 72-46" /></>,
+  }[theme];
+  if (!art) return null;
+  return (
+    <div aria-hidden className={`theme-illustration theme-illustration--${theme}`} style={{ opacity: 0.13 + level * 0.055 }}>
+      <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" role="presentation">{art}</svg>
+    </div>
+  );
+}
+
+/**
+ * Original manga-inspired line art, deliberately abstract: a distant torii,
+ * moon, skyline and speed-line panels. It lives behind every UI surface and
+ * scales with Effects intensity, so Anime feels illustrated without borrowing
+ * any recognisable character or competing with a selected game's artwork.
+ */
+function AnimeSketches({ level = 2 }) {
+  return (
+    <div aria-hidden className="anime-sketches" style={{ opacity: 0.18 + level * 0.075 }}>
+      <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" role="presentation">
+        <g className="anime-sketch-moon">
+          <circle cx="1285" cy="194" r="148" />
+          <circle cx="1248" cy="162" r="26" />
+          <circle cx="1340" cy="248" r="18" />
+          <path d="M1168 246c76 22 158 16 236-22M1161 274c84 29 170 20 250-28" />
+        </g>
+        <g className="anime-sketch-gate">
+          <path d="M244 736V426M522 736V426M188 431h390M220 475h326M283 431l-34-73h266l-34 73M302 475l-25-47h212l-25 47" />
+          <path d="M305 736h156M326 574h114M384 475v99" />
+        </g>
+        <g className="anime-sketch-city">
+          <path d="M754 786V574l59-54v266M826 786V472l73-66v380M913 786V545l55-49v290M982 786V433l102-91v444M1098 786V557l61-55v284M1173 786V493l73-65v358M1262 786V590l49-43v239" />
+          <path d="M726 786h640M778 625h22m-22 43h22m50-142h28m-28 53h28m-28 53h28m128-148h35m-35 58h35m-35 58h35m-35 58h35m95-121h24m-24 49h24m-24 49h24m92-106h26m-26 50h26m-26 50h26" />
+        </g>
+        <g className="anime-sketch-speed" opacity={level >= 3 ? 1 : 0.55}>
+          <path d="M0 134L462 0M0 226L714 0M28 900l471-252M222 900l430-204M897 900l703-350M1058 900l542-253" />
+          <path d="M0 365l320-94M0 410l258-65M1287 0l313 111M1364 0l236 74" />
+        </g>
+        {level >= 2 && <g className="anime-sketch-frames"><path d="M58 116h296v174H58zM1314 586h228v174h-228z" /><path d="M80 266l254-126M1332 734l187-126" /></g>}
+      </svg>
+    </div>
   );
 }
 

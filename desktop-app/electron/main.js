@@ -10,6 +10,7 @@ const fs = require('fs');
 const fsp = require('fs/promises');
 const { spawn } = require('child_process');
 const https = require('https');
+const os = require('os');
 
 // ---- Optional Discord Rich Presence (native IPC, no third-party deps) ----
 // Talks to the local Discord client over a named pipe (Windows) or Unix
@@ -29,6 +30,48 @@ try {
 if (process.env.NEOLIB_DISCORD_APP_ID) DISCORD_APP_ID = process.env.NEOLIB_DISCORD_APP_ID;
 
 const isDev = process.env.NODE_ENV === 'development';
+
+// Kept in the main process so the renderer receives only a small, read-only
+// snapshot. No game processes are inspected or modified.
+let previousCpuSample = null;
+function cpuSample() {
+  return os.cpus().reduce((total, cpu) => {
+    const times = cpu.times || {};
+    total.idle += times.idle || 0;
+    total.total += Object.values(times).reduce((sum, value) => sum + value, 0);
+    return total;
+  }, { idle: 0, total: 0 });
+}
+
+async function readSystemHealth() {
+  let previous = previousCpuSample;
+  let next = cpuSample();
+  // The first sample has no baseline; take a short second sample so the first
+  // rendered value is useful rather than briefly reporting 0% CPU.
+  if (!previous) {
+    previous = next;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    next = cpuSample();
+  }
+  const totalDelta = next.total - previous.total;
+  const idleDelta = next.idle - previous.idle;
+  const cpuPercent = totalDelta > 0
+    ? Math.max(0, Math.min(100, Math.round((1 - (idleDelta / totalDelta)) * 100)))
+    : null;
+  previousCpuSample = next;
+
+  const totalBytes = os.totalmem();
+  const freeBytes = os.freemem();
+  const usedBytes = Math.max(0, totalBytes - freeBytes);
+  const toGb = (value) => Math.round((value / (1024 ** 3)) * 10) / 10;
+  return {
+    cpuPercent,
+    ramPercent: totalBytes ? Math.round((usedBytes / totalBytes) * 100) : null,
+    memoryUsedGb: toGb(usedBytes),
+    memoryFreeGb: toGb(freeBytes),
+    memoryTotalGb: toGb(totalBytes),
+  };
+}
 
 // ---------------- Paths ---------------- //
 const dataDir = () => app.getPath('userData');
@@ -945,6 +988,9 @@ ipcMain.handle('app:getAutoStart', async () => {
     return false;
   }
 });
+
+// Lightweight, local-only system readiness snapshot used by the Library footer.
+ipcMain.handle('system:health', async () => readSystemHealth());
 
 // ---------------- GOG search & details ---------------- //
 ipcMain.handle('gog:search', async (_e, query) => {
@@ -2027,10 +2073,9 @@ ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey,
 let DEALS_CACHE = { ts: 0, items: [] };
 
 /* ============================================================ */
-/* LAUNCHER DETECTOR — checks if Steam/Epic/EA/etc are running    */
-/* via tasklist. Called from renderer every few minutes.          */
+/* LAUNCHER DETECTOR — process-only check. Never reads client data. */
 /* ============================================================ */
-ipcMain.handle('launcher:detect', async () => {
+function detectRunningLaunchers() {
   const { exec } = require('child_process');
   return new Promise((resolve) => {
     if (process.platform !== 'win32') return resolve({});
@@ -2049,6 +2094,71 @@ ipcMain.handle('launcher:detect', async () => {
       });
     });
   });
+}
+
+ipcMain.handle('launcher:detect', async () => detectRunningLaunchers());
+
+const SOCIAL_PLATFORM_IDS = new Set(['steam', 'epic', 'ea', 'ubisoft', 'battlenet']);
+
+function socialClientCandidates(platform) {
+  const programFiles = process.env.ProgramFiles || 'C:\\Program Files';
+  const programFilesX86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+  const path = require('path');
+  return {
+    steam: [path.join(programFilesX86, 'Steam', 'steam.exe'), path.join(programFiles, 'Steam', 'steam.exe')],
+    epic: [path.join(programFilesX86, 'Epic Games', 'Launcher', 'Portal', 'Binaries', 'Win64', 'EpicGamesLauncher.exe')],
+    ea: [path.join(programFiles, 'Electronic Arts', 'EA Desktop', 'EA Desktop', 'EADesktop.exe'), path.join(programFiles, 'Electronic Arts', 'EA Desktop', 'EA Desktop', 'EA Desktop.exe')],
+    ubisoft: [path.join(programFilesX86, 'Ubisoft', 'Ubisoft Game Launcher', 'UbisoftConnect.exe'), path.join(programFiles, 'Ubisoft', 'Ubisoft Game Launcher', 'UbisoftConnect.exe')],
+    battlenet: [path.join(programFilesX86, 'Battle.net', 'Battle.net Launcher.exe'), path.join(programFilesX86, 'Battle.net', 'Battle.net.exe')],
+  }[platform] || [];
+}
+
+function safeManualClientPath(manualPaths, platform) {
+  const candidate = manualPaths && typeof manualPaths[platform] === 'string' ? manualPaths[platform] : '';
+  return candidate && candidate.toLowerCase().endsWith('.exe') ? candidate : '';
+}
+
+// Friends Hub inspection combines the existing process check with a local
+// installation check. Manual paths originate only from the user's file picker.
+ipcMain.handle('launcher:inspectSocialClients', async (_event, manualPaths = {}) => {
+  const { existsSync } = require('fs');
+  const running = await detectRunningLaunchers();
+  const clients = {};
+  for (const platform of SOCIAL_PLATFORM_IDS) {
+    const manualPath = safeManualClientPath(manualPaths, platform);
+    const executable = manualPath && existsSync(manualPath) ? manualPath : socialClientCandidates(platform).find(existsSync) || '';
+    clients[platform] = { running: !!running[platform], installed: !!executable, path: executable, pathSource: executable && executable === manualPath ? 'manual' : executable ? 'standard' : '', savedPathMissing: !!manualPath && !existsSync(manualPath) };
+  }
+  return clients;
+});
+
+ipcMain.handle('launcher:pickSocialClient', async (_event, platform) => {
+  if (!SOCIAL_PLATFORM_IDS.has(platform)) return null;
+  const label = { steam: 'Steam', epic: 'Epic Games Launcher', ea: 'EA app', ubisoft: 'Ubisoft Connect', battlenet: 'Battle.net' }[platform];
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: `Locate ${label}`,
+    properties: ['openFile'],
+    filters: [{ name: 'Application', extensions: ['exe'] }],
+  });
+  return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+});
+
+// Friends Hub — opens only the platform's normal client/social surface.
+// It never reads client tokens, cookies, memory, friend lists, or chat history.
+ipcMain.handle('launcher:openSocial', async (_event, platform, manualPath) => {
+  if (!SOCIAL_PLATFORM_IDS.has(platform)) return { ok: false, error: 'Unsupported platform.' };
+  if (process.platform !== 'win32') return { ok: false, error: 'Friends Hub currently supports Windows clients only.' };
+  const { shell } = require('electron');
+  const { existsSync } = require('fs');
+  if (platform === 'steam') {
+    try { await shell.openExternal('steam://open/friends'); return { ok: true }; }
+    catch { return { ok: false, error: 'Steam could not be opened.' }; }
+  }
+  const selectedPath = typeof manualPath === 'string' && manualPath.toLowerCase().endsWith('.exe') ? manualPath : '';
+  const executable = selectedPath && existsSync(selectedPath) ? selectedPath : socialClientCandidates(platform).find(existsSync);
+  if (!executable) return { ok: false, error: 'Client not found. Use Locate to choose its executable once.' };
+  const openError = await shell.openPath(executable);
+  return openError ? { ok: false, error: openError } : { ok: true };
 });
 
 ipcMain.handle('deals:fetch', async () => {

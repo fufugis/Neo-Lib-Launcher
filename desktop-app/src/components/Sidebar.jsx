@@ -2,13 +2,14 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import {
-  Plus, Wand2, Settings, RefreshCw, Trash2, Pencil, FolderOpen, MoreVertical, Sparkles,
+  Plus, Wand2, RefreshCw, Trash2, Pencil, FolderOpen, MoreVertical, Sparkles,
   Lock, ChevronRight, ChevronDown, Tag, GripVertical, Terminal,
   Info, ArrowUp, ArrowDown, Palette, Eye, EyeOff, Sliders, Library as LibIcon,
-  Wrench, Columns, Pin, PinOff, X as XIcon, Newspaper, BarChart3, MessageCircle,
+  Wrench, Columns, Pin, PinOff, X as XIcon, Home, MessageCircle,
   Bug, Lightbulb, RotateCcw, Check,
 } from 'lucide-react';
 import { cn, colorFromId, sizeById, formatPlaytime, playtimeSource } from '../lib/utils';
+import SystemHealthBar from './SystemHealthBar';
 
 /* v1.6.4 — Background texture styles applied INSIDE the sidebar so the
    texture never covers hero banners / preview images in the main pane. */
@@ -90,7 +91,7 @@ export default function Sidebar({
   bgTextureId, bgTextureOpacity,
   onChangeBgTextureId, onChangeBgTextureOpacity,
   onSelect,
-  onAddManual, onOpenWizard, onOpenSettings, onOpenFeedback, onOpenPlaytimeImport, onUpdateAll, onTidyUp,
+  onAddManual, onOpenWizard, onOpenFeedback, onOpenPlaytimeImport, onUpdateAll, onTidyUp,
   onCreateCategory, onCategoryContext, onGameContext,
   onSetLibrarySize, onMoveGameToCategory,
   onReorderGameInCategory, onReorderCategory,
@@ -114,9 +115,20 @@ export default function Sidebar({
   };
   const [libSettingsOpen, setLibSettingsOpen] = React.useState(false);
   const libSettingsBtnRef = React.useRef(null);
+  const [addMenuOpen, setAddMenuOpen] = React.useState(false);
   const [refreshMenuOpen, setRefreshMenuOpen] = React.useState(false);
   const treeScrollRef = React.useRef(null);
   const isTools = mode === 'tools';
+  // Keep toolbar labels legible while the sidebar is resized: they shrink over
+  // the last 80px, then collapse cleanly to icons instead of being clipped.
+  const labelProgress = Math.max(0, Math.min(1, (sidebarWidth - 240) / 80));
+  const labelsVisible = labelProgress > 0;
+  const toolbarLabelStyle = {
+    fontSize: `${8 + (labelProgress * 2.5)}px`,
+    maxWidth: `${Math.round(88 * labelProgress)}px`,
+    opacity: labelProgress,
+    transition: 'font-size 100ms ease, max-width 100ms ease, opacity 100ms ease',
+  };
   const pinnedIdsSet = React.useMemo(() => new Set(pinnedIds || []), [pinnedIds]);
 
   // Library reference used by the PinnedStrip (it pulls full game objects by id).
@@ -200,14 +212,11 @@ export default function Sidebar({
         className="absolute right-0 top-0 z-30 h-full w-1.5 cursor-col-resize hover:bg-[rgb(var(--accent)/0.4)] transition-colors"
         style={{ touchAction: 'none' }}
       />
-      {/* Top toolbar — Library / Tools / News. Frosted band that stretches
+      {/* Top toolbar — Home / Library / Tools. Frosted band that stretches
           across the sidebar, gradient underline separates it from category tree.
           v1.6.3 — Labels collapse to icon-only when the sidebar is dragged
           under ~340px so nothing gets truncated to a single letter. */}
       {(() => {
-        // Enough room for icon + label per tab? 4 label tabs + 2 icon-only pills
-        // + gaps + padding needs ~340px total.
-        const showLabels = sidebarWidth >= 340;
         return (
       <div
         className="relative flex items-stretch gap-1 px-2 pt-2.5 pb-2"
@@ -221,77 +230,17 @@ export default function Sidebar({
         }}
         data-testid="top-toolbar"
       >
-        <TabPill
-          label="Library"
-          icon={<LibIcon size={15} />}
-          showLabel={showLabels}
-          active={mode !== 'tools' && mode !== 'news' && mode !== 'stats'}
-          onClick={() => { onSetMode('library'); onSetLauncherFilter?.('all'); }}
-          testid="tab-library"
-        />
+        <TabPill label="Home" icon={<Home size={15} />} showLabel={labelsVisible} labelStyle={toolbarLabelStyle} active={mode === 'home'} onClick={() => { onSelect?.(null); onSetMode('home'); }} testid="tab-home" />
+        <TabPill label="Library" icon={<LibIcon size={15} />} showLabel={labelsVisible} labelStyle={toolbarLabelStyle} active={mode === 'library'} onClick={() => { onSetMode('library'); onSetLauncherFilter?.('all'); }} testid="tab-library" />
         <TabPill
           label="Tools"
           icon={<Wrench size={15} />}
-          showLabel={showLabels}
+          showLabel={labelsVisible}
+          labelStyle={toolbarLabelStyle}
           active={mode === 'tools'}
           onClick={() => onSetMode('tools')}
           testid="tab-tools"
         />
-        <TabPill
-          label="News"
-          icon={<Newspaper size={15} />}
-          showLabel={showLabels}
-          active={mode === 'news'}
-          onClick={() => onSetMode('news')}
-          testid="tab-news"
-          badge={typeof unseenNewsCount === 'number' && unseenNewsCount > 0 ? unseenNewsCount : null}
-        />
-        <TabPill
-          label="Stats"
-          icon={<BarChart3 size={15} />}
-          showLabel={showLabels}
-          active={mode === 'stats'}
-          onClick={() => onSetMode('stats')}
-          testid="tab-stats"
-        />
-        {/* v1.6.3 — Settings + Feedback are icon-only pills aligned with the
-            TabPill row (h-9). Keeps the label tabs readable at narrow sidebar
-            widths while still exposing settings and feedback prominently. */}
-        <button
-          data-testid="tab-settings"
-          onClick={onOpenSettings}
-          title="Settings"
-          className="shrink-0 inline-flex items-center justify-center rounded-lg h-9 w-9 hairline text-ink/85 hover:text-ink hover:border-[rgb(var(--accent)/0.55)] hover:bg-[rgb(var(--accent)/0.10)] transition-all"
-          style={{ background: 'rgb(var(--panel)/0.35)' }}
-        >
-          <Settings size={16} className="text-[rgb(var(--accent))] cog-hover-spin" />
-        </button>
-        {/* v1.5.0 — very visible in-app feedback / bug / suggestion pill.
-            v1.6.3 — Icon-only, matches TabPill h-9 for perfect alignment.
-            Label still available via title tooltip + the three buttons at the
-            bottom of the Visuals popover. */}
-        {onOpenFeedback && (
-          <button
-            data-testid="tab-feedback"
-            onClick={() => onOpenFeedback('feedback')}
-            title="Send feedback, report a bug, or suggest a feature"
-            className="relative shrink-0 inline-flex items-center justify-center rounded-lg h-9 w-9 text-white transition-all hover:scale-[1.06] active:scale-[0.94]"
-            style={{
-              background: 'linear-gradient(135deg, rgb(var(--accent)) 0%, rgb(var(--accent-2)) 100%)',
-              boxShadow: '0 0 14px -3px rgb(var(--accent)/0.65), 0 0 24px -12px rgb(var(--accent-2)/0.55)',
-              border: '1px solid rgb(var(--accent) / 0.5)',
-            }}
-          >
-            <MessageCircle size={16} />
-            <motion.span
-              aria-hidden
-              className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full"
-              style={{ background: '#ffcc4a', boxShadow: '0 0 6px #ffcc4a' }}
-              animate={{ scale: [1, 1.3, 1], opacity: [0.85, 1, 0.85] }}
-              transition={{ duration: 1.8, repeat: Infinity }}
-            />
-          </button>
-        )}
         {/* Bottom accent line separating the toolbar from what's underneath */}
         <span
           aria-hidden
@@ -308,11 +257,10 @@ export default function Sidebar({
       {/* Secondary launcher filter row moved BELOW the Add/Wizard toolbar
           in v1.3.1 — see the combined row below. */}
 
-      {/* Toolbar row 2 — Add / Wizard / (flex) / Refresh / Visuals / TwoRow.
-          v1.6.3 — Labels collapse to icon-only when sidebar < 340px so the
+      {/* Toolbar row 2 — Add menu / Wizard / (flex) / Refresh / Visuals / TwoRow.
+          Labels collapse to icon-only when the sidebar is especially narrow so the
           row stays tidy without wrapping or truncating. */}
       {(() => {
-        const showLabels = sidebarWidth >= 340;
         return (
       <div
         className="flex items-center gap-1.5 p-3 pt-2"
@@ -322,9 +270,57 @@ export default function Sidebar({
           background: 'linear-gradient(180deg, rgb(0 0 0 / 0.20) 0%, rgb(0 0 0 / 0.08) 100%)',
         }}
       >
-        <SideBtn label={showLabels ? "Add Game" : null} icon={<Plus size={16} />} onClick={onAddManual} testid="sidebar-add-btn" title="Add game" />
+        <div className="relative">
+          <SideBtn
+            label={labelsVisible ? "Add" : null}
+            labelStyle={toolbarLabelStyle}
+            icon={<Plus size={16} />}
+            onClick={() => setAddMenuOpen((v) => !v)}
+            testid="sidebar-add-btn"
+            title={isTools ? 'Add tool' : 'Add game or category'}
+          />
+          <AnimatePresence>
+            {addMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.15 }}
+                onClick={(e) => e.stopPropagation()}
+                className="absolute left-0 z-30 mt-1 w-56 rounded-lg hairline glass shadow-2xl p-1.5"
+              >
+                <button
+                  data-testid="add-menu-game"
+                  onClick={() => { setAddMenuOpen(false); onAddManual?.(); }}
+                  className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left hover:bg-[rgb(var(--accent)/0.08)] transition-colors"
+                >
+                  <span className="flex items-center gap-2 text-[12px] font-semibold text-ink">
+                    <Plus size={13} className="text-[rgb(var(--accent))]" />
+                    {isTools ? 'Add tool' : 'Add game'}
+                  </span>
+                  <span className="text-[10.5px] text-muted">
+                    {isTools ? 'Add an executable or shortcut to your tools.' : 'Open the existing add-game menu.'}
+                  </span>
+                </button>
+                {!isTools && (
+                  <button
+                    data-testid="add-menu-category"
+                    onClick={() => { setAddMenuOpen(false); onCreateCategory?.(); }}
+                    className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left hover:bg-[rgb(var(--accent-2)/0.08)] transition-colors"
+                  >
+                    <span className="flex items-center gap-2 text-[12px] font-semibold text-ink">
+                      <Tag size={13} className="text-[rgb(var(--accent-2))]" />
+                      Add category
+                    </span>
+                    <span className="text-[10.5px] text-muted">Create a new shelf for your library.</span>
+                  </button>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
         {!isTools && (
-          <SideBtn label={showLabels ? "Wizard" : null} icon={<Wand2 size={16} />} onClick={onOpenWizard} testid="sidebar-wizard-btn" title="Wizard" />
+          <SideBtn label={labelsVisible ? "Wizard" : null} labelStyle={toolbarLabelStyle} icon={<Wand2 size={16} />} onClick={onOpenWizard} testid="sidebar-wizard-btn" title="Wizard" />
         )}
         <div className="flex-1" />
         {!isTools && (
@@ -398,7 +394,7 @@ export default function Sidebar({
             }}
           >
             <Sliders size={15} className="text-[rgb(var(--accent))]" />
-            {showLabels && 'Visuals'}
+            {labelsVisible && <span className="overflow-hidden whitespace-nowrap" style={toolbarLabelStyle}>Visuals</span>}
           </button>
           <AnimatePresence>
             {libSettingsOpen && (
@@ -477,14 +473,6 @@ export default function Sidebar({
               <Wand2 size={10} /> Auto-sort
             </button>
           )}
-          <button
-            data-testid="category-new-btn"
-            onClick={onCreateCategory}
-            title="Create a new category"
-            className="inline-flex shrink-0 items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)]"
-          >
-            <Plus size={11} /> Category
-          </button>
         </div>
       )}
 
@@ -571,6 +559,7 @@ export default function Sidebar({
           </div>
         )}
       </div>
+      {!isTools && <SystemHealthBar />}
     </aside>
   );
 }
@@ -661,7 +650,7 @@ function SectionWrap({ s, idx, commonProps }) {
   );
 }
 
-const SideBtn = React.forwardRef(function SideBtn({ icon, label, onClick, testid, title }, ref) {
+const SideBtn = React.forwardRef(function SideBtn({ icon, label, labelStyle, onClick, testid, title }, ref) {
   return (
     <button
       ref={ref}
@@ -671,12 +660,12 @@ const SideBtn = React.forwardRef(function SideBtn({ icon, label, onClick, testid
       className="group inline-flex items-center gap-1.5 rounded-md hairline px-3 h-8 text-[12px] font-semibold text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)] transition-all"
     >
       <span className="text-[rgb(var(--accent))] transition-transform group-hover:scale-110">{icon}</span>
-      {label && <span>{label}</span>}
+      {label && <span className="overflow-hidden whitespace-nowrap" style={labelStyle}>{label}</span>}
     </button>
   );
 });
 
-function TabPill({ label, icon, active, onClick, testid, big = false, badge = null, showLabel = true }) {
+function TabPill({ label, icon, active, onClick, testid, big = false, badge = null, showLabel = true, labelStyle }) {
   return (
     <button
       data-testid={testid}
@@ -722,7 +711,7 @@ function TabPill({ label, icon, active, onClick, testid, big = false, badge = nu
         {icon}
       </span>
       {showLabel && (
-        <span className="relative truncate">
+        <span className="relative overflow-hidden whitespace-nowrap" style={labelStyle}>
           {label}
         </span>
       )}

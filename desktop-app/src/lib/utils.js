@@ -35,10 +35,10 @@ export const THEMES = [
   { id: 'crimson',       label: 'Crimson',        swatch: '#dc263c', tone: 'dark',
     gradient: 'linear-gradient(135deg, #080405 0%, #dc263c 55%, #ff5a6e 100%)' },
   // Middle themes (somewhere between dark and bright)
-  { id: 'gaming',        label: 'Gaming',         swatch: '#9b64ff', tone: 'middle',
-    gradient: 'linear-gradient(135deg, #141630 0%, #9b64ff 55%, #5ac8ff 100%)' },
-  { id: 'modern',        label: 'Modern',         swatch: '#e07a3c', tone: 'middle',
-    gradient: 'linear-gradient(135deg, #221c18 0%, #e07a3c 55%, #87c8f0 100%)' },
+  { id: 'gaming',        label: 'Gaming',         swatch: '#b889ff', tone: 'middle',
+    gradient: 'linear-gradient(135deg, #141630 0%, #b889ff 55%, #72d6ff 100%)' },
+  { id: 'modern',        label: 'Modern',         swatch: '#f39a55', tone: 'middle',
+    gradient: 'linear-gradient(135deg, #221c18 0%, #f39a55 55%, #9edcff 100%)' },
   // Bright themes
   { id: 'synthwave-day', label: 'Vaporwave Day',  swatch: '#8a4fff', tone: 'bright',
     gradient: 'linear-gradient(135deg, #f0e8ff 0%, #8a4fff 55%, #16b0b0 100%)' },

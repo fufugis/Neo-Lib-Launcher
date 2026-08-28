@@ -54,6 +54,7 @@ contextBridge.exposeInMainWorld('api', {
   setDiscordRpc: (v) => ipcRenderer.invoke('app:setDiscordRpc', v),
   discordRpcStatus: () => ipcRenderer.invoke('app:discordRpcStatus'),
   getAutoStart: () => ipcRenderer.invoke('app:getAutoStart'),
+  getSystemHealth: () => ipcRenderer.invoke('system:health'),
 
   // launcher imports
   scanSteam: () => ipcRenderer.invoke('launcher:scan-steam'),
@@ -72,4 +73,7 @@ contextBridge.exposeInMainWorld('api', {
 
   // launcher process detection
   detectLaunchers: () => ipcRenderer.invoke('launcher:detect'),
+  inspectSocialClients: (manualPaths) => ipcRenderer.invoke('launcher:inspectSocialClients', manualPaths),
+  pickSocialClient: (platform) => ipcRenderer.invoke('launcher:pickSocialClient', platform),
+  openLauncherSocial: (platform, manualPath) => ipcRenderer.invoke('launcher:openSocial', platform, manualPath),
 });

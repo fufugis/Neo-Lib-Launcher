@@ -178,18 +178,11 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
         <Section title="Deals">
           <div className="space-y-3">
             <Toggle
-              label="Show deals bar at the bottom"
-              hint="Rotates Epic free games, Steam discounts, and Instant Gaming hot deals. Pulled live, no tracking."
+              label="Show sponsored footer rail"
+              hint="One compact, clearly labelled deal at the bottom. View all deals only when you choose to open them."
               value={settings.dealsEnabled !== false}
               onChange={(v) => setKey({ dealsEnabled: v, dealsBarHidden: false })}
               testid="opt-deals"
-            />
-            <Toggle
-              label="Show featured deal banner"
-              hint="A slim sponsored card above the deals bar. Rotates through Instant Gaming hot deals (paying affiliate)."
-              value={settings.featuredBannerEnabled !== false}
-              onChange={(v) => setKey({ featuredBannerEnabled: v, featuredBannerHidden: false })}
-              testid="opt-featured-banner"
             />
           </div>
         </Section>
@@ -274,7 +267,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
 
         <Section title="About">
           <p className="text-xs text-muted leading-relaxed">
-            NEO-LIB v1.6.6. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
+            NEO-LIB v1.7.0. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
             Library data lives in <span className="font-mono text-ink">%APPDATA%/NEO-LIB</span>.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">

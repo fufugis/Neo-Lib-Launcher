@@ -16,6 +16,25 @@ import { sendChangelogReaction } from './FeedbackModal';
 
 export const CHANGELOG = [
   {
+    version: '1.7.0',
+    title: 'Friends Hub — your game clients, one elegant launch point',
+    items: [
+      '**Friends Hub in the title bar** — a compact, theme-aware Friends button opens a frosted-glass panel from the top-right of NEO-LIB.',
+      '**Live launcher status** — see whether Steam, Battle.net, Epic, EA app, and Ubisoft Connect are running, refreshed safely in the background.',
+      '**Reliable setup and recovery** — Friends scans when you open it and now distinguishes Running, Installed but not running, Not detected, and a saved path that needs attention. You can rescan at any time or locate a custom client executable once; NEO-LIB remembers that local choice.',
+      '**Theme artwork pass** — Anime now has an original, transparent manga-inspired illustration layer (moon, shrine gate, distant city and speed-line panels) behind the UI. Gaming gains a soft esports-arena backdrop, while Modern gets calm editorial geometry and grain. All three respect the existing per-theme Effects intensity setting.',
+      '**Every theme now has its own illustrated signature** — Synthwave gets a sun and mountain horizon, Vaporwave Day gets clouds and palms, Midnight has constellations, Ocean a jellyfish, Crimson a thorned rose, Mint botanical branches, Daybreak architecture, Colorful stars, and Pro industrial geometry. Every layer stays in the distant background and is original artwork.',
+      '**Cleaner navigation and creation controls** — Settings, feedback, and Discord now sit neatly beside the version in the title bar, freeing the Library / Tools / News / Stats tabs to stay readable. The sidebar now uses one compact `+ Add` menu with Add game and Add category choices.',
+      '**Responsive sidebar labels** — navigation and action labels now shrink smoothly as the library sidebar narrows, collapse fully to icons before becoming unreadable, and scale back in as you expand it.',
+      '**Game Ready footer** — the Library now has a full-width, bottom-edge status overlay. It keeps game rows behind its glass surface, shows CPU and RAM health at a glance, pulses amber/red for warnings, and expands upward with local tips when clicked. It reflows taller on narrow windows rather than cutting text off.',
+      '**Home Hub replaces floating News and Stats** — Home now owns the full right pane when no game is selected, with a date-sorted, scrollable News rail; Today / This week / This month activity filters; warm play summaries; Top 5; and cover-led recent activity showing platform, last-played date, and added date. Selecting a game always returns to its normal detail page.',
+      '**Playtime lives in Home now** — Sync hours opens the full Steam import preview from the Home activity card. Top 5 also has an All time view that ranks every platform together by tracked playtime.',
+      '**Quieter bottom deck** — the multi-bucket activity deck and large featured banner are gone. Deals now use one compact, clearly-labelled sponsored footer rail; its All deals button still opens the full list.',
+      '**Safe native handoff** — each platform has an Open action that hands you back to its own client. NEO-LIB does not read credentials, cookies, friend lists, or private chats.',
+      '**Ready for future approved integrations** — the panel is a privacy-first social launcher; any future friend-presence integration must be official and opt-in.',
+    ],
+  },
+  {
     version: '1.6.6',
     title: 'Feedback finally works in the compiled .exe — via a signed Cloudflare Worker relay',
     items: [

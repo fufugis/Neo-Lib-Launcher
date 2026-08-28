@@ -1,0 +1,32 @@
+---
+description: Keep GitHub and in-app release notes complete and synchronized for every user-visible NEO-LIB change.
+alwaysApply: true
+---
+
+# Release Notes Are Required
+
+For every user-visible change to NEO-LIB, update release notes as part of the same change set. This applies to new features, fixes, changed behavior, visual/theme adjustments, and removals.
+
+Before committing or publishing a release:
+
+1. Add clear GitHub-facing patch notes for the target version (release body and relevant repository documentation when maintained).
+2. Add the equivalent entry to `desktop-app/src/components/ChangelogModal.jsx`, so the in-app "What's new" popup accurately states the version and its changes.
+3. Keep the version identifier and the user-facing description consistent across GitHub, repository documentation, and the in-app modal.
+4. Verify the changelog entry is shown for users upgrading from the prior version.
+
+Do not mark a user-visible change as shipped, commit a release version, push a release tag, or create a GitHub Release until both note surfaces are updated.
+
+# Visual Progress and Release Readiness
+
+Keep collaboration easy to follow during NEO-LIB work:
+
+1. Provide concise visual checkpoints at meaningful milestones. Use the most useful lightweight format for the work: a palette swatch or before/after screenshot for visual changes, a focused diff for code changes, or a compact progress map for multi-step work.
+2. Do not add visuals merely for decoration; use them when they help the user assess a change or current state.
+3. Track the current batch of completed work. Treat more than five bug fixes or more than two major features as the release-readiness threshold.
+4. When the threshold is reached, explicitly ask the user whether to continue work or prepare and push a full release. The question is advisory; never commit, push, tag, or publish without explicit instruction.
+
+# Proactive Product Suggestions
+
+As understanding of the app grows, regularly offer a concise, prioritized list of high-value ideas. Suggestions may cover major product capabilities, visual polish, usability, quality-of-life improvements, reliability, or release engineering.
+
+Base each suggestion on concrete knowledge of the current product. Explain the user benefit and tradeoff briefly, and distinguish quick wins from larger initiatives. Do not implement a suggested item until the user chooses it.
