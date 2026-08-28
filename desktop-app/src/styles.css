@@ -1063,6 +1063,31 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
   100% { transform: translateY(-10vh) translateX(20px) scale(1); opacity: 0; }
 }
 
+/* Theme-specific ambient motion. They all respect the shared Effects dial,
+   but no longer read as the same generic sparkle layer in a new colour. */
+.particles--midnight span { width: 2px; height: 2px; border-radius: 0; background: rgb(var(--accent-2)); box-shadow: 0 0 7px rgb(var(--accent-2)); animation-name: starDrift; }
+.particles--ocean span { width: 7px; height: 7px; background: transparent; border: 1px solid rgb(var(--accent-2) / .8); box-shadow: 0 0 8px rgb(var(--accent)); animation-name: bubbleRise; }
+.particles--crimson span { width: 2px; height: 8px; border-radius: 40% 40% 70% 70%; background: rgb(var(--accent-2)); box-shadow: 0 0 9px rgb(var(--accent)); animation-name: emberFall; }
+.particles--gaming span { width: 4px; height: 4px; border-radius: 0; background: rgb(var(--accent-2)); box-shadow: 3px 0 0 rgb(var(--accent) / .55); animation-name: pixelDrift; }
+.particles--modern span { width: 1px; height: 1px; background: rgb(var(--ink)); box-shadow: none; opacity: .22; animation-name: dustSlide; }
+.particles--mint span { width: 4px; height: 8px; border-radius: 100% 0 100% 0; background: rgb(var(--accent)); box-shadow: 0 0 5px rgb(var(--accent-2)); animation-name: pollenDrift; }
+.particles--daybreak span { width: 1px; height: 14px; border-radius: 0; background: rgb(var(--accent)); box-shadow: none; animation-name: sunRayFall; }
+.particles--synthwave-day span { width: 5px; height: 2px; border-radius: 999px; background: rgb(var(--accent-2)); box-shadow: 0 0 6px rgb(var(--accent)); animation-name: cloudGlide; }
+.particles--anime span { width: 2px; height: 7px; border-radius: 999px; background: rgb(var(--accent-2)); animation-name: inkFall; }
+.particles--colorful span { width: 4px; height: 4px; border-radius: 0; background: rgb(var(--accent-2)); box-shadow: 0 0 8px rgb(var(--accent)); animation-name: prismTwinkle; }
+.particles--pro span { width: 2px; height: 10px; border-radius: 0; background: rgb(var(--accent)); box-shadow: 0 0 6px rgb(var(--accent)); animation-name: metalFall; }
+@keyframes starDrift { 0% { transform: translateY(105vh) rotate(0deg); opacity: 0; } 12%,88% { opacity: .8; } 100% { transform: translateY(-8vh) translateX(-22px) rotate(180deg); opacity: 0; } }
+@keyframes bubbleRise { 0% { transform: translateY(108vh) scale(.5); opacity: 0; } 14%,82% { opacity: .55; } 100% { transform: translateY(-10vh) translateX(40px) scale(1.25); opacity: 0; } }
+@keyframes emberFall { 0% { transform: translateY(-10vh) translateX(0) rotate(0deg); opacity: 0; } 12%,80% { opacity: .7; } 100% { transform: translateY(110vh) translateX(30px) rotate(240deg); opacity: 0; } }
+@keyframes pixelDrift { 0% { transform: translateY(105vh) translateX(0); opacity: 0; } 12%,85% { opacity: .85; } 100% { transform: translateY(-8vh) translateX(-55px); opacity: 0; } }
+@keyframes dustSlide { 0% { transform: translateY(105vh) translateX(0); opacity: 0; } 20%,80% { opacity: .28; } 100% { transform: translateY(-8vh) translateX(75px); opacity: 0; } }
+@keyframes pollenDrift { 0% { transform: translateY(105vh) rotate(0deg); opacity: 0; } 15%,85% { opacity: .6; } 100% { transform: translateY(-8vh) translateX(65px) rotate(540deg); opacity: 0; } }
+@keyframes sunRayFall { 0% { transform: translateY(-12vh) skewX(-25deg); opacity: 0; } 15%,80% { opacity: .45; } 100% { transform: translateY(110vh) translateX(36px) skewX(-25deg); opacity: 0; } }
+@keyframes cloudGlide { 0% { transform: translateX(-12vw) translateY(24vh); opacity: 0; } 12%,85% { opacity: .48; } 100% { transform: translateX(112vw) translateY(-12vh); opacity: 0; } }
+@keyframes inkFall { 0% { transform: translateY(-10vh) rotate(15deg); opacity: 0; } 12%,84% { opacity: .48; } 100% { transform: translateY(110vh) translateX(-24px) rotate(-40deg); opacity: 0; } }
+@keyframes prismTwinkle { 0% { transform: translateY(108vh) rotate(0deg) scale(.4); opacity: 0; } 15%,55% { opacity: .9; } 75% { opacity: .15; } 100% { transform: translateY(-8vh) translateX(44px) rotate(180deg) scale(1.2); opacity: 0; } }
+@keyframes metalFall { 0% { transform: translateY(-10vh) translateX(0); opacity: 0; } 12%,80% { opacity: .62; } 100% { transform: translateY(110vh) translateX(14px); opacity: 0; } }
+
 /* ============================================================ */
 /* CRT BOOT ANIMATION — plays on app start (1.4s)                */
 /* ============================================================ */

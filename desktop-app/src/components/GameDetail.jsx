@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play, RefreshCw, Calendar, Award, Building2, Globe, FolderOpen,
-  Tag, Sparkles, ChevronLeft, ChevronRight, ChevronDown, Youtube, FileText, Wrench, Wand2, ExternalLink, Star,
+  Tag, Sparkles, ChevronLeft, ChevronRight, ChevronDown, Youtube, FileText, Wrench, Wand2, ExternalLink, Star, ArchiveRestore,
 } from 'lucide-react';
 import { cn, colorFromId } from '../lib/utils';
 import { hoverThrottled, playLaunch } from '../lib/sound';
@@ -18,7 +18,7 @@ import { hoverThrottled, playLaunch } from '../lib/sound';
  */
 export default function GameDetail({
   game, categories, onLaunch, onRefetch, onRevealFolder,
-  onToggleCategory, onCustomize, onUpdateGame, fetching, settings = {},
+  onToggleCategory, onCustomize, onUpdateGame, onOpenSaveManager, fetching, settings = {},
 }) {
   if (!game) return <EmptyState />;
   const bg = game.background || game.headerImage || game.coverUrl;
@@ -151,6 +151,7 @@ export default function GameDetail({
           onRevealFolder={onRevealFolder}
           onToggleCategory={onToggleCategory}
           onCustomize={onCustomize}
+          onOpenSaveManager={onOpenSaveManager}
           fetching={fetching}
           settings={settings}
         />
@@ -351,7 +352,7 @@ function openSearch(query, engine = 'google') {
 }
 
 /* ---------- Action bar ---------- */
-function ActionBar({ game, categories, onLaunch, onRefetch, onRevealFolder, onToggleCategory, onCustomize, fetching, settings = {} }) {
+function ActionBar({ game, categories, onLaunch, onRefetch, onRevealFolder, onToggleCategory, onCustomize, onOpenSaveManager, fetching, settings = {} }) {
   const [catOpen, setCatOpen] = React.useState(false);
   const [catAnchor, setCatAnchor] = React.useState(null);
   const popRef = React.useRef(null);
@@ -446,6 +447,16 @@ function ActionBar({ game, categories, onLaunch, onRefetch, onRevealFolder, onTo
       >
         <FolderOpen size={13} />
         Locate
+      </button>
+
+      <button
+        data-testid="detail-save-manager-btn"
+        onClick={() => onOpenSaveManager?.(game)}
+        title="Open save folder, create backups, or recover saves safely"
+        className="inline-flex items-center gap-2 rounded-full hairline px-4 py-2 text-xs text-muted hover:text-ink hover:border-accent/40 transition-colors"
+      >
+        <ArchiveRestore size={13} />
+        Save games
       </button>
 
       {/* Add to category dropdown — portal'd to escape backdrop stacking context */}

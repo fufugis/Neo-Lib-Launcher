@@ -6,8 +6,8 @@ const POLL_INTERVAL_MS = 5_000;
 
 function usageLevel(value) {
   if (!Number.isFinite(value)) return 'checking';
-  if (value >= 80) return 'high';
-  if (value >= 50) return 'medium';
+  if (value >= 85) return 'high';
+  if (value >= 65) return 'medium';
   return 'low';
 }
 
@@ -15,8 +15,8 @@ function readiness(health) {
   const cpu = health?.cpuPercent;
   const ram = health?.ramPercent;
   if (!Number.isFinite(cpu) || !Number.isFinite(ram)) return 'checking';
-  if (cpu >= 80 || ram >= 80) return 'high';
-  if (cpu >= 50 || ram >= 50) return 'check';
+  if (cpu >= 85 || ram >= 85) return 'high';
+  if (cpu >= 65 || ram >= 65) return 'check';
   return 'ready';
 }
 

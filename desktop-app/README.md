@@ -4,9 +4,21 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.7.0-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.7.1-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.7.0 (Friends Hub — detect supported game clients and open their native social surfaces from NEO-LIB)
+### Latest — v1.7.1 (Home intelligence — safe save backups, play suggestions, storage, and your Chronicle)
+
+- **Library Health** — a colour-coded score highlights metadata gaps, missing launch targets, and duplicate candidates, with a direct path into Tidy Up.
+- **Richer Home** — larger news cards use game artwork where available and Top 5 gains cover art, platform, and playtime.
+- **Smarter Game Ready** — yellow begins at 65% and red at 85%; the Library can scroll fully above its footer.
+- **Save Game Folder + safe backups** — choose and open a per-game save folder, search a user-selected location for possible older saves, create private local backups, and recover safely without overwriting a non-empty live save folder.
+- **What should I play?** — Home suggests a recently updated game, a forgotten personal favourite, or a fresh unplayed addition using local library signals.
+- **Storage Control Centre** — a user-triggered, read-only scan measures game folders and recognised mod/workshop folders; it never crawls drives silently.
+- **Gaming Chronicle** — a private local timeline captures games added, played, rated, and updated.
+- **Launch Doctor** — only after repeated immediate failures or very short launches, checks the configured executable and offers nearby candidates for review without changing anything automatically.
+- **Theme ambience variation** — each theme now has its own particle language (stars, bubbles, embers, pixels, pollen, rays, ink, dust, prism, or metal) while respecting its Effects intensity.
+- **Three new chimes** — Aurora, Ember, and Harbor; plus Weave, Topography, and Stardust textures in Visuals.
+- **Cleaner Visuals menu** — grouped into Object sizes, Text & category, FX, and Layout; Quick presets removed in favour of direct control. Icon position and category marker style are sliders, and the translucent category backdrop scales with Category glow.
 
 - **Friends Hub** — a compact, theme-aware top-right panel detects Steam, Battle.net, Epic, EA app, and Ubisoft Connect locally.
 - **Setup that recovers gracefully** — the panel scans on open, distinguishes running / installed-but-off / not found states, and lets you locate a custom launcher executable once for future use.

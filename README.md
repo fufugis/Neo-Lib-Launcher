@@ -2,7 +2,7 @@
 
 > A synthwave-flavored, **fully portable Windows game library** that unifies every game on your PC — Steam, Epic, EA App, GOG, standalone — into one neon-lit interface. No accounts. No cloud. No telemetry.
 
-![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.7.0-8a4fff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.7.1-8a4fff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
 ---
 
@@ -55,7 +55,21 @@ Library + settings live at `%APPDATA%\NEO-LIB\`. Delete that folder to factory-r
 
 ## 📜 Patch notes
 
-### v1.7.0 — Friends Hub · Local launcher status · Safe native social handoff *(current)*
+### v1.7.1 — Home intelligence · safe save backups · play suggestions · storage · Chronicle *(current)*
+
+- **Library Health** — a colour-coded score highlights metadata gaps, missing launch targets, and duplicate candidates, with a direct path into Tidy Up.
+- **Richer Home** — larger news cards use game artwork where available and Top 5 gains cover art, platform, and playtime.
+- **Smarter Game Ready** — yellow begins at 65% and red at 85%; the Library can scroll fully above its footer.
+- **Save Game Folder + safe backups** — a detail-page button and library right-click action let users choose and open a save folder, search a chosen drive/folder for name-matched older save candidates, create local NEO-LIB backups, and recover them safely. NEO-LIB never overwrites a non-empty live save folder; it offers a separate restored folder instead.
+- **What should I play?** — Home suggests an updated game, a forgotten rated favourite, or a fresh unplayed addition using only the user’s local library and already-fetched news.
+- **Storage Control Centre** — an explicit, read-only Home scan measures game folders and conventional mod/workshop folders, showing the largest entries without background drive crawling.
+- **Gaming Chronicle** — a private Home timeline records games added, played, rated, and recently updated.
+- **Launch Doctor** — only after repeated immediate failures/very short launches, NEO-LIB checks the configured executable and offers nearby candidates for review. It changes nothing automatically and gives cautious antivirus-quarantine guidance rather than making assumptions.
+- **Theme ambience variation** — each theme now gives the shared particle system a different visual language: stars, bubbles, embers, pixels, pollen, rays, ink flecks, dust, prism motes, or metal sparks, while staying tied to the Effects intensity control.
+- **New chimes and textures** — Aurora, Ember, and Harbor sound packs; plus Weave, Topography, and Stardust Visuals textures.
+- **Visuals reorganisation** — Object sizes, Text & category, FX, and Layout groups replace Quick presets. Icon position and category marker style are discrete sliders; the category Backdrop mode scales its translucent strength with Category glow.
+
+### v1.7.0 — Friends Hub · Local launcher status · Safe native social handoff
 
 - **Friends Hub** — a compact, theme-aware top-right panel detects Steam, Battle.net, Epic, EA app, and Ubisoft Connect locally.
 - **Setup that recovers gracefully** — the panel scans on open, distinguishes running / installed-but-off / not found states, and lets you locate a custom launcher executable once for future use.

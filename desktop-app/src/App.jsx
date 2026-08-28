@@ -26,10 +26,12 @@ import FetchSourcePicker from './components/FetchSourcePicker';
 import ChangelogModal from './components/ChangelogModal';
 import HomeHub from './components/HomeHub';
 import TidyUpModal from './components/TidyUpModal';
+import SaveGameModal from './components/SaveGameModal';
+import LaunchDoctorModal from './components/LaunchDoctorModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.7.1';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin, formatPlaytime } from './lib/utils';
 import { setSoundPack } from './lib/sound';
@@ -229,6 +231,8 @@ export default function App() {
         • Wizard's refetch flow */
   const [fetchPickerGame, setFetchPickerGame] = React.useState(null);
   const [tidyOpen, setTidyOpen] = React.useState(false);
+  const [saveManagerGame, setSaveManagerGame] = React.useState(null);
+  const [launchDoctorGame, setLaunchDoctorGame] = React.useState(null);
 
   /* --- Accept-before-add modal (preview proposed metadata before applying) --- */
   const [acceptPreview, setAcceptPreview] = React.useState({ open: false, game: null, proposed: null, busy: false });
@@ -463,6 +467,10 @@ export default function App() {
                 : g
             ),
           }));
+          // A game process that closes almost immediately can be a wrong exe,
+          // launcher bootstrap, or a real failure. We wait for a second event
+          // before offering Doctor so a one-off launcher handoff is not noisy.
+          if (Number(seconds) > 0 && Number(seconds) < 8) recordLaunchProblem(gameId, 'closed immediately');
         });
       } else {
         setLibrary({
@@ -786,10 +794,25 @@ export default function App() {
     fireConfetti(`+${newOnes.length} games`);
   };
   const updateGame = (id, patch) => {
+    const timelinePatch = Object.prototype.hasOwnProperty.call(patch || {}, 'rating')
+      ? { ...patch, ratedAt: Date.now() }
+      : patch;
     setLibrary((prev) => ({
       ...prev,
-      [sliceK.items]: (prev[sliceK.items] || []).map((g) => (g.id === id ? { ...g, ...patch } : g)),
+      [sliceK.items]: (prev[sliceK.items] || []).map((g) => (g.id === id ? { ...g, ...timelinePatch } : g)),
     }));
+  };
+  const recordLaunchProblem = (gameId, reason) => {
+    const current = (libraryRef.current?.games || []).find((game) => game.id === gameId);
+    if (!current) return;
+    const cutoff = Date.now() - 10 * 60 * 1000;
+    const launchProblems = [...(current.launchProblems || []), { at: Date.now(), reason }].filter((entry) => Number(entry.at || 0) >= cutoff).slice(-4);
+    const patch = { launchProblems, launchDoctorSuggested: launchProblems.length >= 2 };
+    updateGame(gameId, patch);
+    if (launchProblems.length >= 2) {
+      setLaunchDoctorGame({ ...current, ...patch });
+      notify(`Launch Doctor · ${current.name} closed immediately more than once.`);
+    }
   };
   const removeGame = (id) => {
     setLibrary((prev) => {
@@ -819,7 +842,10 @@ export default function App() {
     const res = await window.api.launchGame({
       exePath: g.exePath, launchArgs: g.launchArgs || '', gameId: g.id, name: g.name,
     });
-    if (!res.ok) notify('Launch failed: ' + (res.error || ''));
+    if (!res.ok) {
+      recordLaunchProblem(g.id, res.error || 'could not start');
+      notify('Launch failed: ' + (res.error || ''));
+    }
     else notify(`Launching ${g.name}…`);
   };
 
@@ -1158,6 +1184,14 @@ export default function App() {
       else notify('Open: ' + g.exePath);
       return;
     }
+    if (action === 'save-games') {
+      setSaveManagerGame(g);
+      return;
+    }
+    if (action === 'launch-doctor') {
+      setLaunchDoctorGame(g);
+      return;
+    }
     // v1.5.0 — Reset a single game's playtime to 0. Useful when Steam import
     // (or the old buggy game-exit tracker) inflated numbers.
     // v1.6.0 — Confirmation copy made painfully explicit + requires
@@ -1360,7 +1394,8 @@ export default function App() {
           catGap={settings.catGap ?? 8}
           catTopGap={settings.catTopGap ?? 4}
           iconPosition={settings.iconPosition || 'left'}
-          showCategoryDot={settings.showCategoryDot !== false}
+          categoryMarkerMode={settings.categoryMarkerMode || (settings.showCategoryDot === false ? 'background' : 'dot')}
+          showCategoryDot={(settings.categoryMarkerMode || (settings.showCategoryDot === false ? 'background' : 'dot')) === 'dot'}
           pinnedIds={settings.pinnedGameIds || []}
           onChangeRowSize={(v) => updateSetting({ rowSize: v })}
           onChangeCatTextSize={(v) => updateSetting({ catTextSize: v })}
@@ -1369,7 +1404,7 @@ export default function App() {
           onChangeCatGap={(v) => updateSetting({ catGap: v })}
           onChangeCatTopGap={(v) => updateSetting({ catTopGap: v })}
           onChangeIconPosition={(v) => updateSetting({ iconPosition: v })}
-          onToggleCategoryDot={(v) => updateSetting({ showCategoryDot: v })}
+          onChangeCategoryMarkerMode={(v) => updateSetting({ categoryMarkerMode: v, showCategoryDot: v === 'dot' })}
           showSubcatStrip={settings.showSubcatStrip !== false}
           onToggleSubcatStrip={(v) => updateSetting({ showSubcatStrip: v })}
           nameTextSize={Number.isFinite(settings.nameTextSize) ? settings.nameTextSize : null}
@@ -1422,9 +1457,9 @@ export default function App() {
         <main className="relative flex min-w-0 flex-1 flex-col">
           <div className="flex-1 min-h-0 overflow-hidden">
             {!isTools && (settings.mode === 'home' || !selected) ? (
-              <HomeHub games={library.games || []} onSelect={(id) => { setSelectedId(id); setMode('library'); }} onOpenPlaytimeImport={() => openPlaytimeImport({ force: true })} />
+              <HomeHub games={library.games || []} onSelect={(id) => { setSelectedId(id); setMode('library'); }} onOpenPlaytimeImport={() => openPlaytimeImport({ force: true })} onOpenTidyUp={() => setTidyOpen(true)} />
             ) : (
-              <AnimatePresence mode="wait"><GameDetail key={selected?.id || 'empty'} game={selected} categories={currentCats.filter((c) => !c.private || unlockedCategories.includes(c.id))} fetching={fetching} settings={settings} onLaunch={launchGame} onRefetch={(g) => setFetchPickerGame(g)} onRevealFolder={(g) => (isElectron ? window.api.revealInFolder(g.exePath) : notify('Open: ' + g.exePath))} onToggleCategory={toggleGameInCategory} onCustomize={(g) => setEditMetaGame(g)} onUpdateGame={updateGame} /></AnimatePresence>
+              <AnimatePresence mode="wait"><GameDetail key={selected?.id || 'empty'} game={selected} categories={currentCats.filter((c) => !c.private || unlockedCategories.includes(c.id))} fetching={fetching} settings={settings} onLaunch={launchGame} onRefetch={(g) => setFetchPickerGame(g)} onRevealFolder={(g) => (isElectron ? window.api.revealInFolder(g.exePath) : notify('Open: ' + g.exePath))} onToggleCategory={toggleGameInCategory} onCustomize={(g) => setEditMetaGame(g)} onOpenSaveManager={(g) => setSaveManagerGame(g)} onUpdateGame={updateGame} /></AnimatePresence>
             )}
           </div>
         </main>
@@ -1474,6 +1509,22 @@ export default function App() {
         geminiKey={settings.geminiKey || ''}
       />
       <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} settings={settings} setSettings={persistSettings} onShowChangelog={() => setChangelogOpen(true)} />
+      <SaveGameModal
+        game={saveManagerGame}
+        onClose={() => setSaveManagerGame(null)}
+        onSaveFolder={(saveFolder) => { if (saveManagerGame) { updateGame(saveManagerGame.id, { saveFolder }); setSaveManagerGame((game) => game ? { ...game, saveFolder } : game); } }}
+        onNotice={notify}
+      />
+      <LaunchDoctorModal
+        game={launchDoctorGame}
+        onClose={() => setLaunchDoctorGame(null)}
+        onUseExecutable={(exePath) => {
+          if (!launchDoctorGame) return;
+          updateGame(launchDoctorGame.id, { exePath, launchDoctorSuggested: false, launchProblems: [] });
+          notify(`Launch target updated · ${launchDoctorGame.name}`);
+          setLaunchDoctorGame(null);
+        }}
+      />
       <ChangelogModal
         open={changelogOpen}
         currentVersion={APP_VERSION}
@@ -1871,7 +1922,7 @@ function BgAmbience({ theme, settings = {}, game = null }) {
         <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden" style={{ opacity: intensity }}>
           <div className="vapor-clouds" />
           <div className="vapor-floor" />
-          {showParticles && <Particles count={lvl.particles} />}
+          {showParticles && <Particles count={lvl.particles} theme={theme} />}
         </div>
         {edgeGlowLayer}
       </>
@@ -1890,7 +1941,7 @@ function BgAmbience({ theme, settings = {}, game = null }) {
             className="absolute -top-40 left-1/2 h-[60vh] w-[80vw] -translate-x-1/2 rounded-full opacity-30 blur-3xl"
             style={{ background: 'radial-gradient(circle, rgb(var(--accent)/0.45), transparent 60%)' }}
           />
-          {showParticles && <Particles count={lvl.particles} />}
+          {showParticles && <Particles count={lvl.particles} theme={theme} />}
         </div>
         {edgeGlowLayer}
       </>
@@ -1942,7 +1993,7 @@ function BgAmbience({ theme, settings = {}, game = null }) {
             ))}
           </div>
         )}
-        {showParticles && <Particles count={particleCount} />}
+        {showParticles && <Particles count={particleCount} theme={theme} />}
       </div>
       {edgeGlowLayer}
     </>
@@ -2034,7 +2085,7 @@ function Sakura({ count = 18 }) {
   );
 }
 
-function Particles({ count = 10 }) {
+function Particles({ count = 10, theme = 'synthwave' }) {
   // Pre-compute deterministic positions so they don't jump on re-render
   const items = React.useMemo(() => {
     return Array.from({ length: count }).map((_, i) => ({
@@ -2045,7 +2096,7 @@ function Particles({ count = 10 }) {
     }));
   }, [count]);
   return (
-    <div className="particles">
+    <div className={`particles particles--${theme}`}>
       {items.map((p, i) => (
         <span
           key={i}
@@ -2100,6 +2151,12 @@ export function useBgTextureStyle(textureId = 'none', opacity = 40) {
         backgroundImage: 'radial-gradient(rgb(var(--accent) / 0.85) 1.2px, transparent 2px)',
         backgroundSize: '18px 18px',
       },
+      scanlines: { backgroundImage: 'repeating-linear-gradient(0deg, rgb(var(--accent) / 0.85) 0 1px, transparent 1px 6px)' },
+      circuit: { backgroundImage: 'linear-gradient(rgb(var(--accent) / 0.7) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--accent) / 0.7) 1px, transparent 1px), radial-gradient(rgb(var(--accent-2) / 0.9) 1.5px, transparent 2.5px)', backgroundSize: '24px 24px, 24px 24px, 24px 24px', backgroundPosition: '0 0, 0 0, 12px 12px' },
+      chevron: { backgroundImage: 'repeating-linear-gradient(45deg, rgb(var(--accent) / 0.8) 0 2px, transparent 2px 12px), repeating-linear-gradient(-45deg, rgb(var(--accent-2) / 0.7) 0 2px, transparent 2px 12px)' },
+      weave: { backgroundImage: 'repeating-linear-gradient(0deg, rgb(var(--accent) / 0.42) 0 1px, transparent 1px 8px), repeating-linear-gradient(90deg, rgb(var(--accent-2) / 0.30) 0 1px, transparent 1px 8px)', backgroundSize: '16px 16px' },
+      topography: { backgroundImage: 'radial-gradient(ellipse at 20% 30%, transparent 0 26%, rgb(var(--accent) / 0.40) 27% 28%, transparent 29% 42%, rgb(var(--accent-2) / 0.28) 43% 44%, transparent 45%)', backgroundSize: '86px 62px' },
+      stardust: { backgroundImage: 'radial-gradient(circle at 20% 30%, rgb(var(--accent-2) / 0.7) 0 1px, transparent 1.8px), radial-gradient(circle at 75% 70%, rgb(var(--accent) / 0.6) 0 1.2px, transparent 2px)', backgroundSize: '34px 34px, 53px 53px' },
     };
     return { ...patterns[textureId], opacity: Math.max(0, Math.min(100, opacity)) / 100 };
   }, [textureId, opacity]);

@@ -1,0 +1,22 @@
+---
+description: Recommend Codex model, effort, and speed settings based on real value rather than maximum spend
+alwaysApply: true
+---
+
+# Cost-aware working guidance
+
+Treat the user's time and usage allowance as valuable. Do not recommend a more expensive model, higher reasoning effort, or faster processing merely because it is available.
+
+- Keep the current setting when it is sufficient for the task.
+- Recommend an upgrade only when a concrete benefit is likely: reduced risk in cross-cutting architecture, a difficult bug, security or release-critical verification, or substantially less rework.
+- State the reason, the smallest useful upgrade, and a lower-cost alternative.
+- Prefer temporary upgrades for bounded difficult phases instead of leaving expensive settings enabled by default.
+- Be explicit when an upgrade will not overcome an external limitation such as an unavailable API, missing credentials, or platform policy.
+- For routine UI, copy, isolated component, mechanical refactor, and well-scoped maintenance work, recommend the balanced/default setting.
+
+## NEO-LIB baseline
+
+- Terra + Medium: routine UI and isolated maintenance.
+- Terra + High: normal multi-file feature work.
+- Sol + High: architecture, complex integration, difficult debugging, or release-critical audits.
+- Extra High or Ultra: only for a specifically identified, bounded task where deeper investigation is likely to change the result.

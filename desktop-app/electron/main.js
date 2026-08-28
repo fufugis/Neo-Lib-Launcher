@@ -78,12 +78,51 @@ const dataDir = () => app.getPath('userData');
 const libraryFile = () => path.join(dataDir(), 'library.json');
 const settingsFile = () => path.join(dataDir(), 'settings.json');
 const coversDir = () => path.join(dataDir(), 'covers');
+const saveBackupsDir = () => path.join(dataDir(), 'save-backups');
 // v1.6.4 — Daily playtime snapshots so Stats can compute "played in the last N
 // days" (Steam's localconfig only stores lifetime totals, not deltas).
 const playtimeHistoryFile = () => path.join(dataDir(), 'playtime-history.json');
 
 async function ensureDirs() {
   await fsp.mkdir(coversDir(), { recursive: true });
+  await fsp.mkdir(saveBackupsDir(), { recursive: true });
+}
+
+function safePathPart(value, fallback = 'game') {
+  const clean = String(value || '').replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '');
+  return clean.slice(0, 80) || fallback;
+}
+
+function isInside(parent, candidate) {
+  const relative = path.relative(parent, candidate);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+async function folderStats(root, limit = 25000) {
+  let files = 0;
+  let bytes = 0;
+  let truncated = false;
+  async function walk(current) {
+    if (files >= limit) { truncated = true; return; }
+    let entries = [];
+    try { entries = await fsp.readdir(current, { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      if (files >= limit) { truncated = true; return; }
+      if (entry.isSymbolicLink()) continue;
+      const full = path.join(current, entry.name);
+      if (entry.isDirectory()) await walk(full);
+      else if (entry.isFile()) {
+        try { bytes += (await fsp.stat(full)).size; files += 1; } catch { /* file disappeared */ }
+      }
+    }
+  }
+  await walk(root);
+  return { files, bytes, truncated };
+}
+
+async function isDirectoryEmpty(directory) {
+  const entries = await fsp.readdir(directory);
+  return entries.length === 0;
 }
 
 // ---------------- HTTP helpers ---------------- //
@@ -987,6 +1026,189 @@ ipcMain.handle('app:getAutoStart', async () => {
   } catch {
     return false;
   }
+});
+
+ipcMain.handle('app:openPath', async (_e, p) => {
+  if (!p || typeof p !== 'string') return { ok: false, error: 'No path provided.' };
+  const error = await shell.openPath(p);
+  return error ? { ok: false, error } : { ok: true };
+});
+
+ipcMain.handle('dialog:pickSaveFolder', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Select this game\'s save folder',
+    properties: ['openDirectory'],
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  return result.filePaths[0];
+});
+
+// ---------------- Save folders and local backups ---------------- //
+// Backups are deliberately kept under NEO-LIB's own app-data directory. The
+// restore path never overwrites live files: it can only restore into an empty
+// directory or make a separate "NEOLIB Restored" folder for manual review.
+ipcMain.handle('saves:inspect', async (_e, savePath) => {
+  try {
+    if (!savePath || typeof savePath !== 'string') return { ok: false, error: 'No save folder selected.' };
+    const stat = await fsp.stat(savePath);
+    if (!stat.isDirectory()) return { ok: false, error: 'The selected path is not a folder.' };
+    return { ok: true, path: savePath, ...(await folderStats(savePath)) };
+  } catch (error) {
+    return { ok: false, error: error?.code === 'ENOENT' ? 'This folder no longer exists.' : String(error?.message || error) };
+  }
+});
+
+ipcMain.handle('saves:listBackups', async (_e, gameId) => {
+  try {
+    const root = path.join(saveBackupsDir(), safePathPart(gameId));
+    let entries = [];
+    try { entries = await fsp.readdir(root, { withFileTypes: true }); } catch { return { ok: true, backups: [] }; }
+    const backups = [];
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
+      const backupPath = path.join(root, entry.name);
+      try {
+        const meta = JSON.parse(await fsp.readFile(path.join(backupPath, 'backup.json'), 'utf8'));
+        backups.push({ ...meta, backupPath });
+      } catch { /* incomplete backup is never shown as recoverable */ }
+    }
+    backups.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+    return { ok: true, backups };
+  } catch (error) { return { ok: false, error: String(error?.message || error), backups: [] }; }
+});
+
+ipcMain.handle('saves:createBackup', async (_e, { gameId, gameName, savePath } = {}) => {
+  try {
+    if (!gameId || !savePath) return { ok: false, error: 'Select a save folder first.' };
+    const source = path.resolve(savePath);
+    const stat = await fsp.stat(source);
+    if (!stat.isDirectory()) return { ok: false, error: 'The selected save path is not a folder.' };
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupPath = path.join(saveBackupsDir(), safePathPart(gameId), stamp);
+    const contentPath = path.join(backupPath, 'files');
+    await fsp.mkdir(contentPath, { recursive: true });
+    await fsp.cp(source, contentPath, { recursive: true, force: false, errorOnExist: true, dereference: false });
+    const meta = { gameId, gameName: String(gameName || 'Game'), originalPath: source, createdAt: Date.now(), ...(await folderStats(contentPath)) };
+    await fsp.writeFile(path.join(backupPath, 'backup.json'), JSON.stringify(meta, null, 2), 'utf8');
+    return { ok: true, backup: { ...meta, backupPath } };
+  } catch (error) { return { ok: false, error: String(error?.message || error) }; }
+});
+
+ipcMain.handle('saves:restore', async (_e, { backupPath, savePath, mode = 'empty' } = {}) => {
+  try {
+    const backupRoot = path.resolve(saveBackupsDir());
+    const resolvedBackup = path.resolve(String(backupPath || ''));
+    const contentPath = path.join(resolvedBackup, 'files');
+    if (!isInside(backupRoot, resolvedBackup)) return { ok: false, error: 'That backup is outside NEO-LIB\'s backup folder.' };
+    if (!(await fsp.stat(contentPath)).isDirectory()) return { ok: false, error: 'Backup files are missing.' };
+    if (!savePath || typeof savePath !== 'string') return { ok: false, error: 'Choose a destination folder first.' };
+    const target = path.resolve(savePath);
+    await fsp.mkdir(target, { recursive: true });
+    let destination = target;
+    if (mode === 'safe-copy') {
+      const stamp = new Date().toISOString().slice(0, 10);
+      destination = path.join(target, `NEOLIB Restored ${stamp}`);
+      let suffix = 2;
+      while (fs.existsSync(destination)) destination = path.join(target, `NEOLIB Restored ${stamp} (${suffix++})`);
+      await fsp.mkdir(destination, { recursive: true });
+    } else if (!(await isDirectoryEmpty(target))) {
+      return { ok: false, conflict: true, error: 'The live save folder already contains files. Nothing was changed.' };
+    }
+    await fsp.cp(contentPath, destination, { recursive: true, force: false, errorOnExist: true, dereference: false });
+    return { ok: true, restoredTo: destination, ...(await folderStats(destination)) };
+  } catch (error) { return { ok: false, error: String(error?.message || error) }; }
+});
+
+ipcMain.handle('saves:findCandidates', async (_e, { root, gameName } = {}) => {
+  try {
+    const rootPath = path.resolve(String(root || ''));
+    if (!root || !(await fsp.stat(rootPath)).isDirectory()) return { ok: false, error: 'Choose a valid folder or drive to search.', candidates: [] };
+    const terms = String(gameName || '').toLowerCase().split(/[^a-z0-9]+/).filter((term) => term.length >= 3).slice(0, 5);
+    if (!terms.length) return { ok: false, error: 'This game needs a longer name to search for save candidates.', candidates: [] };
+    const candidates = [];
+    let visited = 0;
+    let truncated = false;
+    const maxVisited = 40000;
+    const maxDepth = 7;
+    async function walk(current, depth) {
+      if (visited >= maxVisited || candidates.length >= 80) { truncated = true; return; }
+      let entries = [];
+      try { entries = await fsp.readdir(current, { withFileTypes: true }); } catch { return; }
+      for (const entry of entries) {
+        if (visited >= maxVisited || candidates.length >= 80) { truncated = true; return; }
+        if (entry.isSymbolicLink()) continue;
+        visited += 1;
+        const full = path.join(current, entry.name);
+        const label = entry.name.toLowerCase();
+        const matched = terms.filter((term) => label.includes(term)).length;
+        if (entry.isDirectory() && matched > 0) {
+          candidates.push({ path: full, matchedTerms: matched });
+          continue;
+        }
+        if (entry.isDirectory() && depth < maxDepth) await walk(full, depth + 1);
+      }
+    }
+    await walk(rootPath, 0);
+    return { ok: true, candidates, visited, truncated };
+  } catch (error) { return { ok: false, error: String(error?.message || error), candidates: [] }; }
+});
+
+// User-triggered only: measuring whole game folders can be expensive on large
+// libraries, so Home never scans disks silently. "Mod content" is an estimate
+// of folders conventionally named mods/mod/workshop inside the game directory.
+ipcMain.handle('storage:scanGames', async (_e, { games = [] } = {}) => {
+  const results = [];
+  for (const game of Array.isArray(games) ? games.slice(0, 250) : []) {
+    try {
+      if (!game?.id || !game?.exePath || typeof game.exePath !== 'string') continue;
+      const root = path.dirname(game.exePath);
+      const stat = await fsp.stat(root);
+      if (!stat.isDirectory()) continue;
+      const total = await folderStats(root, 60000);
+      let modBytes = 0;
+      let modFiles = 0;
+      let entries = [];
+      try { entries = await fsp.readdir(root, { withFileTypes: true }); } catch { entries = []; }
+      for (const entry of entries) {
+        if (!entry.isDirectory() || entry.isSymbolicLink() || !/^(mods?|workshop|modding)$/i.test(entry.name)) continue;
+        const mod = await folderStats(path.join(root, entry.name), 30000);
+        modBytes += mod.bytes; modFiles += mod.files;
+      }
+      results.push({ id: game.id, bytes: total.bytes, files: total.files, modBytes, modFiles, truncated: total.truncated });
+    } catch { /* inaccessible or external drive disconnected */ }
+  }
+  return { ok: true, results, scannedAt: Date.now() };
+});
+
+// Launch Doctor is diagnostic only. It checks the configured target and finds
+// plausible sibling executables; it never executes, deletes, or changes files.
+ipcMain.handle('doctor:inspectLaunch', async (_e, { exePath, gameName } = {}) => {
+  const result = { ok: true, configuredPath: exePath || '', exists: false, candidates: [], notes: [] };
+  try {
+    if (!exePath || typeof exePath !== 'string') {
+      result.notes.push('No launch executable is configured for this game.');
+      return result;
+    }
+    const stat = await fsp.stat(exePath);
+    result.exists = stat.isFile();
+  } catch {
+    result.notes.push('The configured executable could not be found. It may have moved, the drive may be disconnected, or security software may have quarantined it.');
+  }
+  if (!result.exists) {
+    result.notes.push('Check the game folder and your antivirus quarantine before choosing a replacement executable.');
+  }
+  const root = path.dirname(exePath || '');
+  const found = [];
+  if (root && fs.existsSync(root)) {
+    await walkDir(root, 0, 2, found, 40, []);
+    const gameTokens = String(gameName || '').toLowerCase().split(/[^a-z0-9]+/).filter((value) => value.length >= 3);
+    result.candidates = found.filter((candidate) => candidate !== exePath).map((candidate) => ({
+      path: candidate,
+      matchScore: gameTokens.filter((token) => path.basename(candidate).toLowerCase().includes(token)).length,
+    })).sort((a, b) => b.matchScore - a.matchScore || a.path.localeCompare(b.path)).slice(0, 12);
+  }
+  if (result.exists && result.candidates.length === 0) result.notes.push('The configured file exists. A launcher, DRM client, missing dependency, or the game itself closing immediately may still be responsible.');
+  return result;
 });
 
 // Lightweight, local-only system readiness snapshot used by the Library footer.

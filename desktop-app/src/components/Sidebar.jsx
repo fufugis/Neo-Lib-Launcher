@@ -6,7 +6,7 @@ import {
   Lock, ChevronRight, ChevronDown, Tag, GripVertical, Terminal,
   Info, ArrowUp, ArrowDown, Palette, Eye, EyeOff, Sliders, Library as LibIcon,
   Wrench, Columns, Pin, PinOff, X as XIcon, Home, MessageCircle,
-  Bug, Lightbulb, RotateCcw, Check,
+  Bug, Lightbulb, RotateCcw, Check, ArchiveRestore, Stethoscope,
 } from 'lucide-react';
 import { cn, colorFromId, sizeById, formatPlaytime, playtimeSource } from '../lib/utils';
 import SystemHealthBar from './SystemHealthBar';
@@ -58,6 +58,18 @@ const BG_TEXTURE_PATTERNS = {
       'repeating-linear-gradient(45deg, rgb(var(--accent) / 0.8) 0 2px, transparent 2px 12px),' +
       'repeating-linear-gradient(-45deg, rgb(var(--accent-2) / 0.7) 0 2px, transparent 2px 12px)',
   },
+  weave: {
+    backgroundImage: 'repeating-linear-gradient(0deg, rgb(var(--accent) / 0.42) 0 1px, transparent 1px 8px), repeating-linear-gradient(90deg, rgb(var(--accent-2) / 0.30) 0 1px, transparent 1px 8px)',
+    backgroundSize: '16px 16px',
+  },
+  topography: {
+    backgroundImage: 'radial-gradient(ellipse at 20% 30%, transparent 0 26%, rgb(var(--accent) / 0.40) 27% 28%, transparent 29% 42%, rgb(var(--accent-2) / 0.28) 43% 44%, transparent 45%)',
+    backgroundSize: '86px 62px',
+  },
+  stardust: {
+    backgroundImage: 'radial-gradient(circle at 20% 30%, rgb(var(--accent-2) / 0.7) 0 1px, transparent 1.8px), radial-gradient(circle at 75% 70%, rgb(var(--accent) / 0.6) 0 1.2px, transparent 2px)',
+    backgroundSize: '34px 34px, 53px 53px',
+  },
 };
 
 /**
@@ -79,14 +91,14 @@ export default function Sidebar({
   onSetLauncherFilter,
   iconPosition = 'left', rowSize = 44, catTextSize = 11, catGlow = 40,
   rowGap = 2, catGap = 8, catTopGap = 4,
-  showCategoryDot = true,
+  showCategoryDot = true, categoryMarkerMode = 'dot',
   showSubcatStrip = true,
   nameTextSize = null,
   effectsLevel = 2, currentTheme = 'synthwave', onChangeEffectsLevel,
   unseenNewsCount = 0,
   pinnedIds = [],
   onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
-  onChangeRowGap, onChangeCatGap, onChangeCatTopGap, onToggleCategoryDot,
+  onChangeRowGap, onChangeCatGap, onChangeCatTopGap, onChangeCategoryMarkerMode,
   onToggleSubcatStrip, onChangeNameTextSize,
   bgTextureId, bgTextureOpacity,
   onChangeBgTextureId, onChangeBgTextureOpacity,
@@ -409,6 +421,7 @@ export default function Sidebar({
                 catTopGap={catTopGap}
                 iconPosition={iconPosition}
                 showCategoryDot={showCategoryDot}
+                categoryMarkerMode={categoryMarkerMode}
                 onSetLibrarySize={onSetLibrarySize}
                 onChangeRowSize={onChangeRowSize}
                 onChangeCatTextSize={onChangeCatTextSize}
@@ -417,7 +430,7 @@ export default function Sidebar({
                 onChangeCatGap={onChangeCatGap}
                 onChangeCatTopGap={onChangeCatTopGap}
                 onChangeIconPosition={onChangeIconPosition}
-                onToggleCategoryDot={onToggleCategoryDot}
+                onChangeCategoryMarkerMode={onChangeCategoryMarkerMode}
                 showSubcatStrip={showSubcatStrip}
                 onToggleSubcatStrip={onToggleSubcatStrip}
                 nameTextSize={nameTextSize}
@@ -488,7 +501,7 @@ export default function Sidebar({
           long libraries are actually reachable during a drag operation. */}
       <div
         ref={treeScrollRef}
-        className="flex-1 overflow-y-auto px-2 pb-4"
+        className="flex-1 overflow-y-auto px-2 pb-24"
         data-testid="sidebar-tree"
         onDragOver={(e) => {
           const el = treeScrollRef.current;
@@ -517,7 +530,7 @@ export default function Sidebar({
         {twoRow ? (
           <TwoColumnSections sections={sections} commonProps={{
             collapsed, size, iconPosition, catTextSize, catGlow, rowGap, catGap, catTopGap, selectedId,
-            showCategoryDot, showSubcatStrip, pinnedIdsSet,
+            showCategoryDot, categoryMarkerMode, showSubcatStrip, pinnedIdsSet,
             onSelect, onGameContext, onCategoryContext, onUnlockCategory, onToggleCollapsed,
             onMoveGameToCategory, onReorderGameInCategory, onReorderCategory,
             unlockedCategories, categories,
@@ -537,6 +550,7 @@ export default function Sidebar({
               catGap={catGap}
               catTopGap={catTopGap}
               showCategoryDot={showCategoryDot}
+              categoryMarkerMode={categoryMarkerMode}
               showSubcatStrip={showSubcatStrip}
               pinnedIdsSet={pinnedIdsSet}
               selectedId={selectedId}
@@ -615,7 +629,7 @@ function TwoColumnSections({ sections, commonProps }) {
 
 function SectionWrap({ s, idx, commonProps }) {
   const { collapsed, size, iconPosition, catTextSize, catGlow, rowGap, catGap, catTopGap, selectedId,
-    showCategoryDot, showSubcatStrip,
+    showCategoryDot, categoryMarkerMode, showSubcatStrip,
     pinnedIdsSet,
     onSelect, onGameContext, onCategoryContext, onUnlockCategory, onToggleCollapsed,
     onMoveGameToCategory, onReorderGameInCategory, onReorderCategory,
@@ -633,6 +647,7 @@ function SectionWrap({ s, idx, commonProps }) {
       catGap={catGap}
       catTopGap={catTopGap}
       showCategoryDot={showCategoryDot}
+      categoryMarkerMode={categoryMarkerMode}
       showSubcatStrip={showSubcatStrip}
       pinnedIdsSet={pinnedIdsSet}
       selectedId={selectedId}
@@ -841,12 +856,12 @@ function LauncherDropdown({ value = 'all', onChange }) {
 function LibrarySettingsPopover({
   anchorEl,
   librarySize, rowSize = 44, catTextSize = 11, catGlow = 40, iconPosition = 'left',
-  rowGap = 2, catGap = 8, catTopGap = 4, showCategoryDot = true,
+  rowGap = 2, catGap = 8, catTopGap = 4, showCategoryDot = true, categoryMarkerMode = 'dot',
   showSubcatStrip = true, nameTextSize = null,
   effectsLevel = 2, currentTheme = 'synthwave',
   bgTextureId = 'none', bgTextureOpacity = 12,
   onSetLibrarySize, onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
-  onChangeRowGap, onChangeCatGap, onChangeCatTopGap, onToggleCategoryDot,
+  onChangeRowGap, onChangeCatGap, onChangeCatTopGap, onChangeCategoryMarkerMode,
   onToggleSubcatStrip, onChangeNameTextSize,
   onChangeEffectsLevel,
   onChangeBgTextureId, onChangeBgTextureOpacity,
@@ -912,31 +927,7 @@ function LibrarySettingsPopover({
       {/* v1.4.0 — Visuals popover uses CSS columns (settings-columns) so all
           dials fit in a compact two-column masonry without endless scroll. */}
       <div className="settings-columns">
-      <div>
-        <div className="mb-1.5 text-[10px] uppercase tracking-wider text-muted">Quick preset</div>
-        <div className="grid grid-cols-3 gap-1">
-          {[
-            { key: 'small', size: 26 },
-            { key: 'medium', size: 44 },
-            { key: 'big', size: 64 },
-          ].map((s) => (
-            <button
-              key={s.key}
-              data-testid={`lib-size-${s.key}`}
-              onClick={() => { onSetLibrarySize(s.key); if (onChangeRowSize) onChangeRowSize(s.size); }}
-              className={cn(
-                'rounded-md hairline py-1.5 text-[11px] capitalize transition-colors',
-                librarySize === s.key
-                  ? 'border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.12)] text-ink'
-                  : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]'
-              )}
-            >
-              {s.key}
-            </button>
-          ))}
-        </div>
-      </div>
-
+      <VisualGroup title="Object sizes">
       <PopSlider
         label="Row size"
         value={rowSize}
@@ -946,6 +937,13 @@ function LibrarySettingsPopover({
         onChange={onChangeRowSize}
         testid="pop-row-size"
       />
+      <PopSlider label="Spacing between games" value={rowGap} min={-8} max={16} suffix="px" onChange={onChangeRowGap} testid="pop-row-gap" />
+      <PopSlider label="Spacing under category header" value={catGap} min={-6} max={32} suffix="px" onChange={onChangeCatGap} testid="pop-cat-gap" />
+      <PopSlider label="Gap between header & first game" value={catTopGap} min={-4} max={24} suffix="px" onChange={onChangeCatTopGap} testid="pop-cat-top-gap" />
+      <DiscretePopSlider label="Icon position" labels={['Left', 'Right', 'None']} value={['left', 'right', 'none'].indexOf(iconPosition)} onChange={(value) => onChangeIconPosition?.(['left', 'right', 'none'][value])} testid="pop-icon-position" />
+      </VisualGroup>
+
+      <VisualGroup title="Text & category">
       <PopSlider
         label="Game name text size"
         value={Number.isFinite(nameTextSize) ? nameTextSize : Math.max(11, Math.min(16, Math.round(rowSize * 0.28)))}
@@ -964,6 +962,11 @@ function LibrarySettingsPopover({
         onChange={onChangeCatTextSize}
         testid="pop-cat-text-size"
       />
+      <DiscretePopSlider label="Category marker" labels={['Dot', 'Backdrop', 'None']} value={['dot', 'background', 'none'].indexOf(categoryMarkerMode)} onChange={(value) => onChangeCategoryMarkerMode?.(['dot', 'background', 'none'][value])} testid="pop-category-marker" />
+      <button data-testid="pop-toggle-subcat-strip" onClick={() => onToggleSubcatStrip && onToggleSubcatStrip(!showSubcatStrip)} className={cn('flex w-full items-center justify-between rounded-md hairline px-2.5 py-2 text-[11px] transition-colors', showSubcatStrip ? 'border-[rgb(var(--accent)/0.5)] bg-[rgb(var(--accent)/0.08)] text-ink' : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]')} title="Toggle the genre/playtime strip shown under each game name"><span>Sub-category strip</span><span className="text-[10px] uppercase tracking-wider">{showSubcatStrip ? 'shown' : 'hidden'}</span></button>
+      </VisualGroup>
+
+      <VisualGroup title="FX">
       <PopSlider
         label="Category glow"
         value={catGlow}
@@ -973,56 +976,11 @@ function LibrarySettingsPopover({
         onChange={onChangeCatGlow}
         testid="pop-cat-glow"
       />
-      <PopSlider
-        label="Spacing between games"
-        value={rowGap}
-        min={-8}
-        max={16}
-        suffix="px"
-        onChange={onChangeRowGap}
-        testid="pop-row-gap"
-      />
-      <PopSlider
-        label="Spacing under category header"
-        value={catGap}
-        min={-6}
-        max={32}
-        suffix="px"
-        onChange={onChangeCatGap}
-        testid="pop-cat-gap"
-      />
-      <PopSlider
-        label="Gap between header & first game"
-        value={catTopGap}
-        min={-4}
-        max={24}
-        suffix="px"
-        onChange={onChangeCatTopGap}
-        testid="pop-cat-top-gap"
-      />
+      <div className="rounded-md hairline bg-panel/40 p-2.5"><EffectsPopSlider theme={currentTheme} value={effectsLevel} onChange={onChangeEffectsLevel} /></div>
+      <BgTexturePicker textureId={bgTextureId} opacity={bgTextureOpacity} onChange={onChangeBgTextureId} onChangeOpacity={onChangeBgTextureOpacity} />
+      </VisualGroup>
 
-      <div>
-        <div className="mb-1.5 text-[10px] uppercase tracking-wider text-muted">Icon position</div>
-        <div className="grid grid-cols-3 gap-1">
-          {['left', 'right', 'none'].map((p) => (
-            <button
-              key={p}
-              data-testid={`pop-icon-pos-${p}`}
-              onClick={() => onChangeIconPosition && onChangeIconPosition(p)}
-              className={cn(
-                'rounded-md hairline py-1.5 text-[11px] capitalize transition-colors',
-                iconPosition === p
-                  ? 'border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.12)] text-ink'
-                  : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]'
-              )}
-            >
-              {p}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* v1.6.4 — Column layout toggle moved here from the row-2 toolbar */}
+      <VisualGroup title="Layout">
       <div>
         <div className="mb-1.5 text-[10px] uppercase tracking-wider text-muted">Column layout</div>
         <div className="grid grid-cols-2 gap-1">
@@ -1046,80 +1004,7 @@ function LibrarySettingsPopover({
           ))}
         </div>
       </div>
-
-      {/* Category dot toggle — hides the small colored category indicator next to genre/playtime */}
-      <button
-        data-testid="pop-toggle-cat-dot"
-        onClick={() => onToggleCategoryDot && onToggleCategoryDot(!showCategoryDot)}
-        className={cn(
-          'flex w-full items-center justify-between rounded-md hairline px-2.5 py-2 text-[11px] transition-colors',
-          showCategoryDot
-            ? 'border-[rgb(var(--accent)/0.5)] bg-[rgb(var(--accent)/0.08)] text-ink'
-            : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]'
-        )}
-        title="Toggle the small colored category dot shown beside each game's genre/playtime"
-      >
-        <span className="flex items-center gap-2">
-          <span
-            className="h-1.5 w-1.5 rounded-full"
-            style={{
-              background: showCategoryDot ? 'rgb(var(--accent))' : 'rgb(var(--muted))',
-              boxShadow: showCategoryDot ? '0 0 4px rgb(var(--accent))' : 'none',
-            }}
-          />
-          Category dot
-        </span>
-        <span className="text-[10px] uppercase tracking-wider">
-          {showCategoryDot ? 'shown' : 'hidden'}
-        </span>
-      </button>
-
-      {/* Sub-category strip toggle — hides the "Action, RPG" genre badges shown under each game name */}
-      <button
-        data-testid="pop-toggle-subcat-strip"
-        onClick={() => onToggleSubcatStrip && onToggleSubcatStrip(!showSubcatStrip)}
-        className={cn(
-          'flex w-full items-center justify-between rounded-md hairline px-2.5 py-2 text-[11px] transition-colors',
-          showSubcatStrip
-            ? 'border-[rgb(var(--accent)/0.5)] bg-[rgb(var(--accent)/0.08)] text-ink'
-            : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]'
-        )}
-        title="Toggle the genre/playtime strip shown under each game name"
-      >
-        <span className="flex items-center gap-2">
-          <span
-            className="h-1 w-4 rounded"
-            style={{
-              background: showSubcatStrip ? 'rgb(var(--accent))' : 'rgb(var(--muted))',
-              boxShadow: showSubcatStrip ? '0 0 4px rgb(var(--accent))' : 'none',
-            }}
-          />
-          Sub-category strip
-        </span>
-        <span className="text-[10px] uppercase tracking-wider">
-          {showSubcatStrip ? 'shown' : 'hidden'}
-        </span>
-      </button>
-
-      {/* Effects intensity (per-theme) — sits under the layout knobs so users
-          treat it as a "living room dimmer" for particles / sakura / glow. */}
-      <div className="rounded-md hairline bg-panel/40 p-2.5">
-        <EffectsPopSlider
-          theme={currentTheme}
-          value={effectsLevel}
-          onChange={onChangeEffectsLevel}
-        />
-      </div>
-
-      {/* v1.4.0 — Background texture picker + transparency dial.
-          Adds subtle patterns behind the library so it doesn't feel too plain. */}
-      <BgTexturePicker
-        textureId={bgTextureId}
-        opacity={bgTextureOpacity}
-        onChange={onChangeBgTextureId}
-        onChangeOpacity={onChangeBgTextureOpacity}
-      />
-
+      </VisualGroup>
       </div>
       {/* end .settings-columns */}
 
@@ -1196,6 +1081,15 @@ function PopSlider({ label, value, min, max, suffix = '', onChange, testid }) {
   );
 }
 
+function VisualGroup({ title, children }) {
+  return <section className="mb-3 break-inside-avoid rounded-lg border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--panel)/0.22)] p-2 space-y-2"><div className="border-b border-[rgb(var(--border)/0.6)] pb-1 text-[9.5px] font-black uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">{title}</div>{children}</section>;
+}
+
+function DiscretePopSlider({ label, labels, value, onChange, testid }) {
+  const safeValue = Math.max(0, Math.min(labels.length - 1, Number.isFinite(value) ? value : 0));
+  return <div className="rounded-md hairline bg-surface/40 px-2.5 py-2"><div className="mb-1 flex items-center justify-between"><div className="text-[11px] text-ink/90">{label}</div><div className="text-[10.5px] font-bold text-[rgb(var(--accent-2))]">{labels[safeValue]}</div></div><input type="range" data-testid={testid} min={0} max={labels.length - 1} step={1} value={safeValue} onChange={(event) => onChange?.(Number(event.target.value))} className="w-full accent-[rgb(var(--accent))]" /><div className="mt-1 flex justify-between text-[8px] uppercase tracking-wider text-muted/75">{labels.map((item) => <span key={item}>{item}</span>)}</div></div>;
+}
+
 /* v1.4.0 — Background texture picker (5 built-ins + None) with transparency dial. */
 export const BG_TEXTURES = [
   { id: 'none',     label: 'None' },
@@ -1207,6 +1101,9 @@ export const BG_TEXTURES = [
   { id: 'scanlines', label: 'Scanlines' },
   { id: 'circuit',   label: 'Circuit' },
   { id: 'chevron',   label: 'Chevron' },
+  { id: 'weave',     label: 'Weave' },
+  { id: 'topography', label: 'Topo' },
+  { id: 'stardust',  label: 'Stardust' },
 ];
 function BgTexturePicker({ textureId = 'none', opacity = 12, onChange, onChangeOpacity }) {
   return (
@@ -1323,6 +1220,12 @@ function bgTexturePreview(id) {
           'repeating-linear-gradient(45deg, rgb(var(--accent)/0.4) 0 1px, transparent 1px 6px),' +
           'repeating-linear-gradient(-45deg, rgb(var(--accent-2)/0.35) 0 1px, transparent 1px 6px)',
       };
+    case 'weave':
+      return { backgroundImage: 'repeating-linear-gradient(0deg, rgb(var(--accent)/0.38) 0 1px, transparent 1px 5px), repeating-linear-gradient(90deg, rgb(var(--accent-2)/0.3) 0 1px, transparent 1px 5px)', backgroundSize: '10px 10px' };
+    case 'topography':
+      return { backgroundImage: 'radial-gradient(ellipse at 20% 30%, transparent 0 26%, rgb(var(--accent)/0.45) 27% 28%, transparent 29% 42%, rgb(var(--accent-2)/0.3) 43% 44%, transparent 45%)', backgroundSize: '32px 24px' };
+    case 'stardust':
+      return { backgroundImage: 'radial-gradient(circle at 20% 30%, rgb(var(--accent-2)/0.7) 0 1px, transparent 1.6px), radial-gradient(circle at 75% 70%, rgb(var(--accent)/0.6) 0 1px, transparent 1.7px)', backgroundSize: '14px 14px, 22px 22px' };
     default:
       return {};
   }
@@ -1377,13 +1280,14 @@ function Section({
   onMoveGameToCategory, onReorderGameInCategory, onReorderCategory,
   unlockedCategories, categories,
   catTextSize = 11, catGlow = 40, rowGap = 2, catGap = 8, catTopGap = 4,
-  showCategoryDot = true,
+  showCategoryDot = true, categoryMarkerMode = 'dot',
   showSubcatStrip = true,
   pinnedIdsSet = new Set(),
 }) {
   const isUncat = section.id === '__uncat__';
   const c = section.category;
   const color = colorFromId(c.colorId);
+  const backdropOpacity = Math.round((0.10 + (Math.max(0, Math.min(300, catGlow)) / 300) * 0.55) * 255).toString(16).padStart(2, '0');
   // v1.6.5 — glow/halo sizes used to be fixed px regardless of catTextSize,
   // so a small text size + tight category gap let the bloom bleed into the
   // section above/below. Scale every glow dimension off the same slider.
@@ -1454,9 +1358,9 @@ function Section({
           // v1.4.0 — when the category dot is disabled AND this isn't a ghost/
           // locked or uncategorized row, use a subtle colored backdrop stripe
           // matching the category color instead. Keeps the identity signal.
-          !showCategoryDot && !section.isGhost && !isUncat
+          categoryMarkerMode === 'background' && !section.isGhost && !isUncat
             ? {
-                background: `linear-gradient(90deg, ${color}26 0%, ${color}0a 55%, transparent 100%)`,
+                background: `linear-gradient(90deg, ${color}${backdropOpacity} 0%, ${color}24 58%, transparent 100%)`,
                 borderLeft: `2px solid ${color}`,
                 paddingLeft: '10px',
               }
@@ -1492,7 +1396,7 @@ function Section({
           >
             {c.logoLabel}
           </span>
-        ) : !showCategoryDot ? (
+        ) : categoryMarkerMode === 'background' ? (
           // v1.4.0 — dot hidden; the section header uses a colored backdrop
           // stripe instead (see parent style). Reserve a tiny spacer so the
           // chevron alignment stays consistent.
@@ -1881,6 +1785,8 @@ function GameRow({
           <Divider />
           <Item icon={<Tag size={13} />} label="Manage categories…" onClick={() => { setMenu({ ...menu, open: false }); onContext('manage-categories'); }} testid={`game-ctx-cats-${g.id}`} />
           <Item icon={<FolderOpen size={13} />} label="Reveal in folder" onClick={() => { setMenu({ ...menu, open: false }); onContext('reveal'); }} testid={`game-ctx-reveal-${g.id}`} />
+          <Item icon={<ArchiveRestore size={13} />} label="Save game folder…" onClick={() => { setMenu({ ...menu, open: false }); onContext('save-games'); }} testid={`game-ctx-save-games-${g.id}`} />
+          {g.launchDoctorSuggested && <Item icon={<Stethoscope size={13} />} label="Launch Doctor" onClick={() => { setMenu({ ...menu, open: false }); onContext('launch-doctor'); }} testid={`game-ctx-launch-doctor-${g.id}`} />}
           <Divider />
           <Item icon={<RotateCcw size={13} />} label="Reset playtime to 0" onClick={() => { setMenu({ ...menu, open: false }); onContext('reset-playtime'); }} testid={`game-ctx-reset-playtime-${g.id}`} />
           <Item icon={<RefreshCw size={13} />} label="Re-import from Steam" onClick={() => { setMenu({ ...menu, open: false }); onContext('reimport-steam'); }} testid={`game-ctx-reimport-steam-${g.id}`} />

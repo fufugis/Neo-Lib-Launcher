@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('api', {
   // dialogs
   pickExe: () => ipcRenderer.invoke('dialog:pickExe'),
   pickDirectory: () => ipcRenderer.invoke('dialog:pickDirectory'),
+  pickSaveFolder: () => ipcRenderer.invoke('dialog:pickSaveFolder'),
   pickImage: () => ipcRenderer.invoke('dialog:pickImage'),
 
   // shortcuts
@@ -47,6 +48,7 @@ contextBridge.exposeInMainWorld('api', {
 
   // misc
   openExternal: (url) => ipcRenderer.invoke('app:openExternal', url),
+  openPath: (p) => ipcRenderer.invoke('app:openPath', p),
   revealInFolder: (p) => ipcRenderer.invoke('app:revealInFolder', p),
   openContainingDir: (p) => ipcRenderer.invoke('app:openContainingDir', p),
   setAutoStart: (v) => ipcRenderer.invoke('app:setAutoStart', v),
@@ -55,6 +57,15 @@ contextBridge.exposeInMainWorld('api', {
   discordRpcStatus: () => ipcRenderer.invoke('app:discordRpcStatus'),
   getAutoStart: () => ipcRenderer.invoke('app:getAutoStart'),
   getSystemHealth: () => ipcRenderer.invoke('system:health'),
+
+  // local save folders — all writes stay inside NEO-LIB's app-data backup area
+  inspectSaveFolder: (savePath) => ipcRenderer.invoke('saves:inspect', savePath),
+  listSaveBackups: (gameId) => ipcRenderer.invoke('saves:listBackups', gameId),
+  createSaveBackup: (payload) => ipcRenderer.invoke('saves:createBackup', payload),
+  restoreSaveBackup: (payload) => ipcRenderer.invoke('saves:restore', payload),
+  findSaveCandidates: (payload) => ipcRenderer.invoke('saves:findCandidates', payload),
+  scanGameStorage: (payload) => ipcRenderer.invoke('storage:scanGames', payload),
+  inspectLaunchDoctor: (payload) => ipcRenderer.invoke('doctor:inspectLaunch', payload),
 
   // launcher imports
   scanSteam: () => ipcRenderer.invoke('launcher:scan-steam'),

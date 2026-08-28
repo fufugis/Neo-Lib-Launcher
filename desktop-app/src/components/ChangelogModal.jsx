@@ -16,6 +16,25 @@ import { sendChangelogReaction } from './FeedbackModal';
 
 export const CHANGELOG = [
   {
+    version: '1.7.1',
+    title: 'Home intelligence — safe save backups, play suggestions, storage, and your Chronicle',
+    items: [
+      '**Library Health** — Home now gives your library a colour-coded health score with a visual progress bar, highlighting missing art, missing details, missing launch targets, and possible duplicate names. Review issues opens Tidy Up directly.',
+      '**More visual Home** — news cards are larger and easier to read, use Steam game artwork where available, and Top 5 now includes game cover art alongside platform and playtime.',
+      '**Smarter Game Ready thresholds** — yellow now starts at 65% usage and red at 85%, avoiding warnings caused by normal desktop multitasking. The Library scroll area also reserves space so its last games are never trapped behind the footer.',
+      '**Save Game Folder** — every game now has a Save games button and a right-click shortcut. Pick its save folder, open it, search a chosen drive or folder for possible older save locations, and review every result before selecting it.',
+      '**Safe local save backups** — create backups inside NEO-LIB\'s own app-data folder and view their date, file count, size, and location. Recovery never overwrites a non-empty live save folder: it stops and offers a separate “NEOLIB Restored” folder for manual review instead.',
+      '**What should I play?** — Home now surfaces timely, personal reasons to return: a game with fresh patch notes, a highly rated game you have not touched in a while, or an unplayed recent addition.',
+      '**Storage Control Centre** — a user-triggered, read-only Home scan measures installed game folders and recognised mod folders, then highlights the biggest games. NEO-LIB never silently crawls your drives.',
+      '**Gaming Chronicle** — Home now keeps a private timeline of games added, played, rated, and updated. It is built from your local library, not a social feed.',
+      '**Launch Doctor** — after two immediate failures or very short launches within ten minutes, NEO-LIB opens a guided diagnostic. It checks the configured executable, lists plausible nearby executables for review, and explains what to check; it never changes files automatically or guesses that antivirus is at fault.',
+      '**More distinct theme ambience** — the shared floating sparkle layer is now reinterpreted per theme: Midnight star dust, Ocean bubbles, Crimson embers, Gaming pixels, Mint pollen, Daybreak rays, Anime ink flecks, Modern dust, Colorful prism motes, and Industrial metal sparks. All still obey each theme’s Effects intensity dial.',
+      '**Three new sound chimes** — Aurora (soft northern-light chord), Ember (warm bell), and Harbor (gentle sonar chime) join the selectable sound packs in Settings.',
+      '**Three new Visuals textures** — Weave, Topography, and Stardust extend the library background texture collection.',
+      '**Cleaner Visuals controls** — the popover is now grouped into Object sizes, Text & category, FX, and Layout. Quick presets are gone so custom tuning stays in control. Icon position is a Left / Right / None slider; category marker is a Dot / Backdrop / None slider. Backdrop strength scales with Category glow, topping out at a translucent 65%.',
+    ],
+  },
+  {
     version: '1.7.0',
     title: 'Friends Hub — your game clients, one elegant launch point',
     items: [

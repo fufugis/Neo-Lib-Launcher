@@ -280,6 +280,69 @@ const PACK_BUBBLE = {
   },
 };
 
+/* ---------- Pack: aurora (soft northern-light chime) ---------- */
+const PACK_AURORA = {
+  hover() {
+    const ac = getCtx(); if (!ac) return;
+    [660, 990].forEach((frequency, index) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine'; o.frequency.value = frequency; o.connect(g); connectMaster(g, ac);
+      const start = ac.currentTime + index * 0.025;
+      g.gain.setValueAtTime(0.0001, start); g.gain.exponentialRampToValueAtTime(0.045, start + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, start + 0.22);
+      o.start(start); o.stop(start + 0.26);
+    });
+  },
+  launch() {
+    const ac = getCtx(); if (!ac) return;
+    [392, 587.33, 880].forEach((frequency, index) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine'; o.frequency.value = frequency; o.connect(g); connectMaster(g, ac);
+      const start = ac.currentTime + index * 0.11;
+      g.gain.setValueAtTime(0.0001, start); g.gain.exponentialRampToValueAtTime(0.085, start + 0.018); g.gain.exponentialRampToValueAtTime(0.0001, start + 0.52);
+      o.start(start); o.stop(start + 0.58);
+    });
+  },
+};
+
+/* ---------- Pack: ember (warm wooden notification chime) ---------- */
+const PACK_EMBER = {
+  hover() {
+    const ac = getCtx(); if (!ac) return;
+    const o = ac.createOscillator(), g = ac.createGain(), lp = ac.createBiquadFilter();
+    o.type = 'triangle'; o.frequency.setValueAtTime(320, ac.currentTime); o.frequency.exponentialRampToValueAtTime(230, ac.currentTime + 0.09); lp.type = 'lowpass'; lp.frequency.value = 1100;
+    o.connect(lp).connect(g); connectMaster(g, ac); envelope(g, ac, 0.004, 0.12, 0.065); o.start(); o.stop(ac.currentTime + 0.15);
+  },
+  launch() {
+    const ac = getCtx(); if (!ac) return;
+    [261.63, 329.63, 392].forEach((frequency, index) => {
+      const o = ac.createOscillator(), g = ac.createGain(), lp = ac.createBiquadFilter();
+      o.type = 'triangle'; o.frequency.value = frequency; lp.type = 'lowpass'; lp.frequency.value = 1250; o.connect(lp).connect(g); connectMaster(g, ac);
+      const start = ac.currentTime + index * 0.075;
+      g.gain.setValueAtTime(0.0001, start); g.gain.exponentialRampToValueAtTime(0.085, start + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, start + 0.28);
+      o.start(start); o.stop(start + 0.33);
+    });
+  },
+};
+
+/* ---------- Pack: harbor (gentle sonar bell) ---------- */
+const PACK_HARBOR = {
+  hover() {
+    const ac = getCtx(); if (!ac) return;
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(520, ac.currentTime); o.frequency.exponentialRampToValueAtTime(470, ac.currentTime + 0.16); o.connect(g); connectMaster(g, ac); envelope(g, ac, 0.012, 0.22, 0.055); o.start(); o.stop(ac.currentTime + 0.25);
+  },
+  launch() {
+    const ac = getCtx(); if (!ac) return;
+    [440, 660].forEach((frequency, index) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine'; o.frequency.value = frequency; o.connect(g); connectMaster(g, ac);
+      const start = ac.currentTime + index * 0.18;
+      g.gain.setValueAtTime(0.0001, start); g.gain.exponentialRampToValueAtTime(0.09, start + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, start + 0.62);
+      o.start(start); o.stop(start + 0.68);
+    });
+  },
+};
+
 const PACKS = {
   synthwave: PACK_SYNTHWAVE,
   arcade:    PACK_ARCADE,
@@ -288,6 +351,9 @@ const PACKS = {
   crystal:   PACK_CRYSTAL,
   cyberpunk: PACK_CYBERPUNK,
   bubble:    PACK_BUBBLE,
+  aurora:    PACK_AURORA,
+  ember:     PACK_EMBER,
+  harbor:    PACK_HARBOR,
   none:      { hover() {}, launch() {} },
 };
 
@@ -299,6 +365,9 @@ export const SOUND_PACKS = [
   { id: 'crystal',   label: 'Crystal (glass ping)' },
   { id: 'cyberpunk', label: 'Cyberpunk (glitch pop)' },
   { id: 'bubble',    label: 'Bubble (soft plop)' },
+  { id: 'aurora',    label: 'Aurora (soft chime)' },
+  { id: 'ember',     label: 'Ember (warm bell)' },
+  { id: 'harbor',    label: 'Harbor (sonar chime)' },
   { id: 'none',      label: 'No sound' },
 ];
 
