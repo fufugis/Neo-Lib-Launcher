@@ -1,0 +1,19 @@
+---
+description: Keep every NEO-LIB request in a visible queue and never call partial work finished
+alwaysApply: true
+---
+
+# Continuous Work Queue
+
+- Record every explicit or implied requested change in `WORK_QUEUE.md` before or while implementing it.
+- Start actionable requests immediately. New requests join the queue without replacing unfinished work unless the user explicitly cancels or changes it.
+- Use first-in, first-out ordering. If the user writes while an item is active, append the new request to the bottom and finish the active item before starting it.
+- Do not abandon or reorder the active queue because a normal new message arrives. Only interrupt for an explicit stop, cancellation, replacement, or clearly urgent safety issue.
+- During an active turn, continue through the queue automatically. Do not stop merely because one item or one phase is complete.
+- After completing one or more items, tell the user what was verified and what remains, then continue working on the remaining items.
+- Mark items complete only with direct code/runtime/build evidence. Partial, coded-but-untested, externally blocked, and deferred are distinct statuses.
+- Never say “finished,” “ready,” or “ready to push” while any required queue item remains incomplete or unverified.
+- End a turn with an incomplete queue only when genuinely blocked, awaiting user testing/authority, interrupted by the user, or constrained by the execution environment. State clearly that execution pauses between turns; never imply invisible background work.
+- Keep `PROGRESS.md`, repository patch notes, and the in-app changelog synchronized with user-facing changes.
+- Before release, perform a requirement-by-requirement audit against `WORK_QUEUE.md` and report every item as complete, blocked, cancelled, or still open.
+- When the full queue is exhausted and verified, proactively report completion to the user with the final evidence and release status.

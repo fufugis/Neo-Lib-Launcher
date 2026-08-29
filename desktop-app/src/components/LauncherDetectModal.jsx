@@ -10,7 +10,9 @@ const LAUNCHER_LABELS = {
   gog:      { name: 'GOG Galaxy', color: '#a87bff' },
   battlenet:{ name: 'Battle.net', color: '#149bf3' },
   riot:     { name: 'Riot Client', color: '#d13639' },
+  xbox:     { name: 'Xbox / Game Pass', color: '#107c10' },
   rockstar: { name: 'Rockstar Games Launcher', color: '#f59f00' },
+  itch:     { name: 'itch.io', color: '#fa5c5c' },
 };
 
 /**

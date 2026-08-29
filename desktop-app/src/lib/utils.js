@@ -23,13 +23,17 @@ export const THEMES = [
     gradient: 'linear-gradient(135deg, #0c0a16 0%, #ff5abe 45%, #5aa0ff 100%)' },
   { id: 'pro',           label: 'Industrial',     swatch: '#f0a31a', tone: 'special',
     gradient: 'linear-gradient(135deg, #101114 0%, #f0a31a 55%, #4a4d54 100%)' },
+  { id: 'generic-gray',  label: 'Generic Gray',   swatch: '#b7bbc2', tone: 'special',
+    gradient: 'linear-gradient(135deg, #202226 0%, #b7bbc2 55%, #f4f5f6 100%)' },
+  { id: 'generic-blue',  label: 'Generic Blue',   swatch: '#3c7dff', tone: 'special',
+    gradient: 'linear-gradient(135deg, #050b1d 0%, #163c86 52%, #3c7dff 100%)' },
   // Dark themes
   { id: 'synthwave',     label: 'Synthwave',      swatch: '#ff2a8a', tone: 'dark',
     gradient: 'linear-gradient(135deg, #0a0416 0%, #ff2a8a 55%, #00e5ff 100%)' },
   { id: 'anime',         label: 'Anime',          swatch: '#ff63b8', tone: 'dark',
     gradient: 'linear-gradient(135deg, #1d081d 0%, #ff63b8 50%, #b268ff 100%)' },
-  { id: 'midnight',      label: 'Midnight',       swatch: '#c4a56e', tone: 'dark',
-    gradient: 'linear-gradient(135deg, #0a0a0c 0%, #c4a56e 100%)' },
+  { id: 'midnight',      label: 'Midnight',       swatch: '#ffe587', tone: 'dark',
+    gradient: 'linear-gradient(135deg, #060916 0%, #16295b 52%, #ffe587 100%)' },
   { id: 'ocean',         label: 'Ocean',          swatch: '#4ea8f0', tone: 'dark',
     gradient: 'linear-gradient(135deg, #050c16 0%, #4ea8f0 55%, #78dcff 100%)' },
   { id: 'crimson',       label: 'Crimson',        swatch: '#dc263c', tone: 'dark',
@@ -37,13 +41,13 @@ export const THEMES = [
   // Middle themes (somewhere between dark and bright)
   { id: 'gaming',        label: 'Gaming',         swatch: '#b889ff', tone: 'middle',
     gradient: 'linear-gradient(135deg, #141630 0%, #b889ff 55%, #72d6ff 100%)' },
-  { id: 'modern',        label: 'Modern',         swatch: '#f39a55', tone: 'middle',
-    gradient: 'linear-gradient(135deg, #221c18 0%, #f39a55 55%, #9edcff 100%)' },
+  { id: 'modern',        label: 'Modern',         swatch: '#b83a45', tone: 'middle',
+    gradient: 'linear-gradient(135deg, #121722 0%, #3c4658 55%, #b83a45 100%)' },
   // Bright themes
   { id: 'synthwave-day', label: 'Vaporwave Day',  swatch: '#8a4fff', tone: 'bright',
     gradient: 'linear-gradient(135deg, #f0e8ff 0%, #8a4fff 55%, #16b0b0 100%)' },
-  { id: 'daybreak',      label: 'Daybreak',       swatch: '#149c9e', tone: 'bright',
-    gradient: 'linear-gradient(135deg, #f8f6f2 0%, #149c9e 60%, #1e1e24 100%)' },
+  { id: 'daybreak',      label: 'Daybreak',       swatch: '#e77555', tone: 'bright',
+    gradient: 'linear-gradient(135deg, #fff6e7 0%, #ffc36c 52%, #8ccbf0 100%)' },
   { id: 'mint',          label: 'Mint Garden',    swatch: '#34c98a', tone: 'bright',
     gradient: 'linear-gradient(135deg, #f4fcf6 0%, #34c98a 55%, #128ec8 100%)' },
 ];
@@ -111,7 +115,7 @@ export const playtimeSource = (g) => {
   if (!g) return null;
   // Manual override wins (user typed the number in the preview modal)
   if (g.playtimeManual) return { id: 'manual', label: 'MANUAL', color: '#ffcc4a' };
-  const src = String(g.source || '').toLowerCase();
+  const src = String(g.source || '').toLowerCase().replace(/-import$/, '');
   const web = String(g.website || '').toLowerCase();
   if (g.steamOwned === true)                    return { id: 'steam', label: 'STEAM',  color: '#1b8fe3' };
   if (src === 'gog'   || g.gogId)               return { id: 'gog',   label: 'GOG',    color: '#a8339a' };
@@ -119,6 +123,10 @@ export const playtimeSource = (g) => {
   if (src === 'epic')     return { id: 'epic',  label: 'EPIC',  color: '#e5e5e5' };
   if (src === 'ea')       return { id: 'ea',    label: 'EA',    color: '#ff2b3d' };
   if (src === 'ubisoft')  return { id: 'ubi',   label: 'UBI',   color: '#1c8fe0' };
+  if (src === 'battlenet') return { id: 'bnet', label: 'BNET',  color: '#00aeff' };
+  if (src === 'riot')      return { id: 'riot', label: 'RIOT',  color: '#d13639' };
+  if (src === 'xbox')      return { id: 'xbox', label: 'XBOX',  color: '#107c10' };
+  if (src === 'rockstar')  return { id: 'rstar', label: 'R*',   color: '#f59f00' };
   return null;
 };
 

@@ -2,6 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Tag, ExternalLink, Grid3x3, Flame } from 'lucide-react';
 import { wrapDealUrl } from '../lib/deals';
+import FriendsPanel from './FriendsPanel';
 
 // Platform metadata for the deal badge overlay on each card image.
 // Colors mirror each store's brand accent so users spot the source instantly.
@@ -47,7 +48,7 @@ function PlatformBadge({ platform, size = 'md' }) {
  *
  * It stays present as a small, clearly labelled sponsored rail.
  */
-export default function DealsBar({ settings = {}, resting = false }) {
+export default function DealsBar({ settings = {}, resting = false, friendsClientPaths = {}, onUpdateFriendsClientPaths }) {
   const [items, setItems] = React.useState([]);
   const [idx, setIdx] = React.useState(0);
   const [allOpen, setAllOpen] = React.useState(false);
@@ -69,11 +70,16 @@ export default function DealsBar({ settings = {}, resting = false }) {
     return () => clearInterval(t);
   }, [items.length, resting]);
 
-  if (!items.length) return null;
-  const d = items[idx];
-  const url = wrapDealUrl(d.url, settings.affiliate || {});
+  // Keep the rail in the layout even while the optional deal sources are
+  // offline. It owns the fixed Friends control and should never jump away.
+  const d = items[idx] || {
+    id: 'sponsor-placeholder', platform: '', title: 'Sponsored discoveries load here',
+    subtitle: 'Deals and free games, kept intentionally subtle.', priceText: 'SOON', url: '',
+  };
+  const url = d.url ? wrapDealUrl(d.url, settings.affiliate || {}) : '';
 
   const open = () => {
+    if (!url) return;
     if (window.api?.openExternal) window.api.openExternal(url);
     else window.open(url, '_blank');
   };
@@ -172,6 +178,17 @@ export default function DealsBar({ settings = {}, resting = false }) {
         <Flame size={11} className="drop-shadow" />
         <span>All {items.length}</span>
       </motion.button>
+
+      {/* Social lives at the far edge of the permanent sponsor rail, not in a
+          game detail page. It remains one click away from every library view. */}
+      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+        <FriendsPanel
+          manualPaths={friendsClientPaths}
+          onUpdateManualPaths={onUpdateFriendsClientPaths}
+          resting={resting}
+          variant="footer"
+        />
+      </div>
 
       {/* All-deals popover — opens above the bar, click outside to dismiss */}
       <AnimatePresence>

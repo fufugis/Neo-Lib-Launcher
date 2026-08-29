@@ -17,11 +17,35 @@ import { sendChangelogReaction } from './FeedbackModal';
 export const CHANGELOG = [
   {
     version: '1.7.2',
-    title: 'Released This Week — selective discovery for games that matter',
+    title: 'Released This Week · safer Steam matching · a cleaner Home and theme collection',
     items: [
       '**Released This Week** — Home now has a dedicated, rearrangeable pane for notable games launched in the past seven days. Each card shows artwork, title, Steam source, official release date, and a clear reason it earned its place.',
       '**A quality filter instead of a release dump** — NEO-LIB verifies the actual store release date and only includes full games showing meaningful early player, review, or launch-reach signals. Small low-visibility uploads are intentionally excluded.',
       '**Transparent and refreshable** — the pane explains the inclusion criteria, uses a six-hour cache to stay light on services, and offers a manual Refresh button. Selecting a title opens its official store page; NEO-LIB never accesses an account for this feed.',
+      '**Fixed: delisted Steam games cannot be fuzzy-replaced.** Steam imports now use their exact local Steam app ID as the source of truth. If a game is still in your library but no longer appears in public Store search, NEO-LIB preserves Steam’s manifest title and ID instead of attaching an unrelated match.',
+      '**Home cleanup** — My Best Games is now your top five by personal rating, with decimal ratings available from the preview stars. Library Health is a compact, clickable status blob; Top 5 is clearly labelled as playtime; Recent Sessions is chronological; and the expanded, scrollable Gaming Chronicle better tells your library story.',
+      '**Theme cleanup** — added the neutral Special themes Generic Gray and Generic Blue. Midnight is now moonlit navy with sharp star-yellow highlights; Industrial leans into danger yellow and neon orange; Modern becomes graphite, blue, white, and restrained dark red; Daybreak becomes a warm sunrise while Mint Garden remains green and organic. Coffee now stays readable in every light theme.',
+      '**Shell polish** — Friends moves to the far right of the permanent sponsor rail, while Tools keeps its useful name but now uses a clear utilities icon rather than a settings-like wrench.',
+      '**Genre Intelligence — foundation** — refreshed metadata now builds a separate, exact-match profile for core genres, subgenres, playstyle, perspective, and themes while retaining raw provider data. Steam can combine official categories with cached, rate-limited community tags. Auto-sort now recommends at most six evidence-backed collections and never scans descriptions for loose genre words. Your own Library categories are never touched.',
+      '**Review what is new** — add-from-match and metadata refresh now show the approval popup before writing. Freshly detected fields, including the structured game identity, are green and labelled **NEW**. Genres controls whether that identity is applied.',
+      '**Wizard identity review** — every folder-scan match now shows the detected core genres, subgenres, playstyle, perspective, and themes in a green **NEW** panel before you accept it. This saves the identity data only; your Library categories stay yours.',
+      '**Preview-pane refinement** — genres now have their own theme-responsive vertical identity card. Supporting actions are a tidy menu beside Launch, while developer, publisher, release, score, and website are presented as a calm game-details list.',
+      '**Released This Week fallback** — major releases always take priority. On a quiet week with no qualifying major launch, Home now shows clearly-labelled, verified semi-major releases instead of an empty pane.',
+      '**Library identity repair queue** — Tidy Up now walks through every game with no identity, tracks repaired/skipped progress, and finds clickable title clues from the EXE, nearby folders, and bounded README title fields. Every match still goes through the green **NEW** approval screen before saving.',
+      '**Update Intelligence · Steam foundation** — Home and the selected-game preview now show concrete pending Steam downloads and remaining size from the local launcher manifest. Open Steam Downloads with one click; NEO-LIB never alters the queue or guesses from ambiguous state flags.',
+      '**Independent-game update watch** — Customize can now remember an installed version and a public official, itch.io, or forum update page. Only explicit higher Version/Build/vX.Y labels trigger an alert, and NEO-LIB links to the source without downloading or installing anything.',
+      '**In-app patch history** — independent-game alerts now open a read-only version timeline inside NEO-LIB, including detected dates and clear “After yours” markers, before handing off to the full chosen source.',
+      '**Native GOG import** — the Wizard now discovers installed GOG games through their Windows registry records, finds a bounded likely game executable, preserves the GOG ID, and creates the correct launcher category without signing into an account.',
+      '**Native EA/Origin import** — the Wizard now reads installed EA App and legacy Origin game records locally, preserves product/version identity, selects a bounded likely executable, deduplicates results, and creates the proper EA category.',
+      '**Native Ubisoft Connect import** — the Wizard now reads Ubisoft’s local installed-game records, preserves product identity and native launch routing, uses bounded executable discovery, and creates the proper Ubisoft category.',
+      '**Native Battle.net import** — the Wizard now reads verified Blizzard installation records, excludes the Battle.net desktop client, preserves product/version identity, uses bounded executable discovery, and creates the proper Battle.net category.',
+      '**Native Riot import** — the Wizard now reads Riot’s bounded local product metadata, excludes the Riot Client itself, preserves product/version and configured executable identity, deduplicates results, and creates the Riot category.',
+      '**Native Xbox/Game Pass import** — the Wizard now reads bounded XboxGames installation roots and each title’s MicrosoftGame.config, preserving Store/configured-executable identity and creating the Xbox category without sweeping unrelated Store apps.',
+      '**Native Rockstar import** — the Wizard now reads verified Rockstar installation records, excludes the launcher, Social Club, and support components, preserves product/version identity, and creates the Rockstar category.',
+      '**Native itch.io import** — the Wizard can now read only the install locations configured by the itch desktop app and recognise completed games through their own receipt marker. It never opens itch’s live catalog database, copies credentials, or scans unrelated folders; folder-derived names still go through the normal approval-first metadata flow.',
+      '**Launcher import path audit** — first-time detection and the Wizard now route every supported launcher through its real adapter, preserve its own source/product/version fields, and prefer the adapter’s verified game executable instead of a generic install folder.',
+      '**Launcher identity stays honest** — Home and launcher filters now cover every supported client and use the actual launcher field, so a standalone or repack game cannot become “Steam” merely because Steam supplied its artwork or metadata.',
+      '**One-click dismissal** — standard dialogs, metadata review, Customize, Tidy Up, the source picker, and What’s New now close with one click on the dimmed area outside them; Escape and close buttons still work.',
     ],
   },
   {
@@ -447,7 +471,7 @@ export default function ChangelogModal({ open, currentVersion, lastSeenVersion, 
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-[230] grid place-items-center bg-black/60 backdrop-blur-sm"
-          onDoubleClick={onClose}
+          onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }}
           data-testid="changelog-overlay"
         >
           <motion.div
@@ -456,7 +480,7 @@ export default function ChangelogModal({ open, currentVersion, lastSeenVersion, 
             exit={{ y: 10, opacity: 0 }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
             onClick={(e) => e.stopPropagation()}
-            onDoubleClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
             className="relative w-[min(620px,94vw)] max-h-[85vh] overflow-hidden rounded-xl hairline glass shadow-2xl"
             data-testid="changelog-modal"
           >

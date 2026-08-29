@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld('api', {
 
   // multi-source metadata
   fetchMetadata: (opts) => ipcRenderer.invoke('metadata:auto', opts),
+  deriveMetadataHints: (opts) => ipcRenderer.invoke('metadata:deriveHints', opts),
   listCandidates: (opts) => ipcRenderer.invoke('metadata:listCandidates', opts),
   expandCandidate: (opts) => ipcRenderer.invoke('metadata:expandCandidate', opts),
   webSearch: (q) => ipcRenderer.invoke('web:search', q),
@@ -71,6 +72,14 @@ contextBridge.exposeInMainWorld('api', {
   // launcher imports
   scanSteam: () => ipcRenderer.invoke('launcher:scan-steam'),
   scanEpic: () => ipcRenderer.invoke('launcher:scan-epic'),
+  scanGog: () => ipcRenderer.invoke('launcher:scan-gog'),
+  scanEa: () => ipcRenderer.invoke('launcher:scan-ea'),
+  scanUbisoft: () => ipcRenderer.invoke('launcher:scan-ubisoft'),
+  scanBattlenet: () => ipcRenderer.invoke('launcher:scan-battlenet'),
+  scanRiot: () => ipcRenderer.invoke('launcher:scan-riot'),
+  scanXbox: () => ipcRenderer.invoke('launcher:scan-xbox'),
+  scanRockstar: () => ipcRenderer.invoke('launcher:scan-rockstar'),
+  scanItch: () => ipcRenderer.invoke('launcher:scan-itch'),
 
   // deals (Epic free + Steam specials)
   fetchDeals: () => ipcRenderer.invoke('deals:fetch'),
@@ -81,6 +90,8 @@ contextBridge.exposeInMainWorld('api', {
   fetchWeeklyReleases: (opts) => ipcRenderer.invoke('releases:weekly', opts),
   latestNewsForGame: (game) => ipcRenderer.invoke('news:latestForGame', game),
   getSteamManifest: (appid) => ipcRenderer.invoke('steam:manifest', appid),
+  scanGameUpdates: (opts) => ipcRenderer.invoke('updates:scan', opts),
+  fetchUpdateHistory: (opts) => ipcRenderer.invoke('updates:history', opts),
   importSteamPlaytime: (opts) => ipcRenderer.invoke('steam:importPlaytime', opts),
   playtimeHistory: (opts) => ipcRenderer.invoke('playtime:history', opts),
 

@@ -4,58 +4,60 @@ import { Wand2, Check } from 'lucide-react';
 
 /**
  * AutoSortModal — one-click smart sort.
- * Creates (if missing) 6 default categories and assigns each game to one or more
- * of them based on its detected genres. Games are added — never removed from
- * existing categories. Existing custom categories are kept intact.
+ * Recommends a small set of genre collections based on the library's verified
+ * identity profiles. Games are added — never removed from existing categories.
+ * Existing custom categories are kept intact.
  *
  * For games without genre data, NEO-LIB will refetch metadata online in the
  * background to determine the best fit.
  */
 
-// 6 default categories with their colors and matching genre keywords
-const DEFAULT_CATEGORIES = [
-  { name: 'Action',    colorId: 'red',    keywords: ['action', 'fighting', 'beat \'em up', 'hack and slash', 'brawler'] },
-  { name: 'RPG',       colorId: 'amber',  keywords: ['rpg', 'role-playing', 'roleplaying', 'role playing', 'jrpg', 'crpg', 'mmorpg'] },
-  { name: 'Shooter',   colorId: 'rose',   keywords: ['shooter', 'fps', 'tps', 'first-person', 'third-person shooter', 'battle royale', 'tactical'] },
-  { name: 'Strategy',  colorId: 'cyan',   keywords: ['strategy', 'rts', 'turn-based', '4x', 'tactics', 'moba', 'tower defense'] },
-  { name: 'Adventure', colorId: 'emerald',keywords: ['adventure', 'open world', 'exploration', 'platformer', 'metroidvania', 'point and click'] },
-  { name: 'Indie',     colorId: 'purple', keywords: ['indie', 'roguelike', 'roguelite', 'puzzle', 'simulation', 'sandbox', 'survival', 'casual'] },
+// Intentional, limited collection candidates. These are not a replacement for
+// a game's full profile or for personal categories; Auto-sort recommends at
+// most six based on what is truly present in this particular library.
+const COLLECTION_DEFINITIONS = [
+  { id: 'roguelikes', name: 'Roguelikes', colorId: 'violet', core: ['roguelike'] },
+  { id: 'survival-horror', name: 'Survival & Horror', colorId: 'crimson', core: ['survival', 'horror'] },
+  { id: 'rpgs', name: 'RPGs', colorId: 'amber', core: ['rpg'] },
+  { id: 'shooters', name: 'Shooters', colorId: 'cyan', core: ['shooter'] },
+  { id: 'strategy', name: 'Strategy', colorId: 'cyan', core: ['strategy'] },
+  { id: 'builders', name: 'Builders & Management', colorId: 'mint', core: ['management-building', 'simulation'] },
+  { id: 'racing-sports', name: 'Racing & Sports', colorId: 'orange', core: ['racing', 'sports'] },
+  { id: 'story', name: 'Story & Visual Novels', colorId: 'magenta', core: ['visual-novel', 'adventure'] },
+  { id: 'puzzle-card', name: 'Puzzle & Card Games', colorId: 'slate', core: ['puzzle', 'card-board', 'rhythm-music'] },
 ];
 
-function classifyGame(game) {
-  const haystack = (game.genres || []).join(' ').toLowerCase() + ' ' +
-                   (game.shortDescription || '').toLowerCase() + ' ' +
-                   (game.about || '').toLowerCase();
-  if (!haystack.trim()) return [];
-  const matches = [];
-  for (const cat of DEFAULT_CATEGORIES) {
-    if (cat.keywords.some((kw) => haystack.includes(kw))) matches.push(cat.name);
-  }
-  // Fallback: if nothing matched but we have genres, put it in Indie (catch-all)
-  if (matches.length === 0 && (game.genres || []).length > 0) matches.push('Indie');
-  return matches;
+function profileCoreIds(game) { return new Set((game.genreProfile?.core || []).map((entry) => entry.id)); }
+function matchesCollection(game, collection) { const core = profileCoreIds(game); return collection.core.some((id) => core.has(id)); }
+function recommendCollections(games) {
+  return COLLECTION_DEFINITIONS
+    .map((collection) => ({ ...collection, count: games.filter((game) => matchesCollection(game, collection)).length }))
+    .filter((collection) => collection.count >= 2)
+    .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name))
+    .slice(0, 6);
 }
 
 export default function AutoSortModal({ open, onClose, games, categories, onApply, onRefetchMissing }) {
   const [phase, setPhase] = React.useState('preview'); // preview | refetching | applying | done
   const [refetched, setRefetched] = React.useState(0);
 
-  // Compute preview assignments
+  const recommendations = React.useMemo(() => recommendCollections(games), [games]);
+  // Compute preview assignments from exact canonical metadata — never text.
   const assignments = React.useMemo(() => {
     const out = [];
     for (const g of games) {
-      const cats = classifyGame(g);
-      out.push({ id: g.id, name: g.name, genres: g.genres || [], cats, hasData: !!(g.genres && g.genres.length) });
+      const cats = recommendations.filter((collection) => matchesCollection(g, collection)).map((collection) => collection.name);
+      out.push({ id: g.id, name: g.name, genres: g.genres || [], cats, hasData: !!g.genreProfile?.core?.length });
     }
     return out;
-  }, [games, phase]);
+  }, [games, recommendations, phase]);
 
   const counts = React.useMemo(() => {
     const c = {};
-    DEFAULT_CATEGORIES.forEach((d) => (c[d.name] = 0));
+    recommendations.forEach((d) => (c[d.name] = 0));
     assignments.forEach((a) => a.cats.forEach((n) => (c[n] = (c[n] || 0) + 1)));
     return c;
-  }, [assignments]);
+  }, [assignments, recommendations]);
 
   const noGenreCount = assignments.filter((a) => !a.hasData).length;
 
@@ -73,7 +75,7 @@ export default function AutoSortModal({ open, onClose, games, categories, onAppl
 
   const apply = () => {
     setPhase('applying');
-    onApply(DEFAULT_CATEGORIES, assignments);
+    onApply(recommendations, assignments);
     setPhase('done');
     setTimeout(() => onClose(), 900);
   };
@@ -88,22 +90,23 @@ export default function AutoSortModal({ open, onClose, games, categories, onAppl
             <Wand2 size={11} /> What this does
           </div>
           <p className="text-[12.5px] text-muted leading-relaxed">
-            Creates 6 default categories (if missing) and <strong className="text-ink">copies</strong> each game into the matching ones based on its detected genres.
-            Your existing categories are untouched — games are added to the new categories, never removed from yours.
+            Recommends up to six meaningful genre collections from verified game identities—only when at least two games fit.
+            Your existing categories are untouched; it copies matching games into collections and never removes your choices.
           </p>
         </div>
 
         {/* Preview counts */}
         <div>
-          <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted">Preview</div>
+          <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted">Recommended collections</div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {DEFAULT_CATEGORIES.map((c) => (
+            {recommendations.map((c) => (
               <div key={c.name} className="rounded-md hairline bg-panel/40 px-3 py-2">
                 <div className="text-[11px] font-semibold text-ink">{c.name}</div>
                 <div className="text-[10.5px] text-muted">{counts[c.name] || 0} games</div>
               </div>
             ))}
           </div>
+          {!recommendations.length && <p className="mt-2 text-[11px] leading-relaxed text-muted">No collection is suggested yet. NEO-LIB needs at least two games with a verified matching identity before it creates a genre collection.</p>}
         </div>
 
         {/* Missing-data warning + fix button */}
@@ -113,8 +116,7 @@ export default function AutoSortModal({ open, onClose, games, categories, onAppl
               {noGenreCount} game{noGenreCount === 1 ? '' : 's'} have no genre data yet
             </div>
             <p className="text-[11px] text-amber-200/80 mb-2">
-              Sorting works best when every game has genres. Press the button below to fetch missing info online —
-              then re-run sort.
+              Sorting only uses verified identity profiles. Press the button below to refresh missing source metadata, then re-run this preview.
             </p>
             <button
               data-testid="autosort-refetch"
@@ -137,11 +139,11 @@ export default function AutoSortModal({ open, onClose, games, categories, onAppl
           </button>
           <button
             data-testid="autosort-apply"
-            disabled={phase === 'refetching' || phase === 'applying'}
+            disabled={phase === 'refetching' || phase === 'applying' || recommendations.length === 0}
             onClick={apply}
             className="flex items-center gap-1.5 rounded-md bg-[rgb(var(--accent))] px-3 py-1.5 text-xs font-semibold text-[rgb(var(--surface))] disabled:opacity-60"
           >
-            {phase === 'done' ? <><Check size={12} /> Done</> : 'Apply auto-sort'}
+            {phase === 'done' ? <><Check size={12} /> Done</> : 'Apply recommended collections'}
           </button>
         </div>
       </div>

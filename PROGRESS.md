@@ -2,11 +2,13 @@
 
 This is the short, human-readable view of the active work. It is updated as features move from idea to verified work.
 
+The authoritative item-by-item status is maintained in [`WORK_QUEUE.md`](WORK_QUEUE.md). Open queue items must not be described as finished or release-ready.
+
 ## Release status
 
 - **v1.7.0** — source commit pushed to `main` (`fc65001`). A GitHub Release tag and compiled installer have not been published yet.
 - **v1.7.1** — local development batch; not release-ready yet.
-- **v1.7.2** — active development batch: Released This Week.
+- **v1.7.2** — active development batch: Released This Week, safer Steam metadata identity, Home cleanup, and theme cleanup.
 
 ## Completed locally for v1.7.1
 
@@ -33,20 +35,52 @@ This is the short, human-readable view of the active work. It is updated as feat
 ## Completed locally for v1.7.2
 
 - **Released This Week** Home pane: a selective, rearrangeable release feed that verifies official Steam store dates and only shows full games with meaningful early player, review, or launch-reach signals. It displays artwork, source, date, and an inclusion reason; caches for six hours; supports manual refresh; and opens official store pages without account access.
+- **Steam delisted-title safety**: launcher imports now lock metadata to the exact Steam app ID found locally. A missing public Store entry keeps the confirmed manifest title and identity instead of falling through to fuzzy matching.
+- Friends correctly lives on the far right of the permanent sponsored rail; Coffee has a high-contrast style for light themes; Tools now uses a utilities icon.
+- Theme cleanup: added Special **Generic Gray** and **Generic Blue**; Midnight is moonlit navy/starlight yellow; Industrial uses danger-yellow/neon-orange; Modern is slate-blue with restrained dark red; Daybreak is warm sunrise and Mint remains organic green.
+- Home cleanup: compact Library Health blob, distinct **Top 5 played** and chronological Recent Sessions, top-five personal-rating-only My Best Games, decimal rating picker, green New Update motivation, and an expanded scrollable Chronicle.
 
-## Next up (not currently being worked on)
+## Completed locally — Genre Intelligence, Update Intelligence, and launcher adapters
 
-- The active v1.7.2 scope is intentionally limited to Released This Week. It is tracked in [`V1.7.2_SCOPE.md`](V1.7.2_SCOPE.md).
+- Canonical 20-genre taxonomy now normalizes core genre, subgenre, playstyle, perspective, and theme profiles separately from personal Library categories.
+- Folder-scan Wizard review now previews that detected identity in a green **NEW** panel and persists the direct source tags when a game is accepted; it never creates or changes a Library category.
+- Preview pane refinement: genre identity is now a dedicated theme-responsive vertical card; actions have been consolidated beside Launch and game facts are shown as a readable details list.
+- Released This Week now uses a clearly-labelled semi-major fallback only if no strict major release qualifies, avoiding a blank Home pane without turning the feed into a release dump.
+- The first normalizer is wired to metadata refreshes and local library hydration. It uses exact source-tag aliases (for example, Rogue-like → Roguelike) rather than loose description keyword matching.
+- Preview presentation, conservative Auto-sort recommendations, and an approval-first batch review/enrichment flow for existing games are now in place.
+- Metadata approval is now shared by refreshes and add-from-match: changed/fresh fields are green and marked **NEW** before the user accepts them.
+- Tidy Up now runs a complete approval-first identity repair queue with repaired/skipped progress, a Stop Review control, and local title clues derived from the EXE, nearby folders, and strictly bounded README/title fields.
+- Update Intelligence foundation now reads concrete pending Steam download bytes from local manifests and presents them in Home and Game Preview with a safe native Steam Downloads handoff. It performs no launcher writes and does not treat ambiguous state flags as updates.
+- Independent-game update watch now accepts an installed version plus a user-chosen public source page in Customize. Explicit higher Version/Build/vX.Y labels surface in Home and Game Preview with a source link; NEO-LIB does not download or install files.
+- Independent-game update alerts now open a read-only in-app patch-history timeline with detected dates, multiple explicit version entries, and “After yours” markers before offering the full source link.
+- Native GOG import reads installed games from bounded Windows registry records, deduplicates by GOG ID/path, assigns a likely executable, and groups them under a real GOG category.
+- EA App/legacy Origin is now a native local import adapter too, using bounded Windows installation records with product/version preservation, executable selection, deduplication, and EA category creation.
+- Ubisoft Connect is now a native local import adapter using its installed-game registry, product identity and launch URI preservation, bounded executable discovery, deduplication, and Ubisoft category creation.
+- Battle.net is now a native local import adapter based on verified Blizzard Windows installation records, excluding the launcher itself while preserving product/version identity and category grouping.
+- Riot is now a native local import adapter based on bounded local product metadata, excluding the client while retaining product/version identity and configured game executables.
+- Xbox/Game Pass is now a native local import adapter using bounded XboxGames roots and per-title MicrosoftGame.config data rather than broad Microsoft Store enumeration.
+- Rockstar is now a native local import adapter using verified Windows installation records while excluding the launcher, Social Club, and support components.
+- Launcher integration audit fixed the first-time detection path and Wizard so every supported adapter keeps its own executable, source, product/version identity, and category instead of falling back to the former Steam/Epic-only route.
+- Launcher identity audit expanded the Library filter to all supported clients, corrected the Settings version display, and made Home prefer actual launcher ownership so metadata-only Steam app IDs cannot relabel local/repack games.
+- Interaction audit replaced leftover double-click-only backdrops with consistent single-click-outside dismissal across the standard dialogs and custom metadata, Tidy, and changelog surfaces.
 
-**Current state:** v1.7.2 Released This Week is implemented locally and source-validated, awaiting desktop bug testing. Discord presence/mirroring has been explicitly dropped. No other new feature work is active until the user reviews this build.
+## Next up
+
+- Run the desktop bug-test pass, then build the Windows installer in a normal Windows/GitHub Actions environment.
+- Native itch.io import now reads only the desktop app’s configured install locations and completed-install receipt markers. It deliberately leaves itch’s live `butler.db` catalog alone and sends folder-derived titles through the normal approval-first metadata flow. A real local itch fixture still needs desktop verification.
+
+**Current state:** v1.7.2 is implemented locally and source-validated, including Genre Intelligence, the repair queue, Steam/independent update intelligence, patch history, and the native launcher adapters listed above. It still needs desktop interaction testing and a normal Windows build before release. Discord presence/mirroring remains explicitly dropped.
 
 ## Planned research / platform-dependent work
 
 - Official opt-in friend presence options per launcher.
 - Launcher Adapter coverage for detection, import, launcher tags, updates, news, and safe native handoff.
-- Curated “Released this week” major-title feed with transparent quality criteria.
+- Non-Steam launcher update-state research where clients expose a reliable read-only local signal.
+- itch.io catalog/database-level import remains intentionally out of scope: the implemented native importer is bounded to user-configured install locations and completed-install markers, never the live `butler.db` catalog.
 
 ## Known release checks
 
 - Electron syntax, direct renderer bundle, Tailwind compilation, and whitespace checks pass.
 - The normal Vite build cannot run in this workspace because its restricted process environment blocks esbuild spawning (`spawn EPERM`). This needs a normal Windows/GitHub Actions build before publishing an installer.
+- A fresh Electron window also cannot be opened under this managed process sandbox: Chromium stops before app startup with a Windows platform-channel `Access is denied` error. Interaction tests therefore remain a real external validation gate rather than being marked as passed from static inspection.
+- Packaging reaches electron-builder but its native `app-builder.exe` child process is blocked by the same environment (`spawn EPERM`). The checked-in Windows GitHub Actions workflow remains the normal packaging path after the changes are pushed.

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import Modal from './Modal';
 import { guessNameFromPath } from '../lib/utils';
+import { genreDisplayGroups, normalizeGenreProfile } from '../lib/genreTaxonomy';
 
 /**
  * Auto-import Wizard
@@ -33,7 +34,8 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
 
   // Exclude paths during scan — common launcher folders + custom
   const [skipLaunchers, setSkipLaunchers] = React.useState({
-    steam: true, epic: true, ea: true, gog: true, ubisoft: false, riot: false,
+    steam: true, epic: true, ea: true, gog: true, ubisoft: true,
+    battlenet: true, riot: true, xbox: true, rockstar: true, itch: true,
   });
   const [customExcludes, setCustomExcludes] = React.useState([]);
   const addExclude = async () => {
@@ -45,8 +47,9 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
     setLauncherStatus(`${name} integration is on the roadmap — for now use "Choose folder" below and point it at your ${name} install directory.`);
 
   const importLauncher = async (kind) => {
-    setLauncherStatus(`Scanning ${kind === 'steam' ? 'Steam' : 'Epic'}…`);
-    const api = kind === 'steam' ? window.api?.scanSteam : window.api?.scanEpic;
+    const launcherLabel = { steam: 'Steam', epic: 'Epic', gog: 'GOG', itch: 'itch.io' }[kind] || kind;
+    setLauncherStatus(`Scanning ${launcherLabel}…`);
+    const api = { steam: window.api?.scanSteam, epic: window.api?.scanEpic, gog: window.api?.scanGog, ea: window.api?.scanEa, ubisoft: window.api?.scanUbisoft, battlenet: window.api?.scanBattlenet, riot: window.api?.scanRiot, xbox: window.api?.scanXbox, rockstar: window.api?.scanRockstar, itch: window.api?.scanItch }[kind];
     if (!api) { setLauncherStatus('Not available in browser preview.'); return; }
     const r = await api();
     if (!r?.ok || !r.items?.length) {
@@ -56,10 +59,21 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
     setLauncherStatus(`Importing ${r.items.length} ${kind} games…`);
     let imported = 0;
     for (const it of r.items) {
-      // Fetch metadata via Steam if we have appid, else multi-source
+      // A Steam manifest supplies the exact app ID and title from the user's
+      // local Steam library.  Keep that identity locked: store search omits
+      // delisted games, and falling back to a fuzzy title search can attach an
+      // unrelated game (for example a similarly named result) to the import.
+      // Other launchers still use the regular multi-source matcher.
       let result = null;
       if (kind === 'steam' && it.appid) {
-        try { result = await window.api?.fetchMetadata({ query: it.name, skipSources: [], geminiKey }); } catch { /* ignore */ }
+        try {
+          result = await window.api?.fetchMetadata({
+            query: it.name,
+            skipSources: [],
+            geminiKey,
+            lockedAppid: it.appid,
+          });
+        } catch { /* retain the authoritative manifest title below */ }
       } else {
         try { result = await window.api?.fetchMetadata({ query: it.name, skipSources: [], geminiKey }); } catch { /* ignore */ }
       }
@@ -69,12 +83,15 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
       }
       const entry = {
         name: result?.name || it.name,
-        exePath: it.launchExe || it.installdir || it.launchUrl,
+        exePath: it.exe || it.launchExe || it.installdir || it.launchUrl,
         launchArgs: '',
         launchUrl: it.launchUrl,
-        source: kind === 'steam' ? 'steam-import' : 'epic-import',
+        source: `${kind}-import`,
         launcher: kind,
         appid: result?.appid || it.appid,
+        gogId: result?.gogId || it.gogId,
+        launcherProductId: it.launcherProductId,
+        installedVersion: it.installedVersion || '',
         steamAppId: kind === 'steam' ? it.appid : undefined,
         steamBuildId: it.buildid || undefined,
         coverUrl: coverUrl || result?.headerImage,
@@ -83,6 +100,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
         shortDescription: result?.shortDescription,
         about: result?.about,
         genres: result?.genres || [],
+        genreTags: result?.genreTags || [],
         developers: result?.developers || [],
         publishers: result?.publishers || [],
         releaseDate: result?.releaseDate || '',
@@ -90,7 +108,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
         screenshots: result?.screenshots || [],
         website: result?.website || '',
         // Pre-tag with the launcher category so App can group them
-        categoryIds: [kind === 'steam' ? '__launcher_steam__' : '__launcher_epic__'],
+        categoryIds: [`__launcher_${kind}__`],
       };
       if (onAccept) onAccept(entry);
       imported++;
@@ -152,7 +170,11 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
       ...(skipLaunchers.ea      ? ['EA Games', 'Origin Games', 'EA Desktop'] : []),
       ...(skipLaunchers.gog     ? ['GOG Galaxy', 'GOG.com'] : []),
       ...(skipLaunchers.ubisoft ? ['Ubisoft', 'Ubisoft Game Launcher'] : []),
+      ...(skipLaunchers.battlenet ? ['Battle.net', 'Blizzard Entertainment'] : []),
       ...(skipLaunchers.riot    ? ['Riot Games'] : []),
+      ...(skipLaunchers.xbox    ? ['XboxGames'] : []),
+      ...(skipLaunchers.rockstar ? ['Rockstar Games'] : []),
+      ...(skipLaunchers.itch    ? ['itch\\apps', 'itch apps'] : []),
     ];
     const found = (await window.api?.scanDirectory(root, excludes, { deep: scanDepth === 'deep' })) || [];
     // De-dupe: filter out games already in the library (by exePath, case-insensitive)
@@ -222,6 +244,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
       shortDescription: result?.shortDescription,
       about: result?.about,
       genres: result?.genres || [],
+      genreTags: result?.genreTags || [],
       developers: result?.developers || [],
       publishers: result?.publishers || [],
       releaseDate: result?.releaseDate || '',
@@ -259,6 +282,14 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
     onClose();
   };
 
+  // Build the exact-tag-only profile that will be saved on acceptance. The
+  // Wizard never infers a genre from a description or folder name.
+  const detectedGenreTags = result?.genreTags?.length ? result.genreTags : (result?.genres || []);
+  const detectedGenreProfile = detectedGenreTags.length
+    ? normalizeGenreProfile({ rawTags: detectedGenreTags, source: result?.source || 'web' })
+    : null;
+  const detectedGenreGroups = genreDisplayGroups(detectedGenreProfile);
+
   return (
     <Modal open={open} onClose={onClose} title="Auto-import Wizard" wide testid="wizard-modal">
       {step === 1 && (
@@ -277,13 +308,14 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               <LauncherBtn label="Steam"       onClick={() => importLauncher('steam')}        testid="launcher-steam" />
               <LauncherBtn label="Epic Games"  onClick={() => importLauncher('epic')}         testid="launcher-epic" />
-              <LauncherBtn label="GOG Galaxy"  onClick={() => notifyTodo('GOG Galaxy')}       testid="launcher-gog" />
-              <LauncherBtn label="EA App"      onClick={() => notifyTodo('EA App')}           testid="launcher-ea" />
-              <LauncherBtn label="Ubisoft"     onClick={() => notifyTodo('Ubisoft Connect')}  testid="launcher-ubi" />
-              <LauncherBtn label="Battle.net"  onClick={() => notifyTodo('Battle.net')}       testid="launcher-bnet" />
-              <LauncherBtn label="Riot Client" onClick={() => notifyTodo('Riot Client')}      testid="launcher-riot" />
-              <LauncherBtn label="Xbox / GP"   onClick={() => notifyTodo('Xbox / Game Pass')} testid="launcher-xbox" />
-              <LauncherBtn label="Rockstar"    onClick={() => notifyTodo('Rockstar Games')}   testid="launcher-rockstar" />
+              <LauncherBtn label="GOG Galaxy"  onClick={() => importLauncher('gog')}          testid="launcher-gog" />
+              <LauncherBtn label="EA App"      onClick={() => importLauncher('ea')}           testid="launcher-ea" />
+              <LauncherBtn label="Ubisoft"     onClick={() => importLauncher('ubisoft')}      testid="launcher-ubi" />
+              <LauncherBtn label="Battle.net"  onClick={() => importLauncher('battlenet')}    testid="launcher-bnet" />
+              <LauncherBtn label="Riot Client" onClick={() => importLauncher('riot')}         testid="launcher-riot" />
+              <LauncherBtn label="Xbox / GP"   onClick={() => importLauncher('xbox')}         testid="launcher-xbox" />
+              <LauncherBtn label="Rockstar"    onClick={() => importLauncher('rockstar')}     testid="launcher-rockstar" />
+              <LauncherBtn label="itch.io"     onClick={() => importLauncher('itch')}         testid="launcher-itch" />
             </div>
             {launcherStatus && <div className="mt-3 text-[11px] text-muted">{launcherStatus}</div>}
           </div>
@@ -311,7 +343,11 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
                   { key: 'ea',    label: 'EA App / Origin Games folder' },
                   { key: 'gog',   label: 'GOG Galaxy install folder' },
                   { key: 'ubisoft', label: 'Ubisoft Game Launcher folder' },
+                  { key: 'battlenet', label: 'Battle.net / Blizzard folders' },
                   { key: 'riot', label: 'Riot Games folder' },
+                  { key: 'xbox', label: 'XboxGames folders' },
+                  { key: 'rockstar', label: 'Rockstar Games folders' },
+                  { key: 'itch', label: 'itch.io install folders' },
                 ].map((opt) => (
                   <label key={opt.key} className="flex items-center gap-2 text-[11px] text-muted cursor-pointer hover:text-ink">
                     <input
@@ -486,14 +522,43 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
               <p className="text-[12.5px] leading-relaxed text-muted line-clamp-5 min-h-[60px]">
                 {result?.shortDescription || result?.about || (busy ? 'Searching…' : 'No description found.')}
               </p>
-              <div className="flex flex-wrap gap-1.5">
-                {(result?.genres || []).slice(0, 5).map((g) => (
-                  <span key={g} className="rounded-full bg-[rgb(var(--accent)/0.12)] text-[rgb(var(--accent))] px-2 py-0.5 text-[10px]">{g}</span>
-                ))}
-                {result?.releaseDate && (
-                  <span className="rounded-full hairline px-2 py-0.5 text-[10px] text-muted">{result.releaseDate}</span>
-                )}
-              </div>
+              {result?.releaseDate && (
+                <div className="flex flex-wrap gap-1.5">
+                  <span className="rounded-full hairline px-2 py-0.5 text-[10px] text-muted">Released {result.releaseDate}</span>
+                </div>
+              )}
+
+              {(detectedGenreGroups.length > 0 || detectedGenreTags.length > 0) && (
+                <div className="rounded-lg border border-emerald-400/30 bg-emerald-400/[0.055] p-3 space-y-2.5" data-testid="wizard-genre-profile">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-300">Detected game identity</div>
+                      <div className="mt-0.5 text-[10.5px] text-muted">Saved with this game when accepted. Library categories stay untouched.</div>
+                    </div>
+                    <span className="shrink-0 rounded-full border border-emerald-400/35 bg-emerald-400/10 px-2 py-0.5 text-[9px] font-bold tracking-wide text-emerald-300">NEW</span>
+                  </div>
+                  {detectedGenreGroups.length > 0 ? (
+                    <div className="space-y-2">
+                      {detectedGenreGroups.map((group) => (
+                        <div key={group.label}>
+                          <div className="mb-1 text-[9px] uppercase tracking-wider text-muted/80">{group.label}</div>
+                          <div className="flex flex-wrap gap-1">
+                            {group.items.map((item) => (
+                              <span key={item} className="rounded-full border border-emerald-400/25 bg-emerald-400/[0.09] px-2 py-0.5 text-[10px] text-emerald-200">{item}</span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {detectedGenreTags.slice(0, 10).map((tag) => (
+                        <span key={tag} className="rounded-full border border-emerald-400/25 bg-emerald-400/[0.09] px-2 py-0.5 text-[10px] text-emerald-200">{tag}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="rounded-lg hairline bg-surface/40 p-3 space-y-2">
                 <div className="text-[10px] uppercase tracking-wider text-muted">Wrong game? Re-search</div>

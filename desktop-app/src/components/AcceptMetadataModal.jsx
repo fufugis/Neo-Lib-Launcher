@@ -2,6 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { Check, X, GripVertical, RefreshCw, ExternalLink } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { genreDisplayGroups, normalizeGenreProfile } from '../lib/genreTaxonomy';
 
 const isElectron = typeof window !== 'undefined' && !!window.api;
 
@@ -47,6 +48,10 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
   if (!open || !game) return null;
   const p = proposed || {};
   const nothingFound = !proposed;
+  const proposedTags = p.genreTags?.length ? p.genreTags : (p.genres || []);
+  const proposedProfile = proposedTags.length ? normalizeGenreProfile({ rawTags: proposedTags, source: p.source || 'web' }) : null;
+  const currentIdentity = identitySummary(game.genreProfile);
+  const proposedIdentity = identitySummary(proposedProfile);
 
   // Quick helpers — "Select all" / "Only changed" / "None"
   const setAllPick = (val) => setPick({
@@ -80,7 +85,10 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
       patch.background = p.background || p.headerImage || game.background;
     }
     if (pick.screenshots) patch.screenshots = p.screenshots || [];
-    if (pick.genres)      patch.genres = p.genres || [];
+    if (pick.genres) {
+      patch.genres = p.genres || [];
+      patch.genreTags = proposedTags;
+    }
     if (pick.developer)   patch.developers = p.developers || [];
     if (pick.publisher)   patch.publishers = p.publishers || [];
     if (pick.release)     patch.releaseDate = p.releaseDate || '';
@@ -96,7 +104,7 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[220] grid place-items-center bg-black/60 backdrop-blur-sm"
-        onDoubleClick={onClose}
+        onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }}
         data-testid="accept-meta-overlay"
       >
         <motion.div
@@ -110,6 +118,7 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
           exit={{ y: 12, opacity: 0 }}
           transition={{ duration: 0.2 }}
           onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
           className={cn(
             'relative w-[min(880px,94vw)] max-h-[90vh] overflow-y-auto rounded-xl hairline glass shadow-2xl',
             busy && 'pointer-events-none opacity-70'
@@ -231,6 +240,13 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
                 checked={pick.genres} onToggle={(v) => setPick((s) => ({ ...s, genres: v }))} testid="accept-pick-genres"
               />
               <DiffField
+                label="Detected identity"
+                current={currentIdentity}
+                proposed={proposedIdentity}
+                full
+                note="Included when Genres is applied"
+              />
+              <DiffField
                 label="Description"
                 current={game.shortDescription || game.about || '—'}
                 proposed={p.shortDescription || p.about || '—'}
@@ -341,13 +357,18 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
   );
 }
 
-function DiffField({ label, current, proposed, full, tall, checked = true, onToggle, testid }) {
+function identitySummary(profile) {
+  const groups = genreDisplayGroups(profile);
+  return groups.length ? groups.map(([label, entries]) => `${label}: ${entries.map((entry) => entry.label).join(', ')}`).join(' · ') : '—';
+}
+
+function DiffField({ label, current, proposed, full, tall, checked = true, onToggle, testid, note }) {
   const same = current === proposed;
   const muted = onToggle && !checked;
   return (
     <div className={cn('rounded-md hairline bg-surface/30 p-2.5 transition-opacity', full && 'md:col-span-2', muted && 'opacity-50')}>
       <div className="mb-1 flex items-center justify-between gap-2">
-        <div className="text-[10px] uppercase tracking-wider text-muted">{label}</div>
+          <div><div className="text-[10px] uppercase tracking-wider text-muted">{label}</div>{note && <div className="mt-0.5 text-[8.5px] text-muted/70">{note}</div>}</div>
         {onToggle && (
           <FieldCheck
             label="Apply"
@@ -367,13 +388,11 @@ function DiffField({ label, current, proposed, full, tall, checked = true, onTog
           className={cn(
             'rounded px-2 py-1 text-[11.5px]',
             tall ? 'min-h-[3rem]' : '',
-            same
-              ? 'bg-panel/40'
-              : 'bg-[rgb(var(--accent)/0.10)] ring-1 ring-[rgb(var(--accent)/0.45)]'
+            same ? 'bg-panel/40' : 'border border-emerald-400/45 bg-emerald-400/10 ring-1 ring-emerald-300/35'
           )}
         >
-          <div className="mb-0.5 text-[9px] uppercase tracking-wider text-[rgb(var(--accent-2))]">
-            Proposed{same ? ' · same' : ''}
+          <div className={cn('mb-0.5 text-[9px] uppercase tracking-wider', same ? 'text-[rgb(var(--accent-2))]' : 'font-black text-emerald-300')}>
+            {same ? 'Proposed · same' : 'NEW'}
           </div>
           <div className="text-ink whitespace-pre-wrap break-words">{proposed || '—'}</div>
         </div>

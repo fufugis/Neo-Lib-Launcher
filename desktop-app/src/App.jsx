@@ -34,6 +34,7 @@ import { checkForUpdates } from './lib/updateChecker';
 const APP_VERSION = '1.7.2';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin, formatPlaytime } from './lib/utils';
+import { normalizeGenreProfile } from './lib/genreTaxonomy';
 import { setSoundPack } from './lib/sound';
 
 const isElectron = typeof window !== 'undefined' && !!window.api;
@@ -240,6 +241,7 @@ export default function App() {
 
   /* --- Accept-before-add modal (preview proposed metadata before applying) --- */
   const [acceptPreview, setAcceptPreview] = React.useState({ open: false, game: null, proposed: null, busy: false });
+  const [metadataRepairQueue, setMetadataRepairQueue] = React.useState({ active: false, ids: [], index: 0, repaired: 0, skipped: 0 });
 
   /* --- Drag-drop overlay state --- */
   const [dragOver, setDragOver] = React.useState(false);
@@ -263,7 +265,7 @@ export default function App() {
     const askLater = settings.launcherAskLater || {};
     const autoImport = settings.launcherAutoImport || {};
 
-    const LAUNCHER_LABELS = { steam: 'Steam', epic: 'Epic Games', ea: 'EA', gog: 'GOG' };
+    const LAUNCHER_LABELS = { steam: 'Steam', epic: 'Epic Games', ea: 'EA', gog: 'GOG', ubisoft: 'Ubisoft Connect', battlenet: 'Battle.net', riot: 'Riot Client', xbox: 'Xbox / Game Pass', rockstar: 'Rockstar Games', itch: 'itch.io' };
 
     // Silent diff-and-import for launchers the user previously approved.
     // Adds only NEW games (by appid or exePath), auto-refetches metadata, shows one toast.
@@ -274,6 +276,14 @@ export default function App() {
         let resp = null;
         if (key === 'steam') resp = await window.api.scanSteam();
         else if (key === 'epic') resp = await window.api.scanEpic();
+        else if (key === 'gog') resp = await window.api.scanGog();
+        else if (key === 'ea') resp = await window.api.scanEa();
+        else if (key === 'ubisoft') resp = await window.api.scanUbisoft();
+        else if (key === 'battlenet') resp = await window.api.scanBattlenet();
+        else if (key === 'riot') resp = await window.api.scanRiot();
+        else if (key === 'xbox') resp = await window.api.scanXbox();
+        else if (key === 'rockstar') resp = await window.api.scanRockstar();
+        else if (key === 'itch') resp = await window.api.scanItch();
         else return;
         if (cancelled || !resp || !resp.items) return;
 
@@ -282,6 +292,14 @@ export default function App() {
         const launcherCats = {
           steam: { id: '__launcher_steam__', name: 'Steam', colorId: 'cyan', pinnedBottom: true, logoLabel: 'Steam' },
           epic:  { id: '__launcher_epic__',  name: 'Epic Games', colorId: 'slate', pinnedBottom: true, logoLabel: 'Epic' },
+          gog:   { id: '__launcher_gog__',   name: 'GOG', colorId: 'violet', pinnedBottom: true, logoLabel: 'GOG' },
+          ea:    { id: '__launcher_ea__',    name: 'EA App', colorId: 'orange', pinnedBottom: true, logoLabel: 'EA' },
+          ubisoft: { id: '__launcher_ubisoft__', name: 'Ubisoft', colorId: 'blue', pinnedBottom: true, logoLabel: 'Ubi' },
+          battlenet: { id: '__launcher_battlenet__', name: 'Battle.net', colorId: 'cyan', pinnedBottom: true, logoLabel: 'Bnet' },
+          riot: { id: '__launcher_riot__', name: 'Riot', colorId: 'red', pinnedBottom: true, logoLabel: 'Riot' },
+          xbox: { id: '__launcher_xbox__', name: 'Xbox / Game Pass', colorId: 'green', pinnedBottom: true, logoLabel: 'Xbox' },
+          rockstar: { id: '__launcher_rockstar__', name: 'Rockstar', colorId: 'yellow', pinnedBottom: true, logoLabel: 'R*' },
+          itch: { id: '__launcher_itch__', name: 'itch.io', colorId: 'red', pinnedBottom: true, logoLabel: 'itch' },
         };
         const launcherCat = launcherCats[key];
 
@@ -289,10 +307,14 @@ export default function App() {
           const existing = new Set();
           (prev.games || []).forEach((g) => {
             if (g.appid) existing.add(`appid:${g.appid}`);
+            if (g.gogId) existing.add(`gog:${g.gogId}`);
+            if (g.launcherProductId) existing.add(`launcher-product:${g.launcherProductId}`);
             if (g.exePath) existing.add(`exe:${g.exePath.toLowerCase()}`);
           });
           const toAdd = (resp.items || []).filter((it) => {
             if (it.appid && existing.has(`appid:${it.appid}`)) return false;
+            if (it.gogId && existing.has(`gog:${it.gogId}`)) return false;
+            if (it.launcherProductId && existing.has(`launcher-product:${it.launcherProductId}`)) return false;
             const exe = (it.exe || it.installdir || '').toLowerCase();
             if (exe && existing.has(`exe:${exe}`)) return false;
             return true;
@@ -303,6 +325,9 @@ export default function App() {
             name: it.name,
             exePath: it.exe || it.installdir,
             appid: it.appid,
+            gogId: it.gogId,
+            launcherProductId: it.launcherProductId,
+            installedVersion: it.installedVersion || '',
             launcher: key,
             source: key,
             launchUrl: it.launchUrl,
@@ -377,10 +402,20 @@ export default function App() {
       launcherAutoImport: { ...(settings.launcherAutoImport || {}), [key]: true },
     });
     try {
-      let resp = null;
-      if (key === 'steam')  resp = await window.api.scanSteam();
-      else if (key === 'epic') resp = await window.api.scanEpic();
-      else { notify(`${key} import isn't wired yet — coming soon.`); return; }
+      const scan = {
+        steam: window.api?.scanSteam,
+        epic: window.api?.scanEpic,
+        gog: window.api?.scanGog,
+        ea: window.api?.scanEa,
+        ubisoft: window.api?.scanUbisoft,
+        battlenet: window.api?.scanBattlenet,
+        riot: window.api?.scanRiot,
+        xbox: window.api?.scanXbox,
+        rockstar: window.api?.scanRockstar,
+        itch: window.api?.scanItch,
+      }[key];
+      if (!scan) { notify(`${key} import is not available.`); return; }
+      const resp = await scan();
       if (!resp || resp.ok === false) {
         notify(`Import failed: ${resp?.error || 'No games found.'}`);
         return;
@@ -391,8 +426,11 @@ export default function App() {
       for (const it of items) {
         const g = addToGames({
           name: it.name,
-          exePath: it.exe || it.installdir,
+          exePath: it.exe || it.launchExe || it.installdir,
           appid: it.appid,
+          gogId: it.gogId,
+          launcherProductId: it.launcherProductId,
+          installedVersion: it.installedVersion || '',
           launcher: key,         // critical: marks the game for the launcher filter
           source: key,
           launchUrl: it.launchUrl,
@@ -427,7 +465,16 @@ export default function App() {
         const lib = await window.api.loadLibrary();
         const s = await window.api.loadSettings();
         setLibrary({
-          games: (lib.games || []).map((g) => ({ categoryIds: [], addedAt: Date.now(), ...g })),
+          games: (lib.games || []).map((g) => {
+            const hydrated = { categoryIds: [], addedAt: Date.now(), ...g };
+            // Lightweight local migration: existing libraries get a profile
+            // from their already-stored direct genre evidence. No network
+            // calls, no category changes, and no guessing from descriptions.
+            if (!hydrated.genreProfile && hydrated.genres?.length) {
+              hydrated.genreProfile = normalizeGenreProfile({ rawTags: hydrated.genreTags?.length ? hydrated.genreTags : hydrated.genres, source: hydrated.source || 'web' });
+            }
+            return hydrated;
+          }),
           categories: lib.categories || [],
           gameOrderByCategory: lib.gameOrderByCategory || {},
           tools: (lib.tools || []).map((t) => ({ categoryIds: [], addedAt: Date.now(), ...t })),
@@ -754,10 +801,18 @@ export default function App() {
     const set = new Set(order);
     return [...order, ...gameIds.filter((id) => !set.has(id))];
   };
+  const withGenreProfile = (data) => {
+    if (data?.genreProfile || !data?.genres?.length) return data;
+    const source = data.source || data.launcher || 'web';
+    return {
+      ...data,
+      genreProfile: normalizeGenreProfile({ rawTags: data.genreTags?.length ? data.genreTags : data.genres, source }),
+    };
+  };
 
   /* --- Items (Games / Tools) --- */
   const addGame = (data) => {
-    const g = { id: uid(), categoryIds: [], addedAt: Date.now(), ...data };
+    const g = { id: uid(), categoryIds: [], addedAt: Date.now(), ...withGenreProfile(data) };
     setLibrary((prev) => ({ ...prev, [sliceK.items]: [g, ...(prev[sliceK.items] || [])] }));
     setCurrentSelectedId(g.id);
     setShowAdd(false);
@@ -769,13 +824,21 @@ export default function App() {
     const launcherCats = {
       steam: { id: '__launcher_steam__', name: 'Steam', colorId: 'cyan',   pinnedBottom: true, logoLabel: 'Steam' },
       epic:  { id: '__launcher_epic__',  name: 'Epic Games', colorId: 'slate', pinnedBottom: true, logoLabel: 'Epic' },
+      gog:   { id: '__launcher_gog__',   name: 'GOG', colorId: 'violet', pinnedBottom: true, logoLabel: 'GOG' },
+      ea:    { id: '__launcher_ea__',    name: 'EA App', colorId: 'orange', pinnedBottom: true, logoLabel: 'EA' },
+      ubisoft: { id: '__launcher_ubisoft__', name: 'Ubisoft', colorId: 'blue', pinnedBottom: true, logoLabel: 'Ubi' },
+      battlenet: { id: '__launcher_battlenet__', name: 'Battle.net', colorId: 'cyan', pinnedBottom: true, logoLabel: 'Bnet' },
+      riot: { id: '__launcher_riot__', name: 'Riot', colorId: 'red', pinnedBottom: true, logoLabel: 'Riot' },
+      xbox: { id: '__launcher_xbox__', name: 'Xbox / Game Pass', colorId: 'green', pinnedBottom: true, logoLabel: 'Xbox' },
+      rockstar: { id: '__launcher_rockstar__', name: 'Rockstar', colorId: 'yellow', pinnedBottom: true, logoLabel: 'R*' },
+      itch: { id: '__launcher_itch__', name: 'itch.io', colorId: 'red', pinnedBottom: true, logoLabel: 'itch' },
     };
     const launcherCat = data.launcher ? launcherCats[data.launcher] : null;
     // FALLBACK: when the local .exe icon couldn't be extracted (common for sub-folder
     // launchers like Cyberpunk's REDLauncher), use the fetched online artwork instead.
     const onlineFallback = data.capsuleImage || data.headerImage || data.coverUrl || data.background || null;
     const icon = data.icon || onlineFallback;
-    const g = { id: uid(), categoryIds: [], addedAt: Date.now(), ...data, icon };
+    const g = { id: uid(), categoryIds: [], addedAt: Date.now(), ...withGenreProfile(data), icon };
     if (launcherCat) {
       g.categoryIds = Array.from(new Set([...(g.categoryIds || []), launcherCat.id]));
     }
@@ -792,7 +855,7 @@ export default function App() {
   };
   const importMany = (entries) => {
     if (!entries.length) return;
-    const newOnes = entries.map((e) => ({ id: uid(), categoryIds: [], addedAt: Date.now(), ...e }));
+    const newOnes = entries.map((e) => ({ id: uid(), categoryIds: [], addedAt: Date.now(), ...withGenreProfile(e) }));
     setLibrary((prev) => ({ ...prev, games: [...newOnes, ...prev.games] })); // wizard always imports games
     setSelectedId(newOnes[0].id);
     notify(`Imported ${newOnes.length} game${newOnes.length !== 1 ? 's' : ''}`);
@@ -804,7 +867,21 @@ export default function App() {
       : patch;
     setLibrary((prev) => ({
       ...prev,
-      [sliceK.items]: (prev[sliceK.items] || []).map((g) => (g.id === id ? { ...g, ...timelinePatch } : g)),
+      [sliceK.items]: (prev[sliceK.items] || []).map((g) => {
+        if (g.id !== id) return g;
+        // Whenever direct source genre evidence changes, refresh the separate
+        // canonical profile as well. The raw provider genres remain intact;
+        // this profile is the safe input for filters and future Auto-sort.
+        const next = { ...g, ...timelinePatch };
+        if (Object.prototype.hasOwnProperty.call(timelinePatch || {}, 'genres')) {
+          next.genreProfile = normalizeGenreProfile({
+            rawTags: next.genreTags?.length ? next.genreTags : (next.genres || []),
+            source: timelinePatch.source || next.source || 'web',
+            existing: g.genreProfile,
+          });
+        }
+        return next;
+      }),
     }));
   };
   const recordLaunchProblem = (gameId, reason) => {
@@ -909,6 +986,7 @@ export default function App() {
       shortDescription: result.shortDescription || g.shortDescription,
       about: result.about || g.about,
       genres: result.genres?.length ? result.genres : g.genres || [],
+      genreTags: result.genreTags?.length ? result.genreTags : g.genreTags || [],
       developers: result.developers?.length ? result.developers : g.developers || [],
       publishers: result.publishers?.length ? result.publishers : g.publishers || [],
       releaseDate: result.releaseDate || g.releaseDate || '',
@@ -933,6 +1011,52 @@ export default function App() {
       icon: g.icon || coverUrl || patch.headerImage || null,
     });
     notify(`Updated · ${patch.name || g.name} (via ${patch.source || 'manual'})`);
+  };
+
+  const beginMetadataRepairQueue = (queueGames) => {
+    const ids = (queueGames || []).map((game) => game?.id).filter(Boolean);
+    if (!ids.length) { notify('No unidentified games to review.'); return; }
+    const first = (libraryRef.current.games || []).find((game) => game.id === ids[0]);
+    setMetadataRepairQueue({ active: true, ids, index: 0, repaired: 0, skipped: 0 });
+    setTidyOpen(false);
+    if (first) {
+      setSelectedId(first.id);
+      setMode('library');
+      setFetchPickerGame(first);
+    }
+  };
+
+  const advanceMetadataRepairQueue = (outcome = 'skipped') => {
+    if (!metadataRepairQueue.active) return;
+    const repaired = metadataRepairQueue.repaired + (outcome === 'repaired' ? 1 : 0);
+    const skipped = metadataRepairQueue.skipped + (outcome === 'skipped' ? 1 : 0);
+    let nextIndex = metadataRepairQueue.index + 1;
+    const currentGames = libraryRef.current.games || [];
+    while (nextIndex < metadataRepairQueue.ids.length && !currentGames.some((game) => game.id === metadataRepairQueue.ids[nextIndex])) {
+      nextIndex += 1;
+    }
+    setAcceptPreview({ open: false, game: null, proposed: null, busy: false });
+    setFetchPickerGame(null);
+    if (nextIndex >= metadataRepairQueue.ids.length) {
+      setMetadataRepairQueue({ active: false, ids: [], index: 0, repaired: 0, skipped: 0 });
+      notify(`Identity review complete · ${repaired} repaired · ${skipped} skipped`);
+      return;
+    }
+    const nextId = metadataRepairQueue.ids[nextIndex];
+    const nextGame = currentGames.find((game) => game.id === nextId);
+    setMetadataRepairQueue((queue) => ({ ...queue, index: nextIndex, repaired, skipped }));
+    if (nextGame) {
+      setSelectedId(nextGame.id);
+      setFetchPickerGame(nextGame);
+    }
+  };
+
+  const stopMetadataRepairQueue = () => {
+    const { repaired, skipped } = metadataRepairQueue;
+    setMetadataRepairQueue({ active: false, ids: [], index: 0, repaired: 0, skipped: 0 });
+    setFetchPickerGame(null);
+    setAcceptPreview({ open: false, game: null, proposed: null, busy: false });
+    notify(`Identity review stopped · ${repaired} repaired · ${skipped} skipped`);
   };
 
   const refetchAll = async () => {
@@ -1155,7 +1279,7 @@ export default function App() {
       geminiKey: settings.geminiKey || '',
       lockedAppid: g.appid || null,
     });
-    if (result?.genres?.length) updateGame(g.id, { genres: result.genres });
+    if (result?.genres?.length) updateGame(g.id, { genres: result.genres, genreTags: result.genreTags || [] });
   };
 
   /* --- Game right-click actions --- */
@@ -1348,7 +1472,7 @@ export default function App() {
   const toggleCollapsed = (id) =>
     updateSetting({ collapsed: { ...settings.collapsed, [id]: !settings.collapsed[id] } });
 
-  // Launcher filter (All/Steam/Epic/EA/GOG/Other) — only used on Library tab
+  // Launcher filter — only used on Library tab.
   // Uses g.launcher exclusively. g.source (Steam API, GOG API) is metadata-origin
   // and intentionally NOT considered here — a manually-added game whose metadata
   // was fetched from Steam is NOT a Steam-launcher game.
@@ -1358,7 +1482,7 @@ export default function App() {
     return currentItems.filter((g) => {
       const launcher = (g.launcher || '').toLowerCase();
       if (launcherFilter === 'other') {
-        return !['steam', 'epic', 'ea', 'gog', 'ubisoft', 'battlenet', 'riot', 'rockstar'].includes(launcher);
+        return !['steam', 'epic', 'ea', 'gog', 'ubisoft', 'battlenet', 'riot', 'xbox', 'rockstar', 'itch'].includes(launcher);
       }
       return launcher === launcherFilter;
     });
@@ -1468,7 +1592,7 @@ export default function App() {
             {!isTools && (settings.mode === 'home' || !selected) ? (
               <HomeHub games={library.games || []} resting={gameRestActive} homeLayout={settings.homeLayout || {}} onUpdateHomeLayout={(homeLayout) => updateSetting({ homeLayout })} onSelect={(id) => { setSelectedId(id); setMode('library'); }} onOpenPlaytimeImport={() => openPlaytimeImport({ force: true })} onOpenTidyUp={() => setTidyOpen(true)} />
             ) : (
-              <AnimatePresence mode="wait"><GameDetail key={selected?.id || 'empty'} game={selected} categories={currentCats.filter((c) => !c.private || unlockedCategories.includes(c.id))} fetching={fetching} settings={settings} onLaunch={launchGame} onRefetch={(g) => setFetchPickerGame(g)} onRevealFolder={(g) => (isElectron ? window.api.revealInFolder(g.exePath) : notify('Open: ' + g.exePath))} onToggleCategory={toggleGameInCategory} onCustomize={(g) => setEditMetaGame(g)} onOpenSaveManager={(g) => setSaveManagerGame(g)} onUpdateGame={updateGame} friendsClientPaths={settings.friendsClientPaths || {}} onUpdateFriendsClientPaths={(friendsClientPaths) => updateSetting({ friendsClientPaths })} friendsResting={gameRestActive} /></AnimatePresence>
+              <AnimatePresence mode="wait"><GameDetail key={selected?.id || 'empty'} game={selected} categories={currentCats.filter((c) => !c.private || unlockedCategories.includes(c.id))} fetching={fetching} settings={settings} onLaunch={launchGame} onRefetch={(g) => setFetchPickerGame(g)} onRevealFolder={(g) => (isElectron ? window.api.revealInFolder(g.exePath) : notify('Open: ' + g.exePath))} onToggleCategory={toggleGameInCategory} onCustomize={(g) => setEditMetaGame(g)} onOpenSaveManager={(g) => setSaveManagerGame(g)} onUpdateGame={updateGame} /></AnimatePresence>
             )}
           </div>
         </main>
@@ -1479,6 +1603,8 @@ export default function App() {
         <DealsBar
           settings={settings}
           resting={gameRestActive}
+          friendsClientPaths={settings.friendsClientPaths || {}}
+          onUpdateFriendsClientPaths={(friendsClientPaths) => updateSetting({ friendsClientPaths })}
         />
       )}
 
@@ -1494,7 +1620,7 @@ export default function App() {
         autoScan={wizardAutoScan}
         geminiKey={settings.geminiKey || ''}
       />
-      <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} settings={settings} setSettings={persistSettings} onShowChangelog={() => setChangelogOpen(true)} />
+      <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} settings={settings} setSettings={persistSettings} onShowChangelog={() => setChangelogOpen(true)} currentVersion={APP_VERSION} />
       <SaveGameModal
         game={saveManagerGame}
         onClose={() => setSaveManagerGame(null)}
@@ -1598,11 +1724,12 @@ export default function App() {
         game={acceptPreview.game}
         proposed={acceptPreview.proposed}
         busy={acceptPreview.busy}
-        onClose={() => setAcceptPreview({ open: false, game: null, proposed: null, busy: false })}
-        onAccept={(patch) => {
+        onClose={() => metadataRepairQueue.active ? advanceMetadataRepairQueue('skipped') : setAcceptPreview({ open: false, game: null, proposed: null, busy: false })}
+        onAccept={async (patch) => {
           const g = acceptPreview.game;
           setAcceptPreview({ open: false, game: null, proposed: null, busy: false });
-          if (g) applyAcceptedMetadata(g, patch);
+          if (g) await applyAcceptedMetadata(g, patch);
+          if (metadataRepairQueue.active) advanceMetadataRepairQueue('repaired');
         }}
         onTryAgain={async () => {
           // v1.2.0: refetch from accept-preview now opens the unified
@@ -1621,7 +1748,14 @@ export default function App() {
         open={!!fetchPickerGame}
         game={fetchPickerGame}
         geminiKey={settings.geminiKey || ''}
-        onClose={() => setFetchPickerGame(null)}
+        progress={metadataRepairQueue.active ? {
+          current: metadataRepairQueue.index + 1,
+          total: metadataRepairQueue.ids.length,
+          repaired: metadataRepairQueue.repaired,
+          skipped: metadataRepairQueue.skipped,
+        } : null}
+        onStopQueue={stopMetadataRepairQueue}
+        onClose={() => metadataRepairQueue.active ? advanceMetadataRepairQueue('skipped') : setFetchPickerGame(null)}
         onPick={(metadata) => {
           const g = fetchPickerGame;
           setFetchPickerGame(null);
@@ -1634,6 +1768,7 @@ export default function App() {
         games={library.games || []}
         onDelete={(id) => removeGame(id)}
         onSelect={(id) => { setSelectedId(id); setMode('library'); setTidyOpen(false); }}
+        onRepairMetadata={beginMetadataRepairQueue}
         onClose={() => setTidyOpen(false)}
       />
 
@@ -1951,8 +2086,10 @@ function BgAmbience({ theme, settings = {}, game = null, resting = false }) {
     modern:   'amb-modern',
     colorful: 'amb-colorful',
     pro:      'amb-pro',
+    'generic-gray': 'amb-generic-gray',
+    'generic-blue': 'amb-generic-blue',
   }[theme];
-  const isSpecial = theme === 'colorful' || theme === 'pro';
+  const isSpecial = ['colorful', 'pro', 'generic-gray', 'generic-blue'].includes(theme);
   // Special themes bump particle count so they always feel "extra"
   const particleCount = isSpecial
     ? Math.max(lvl.particles * 1.5, 12) | 0

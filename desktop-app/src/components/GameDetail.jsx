@@ -2,25 +2,24 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Play, RefreshCw, Calendar, Award, Building2, Globe, FolderOpen,
+  Play, RefreshCw, Calendar, Award, Building2, Download, Globe, FolderOpen,
   Tag, Sparkles, ChevronLeft, ChevronRight, ChevronDown, Youtube, FileText, Wrench, Wand2, ExternalLink, Star, ArchiveRestore,
 } from 'lucide-react';
 import { cn, colorFromId } from '../lib/utils';
+import { genreDisplayGroups } from '../lib/genreTaxonomy';
 import { hoverThrottled, playLaunch } from '../lib/sound';
-import FriendsPanel from './FriendsPanel';
+import UpdateHistoryModal from './UpdateHistoryModal';
 
 /**
  * GameDetail — fully horizontal, "seamless" layout:
  *   [ HUGE banner with title overlay ]
- *   [ Action bar: Launch · Refetch · Locate · Add to category … ]
- *   [ Inline meta strip: Released · Genres · Devs · Publisher · Metacritic · Website ]
- *   [ About text — full width ]
- *   [ Screenshot strip — full width carousel ]
+ *   [ Launch + compact action menu ]
+ *   [ About + vertical genre identity card · gallery ]
+ *   [ Calm, readable game-details list ]
  */
 export default function GameDetail({
   game, categories, onLaunch, onRefetch, onRevealFolder,
   onToggleCategory, onCustomize, onUpdateGame, onOpenSaveManager, fetching, settings = {},
-  friendsClientPaths, onUpdateFriendsClientPaths, friendsResting = false,
 }) {
   if (!game) return <EmptyState />;
   const bg = game.background || game.headerImage || game.coverUrl;
@@ -158,44 +157,29 @@ export default function GameDetail({
           settings={settings}
         />
 
-        {/* Meta strip — sits over backdrop, glass blur */}
-        <MetaStrip game={game} />
       </div>
 
       <div className="grid flex-1 min-h-0 grid-cols-[1.4fr_1fr] gap-5 px-6 py-5">
-        {/* LEFT — scrollable text panel (About + meta footer) */}
+        {/* LEFT — readable game information, with identity kept deliberately separate */}
         <section
           className="min-h-0 overflow-y-auto rounded-lg hairline bg-panel/30 px-5 py-4"
           data-testid="game-text-panel"
         >
+          <UpdateAvailablePill game={game} />
           <LatestNewsPill game={game} />
-          <h3 className="mb-3 text-[10px] uppercase tracking-[0.28em] text-muted">About</h3>
-          <p className="whitespace-pre-line text-[13.5px] leading-relaxed text-muted">
-            {game.about ||
-              game.shortDescription ||
-              'No description yet. Press "Refresh info" to pull metadata online.'}
-          </p>
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_185px]">
+            <div>
+              <h3 className="mb-3 text-[10px] uppercase tracking-[0.28em] text-muted">About this game</h3>
+              <p className="whitespace-pre-line text-[13.5px] leading-relaxed text-muted">
+                {game.about ||
+                  game.shortDescription ||
+                  'No description yet. Press "Re-fetch info" to pull metadata online.'}
+              </p>
+            </div>
+            <GenreProfile profile={game.genreProfile} fallbackGenres={game.genres || []} />
+          </div>
 
-          {(() => {
-            // Only render meta cells that actually have data — prevents the
-            // big-gaps problem on games where most fields are empty.
-            const cells = [];
-            if (game.developers?.length) cells.push(['Developer', game.developers.join(', ')]);
-            if (game.publishers?.length && game.publishers.join() !== (game.developers || []).join()) {
-              cells.push(['Publisher', game.publishers.join(', ')]);
-            }
-            if (game.releaseDate) cells.push(['Released', game.releaseDate]);
-            if (game.metacritic) cells.push(['Metacritic', String(game.metacritic)]);
-            if (game.website) cells.push(['Website', game.website]);
-            if (cells.length === 0) return null;
-            return (
-              <div className="mt-5 grid grid-cols-2 gap-2 text-[11px]">
-                {cells.map(([label, value]) => (
-                  <MetaCell key={label} label={label} value={value} />
-                ))}
-              </div>
-            );
-          })()}
+          <DetailList game={game} />
 
           <div className="mt-5 text-[10.5px] text-muted/70 break-all font-mono">
             {game.exePath}
@@ -211,19 +195,35 @@ export default function GameDetail({
           data-testid="game-gallery-panel"
         >
           <GalleryBox shots={game.screenshots || []} />
-          <FriendsPanel manualPaths={friendsClientPaths} onUpdateManualPaths={onUpdateFriendsClientPaths} resting={friendsResting} variant="detail" />
         </section>
       </div>
     </motion.div>
   );
 }
 
-function MetaCell({ label, value }) {
+function DetailList({ game }) {
+  const rows = [];
+  if (game.developers?.length) rows.push({ icon: <Building2 size={13} />, label: 'Developer', value: game.developers.join(', ') });
+  if (game.publishers?.length && game.publishers.join() !== (game.developers || []).join()) rows.push({ icon: <Building2 size={13} />, label: 'Publisher', value: game.publishers.join(', ') });
+  if (game.releaseDate) rows.push({ icon: <Calendar size={13} />, label: 'Released', value: game.releaseDate });
+  if (game.metacritic) rows.push({ icon: <Award size={13} />, label: 'Metacritic', value: String(game.metacritic) });
+  if (game.website) rows.push({ icon: <Globe size={13} />, label: 'Website', value: 'Open official site', action: () => window.api?.openExternal(game.website) });
+  if (!rows.length) return null;
   return (
-    <div className="rounded-md hairline bg-surface/40 px-2.5 py-1.5">
-      <div className="text-[9px] uppercase tracking-wider text-muted/70">{label}</div>
-      <div className="truncate text-ink">{value}</div>
-    </div>
+    <section className="mt-5 overflow-hidden rounded-xl border border-[rgb(var(--border)/0.7)] bg-[rgb(var(--surface)/0.2)]" data-testid="game-detail-list">
+      <div className="border-b border-[rgb(var(--border)/0.55)] px-3.5 py-2 text-[9px] font-bold uppercase tracking-[0.24em] text-muted">Game details</div>
+      <div className="divide-y divide-[rgb(var(--border)/0.45)]">
+        {rows.map((row) => (
+          <div key={row.label} className="grid grid-cols-[22px_92px_minmax(0,1fr)] items-center gap-2 px-3.5 py-2.5 text-[11.5px]">
+            <span className="text-[rgb(var(--accent))]">{row.icon}</span>
+            <span className="font-semibold text-muted">{row.label}</span>
+            {row.action ? (
+              <button onClick={row.action} className="justify-self-start text-[rgb(var(--accent-2))] hover:underline">{row.value} ↗</button>
+            ) : <span className="truncate text-ink" title={row.value}>{row.value}</span>}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -312,32 +312,14 @@ function HeroTitle({ game, onUpdateGame }) {
           >
             {game.name}
           </motion.h1>
-          <motion.div
-            initial={{ y: 10, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.18 }}
-            className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10.5px]"
-          >
-            {(game.genres || []).slice(0, 5).map((g) => (
-              <button
-                key={g}
-                onClick={() => openSearch(`${g} games`)}
-                className="rounded-full px-2 py-0.5 text-muted hover:text-ink transition-colors"
-                style={{
-                  borderWidth: 1,
-                  borderStyle: 'solid',
-                  borderColor: 'rgb(var(--accent) / 0.4)',
-                  backgroundColor: 'rgb(var(--surface) / 0.55)',
-                  backdropFilter: 'blur(6px)',
-                  color: 'rgb(var(--ink))',
-                }}
-                title={`Search "${g} games" on Google`}
-              >
-                {g}
-              </button>
-            ))}
-            {game.releaseDate && <span className="text-muted/90">· {game.releaseDate}</span>}
-          </motion.div>
+          {game.releaseDate && (
+            <motion.div
+              initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.18 }}
+              className="mt-2 text-[10px] font-medium uppercase tracking-[0.18em] text-muted"
+            >
+              Released · {game.releaseDate}
+            </motion.div>
+          )}
         </div>
       </div>
     </div>
@@ -366,7 +348,7 @@ function ActionBar({ game, categories, onLaunch, onRefetch, onRevealFolder, onTo
   }, [catOpen]);
 
   return (
-    <div className="relative z-10 flex flex-wrap items-center gap-2 border-y hairline px-8 py-3" style={{ backgroundColor: 'rgb(var(--surface) / 0.45)', backdropFilter: 'blur(14px) saturate(140%)' }}>
+    <div className="relative z-10 flex flex-wrap items-center gap-3 border-y hairline px-6 py-3" style={{ backgroundColor: 'rgb(var(--surface) / 0.45)', backdropFilter: 'blur(14px) saturate(140%)' }}>
       <motion.button
         data-testid="detail-launch-btn"
         whileTap={{ scale: 0.95 }}
@@ -379,6 +361,7 @@ function ActionBar({ game, categories, onLaunch, onRefetch, onRevealFolder, onTo
         LAUNCH
       </motion.button>
 
+      <div className="detail-action-menu flex flex-wrap items-center gap-1 rounded-xl border border-[rgb(var(--border)/0.75)] bg-[rgb(var(--surface)/0.45)] p-1" aria-label="Game actions">
       <button
         data-testid="detail-youtube-btn"
         onClick={() => openSearch(`${game.name} gameplay`, 'youtube')}
@@ -511,6 +494,8 @@ function ActionBar({ game, categories, onLaunch, onRefetch, onRevealFolder, onTo
           </motion.div>,
           document.body
         )}
+      </div>
+
       </div>
 
       <div className="ml-auto flex items-center gap-2 text-[11px] text-muted">
@@ -911,29 +896,38 @@ function LatestNewsPill({ game }) {
 }
 
 
-/* ---------- 5-star rating (v1.4.0) ---------- */
+/* ---------- Personal rating — whole stars open a precise tenth picker. */
 function StarRating({ value = 0, onChange }) {
   const [hover, setHover] = React.useState(0);
+  const [openFor, setOpenFor] = React.useState(null);
+  const rootRef = React.useRef(null);
   const shown = hover || value;
+  React.useEffect(() => {
+    const close = (event) => { if (rootRef.current && !rootRef.current.contains(event.target)) setOpenFor(null); };
+    const escape = (event) => { if (event.key === 'Escape') setOpenFor(null); };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', escape); };
+  }, []);
   return (
     <span
-      className="inline-flex items-center gap-0.5"
+      ref={rootRef}
+      className="relative inline-flex items-center gap-0.5"
       onMouseLeave={() => setHover(0)}
       data-testid="game-star-rating"
       onClick={(e) => e.stopPropagation()}
     >
       {[1, 2, 3, 4, 5].map((i) => {
-        const filled = i <= shown;
+        const filled = i <= Math.floor(shown);
         return (
           <button
             key={i}
             data-testid={`star-${i}`}
-            title={`${i} star${i > 1 ? 's' : ''}`}
+            title={`Choose a ${i}.0–${i}.9 rating`}
             onMouseEnter={() => setHover(i)}
             onClick={(e) => {
               e.stopPropagation();
-              // Clicking the currently-set star wipes the rating back to 0.
-              onChange?.(value === i ? 0 : i);
+              setOpenFor((current) => current === i ? null : i);
             }}
             className="grid place-items-center transition-transform hover:scale-110"
             style={{
@@ -942,10 +936,71 @@ function StarRating({ value = 0, onChange }) {
               filter: filled ? 'drop-shadow(0 0 4px rgba(255,204,74,0.7))' : 'none',
             }}
           >
-            <Star size={16} strokeWidth={2} fill={filled ? '#ffcc4a' : 'none'} />
+            <Star size={19} strokeWidth={2} fill={filled ? '#ffcc4a' : 'none'} />
           </button>
         );
       })}
+      <span className="ml-1 min-w-7 text-[10px] font-black tracking-normal text-[#ffdc72]">{value ? value.toFixed(1) : '—'}</span>
+      {openFor && <span className="absolute left-0 top-[calc(100%+7px)] z-[80] grid w-[186px] grid-cols-5 gap-1 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.98)] p-2 shadow-2xl" role="menu" aria-label={`Choose ${openFor}-star rating`}><button onClick={() => { onChange?.(0); setOpenFor(null); }} className="col-span-5 rounded px-2 py-1 text-left text-[10px] font-bold text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink">Clear my rating</button>{(openFor === 5 ? [5] : Array.from({ length: 10 }, (_, index) => Number((openFor + index / 10).toFixed(1)))).map((rating) => <button key={rating} onClick={() => { onChange?.(rating); setOpenFor(null); }} className={`rounded px-1 py-1.5 text-[10px] font-black transition ${value === rating ? 'bg-[#ffcc4a] text-[#2d1c00]' : 'bg-[rgb(var(--surface)/0.5)] text-ink hover:bg-[rgb(var(--accent)/0.2)]'}`}>{rating.toFixed(1)}</button>)}</span>}
     </span>
+  );
+}
+
+function UpdateAvailablePill({ game }) {
+  const [update, setUpdate] = React.useState(null);
+  const [historyOpen, setHistoryOpen] = React.useState(false);
+  React.useEffect(() => {
+    let alive = true;
+    setUpdate(null);
+    if ((!game?.appid && !(game?.installedVersion && game?.updateWatchUrl)) || !window.api?.scanGameUpdates) return () => { alive = false; };
+    window.api.scanGameUpdates({ games: [{ id: game.id, name: game.name, appid: game.appid, launcher: game.launcher, source: game.source, installedVersion: game.installedVersion, updateWatchUrl: game.updateWatchUrl }] })
+      .then((result) => { if (alive) setUpdate(result?.items?.[0] || null); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [game?.id, game?.appid, game?.name, game?.launcher, game?.source, game?.installedVersion, game?.updateWatchUrl]);
+  if (!update) return null;
+  const isWatchPage = update.sourceKind === 'watch-page';
+  const remaining = isWatchPage ? `${update.currentVersion} → ${update.latestVersion}` : update.remainingBytes >= 1024 ** 3 ? `${(update.remainingBytes / 1024 ** 3).toFixed(1)} GB` : `${Math.max(1, Math.round(update.remainingBytes / 1024 ** 2))} MB`;
+  return <>
+    <motion.button
+      onClick={() => isWatchPage ? setHistoryOpen(true) : window.api?.openExternal?.(update.actionUrl || 'steam://downloads/')}
+      animate={{ boxShadow: ['0 0 12px -4px rgb(52 211 153 / .45)', '0 0 24px -2px rgb(52 211 153 / .8)', '0 0 12px -4px rgb(52 211 153 / .45)'] }}
+      transition={{ duration: 2.2, repeat: Infinity }}
+      className="mb-4 flex w-full items-center gap-3 rounded-xl border border-emerald-400/40 bg-emerald-400/[0.07] px-4 py-3 text-left"
+      data-testid="game-update-available"
+    >
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-400/15 text-emerald-300"><Download size={16} /></span>
+      <span className="min-w-0 flex-1"><span className="block text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">New update · {update.platform}</span><span className="mt-0.5 block text-[12px] font-bold text-ink">{isWatchPage ? `Version ${remaining} available` : `${remaining} remains in the launcher queue`}</span><span className="mt-0.5 block text-[10.5px] text-muted">There is a new update for this game you might want to check out.</span></span>
+      <span className="shrink-0 text-[10px] font-bold text-emerald-300">{isWatchPage ? 'Patch history' : 'Open downloads'} ↗</span>
+    </motion.button>
+    <UpdateHistoryModal item={historyOpen ? update : null} onClose={() => setHistoryOpen(false)} />
+  </>;
+}
+
+/** A structured identity is deliberately separate from a user's Library categories. */
+function GenreProfile({ profile, fallbackGenres = [] }) {
+  const groups = genreDisplayGroups(profile);
+  if (!groups.length && !fallbackGenres.length) return null;
+  const shownGroups = groups.length ? groups : [['Source genres', fallbackGenres.map((label) => ({ id: label, label }))]];
+  return (
+    <aside className="genre-identity-blob self-start overflow-hidden rounded-xl border border-[rgb(var(--accent)/0.34)] bg-[rgb(var(--surface)/0.45)]" data-testid="game-genre-profile">
+      <div className="border-b border-[rgb(var(--accent)/0.22)] bg-[rgb(var(--accent)/0.11)] px-3 py-2.5">
+        <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[rgb(var(--accent))]">Game identity</div>
+        <div className="mt-1 flex items-center justify-between gap-2">
+          <span className="text-[10px] text-muted">Genres &amp; playstyle</span>
+          {profile?.confidence ? <span className="rounded-full border border-[rgb(var(--accent)/0.25)] px-1.5 py-0.5 text-[8px] font-bold text-[rgb(var(--accent-2))]" title={`Direct metadata confidence ${(profile.confidence * 100).toFixed(0)}%`}>{profile.source || 'source'}</span> : null}
+        </div>
+      </div>
+      <div className="divide-y divide-[rgb(var(--border)/0.45)]">
+        {shownGroups.map(([label, entries]) => (
+          <div key={label} className="px-3 py-2.5">
+            <div className="mb-1.5 text-[8.5px] font-bold uppercase tracking-[0.14em] text-muted">{label}</div>
+            <div className="flex flex-wrap gap-1">
+              {entries.map((entry) => <span key={entry.id} className="rounded-md border border-[rgb(var(--accent)/0.22)] bg-[rgb(var(--accent)/0.08)] px-1.5 py-0.5 text-[9.5px] font-semibold text-ink">{entry.label}</span>)}
+            </div>
+          </div>
+        ))}
+      </div>
+    </aside>
   );
 }

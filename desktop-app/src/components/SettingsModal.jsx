@@ -7,7 +7,7 @@ import Modal from './Modal';
 import { DONATE_PAYPAL_URL } from './DonateModal';
 import qrUrl from '../assets/donate-qr.png';
 
-export default function SettingsModal({ open, onClose, settings, setSettings, onShowChangelog }) {
+export default function SettingsModal({ open, onClose, settings, setSettings, onShowChangelog, currentVersion = '1.7.2' }) {
   const setKey = (patch) => setSettings({ ...settings, ...patch });
   const [showKey, setShowKey] = React.useState(false);
   const [autoStart, setAutoStart] = React.useState(false);
@@ -246,7 +246,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
 
         <Section title="About">
           <p className="text-xs text-muted leading-relaxed">
-            NEO-LIB v1.7.1. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
+            NEO-LIB v{currentVersion}. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
             Library data lives in <span className="font-mono text-ink">%APPDATA%/NEO-LIB</span>.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">

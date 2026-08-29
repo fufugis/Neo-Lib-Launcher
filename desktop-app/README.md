@@ -11,6 +11,30 @@
 - **Released This Week** — Home gains a rearrangeable pane for notable full-game launches from the last seven days, with cover art, source, official release date, and a transparent inclusion reason.
 - **Selective, not noisy** — NEO-LIB verifies the real store release date and requires meaningful early player, review, or launch-reach signals before including a title.
 - **Lightweight refresh** — the feed is cached for six hours, can be refreshed manually, and opens official store pages without accessing any account.
+- **Safer Steam matching** — launcher imports keep Steam’s exact local app ID and manifest title authoritative, so delisted titles that vanish from Store search cannot be replaced by a fuzzy, unrelated match.
+- **Home cleanup** — My Best Games is top five by personal decimal rating; Library Health is compact and clickable; Top 5 Played and Recent Sessions have distinct jobs; and Gaming Chronicle is an informative, scrollable history.
+- **Theme cleanup** — new Special Generic Gray and Generic Blue themes join a sharper Midnight, danger-bright Industrial, slate/red Modern, warm-sunrise Daybreak, and clearly organic Mint Garden.
+- **Shell polish** — Friends lives at the far right of the permanent sponsor rail, Coffee remains readable on light themes, and Tools uses a utilities icon rather than a settings-like wrench.
+- **Genre Intelligence — foundation** — refreshed metadata now keeps direct provider genres intact while building a separate, exact-match identity profile for core genres, specific subgenres, playstyle, perspective, and themes. Steam refreshes can use official categories plus cached, rate-limited Steam community tags; this never changes a user’s Library categories. Auto-sort now recommends at most six evidence-backed collections and never scans descriptions for loose genre words.
+- **Review what is new** — add-from-match and metadata refresh now use the approval popup before writing. Newly detected fields, including the structured game identity, are green and labelled **NEW**; Genres controls whether that identity is applied.
+- **Wizard identity review** — every folder-scan match now previews its detected core genres, subgenres, playstyle, perspective, and themes in a green **NEW** panel before acceptance. Saving that identity never changes Library categories.
+- **Preview-pane refinement** — a theme-responsive vertical identity card now owns genres, supporting actions form one calm menu beside Launch, and game facts appear as a clean readable list.
+- **Released This Week fallback** — Home keeps major releases first, then automatically surfaces only verified semi-major games when a quiet week would otherwise leave the pane blank.
+- **Library identity repair queue** — Tidy Up walks through unidentified games with repaired/skipped progress, clickable local title clues from the EXE/folder/bounded README scan, and approval before every change.
+- **Update Intelligence · Steam foundation** — pending Steam download bytes appear in Home and the selected game preview, with a safe handoff to Steam Downloads and no launcher-queue writes.
+- **Independent update watch** — optionally store the installed version and a public update page in Customize; explicit higher version labels appear in Home and Game Preview with a link to the chosen source.
+- **In-app patch history** — an independent-game update alert opens a read-only version timeline with detected release dates, versions newer than the installed copy, and a button to the full user-chosen source.
+- **Consistent native launcher imports** — first-time detection, background refresh, and the Wizard all use the same supported adapters and preserve their verified executable, product/version, source, and launcher-category fields.
+- **Honest launcher identity** — Home and the full launcher filter use the actual launcher field rather than metadata provenance, preventing local/repack games with Steam metadata from being presented as Steam-owned.
+- **Predictable dialog dismissal** — dialogs and custom review surfaces now close with one click outside, while Escape and explicit close buttons remain available.
+- **Native GOG import** — Wizard import now discovers installed GOG games through the Windows registry, retains their GOG identity, and groups them correctly without account access.
+- **Native EA/Origin import** — Wizard import now discovers locally registered EA and legacy Origin installs, retains product/version identity, and creates the EA category without account access.
+- **Native Ubisoft Connect import** — Wizard import now discovers locally registered Ubisoft installs, keeps product identity and native launch routing, and creates the Ubisoft category.
+- **Native Battle.net import** — Wizard import now discovers locally registered Blizzard games, excludes the desktop client, preserves product/version identity, and creates the Battle.net category.
+- **Native Riot import** — Wizard import now discovers games from Riot’s bounded local product metadata, excludes the client itself, and preserves product/version/launch identity under a Riot category.
+- **Native Xbox/Game Pass import** — Wizard import now reads bounded XboxGames roots and per-title MicrosoftGame.config files, retaining Store/configured-executable identity under an Xbox category.
+- **Native Rockstar import** — Wizard import now discovers verified Rockstar game installs, excludes launcher/Social Club/support entries, and preserves version/product identity under a Rockstar category.
+- **Native itch.io import** — Wizard import reads only the install locations configured by the itch desktop app, recognises completed installs from their own local receipt marker, and routes folder-derived titles through the normal approval-first metadata flow. It never opens itch’s live catalog database, copies credentials, or scans unrelated folders.
 
 ### Previous — v1.7.1 (Home intelligence — safe save backups, play suggestions, storage, and your Chronicle)
 

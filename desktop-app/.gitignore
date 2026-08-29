@@ -2,6 +2,7 @@ node_modules/
 dist/
 dist-renderer/
 *.log
+.codex-test-profile*/
 .DS_Store
 # Local secrets — never commit
 .env

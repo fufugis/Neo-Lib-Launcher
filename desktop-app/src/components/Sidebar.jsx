@@ -5,7 +5,7 @@ import {
   Plus, Wand2, RefreshCw, Trash2, Pencil, FolderOpen, MoreVertical, Sparkles,
   Lock, ChevronRight, ChevronDown, Tag, GripVertical, Terminal,
   Info, ArrowUp, ArrowDown, Palette, Eye, EyeOff, Sliders, Library as LibIcon,
-  Wrench, Columns, Pin, PinOff, X as XIcon, Home, MessageCircle,
+  Boxes, Columns, Pin, PinOff, X as XIcon, Home, MessageCircle,
   Bug, Lightbulb, RotateCcw, Check, ArchiveRestore, Stethoscope, Settings,
 } from 'lucide-react';
 import { cn, colorFromId, sizeById, formatPlaytime, playtimeSource } from '../lib/utils';
@@ -271,7 +271,7 @@ export default function Sidebar({
         <TabPill label="Library" icon={<LibIcon size={15} />} showLabel={labelsVisible} labelStyle={toolbarLabelStyle} active={mode === 'library'} onClick={() => { onSetMode('library'); onSetLauncherFilter?.('all'); }} testid="tab-library" />
         <TabPill
           label="Tools"
-          icon={<Wrench size={15} />}
+          icon={<Boxes size={15} />}
           showLabel={labelsVisible}
           labelStyle={toolbarLabelStyle}
           active={mode === 'tools'}
@@ -789,6 +789,12 @@ const LAUNCHER_OPTIONS = [
   { id: 'epic',  label: 'Epic' },
   { id: 'ea',    label: 'EA' },
   { id: 'gog',   label: 'GOG' },
+  { id: 'ubisoft', label: 'Ubisoft' },
+  { id: 'battlenet', label: 'Battle.net' },
+  { id: 'riot', label: 'Riot' },
+  { id: 'xbox', label: 'Xbox / Game Pass' },
+  { id: 'rockstar', label: 'Rockstar' },
+  { id: 'itch', label: 'itch.io' },
   { id: 'other', label: 'Other' },
 ];
 function LauncherDropdown({ value = 'all', onChange }) {

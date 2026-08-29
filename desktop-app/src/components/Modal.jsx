@@ -38,7 +38,7 @@ export default function Modal({ open, onClose, title, children, wide, testid }) 
           exit={{ opacity: 0, pointerEvents: 'none', transition: { duration: 0.1 } }}
           transition={{ duration: 0.14 }}
           className="fixed inset-0 z-[100] grid place-items-center bg-black/65 backdrop-blur-[2px]"
-          onDoubleClick={onClose}
+          onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }}
           style={{ pointerEvents: 'auto' }}
         >
           <motion.div

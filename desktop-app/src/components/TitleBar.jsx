@@ -62,7 +62,7 @@ export default function TitleBar({ search, setSearch, currentVersion, updateAvai
             data-testid="titlebar-coffee-btn"
             onClick={onDonate}
             title="Buy KenLun a coffee — support NEO-LIB"
-            className="group inline-flex h-7 items-center gap-1.5 rounded-md border border-[#ffd140]/45 bg-[#ffd140]/12 px-2 text-[10px] font-bold text-[#ffe597] transition-all hover:border-[#ffd140]/80 hover:bg-[#ffd140]/22 hover:text-[#fff4c6]"
+            className="group inline-flex h-7 items-center gap-1.5 rounded-md border border-[#8a5000] bg-[linear-gradient(135deg,#ffd65a_0%,#e89a19_100%)] px-2 text-[10px] font-extrabold text-[#251500] shadow-[0_0_10px_-4px_rgba(255,180,30,0.9)] transition-all hover:brightness-110 hover:scale-[1.03] active:scale-[0.96]"
           >
             <Heart size={12} fill="currentColor" className="transition-transform group-hover:scale-110" />
             <span className="hidden min-[1100px]:inline">Coffee</span>

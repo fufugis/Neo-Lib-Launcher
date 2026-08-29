@@ -64,17 +64,19 @@ export default function FriendsPanel({ manualPaths = {}, onUpdateManualPaths, re
     refresh(next);
   };
 
+  const isFooter = variant === 'footer';
+
   return (
-    <div ref={rootRef} className={`${variant === 'detail' ? 'relative w-full' : 'titlebar-nodrag relative'}`}>
+    <div ref={rootRef} className={`${isFooter ? 'relative' : variant === 'detail' ? 'relative w-full' : 'titlebar-nodrag relative'}`}>
       <button
         data-testid="friends-hub-button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
-        className={`group ${variant === 'detail' ? 'flex h-11 w-full items-center justify-between rounded-lg px-3.5 text-xs' : 'inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[10.5px]'} border font-bold transition-all ${open ? 'border-[rgb(var(--accent-2)/0.85)] bg-[rgb(var(--accent)/0.15)] text-ink' : 'border-[rgb(var(--border))] bg-panel/45 text-muted hover:border-[rgb(var(--accent-2)/0.6)] hover:text-ink'}`}
+        className={`group ${variant === 'detail' ? 'flex h-11 w-full items-center justify-between rounded-lg px-3.5 text-xs' : isFooter ? 'inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[10.5px]' : 'inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[10.5px]'} border font-bold transition-all ${open ? 'border-[rgb(var(--accent-2)/0.85)] bg-[rgb(var(--accent)/0.15)] text-ink' : 'border-[rgb(var(--border))] bg-panel/45 text-muted hover:border-[rgb(var(--accent-2)/0.6)] hover:text-ink'}`}
         title="Friends Hub — inspect and open your game clients safely"
       >
         <Users size={13} className="text-[rgb(var(--accent-2))]" />
-        <span className={variant === 'detail' ? 'inline' : 'hidden min-[960px]:inline'}>Friends</span>
+        <span className={variant === 'detail' || isFooter ? 'inline' : 'hidden min-[960px]:inline'}>Friends</span>
         {variant === 'detail' && <span className="ml-auto mr-2 text-[10px] font-medium text-muted">Check your running launchers</span>}
         <span className={`h-1.5 w-1.5 rounded-full ${runningCount ? 'bg-emerald-400 shadow-[0_0_7px_rgb(74_222_128/0.8)]' : 'bg-muted/60'}`} />
       </button>
@@ -84,7 +86,7 @@ export default function FriendsPanel({ manualPaths = {}, onUpdateManualPaths, re
           <motion.section
             initial={{ opacity: 0, y: -8, scale: 0.985 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -5, scale: 0.985 }} transition={{ duration: 0.16, ease: 'easeOut' }}
             data-testid="friends-hub-panel"
-            className={`absolute right-0 z-[100] w-[min(440px,calc(100vw-24px))] overflow-hidden rounded-xl border border-[rgb(var(--border))] glass-strong shadow-2xl ${variant === 'detail' ? 'bottom-[calc(100%+8px)]' : 'top-9'}`}
+            className={`absolute right-0 z-[100] w-[min(440px,calc(100vw-24px))] overflow-hidden rounded-xl border border-[rgb(var(--border))] glass-strong shadow-2xl ${variant === 'detail' || isFooter ? 'bottom-[calc(100%+8px)]' : 'top-9'}`}
           >
             <header className="flex items-center justify-between border-b border-[rgb(var(--border)/0.8)] px-4 py-3">
               <div>

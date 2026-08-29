@@ -62,6 +62,8 @@ export default function EditMetadataModal({ open, game, onClose, onSave }) {
       publishers: splitList(form.publishers),
       releaseDate: form.releaseDate.trim(),
       website: form.website.trim(),
+      installedVersion: form.installedVersion.trim(),
+      updateWatchUrl: form.updateWatchUrl.trim(),
       metacritic: form.metacritic ? Number(form.metacritic) || null : null,
       screenshots: splitLines(form.screenshots),
       // Launch overrides — only patched if changed from the original
@@ -84,7 +86,7 @@ export default function EditMetadataModal({ open, game, onClose, onSave }) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[210] grid place-items-center bg-black/60 backdrop-blur-sm"
-        onDoubleClick={onClose}
+        onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }}
         data-testid="edit-metadata-overlay"
       >
         <motion.div
@@ -98,6 +100,7 @@ export default function EditMetadataModal({ open, game, onClose, onSave }) {
           exit={{ y: 12, opacity: 0 }}
           transition={{ duration: 0.18 }}
           onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
           className="relative w-[min(820px,94vw)] max-h-[90vh] overflow-y-auto rounded-xl hairline glass shadow-2xl"
           data-testid="edit-metadata-modal"
         >
@@ -232,6 +235,16 @@ export default function EditMetadataModal({ open, game, onClose, onSave }) {
                   className={inputCls}
                 />
               </Field>
+
+              <div className="grid gap-3 sm:grid-cols-[0.8fr_1.2fr] rounded-lg border border-[rgb(var(--accent)/0.22)] bg-[rgb(var(--accent)/0.045)] p-3">
+                <Field label="Installed version" testid="meta-installed-version">
+                  <input data-testid="meta-installed-version-input" value={form.installedVersion} onChange={(e) => set('installedVersion', e.target.value)} placeholder="e.g. 0.14.2" className={inputCls} />
+                </Field>
+                <Field label="Update watch page" testid="meta-update-watch">
+                  <input data-testid="meta-update-watch-input" value={form.updateWatchUrl} onChange={(e) => set('updateWatchUrl', e.target.value)} placeholder="Official page, itch.io, or public forum thread" className={inputCls} />
+                </Field>
+                <p className="sm:col-span-2 text-[9.5px] leading-relaxed text-muted">Optional for independent games. NEO-LIB reads this public page for explicit version labels and never downloads or installs files.</p>
+              </div>
 
               <Field label="Short description (1 line)" testid="meta-shortdesc">
                 <input
@@ -399,6 +412,8 @@ function emptyForm(g) {
     publishers: (g.publishers || []).join(', '),
     releaseDate: g.releaseDate || '',
     website: g.website || '',
+    installedVersion: g.installedVersion || '',
+    updateWatchUrl: g.updateWatchUrl || '',
     metacritic: g.metacritic ?? '',
     screenshots: (g.screenshots || []).join('\n'),
     exePath: g.exePath || '',

@@ -14,7 +14,7 @@ import { formatPlaytime } from '../lib/utils';
  *
  * User is shown each cluster side-by-side and picks which one to keep.
  */
-export default function TidyUpModal({ open, games, onDelete, onSelect, onClose }) {
+export default function TidyUpModal({ open, games, onDelete, onSelect, onRepairMetadata, onClose }) {
   const dragControls = useDragControls();
   const [clusters, setClusters] = React.useState([]);
   const [ci, setCi] = React.useState(0);
@@ -52,7 +52,7 @@ export default function TidyUpModal({ open, games, onDelete, onSelect, onClose }
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[220] grid place-items-center bg-black/65 backdrop-blur-[2px]"
-        onDoubleClick={onClose}
+        onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }}
         data-testid="tidy-overlay"
       >
         <motion.div
@@ -65,6 +65,7 @@ export default function TidyUpModal({ open, games, onDelete, onSelect, onClose }
           exit={{ y: 10, opacity: 0 }}
           transition={{ duration: 0.18 }}
           onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
           className="relative w-[min(880px,96vw)] max-h-[92vh] overflow-hidden rounded-xl hairline glass shadow-2xl flex flex-col"
           data-testid="tidy-modal"
         >
@@ -91,7 +92,7 @@ export default function TidyUpModal({ open, games, onDelete, onSelect, onClose }
             {reviewGroups.length > 0 && (
               <section className="mb-5 rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.22)] p-3.5">
                 <div className="mb-3 flex items-center gap-2"><AlertCircle size={14} className="text-[rgb(var(--accent-2))]" /><div><h4 className="text-xs font-black uppercase tracking-[0.16em]">Library health review</h4><p className="mt-0.5 text-[10.5px] text-muted">Choose a game to open it and fill in the missing piece. Nothing is changed automatically.</p></div></div>
-                <div className="space-y-3">{reviewGroups.map((group) => <div key={group.key}><p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider" style={{ color: group.color }}>{group.games.length} {group.label}</p><div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">{group.games.slice(0, 60).map((game) => <button key={game.id} onClick={() => onSelect?.(game.id)} className="max-w-full truncate rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.35)] px-2 py-1 text-[10.5px] font-semibold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink" title={`Open ${game.name}`}>{game.name}</button>)}</div>{group.games.length > 60 && <p className="mt-1 text-[10px] text-muted">Showing the first 60; refine these from the library as you go.</p>}</div>)}</div>
+                <div className="space-y-3">{reviewGroups.map((group) => <div key={group.key}><div className="mb-1.5 flex items-center justify-between gap-2"><p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: group.color }}>{group.games.length} {group.label}</p>{group.key === 'identity' && <button onClick={() => onRepairMetadata?.(group.games)} className="rounded-md border border-[rgb(var(--accent)/0.4)] bg-[rgb(var(--accent)/0.08)] px-2 py-1 text-[9.5px] font-bold text-[rgb(var(--accent))] hover:bg-[rgb(var(--accent)/0.16)]">Review all identities</button>}</div><div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">{group.games.slice(0, 60).map((game) => <button key={game.id} onClick={() => onSelect?.(game.id)} className="max-w-full truncate rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.35)] px-2 py-1 text-[10.5px] font-semibold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink" title={`Open ${game.name}`}>{game.name}</button>)}</div>{group.games.length > 60 && <p className="mt-1 text-[10px] text-muted">Showing the first 60; refine these from the library as you go.</p>}</div>)}</div>
               </section>
             )}
             {total === 0 && reviewGroups.length === 0 && (
@@ -231,6 +232,7 @@ function findDuplicates(games) {
 function findReviewGroups(games) {
   const hasDetails = (game) => [game.description, game.about, game.shortDescription].some((value) => String(value || '').trim());
   const groups = [
+    { key: 'identity', label: 'missing game identity', color: '#34d399', games: games.filter((game) => !(game.genreProfile?.core?.length || game.genreProfile?.subgenres?.length || game.genres?.length)) },
     { key: 'details', label: 'missing details', color: '#c084fc', games: games.filter((game) => !hasDetails(game)) },
     { key: 'art', label: 'missing cover art', color: '#60a5fa', games: games.filter((game) => !(game.coverUrl || game.headerImage || game.background)) },
     { key: 'launch', label: 'missing launch target', color: '#fb7185', games: games.filter((game) => !(game.exePath || game.launchUrl)) },

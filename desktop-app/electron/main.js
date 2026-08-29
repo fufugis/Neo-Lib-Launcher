@@ -9,6 +9,7 @@ const path = require('path');
 const fs = require('fs');
 const fsp = require('fs/promises');
 const { spawn } = require('child_process');
+const http = require('http');
 const https = require('https');
 const os = require('os');
 
@@ -737,11 +738,14 @@ function pickBestMatch(query, results, nameKey = 'name') {
 }
 
 // ---------------- Generic HTML helpers ---------------- //
-function httpGetText(url) {
+function httpGetText(url, timeoutMs = 15_000, redirects = 0) {
   return new Promise((resolve, reject) => {
-    https
+    let parsed;
+    try { parsed = new URL(url); } catch { reject(new Error('Invalid URL.')); return; }
+    const transport = parsed.protocol === 'http:' ? http : https;
+    const request = transport
       .get(
-        url,
+        parsed,
         {
           headers: {
             'User-Agent':
@@ -751,14 +755,21 @@ function httpGetText(url) {
         },
         (res) => {
           if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-            return resolve(httpGetText(res.headers.location));
+            res.resume();
+            if (redirects >= 5) return reject(new Error('Too many redirects.'));
+            return resolve(httpGetText(new URL(res.headers.location, parsed).toString(), timeoutMs, redirects + 1));
           }
           let body = '';
-          res.on('data', (c) => (body += c));
+          res.setEncoding('utf8');
+          res.on('data', (chunk) => {
+            body += chunk;
+            if (body.length > 5_000_000) request.destroy(new Error('Response is too large.'));
+          });
           res.on('end', () => resolve(body));
         }
       )
       .on('error', reject);
+    request.setTimeout(timeoutMs, () => request.destroy(new Error('Request timed out.')));
   });
 }
 
@@ -816,6 +827,7 @@ ipcMain.handle('steam:details', async (_e, appid) => {
     const entry = data && data[appid];
     if (!entry || !entry.success) return null;
     const d = entry.data;
+    const genreTags = await steamGenreEvidence(appid, d);
     return {
       appid,
       name: d.name,
@@ -827,6 +839,7 @@ ipcMain.handle('steam:details', async (_e, appid) => {
       background: d.background_raw || d.background,
       screenshots: (d.screenshots || []).slice(0, 6).map((s) => s.path_full),
       genres: (d.genres || []).map((g) => g.description),
+      genreTags,
       developers: d.developers || [],
       publishers: d.publishers || [],
       releaseDate: d.release_date ? d.release_date.date : '',
@@ -908,6 +921,10 @@ function parseAcfManifest(text) {
     buildid: get('buildid'),
     lastUpdated: get('LastUpdated'),
     sizeOnDisk: get('SizeOnDisk'),
+    stateFlags: get('StateFlags'),
+    bytesToDownload: get('BytesToDownload'),
+    bytesDownloaded: get('BytesDownloaded'),
+    updateResult: get('UpdateResult'),
   };
 }
 
@@ -1026,6 +1043,359 @@ ipcMain.handle('app:getAutoStart', async () => {
   } catch {
     return false;
   }
+});
+
+function queryRegistry(root, view) {
+  return new Promise((resolve) => {
+    const child = spawn('reg.exe', ['query', root, '/s', view], { windowsHide: true });
+    let stdout = '';
+    child.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
+    child.on('error', () => resolve(''));
+    child.on('close', () => resolve(stdout));
+  });
+}
+
+function primaryExeIn(folder, depth = 0) {
+  if (!folder || depth > 2) return null;
+  let entries = [];
+  try { entries = fs.readdirSync(folder, { withFileTypes: true }); } catch { return null; }
+  for (const entry of entries) {
+    const full = path.join(folder, entry.name);
+    if (entry.isFile() && /\.exe$/i.test(entry.name) && !/(unins|setup|crash|redist|support|helper|config|dxsetup)/i.test(entry.name)) return full;
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory() || /^(redist|support|__redist|dependencies)$/i.test(entry.name)) continue;
+    const found = primaryExeIn(path.join(folder, entry.name), depth + 1);
+    if (found) return found;
+  }
+  return null;
+}
+
+ipcMain.handle('launcher:scan-gog', async () => {
+  const roots = ['HKLM\\SOFTWARE\\WOW6432Node\\GOG.com\\Games', 'HKLM\\SOFTWARE\\GOG.com\\Games'];
+  const outputs = await Promise.all(roots.flatMap((root) => ['/reg:64', '/reg:32'].map((view) => queryRegistry(root, view))));
+  const blocks = outputs.join('\n').split(/\r?\n\s*(?=HKEY_)/i);
+  const items = [];
+  const seen = new Set();
+  for (const block of blocks) {
+    const value = (name) => block.match(new RegExp(`^\\s*${name}\\s+REG_\\w+\\s+(.+)$`, 'im'))?.[1]?.trim() || '';
+    const installPath = value('path') || value('PATH');
+    const gameId = value('gameID') || value('gameId') || block.match(/\\Games\\([^\\\r\n]+)\s*$/im)?.[1] || '';
+    const name = value('gameName') || value('GAMENAME');
+    if (!installPath || !name || seen.has(gameId || installPath.toLowerCase()) || !fs.existsSync(installPath)) continue;
+    seen.add(gameId || installPath.toLowerCase());
+    items.push({
+      gogId: gameId,
+      name,
+      exe: primaryExeIn(installPath) || installPath,
+      installdir: installPath,
+      launcher: 'gog',
+      source: 'gog',
+      buildId: value('buildId') || value('BUILDID'),
+    });
+  }
+  return items.length ? { ok: true, items, source: 'gog' } : { ok: false, items: [], error: 'No installed GOG games found in the Windows registry.' };
+});
+
+ipcMain.handle('launcher:scan-ea', async () => {
+  const roots = [
+    'HKLM\\SOFTWARE\\EA Games',
+    'HKLM\\SOFTWARE\\WOW6432Node\\EA Games',
+    'HKLM\\SOFTWARE\\Origin Games',
+    'HKLM\\SOFTWARE\\WOW6432Node\\Origin Games',
+  ];
+  const outputs = await Promise.all(roots.flatMap((root) => ['/reg:64', '/reg:32'].map((view) => queryRegistry(root, view))));
+  const blocks = outputs.join('\n').split(/\r?\n\s*(?=HKEY_)/i);
+  const items = [];
+  const seen = new Set();
+  for (const block of blocks) {
+    const value = (name) => {
+      const escapedName = name.replace(/[^a-z0-9 ]/gi, '\\$&');
+      return block.match(new RegExp(`^\\s*${escapedName}\\s+REG_\\w+\\s+(.+)$`, 'im'))?.[1]?.trim() || '';
+    };
+    const installPath = value('Install Dir') || value('InstallDir') || value('InstallLocation') || value('Path');
+    const name = value('DisplayName') || value('GameName') || value('Title');
+    const productId = value('Product GUID') || value('ProductId') || value('contentID') || block.match(/\\([^\\\r\n]+)\s*$/im)?.[1] || '';
+    if (!installPath || !name || !fs.existsSync(installPath)) continue;
+    const key = productId || installPath.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    items.push({
+      launcherProductId: productId,
+      name,
+      exe: primaryExeIn(installPath) || installPath,
+      installdir: installPath,
+      launcher: 'ea',
+      source: 'ea',
+      installedVersion: value('DisplayVersion') || value('Version'),
+    });
+  }
+  return items.length ? { ok: true, items, source: 'ea' } : { ok: false, items: [], error: 'No installed EA/Origin games found in the Windows registry.' };
+});
+
+ipcMain.handle('launcher:scan-ubisoft', async () => {
+  const roots = [
+    'HKLM\\SOFTWARE\\Ubisoft\\Launcher\\Installs',
+    'HKLM\\SOFTWARE\\WOW6432Node\\Ubisoft\\Launcher\\Installs',
+  ];
+  const outputs = await Promise.all(roots.flatMap((root) => ['/reg:64', '/reg:32'].map((view) => queryRegistry(root, view))));
+  const blocks = outputs.join('\n').split(/\r?\n\s*(?=HKEY_)/i);
+  const items = [];
+  const seen = new Set();
+  for (const block of blocks) {
+    const value = (name) => {
+      const escapedName = name.replace(/[^a-z0-9 ]/gi, '\\$&');
+      return block.match(new RegExp(`^\\s*${escapedName}\\s+REG_\\w+\\s+(.+)$`, 'im'))?.[1]?.trim() || '';
+    };
+    const installPath = value('InstallDir') || value('Install Dir') || value('InstallLocation');
+    const productId = block.match(/\\Installs\\([^\\\r\n]+)\s*$/im)?.[1] || value('GameId');
+    if (!installPath || !productId || !fs.existsSync(installPath) || seen.has(productId)) continue;
+    seen.add(productId);
+    const folderName = path.basename(installPath.replace(/[\\/]+$/, ''));
+    const name = value('DisplayName') || value('GameName') || folderName || `Ubisoft Game ${productId}`;
+    items.push({
+      launcherProductId: `ubisoft:${productId}`,
+      name,
+      exe: primaryExeIn(installPath) || installPath,
+      installdir: installPath,
+      launcher: 'ubisoft',
+      source: 'ubisoft',
+      launchUrl: `uplay://launch/${productId}/0`,
+      nameEvidence: value('DisplayName') || value('GameName') ? 'registry' : 'install-folder',
+    });
+  }
+  return items.length ? { ok: true, items, source: 'ubisoft' } : { ok: false, items: [], error: 'No installed Ubisoft Connect games found in the Windows registry.' };
+});
+
+ipcMain.handle('launcher:scan-battlenet', async () => {
+  const roots = [
+    'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
+    'HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
+  ];
+  const outputs = await Promise.all(roots.flatMap((root) => ['/reg:64', '/reg:32'].map((view) => queryRegistry(root, view))));
+  const blocks = outputs.join('\n').split(/\r?\n\s*(?=HKEY_)/i);
+  const items = [];
+  const seen = new Set();
+  for (const block of blocks) {
+    const value = (name) => {
+      const escapedName = name.replace(/[^a-z0-9 ]/gi, '\\$&');
+      return block.match(new RegExp(`^\\s*${escapedName}\\s+REG_\\w+\\s+(.+)$`, 'im'))?.[1]?.trim() || '';
+    };
+    const publisher = value('Publisher');
+    const name = value('DisplayName');
+    const installPath = value('InstallLocation');
+    if (!/blizzard|battle\.net/i.test(publisher) || !name || !installPath || !fs.existsSync(installPath)) continue;
+    if (/battle\.net( desktop app)?$/i.test(name.trim())) continue;
+    const key = `${name.toLowerCase()}|${installPath.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    items.push({
+      launcherProductId: `battlenet:${value('ProductID') || name}`,
+      name,
+      exe: primaryExeIn(installPath) || installPath,
+      installdir: installPath,
+      launcher: 'battlenet',
+      source: 'battlenet',
+      installedVersion: value('DisplayVersion'),
+    });
+  }
+  return items.length ? { ok: true, items, source: 'battlenet' } : { ok: false, items: [], error: 'No installed Battle.net games found in Windows installation records.' };
+});
+
+ipcMain.handle('launcher:scan-riot', async () => {
+  const metadataRoot = path.join(process.env.PROGRAMDATA || 'C:\\ProgramData', 'Riot Games', 'Metadata');
+  if (!fs.existsSync(metadataRoot)) return { ok: false, items: [], error: 'Riot installed-game metadata was not found.' };
+  const files = [];
+  const walk = (folder, depth = 0) => {
+    if (depth > 3 || files.length >= 100) return;
+    let entries = [];
+    try { entries = fs.readdirSync(folder, { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      const full = path.join(folder, entry.name);
+      if (entry.isDirectory()) walk(full, depth + 1);
+      else if (/\.product_settings\.ya?ml$/i.test(entry.name)) files.push(full);
+    }
+  };
+  walk(metadataRoot);
+  const items = [];
+  const seen = new Set();
+  for (const file of files) {
+    let yaml = '';
+    try { yaml = fs.readFileSync(file, 'utf8'); } catch { continue; }
+    const field = (name) => yaml.match(new RegExp(`^${name}:\\s*["']?([^"'\\r\\n]+)`, 'im'))?.[1]?.trim() || '';
+    const productId = field('product_id') || path.basename(path.dirname(file));
+    const name = field('product_name') || field('name') || productId;
+    if (!productId || !name || /riot client/i.test(name) || seen.has(productId)) continue;
+    const installPath = field('product_install_full_path').replace(/\//g, '\\');
+    const configuredExe = field('product_executable_full_path').replace(/\//g, '\\');
+    const exe = configuredExe && fs.existsSync(configuredExe) ? configuredExe : primaryExeIn(installPath) || installPath;
+    if (!exe || (!fs.existsSync(exe) && !fs.existsSync(installPath))) continue;
+    seen.add(productId);
+    items.push({
+      launcherProductId: `riot:${productId}`,
+      name,
+      exe,
+      installdir: installPath,
+      launcher: 'riot',
+      source: 'riot',
+      installedVersion: field('product_version'),
+    });
+  }
+  return items.length ? { ok: true, items, source: 'riot' } : { ok: false, items: [], error: 'No installed Riot games were present in the local metadata.' };
+});
+
+ipcMain.handle('launcher:scan-xbox', async () => {
+  const roots = [];
+  for (let code = 67; code <= 90; code += 1) {
+    const candidate = `${String.fromCharCode(code)}:\\XboxGames`;
+    try { if (fs.existsSync(candidate)) roots.push(candidate); } catch { /* inaccessible drive */ }
+  }
+  const items = [];
+  const seen = new Set();
+  for (const root of roots) {
+    let folders = [];
+    try { folders = fs.readdirSync(root, { withFileTypes: true }).filter((entry) => entry.isDirectory()); } catch { continue; }
+    for (const folder of folders.slice(0, 300)) {
+      const content = path.join(root, folder.name, 'Content');
+      const configPath = path.join(content, 'MicrosoftGame.config');
+      if (!fs.existsSync(configPath)) continue;
+      let xml = '';
+      try { xml = fs.readFileSync(configPath, 'utf8'); } catch { continue; }
+      const attr = (name) => xml.match(new RegExp(`${name}=["']([^"']+)["']`, 'i'))?.[1]?.trim() || '';
+      const storeId = attr('StoreId') || attr('Id') || folder.name;
+      if (seen.has(storeId)) continue;
+      const configuredExe = attr('Executable') || xml.match(/<Executable[^>]+Name=["']([^"']+)["']/i)?.[1] || '';
+      const exe = configuredExe ? path.join(content, configuredExe.replace(/\//g, '\\')) : primaryExeIn(content) || content;
+      const displayName = attr('DefaultDisplayName');
+      const name = displayName && !/^ms-resource:/i.test(displayName) ? displayName : folder.name;
+      seen.add(storeId);
+      items.push({
+        launcherProductId: `xbox:${storeId}`,
+        name,
+        exe: fs.existsSync(exe) ? exe : content,
+        installdir: content,
+        launcher: 'xbox',
+        source: 'xbox',
+        storeId,
+      });
+    }
+  }
+  return items.length ? { ok: true, items, source: 'xbox' } : { ok: false, items: [], error: 'No Xbox/Game Pass installs with MicrosoftGame.config were found under local XboxGames roots.' };
+});
+
+ipcMain.handle('launcher:scan-rockstar', async () => {
+  const roots = [
+    'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
+    'HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
+  ];
+  const outputs = await Promise.all(roots.flatMap((root) => ['/reg:64', '/reg:32'].map((view) => queryRegistry(root, view))));
+  const blocks = outputs.join('\n').split(/\r?\n\s*(?=HKEY_)/i);
+  const items = [];
+  const seen = new Set();
+  for (const block of blocks) {
+    const value = (name) => {
+      const escapedName = name.replace(/[^a-z0-9 ]/gi, '\\$&');
+      return block.match(new RegExp(`^\\s*${escapedName}\\s+REG_\\w+\\s+(.+)$`, 'im'))?.[1]?.trim() || '';
+    };
+    const publisher = value('Publisher');
+    const name = value('DisplayName');
+    if (!/rockstar games/i.test(publisher) || !name || /(launcher|social club|sdk)/i.test(name)) continue;
+    let installPath = value('InstallLocation');
+    if (!installPath) {
+      const uninstall = value('UninstallString');
+      const executable = uninstall.match(/^"([^"]+\.exe)"/i)?.[1] || uninstall.match(/^([^\s]+\.exe)/i)?.[1] || '';
+      if (executable) installPath = path.dirname(executable);
+    }
+    if (!installPath || !fs.existsSync(installPath)) continue;
+    const productId = block.match(/\\([^\\\r\n]+)\s*$/im)?.[1] || name;
+    const key = `${name.toLowerCase()}|${installPath.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    items.push({
+      launcherProductId: `rockstar:${productId}`,
+      name,
+      exe: primaryExeIn(installPath) || installPath,
+      installdir: installPath,
+      launcher: 'rockstar',
+      source: 'rockstar',
+      installedVersion: value('DisplayVersion'),
+    });
+  }
+  return items.length ? { ok: true, items, source: 'rockstar' } : { ok: false, items: [], error: 'No installed Rockstar games found in verified Windows installation records.' };
+});
+
+// itch.io keeps its configured install locations in its own user preferences.
+// We deliberately do *not* open butler.db here: it is the desktop client's live
+// SQLite catalog and direct/concurrent access is neither needed nor safe for a
+// read-only launcher import. A completed itch install has a receipt marker in
+// the game's folder, so this adapter only reads those known locations and then
+// lets the normal approval-first metadata flow enrich the folder-derived title.
+function itchInstallRoots() {
+  const appData = process.env.APPDATA || '';
+  const preferences = path.join(appData, 'itch', 'preferences.json');
+  if (!preferences || !fs.existsSync(preferences)) return [];
+  try {
+    const data = JSON.parse(fs.readFileSync(preferences, 'utf8'));
+    const locations = data?.installLocations && typeof data.installLocations === 'object'
+      ? Object.values(data.installLocations) : [];
+    return [...new Set(locations
+      .map((location) => typeof location?.path === 'string' ? location.path.trim() : '')
+      .filter((location) => location && fs.existsSync(location))
+      .map((location) => path.resolve(location)))];
+  } catch {
+    return [];
+  }
+}
+
+function itchDisplayName(folderName) {
+  return String(folderName || '')
+    .replace(/\s+\d+$/, '')
+    .replace(/^game-\d+$/i, '')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+    .trim();
+}
+
+ipcMain.handle('launcher:scan-itch', async () => {
+  const roots = itchInstallRoots();
+  if (!roots.length) {
+    return {
+      ok: false,
+      items: [],
+      error: 'No itch.io install locations were found in the itch desktop app preferences.',
+    };
+  }
+  const items = [];
+  const seen = new Set();
+  for (const root of roots) {
+    let folders = [];
+    try { folders = fs.readdirSync(root, { withFileTypes: true }).filter((entry) => entry.isDirectory()); } catch { continue; }
+    for (const folder of folders.slice(0, 1_000)) {
+      // "downloads" is itch's staging area, never an installed game.
+      if (/^downloads$/i.test(folder.name)) continue;
+      const installDir = path.join(root, folder.name);
+      const receipt = path.join(installDir, '.itch', 'receipt.json.gz');
+      if (!fs.existsSync(receipt)) continue;
+      const key = installDir.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const name = itchDisplayName(folder.name) || folder.name;
+      items.push({
+        launcherProductId: `itch:${key}`,
+        name,
+        exe: primaryExeIn(installDir) || installDir,
+        installdir: installDir,
+        launcher: 'itch',
+        source: 'itch',
+        // The receipt is only a completion marker. Do not parse or copy it;
+        // it is not relied upon as a metadata source.
+        nameEvidence: 'itch-install-folder',
+      });
+    }
+  }
+  return items.length
+    ? { ok: true, items, source: 'itch' }
+    : { ok: false, items: [], error: 'No completed itch.io installs were found in the configured itch install locations.' };
 });
 
 ipcMain.handle('app:openPath', async (_e, p) => {
@@ -1707,6 +2077,58 @@ function curatedMatch(query) {
 }
 
 // ---------------- Per-source candidate search ---------------- //
+
+// Build local, read-only search hints for difficult indie games. This only
+// inspects the executable's immediate folder and parent, with strict file-count
+// and size caps; it never recursively scans a drive or uploads file contents.
+ipcMain.handle('metadata:deriveHints', async (_e, { exePath, currentName } = {}) => {
+  const hints = [];
+  const seen = new Set();
+  const noise = /^(game|launcher|launch|start|play|main|win32|win64|x86|x64|bin|build|release|shipping|binaries|www)$/i;
+  const add = (value, evidence) => {
+    const cleaned = String(value || '')
+      .replace(/\.(exe|bat|cmd|lnk|txt|md|url)$/i, '')
+      .replace(/[-_.]+/g, ' ')
+      .replace(/\b(win64|win32|shipping|launcher|repack|portable|v?\d+(?:\.\d+)+)\b/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const key = cleaned.toLowerCase();
+    if (cleaned.length < 3 || noise.test(cleaned) || seen.has(key)) return;
+    seen.add(key);
+    hints.push({ query: cleaned.slice(0, 100), evidence });
+  };
+  add(currentName, 'Current library name');
+  if (!exePath || !path.isAbsolute(exePath)) return { hints };
+  const exeDir = path.dirname(exePath);
+  add(path.basename(exePath), 'Executable name');
+  add(path.basename(exeDir), 'Game folder');
+  add(path.basename(path.dirname(exeDir)), 'Parent folder');
+  const folders = [exeDir, path.dirname(exeDir)];
+  const readable = /\.(txt|md|nfo)$/i;
+  const titleLine = /^(?:#{1,3}\s*)?(?:game\s*(?:title|name)|project\s*(?:title|name)|title)\s*[:=-]\s*(.{3,100})$/i;
+  for (const folder of folders) {
+    let entries = [];
+    try { entries = await fsp.readdir(folder, { withFileTypes: true }); } catch { continue; }
+    for (const entry of entries.filter((item) => item.isFile() && readable.test(item.name)).slice(0, 12)) {
+      add(entry.name.replace(/\b(readme|changelog|patchnotes?|version|info)\b/gi, ''), `File name · ${entry.name}`);
+      const file = path.join(folder, entry.name);
+      try {
+        const stat = await fsp.stat(file);
+        if (stat.size > 96 * 1024) continue;
+        const body = await fsp.readFile(file, 'utf8');
+        const lines = body.split(/\r?\n/).slice(0, 80);
+        for (const line of lines) {
+          const match = line.trim().match(titleLine);
+          if (match) add(match[1], `Inside ${entry.name}`);
+        }
+        const heading = lines.map((line) => line.trim()).find((line) => /^#{1,2}\s+.{3,100}$/.test(line));
+        if (heading) add(heading.replace(/^#{1,2}\s+/, ''), `Heading in ${entry.name}`);
+      } catch { /* unreadable local note — skip */ }
+    }
+  }
+  return { hints: hints.slice(0, 10) };
+});
+
 /**
  * `metadata:listCandidates` — replaces the old "give me one best guess"
  * dispatch with a "give me an ARRAY of candidates the user can browse".
@@ -1789,6 +2211,7 @@ async function expandSteam(c) {
   const entry = det && det[c.id];
   if (!entry || !entry.success) return null;
   const d = entry.data;
+  const genreTags = await steamGenreEvidence(c.id, d);
   return {
     source: 'steam',
     appid: c.id,
@@ -1800,6 +2223,7 @@ async function expandSteam(c) {
     background: d.background_raw || d.background,
     screenshots: (d.screenshots || []).slice(0, 6).map((s) => s.path_full),
     genres: (d.genres || []).map((g) => g.description),
+    genreTags,
     developers: d.developers || [],
     publishers: d.publishers || [],
     releaseDate: d.release_date ? d.release_date.date : '',
@@ -2106,7 +2530,10 @@ Return ONLY a single compact JSON object (no markdown) with these fields:
 }
 
 ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey, lockedAppid }) => {
-  // If a lockedAppid is provided, skip search entirely and just refresh that exact entry
+  // If a lockedAppid is provided, skip search entirely and just refresh that exact entry.
+  // Delisted Steam products can remain in a customer's library and manifest while
+  // disappearing from public store search (and sometimes appdetails).  Never let a
+  // failed exact lookup fall through to an unrelated fuzzy match.
   if (lockedAppid) {
     try {
       const det = await httpGetJson(
@@ -2115,6 +2542,7 @@ ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey,
       const entry = det && det[lockedAppid];
       if (entry && entry.success) {
         const d = entry.data;
+        const genreTags = await steamGenreEvidence(lockedAppid, d);
         return {
           source: 'steam',
           appid: lockedAppid,
@@ -2126,6 +2554,7 @@ ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey,
           background: d.background_raw || d.background,
           screenshots: (d.screenshots || []).slice(0, 6).map((s) => s.path_full),
           genres: (d.genres || []).map((g) => g.description),
+          genreTags,
           developers: d.developers || [],
           publishers: d.publishers || [],
           releaseDate: d.release_date ? d.release_date.date : '',
@@ -2133,7 +2562,13 @@ ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey,
           website: d.website || '',
         };
       }
-    } catch { /* fall through to normal search */ }
+    } catch { /* retain the local Steam identity below */ }
+    return {
+      source: 'steam',
+      appid: String(lockedAppid),
+      name: String(query || `Steam App ${lockedAppid}`),
+      metadataUnavailable: true,
+    };
   }
   const term = cleanSearchTerm(query);
   if (!term) return null;
@@ -2168,6 +2603,7 @@ ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey,
         const entry = det && det[top.id];
         if (entry && entry.success) {
           const d = entry.data;
+          const genreTags = await steamGenreEvidence(top.id, d);
           return {
             source: 'steam',
             appid: top.id,
@@ -2179,6 +2615,7 @@ ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey,
             background: d.background_raw || d.background,
             screenshots: (d.screenshots || []).slice(0, 6).map((s) => s.path_full),
             genres: (d.genres || []).map((g) => g.description),
+            genreTags,
             developers: d.developers || [],
             publishers: d.publishers || [],
             releaseDate: d.release_date ? d.release_date.date : '',
@@ -2380,10 +2817,44 @@ function detectRunningLaunchers() {
         gog:      lc.includes('galaxyclient.exe'),
         battlenet:lc.includes('battle.net.exe') || lc.includes('agent.exe'),
         riot:     lc.includes('riotclientservices.exe'),
+        xbox:     lc.includes('xboxpcapp.exe'),
         rockstar: lc.includes('rockstargameslauncher.exe') || lc.includes('rockstargames.launcher.exe'),
+        itch:     lc.includes('itch.exe') || lc.includes('itch-app.exe'),
       });
     });
   });
+}
+
+// Steam's appdetails response has official broad genres and feature categories,
+// but not the rich community tag vocabulary needed for specific subgenres.
+// SteamSpy provides a tag map per app. Cache it for a day and serialize calls
+// at its documented public pace, so a metadata refresh stays respectful.
+const STEAM_TAXONOMY_CACHE = new Map();
+let steamSpyNextRequestAt = 0;
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+async function steamGenreEvidence(appid, storeData = {}) {
+  const official = [
+    ...(storeData.genres || []).map((entry) => entry.description),
+    ...(storeData.categories || []).map((entry) => entry.description),
+  ].filter(Boolean);
+  const key = String(appid || '');
+  const cached = STEAM_TAXONOMY_CACHE.get(key);
+  if (cached && Date.now() - cached.at < 24 * 60 * 60 * 1000) return Array.from(new Set([...official, ...cached.tags]));
+  try {
+    const wait = Math.max(0, steamSpyNextRequestAt - Date.now());
+    if (wait) await sleep(wait);
+    steamSpyNextRequestAt = Date.now() + 1_050;
+    const data = await httpGetJson(`https://steamspy.com/api.php?request=appdetails&appid=${encodeURIComponent(key)}`, 8_000);
+    const tags = Object.entries(data?.tags || {})
+      .sort(([, left], [, right]) => Number(right || 0) - Number(left || 0))
+      .slice(0, 20)
+      .map(([tag]) => tag)
+      .filter(Boolean);
+    STEAM_TAXONOMY_CACHE.set(key, { at: Date.now(), tags });
+    return Array.from(new Set([...official, ...tags]));
+  } catch {
+    return Array.from(new Set(official));
+  }
 }
 
 ipcMain.handle('launcher:detect', async () => detectRunningLaunchers());
@@ -2667,10 +3138,13 @@ ipcMain.handle('releases:weekly', async (_event, { force = false } = {}) => {
 
   try {
     const trend = await httpGetJson('https://steamspy.com/api.php?request=top100in2weeks', 10_000);
+    // Inspect a wider recent-interest pool. We still prefer major releases,
+    // but this gives the fallback enough verified candidates when a quiet week
+    // has no blockbuster at all.
     const candidates = Object.values(trend || {})
       .filter((item) => item && Number(item.appid))
       .sort((a, b) => Number(b.ccu || 0) - Number(a.ccu || 0))
-      .slice(0, 45);
+      .slice(0, 100);
     const now = Date.now();
     const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
     const verified = await mapWithConcurrency(candidates, 4, async (signal) => {
@@ -2681,10 +3155,14 @@ ipcMain.handle('releases:weekly', async (_event, { force = false } = {}) => {
       const ccu = Number(signal.ccu || 0);
       const positives = Number(signal.positive || 0);
       const owners = ownerFloor(signal.owners);
-      // Transparent major-title gate. One strong current signal is enough;
-      // titles with no meaningful player/review/owner interest stay out.
-      if (ccu < 150 && positives < 250 && owners < 20_000) return null;
-      const why = ccu >= 500 ? 'High current player interest' : positives >= 1_000 ? 'Strong early review interest' : owners >= 100_000 ? 'Major launch reach' : 'Notable early player interest';
+      // Two intentionally conservative tiers. Major is the normal Home feed;
+      // noteworthy is used only when the major tier is empty, never mixed in
+      // merely to pad a good week with smaller releases.
+      const tier = (ccu >= 150 || positives >= 250 || owners >= 20_000)
+        ? 'major'
+        : (ccu >= 45 || positives >= 75 || owners >= 5_000) ? 'noteworthy' : null;
+      if (!tier) return null;
+      const why = ccu >= 500 ? 'High current player interest' : positives >= 1_000 ? 'Strong early review interest' : owners >= 100_000 ? 'Major launch reach' : tier === 'major' ? 'Notable early player interest' : 'Worth watching: early player interest';
       return {
         id: `steam-${signal.appid}`,
         appid: Number(signal.appid),
@@ -2697,13 +3175,20 @@ ipcMain.handle('releases:weekly', async (_event, { force = false } = {}) => {
         why,
         ccu,
         reviewCount: positives,
+        tier,
         genres: (data.genres || []).map((genre) => genre.description).slice(0, 3),
       };
     });
-    const items = verified.filter(Boolean).sort((a, b) => b.releaseAt - a.releaseAt || b.ccu - a.ccu).slice(0, 12);
+    const released = verified.filter(Boolean).sort((a, b) => b.releaseAt - a.releaseAt || b.ccu - a.ccu);
+    const major = released.filter((item) => item.tier === 'major');
+    const usingFallback = major.length === 0;
+    const items = (usingFallback ? released.filter((item) => item.tier === 'noteworthy') : major).slice(0, 12);
     const payload = {
       items,
-      criteria: 'Released within seven days, verified as a full game, and showing meaningful recent player, review, or launch-reach signals. Steam is the initial discovery source for this v1.7.2 feed.',
+      tier: usingFallback ? 'semi-major' : 'major',
+      criteria: usingFallback
+        ? 'No major launch cleared the strict threshold this week, so this view is showing only semi-major games with verified early momentum. Steam is the current discovery source.'
+        : 'Released within seven days, verified as a full game, and showing major recent player, review, or launch-reach signals. Steam is the current discovery source.',
     };
     WEEKLY_RELEASES_CACHE = { ts: Date.now(), payload };
     return { ok: true, ...payload, fetchedAt: WEEKLY_RELEASES_CACHE.ts, cached: false };
@@ -2825,6 +3310,10 @@ ipcMain.handle('steam:manifest', async (_e, appid) => {
         buildid: m.buildid || '',
         lastUpdated: m.lastUpdated ? Number(m.lastUpdated) * 1000 : 0,
         sizeOnDisk: m.sizeOnDisk ? Number(m.sizeOnDisk) : 0,
+        stateFlags: m.stateFlags ? Number(m.stateFlags) : 0,
+        bytesToDownload: m.bytesToDownload ? Number(m.bytesToDownload) : 0,
+        bytesDownloaded: m.bytesDownloaded ? Number(m.bytesDownloaded) : 0,
+        updateResult: m.updateResult || '',
         library: lib,
       };
       STEAM_MANIFEST_CACHE.set(key, { ts: Date.now(), data });
@@ -2832,6 +3321,127 @@ ipcMain.handle('steam:manifest', async (_e, appid) => {
     } catch { /* try next lib */ }
   }
   return { ok: false, error: 'Manifest not found (game not installed locally?).' };
+});
+
+// Read-only update intelligence. NEO-LIB only reports an update as pending
+// when the launcher's own manifest exposes concrete undownloaded bytes. Raw
+// state flags are returned for diagnostics but never guessed into a warning.
+ipcMain.handle('updates:scan', async (_e, { games = [] } = {}) => {
+  const items = [];
+  let checked = 0;
+  const steamPath = defaultSteamPath();
+  const libraries = steamPath ? readSteamLibraryFolders(steamPath) : [];
+  for (const game of (games || []).slice(0, 1000)) {
+    if (!game?.appid || !libraries.length) continue;
+    const appid = String(game.appid);
+    let manifest = null;
+    for (const lib of libraries) {
+      const file = path.join(lib, 'steamapps', `appmanifest_${appid}.acf`);
+      try {
+        if (!fs.existsSync(file)) continue;
+        manifest = parseAcfManifest(fs.readFileSync(file, 'utf8'));
+        break;
+      } catch { /* try the next library */ }
+    }
+    if (!manifest) continue;
+    checked += 1;
+    const total = Number(manifest.bytesToDownload || 0);
+    const downloaded = Number(manifest.bytesDownloaded || 0);
+    const remainingBytes = total > downloaded ? total - downloaded : 0;
+    if (remainingBytes <= 0) continue;
+    items.push({
+      id: game.id,
+      name: game.name || manifest.name,
+      platform: 'Steam',
+      appid,
+      buildId: manifest.buildid || '',
+      remainingBytes,
+      totalBytes: total,
+      stateFlags: Number(manifest.stateFlags || 0),
+      status: downloaded > 0 ? 'downloading' : 'pending',
+      actionUrl: `steam://downloads/`,
+    });
+  }
+  const versionParts = (value) => String(value || '').toLowerCase().replace(/^v/, '').match(/\d+/g)?.map(Number) || [];
+  const compareVersions = (a, b) => {
+    const aa = versionParts(a); const bb = versionParts(b);
+    for (let i = 0; i < Math.max(aa.length, bb.length); i += 1) {
+      const delta = (aa[i] || 0) - (bb[i] || 0);
+      if (delta) return delta;
+    }
+    return 0;
+  };
+  for (const game of (games || []).filter((entry) => entry?.updateWatchUrl && entry?.installedVersion).slice(0, 80)) {
+    if (items.some((entry) => entry.id === game.id)) continue;
+    let parsed;
+    try { parsed = new URL(game.updateWatchUrl); } catch { continue; }
+    if (!['http:', 'https:'].includes(parsed.protocol)) continue;
+    try {
+      const html = await httpGetText(parsed.toString(), 9_000);
+      const text = stripHtml(html).replace(/\s+/g, ' ').slice(0, 500_000);
+      const matches = [];
+      const pattern = /(?:\b(?:version|build)\s*(?:is|to|[:=#-])?\s*v?(\d+(?:\.\d+){1,3}[a-z]?)|\bv(\d+(?:\.\d+){1,3}[a-z]?))/gi;
+      let match;
+      while ((match = pattern.exec(text)) !== null && matches.length < 80) matches.push(match[1] || match[2]);
+      const latestVersion = matches.sort((a, b) => compareVersions(b, a))[0];
+      if (!latestVersion || compareVersions(latestVersion, game.installedVersion) <= 0) continue;
+      items.push({
+        id: game.id,
+        name: game.name,
+        platform: 'Independent source',
+        status: 'available',
+        currentVersion: game.installedVersion,
+        latestVersion,
+        actionUrl: parsed.toString(),
+        sourceKind: 'watch-page',
+      });
+      checked += 1;
+    } catch { /* inaccessible or protected page — do not create a false alert */ }
+  }
+  return { ok: true, checked, items, scannedAt: Date.now(), confidence: 'launcher-manifest' };
+});
+
+ipcMain.handle('updates:history', async (_e, { url, currentVersion = '' } = {}) => {
+  let parsed;
+  try { parsed = new URL(url); } catch { return { ok: false, entries: [], error: 'Invalid update page URL.' }; }
+  if (!['http:', 'https:'].includes(parsed.protocol)) return { ok: false, entries: [], error: 'Only public HTTP/HTTPS update pages are supported.' };
+  try {
+    const html = await httpGetText(parsed.toString());
+    const textBody = stripHtml(html).replace(/\s+/g, ' ').slice(0, 700_000);
+    const pattern = /(?:\b(?:version|build)\s*(?:is|to|[:=#-])?\s*v?(\d+(?:\.\d+){1,3}[a-z]?)|\bv(\d+(?:\.\d+){1,3}[a-z]?))/gi;
+    const seen = new Set();
+    const entries = [];
+    let match;
+    while ((match = pattern.exec(textBody)) !== null && entries.length < 30) {
+      const version = match[1] || match[2];
+      if (seen.has(version.toLowerCase())) continue;
+      seen.add(version.toLowerCase());
+      const before = textBody.slice(Math.max(0, match.index - 90), match.index);
+      const after = textBody.slice(match.index + match[0].length, match.index + match[0].length + 260);
+      const context = `${before} ${match[0]} ${after}`.trim();
+      const date = context.match(/\b(?:20\d{2}[-/.]\d{1,2}[-/.]\d{1,2}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+20\d{2})\b/i)?.[0] || '';
+      entries.push({ version, date, summary: context.slice(0, 340), url: parsed.toString() });
+    }
+    const parts = (value) => String(value || '').toLowerCase().replace(/^v/, '').match(/\d+/g)?.map(Number) || [];
+    const compare = (a, b) => {
+      const aa = parts(a); const bb = parts(b);
+      for (let i = 0; i < Math.max(aa.length, bb.length); i += 1) {
+        const delta = (aa[i] || 0) - (bb[i] || 0);
+        if (delta) return delta;
+      }
+      return 0;
+    };
+    entries.sort((a, b) => compare(b.version, a.version));
+    return {
+      ok: true,
+      entries: entries.slice(0, 20).map((entry) => ({ ...entry, newerThanInstalled: currentVersion ? compare(entry.version, currentVersion) > 0 : null })),
+      sourceUrl: parsed.toString(),
+      currentVersion,
+      fetchedAt: Date.now(),
+    };
+  } catch (error) {
+    return { ok: false, entries: [], error: error?.message || 'Update history page could not be read.' };
+  }
 });
 
 // ---------------- itch.io devlog RSS ---------------- //

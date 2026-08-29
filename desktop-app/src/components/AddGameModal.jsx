@@ -2,6 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, FilePlus, Loader2, Check, AlertCircle } from 'lucide-react';
 import Modal from './Modal';
+import AcceptMetadataModal from './AcceptMetadataModal';
 import { guessNameFromPath } from '../lib/utils';
 
 /**
@@ -16,6 +17,7 @@ export default function AddGameModal({ open, onClose, onCreate }) {
   const [results, setResults] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [icon, setIcon] = React.useState(null);
+  const [review, setReview] = React.useState({ open: false, game: null, proposed: null });
 
   /* eslint-disable react-hooks/set-state-in-effect */
   React.useEffect(() => {
@@ -24,6 +26,7 @@ export default function AddGameModal({ open, onClose, onCreate }) {
       setQuery('');
       setResults([]);
       setIcon(null);
+      setReview({ open: false, game: null, proposed: null });
       setLoading(false);
     }
   }, [open]);
@@ -51,28 +54,32 @@ export default function AddGameModal({ open, onClose, onCreate }) {
     setLoading(true);
     let details = null;
     if (match) details = await window.api?.steamDetails(match.appid);
-    const coverUrl = details
-      ? await window.api?.cacheImage(details.capsuleImage || details.headerImage, details.name)
-      : null;
-    onCreate({
+    const proposed = {
       name: details?.name || match?.name || query || 'Untitled',
-      exePath,
-      icon,
       appid: match?.appid,
-      coverUrl: coverUrl || details?.headerImage,
+      source: match ? 'steam' : 'manual',
       headerImage: details?.headerImage,
+      capsuleImage: details?.capsuleImage,
       background: details?.background,
       shortDescription: details?.shortDescription,
       about: details?.aboutTheGame,
       genres: details?.genres || [],
+      genreTags: details?.genreTags || [],
       developers: details?.developers || [],
       publishers: details?.publishers || [],
       releaseDate: details?.releaseDate || '',
       metacritic: details?.metacritic,
       screenshots: details?.screenshots || [],
       website: details?.website || '',
-    });
+    };
     setLoading(false);
+    // New games use the same explicit review surface as refreshes. The
+    // temporary current record makes every fetched field visibly NEW.
+    setReview({
+      open: true,
+      game: { id: 'new-game-preview', name: query || guessNameFromPath(exePath) || 'Untitled', exePath, icon, genres: [], genreTags: [] },
+      proposed,
+    });
   };
 
   const skipMetadata = () =>
@@ -87,8 +94,9 @@ export default function AddGameModal({ open, onClose, onCreate }) {
     });
 
   return (
-    <Modal open={open} onClose={onClose} title="Add Game" wide testid="add-game-modal">
-      <div className="space-y-5 p-5">
+    <>
+      <Modal open={open} onClose={onClose} title="Add Game" wide testid="add-game-modal">
+        <div className="space-y-5 p-5">
         {/* Exe picker */}
         <div className="rounded-lg hairline bg-surface/50 p-4">
           <div className="mb-2 text-[10px] uppercase tracking-wider text-muted">Step 1 · Executable</div>
@@ -177,7 +185,22 @@ export default function AddGameModal({ open, onClose, onCreate }) {
             Add without metadata
           </button>
         </div>
-      </div>
-    </Modal>
+        </div>
+      </Modal>
+      <AcceptMetadataModal
+        open={review.open}
+        game={review.game}
+        proposed={review.proposed}
+        onClose={() => setReview({ open: false, game: null, proposed: null })}
+        onTryAgain={() => setReview({ open: false, game: null, proposed: null })}
+        onAccept={async (patch) => {
+          let coverUrl = patch.capsuleImage || patch.headerImage || patch.coverUrl || null;
+          if (coverUrl?.startsWith('http')) coverUrl = (await window.api?.cacheImage?.(coverUrl, patch.name)) || coverUrl;
+          const { id: _previewId, ...newGame } = { ...review.game, ...patch, coverUrl, icon };
+          onCreate(newGame);
+          setReview({ open: false, game: null, proposed: null });
+        }}
+      />
+    </>
   );
 }

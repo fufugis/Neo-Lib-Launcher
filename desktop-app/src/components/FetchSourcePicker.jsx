@@ -27,7 +27,7 @@ const isElectron = typeof window !== 'undefined' && !!window.api;
  *   - onPick: (metadata) => void
  *   - onClose: () => void
  */
-export default function FetchSourcePicker({ open, game, geminiKey, onPick, onClose }) {
+export default function FetchSourcePicker({ open, game, geminiKey, progress, onPick, onStopQueue, onClose }) {
   const dragControls = useDragControls();
   const [query, setQuery] = React.useState('');
   const [source, setSource] = React.useState('auto');
@@ -36,6 +36,7 @@ export default function FetchSourcePicker({ open, game, geminiKey, onPick, onClo
   const [loading, setLoading] = React.useState(false);
   const [statusMsg, setStatusMsg] = React.useState('');
   const [expanding, setExpanding] = React.useState(false);
+  const [hints, setHints] = React.useState([]);
 
   // Smart query seeding — when the modal opens, derive a sensible default
   // from the exe filename + parent folder. e.g. given
@@ -47,7 +48,13 @@ export default function FetchSourcePicker({ open, game, geminiKey, onPick, onClo
     setCandidates([]);
     setCursor(0);
     setSource('auto');
+    setHints([]);
     setStatusMsg('Pick a source — or hit "Auto fetch" to try everything.');
+    if (window.api?.deriveMetadataHints) {
+      window.api.deriveMetadataHints({ exePath: game.exePath || '', currentName: game.name || '' })
+        .then((result) => setHints(result?.hints || []))
+        .catch(() => setHints([]));
+    }
   }, [open, game?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!open || !game) return null;
@@ -130,7 +137,7 @@ export default function FetchSourcePicker({ open, game, geminiKey, onPick, onClo
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[215] grid place-items-center bg-black/65 backdrop-blur-[2px]"
-        onDoubleClick={onClose}
+        onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }}
         data-testid="fetch-picker-overlay"
       >
         <motion.div
@@ -144,6 +151,7 @@ export default function FetchSourcePicker({ open, game, geminiKey, onPick, onClo
           exit={{ y: 12, opacity: 0 }}
           transition={{ duration: 0.18 }}
           onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
           className="relative w-[min(900px,96vw)] max-h-[92vh] overflow-hidden rounded-xl hairline glass shadow-2xl flex flex-col"
           data-testid="fetch-picker-modal"
         >
@@ -158,6 +166,7 @@ export default function FetchSourcePicker({ open, game, geminiKey, onPick, onClo
               <h3 className="font-display font-bold tracking-[0.18em] text-sm uppercase">
                 Find metadata · {game.name}
               </h3>
+              {progress && <span className="rounded-full border border-[rgb(var(--accent)/0.35)] bg-[rgb(var(--accent)/0.10)] px-2 py-0.5 text-[9px] font-bold text-[rgb(var(--accent))]">Repair {progress.current}/{progress.total}</span>}
             </div>
             <button
               data-testid="fetch-picker-close"
@@ -183,6 +192,18 @@ export default function FetchSourcePicker({ open, game, geminiKey, onPick, onClo
             <div className="mt-1 text-[10.5px] text-muted/70">
               Seeded from <span className="font-mono text-muted">{shortExe(game.exePath)}</span>. Edit freely — try the full title for best results.
             </div>
+            {hints.length > 1 && (
+              <div className="mt-2 rounded-lg border border-[rgb(var(--border)/0.7)] bg-[rgb(var(--surface)/0.28)] p-2" data-testid="metadata-local-hints">
+                <div className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-muted">Local title clues · click to search</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {hints.map((hint) => (
+                    <button key={`${hint.query}-${hint.evidence}`} onClick={() => setQuery(hint.query)} title={hint.evidence} className={`rounded-md border px-2 py-1 text-[10px] font-semibold transition ${query === hint.query ? 'border-[rgb(var(--accent)/0.6)] bg-[rgb(var(--accent)/0.14)] text-ink' : 'border-[rgb(var(--border))] text-muted hover:border-[rgb(var(--accent)/0.45)] hover:text-ink'}`}>
+                      {hint.query}<span className="ml-1 text-[8.5px] font-normal opacity-65">· {hint.evidence}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Action grid */}
@@ -315,15 +336,20 @@ export default function FetchSourcePicker({ open, game, geminiKey, onPick, onClo
           {/* Footer */}
           <div className="flex items-center justify-between gap-3 border-t border-[rgb(var(--border))]/60 bg-panel/80 backdrop-blur px-5 py-3">
             <div className="text-[11px] text-muted">
-              Double-click outside to close. Picked metadata still goes through the preview screen.
+              {progress ? `${progress.repaired} repaired · ${progress.skipped} skipped. Close to skip this game.` : 'Double-click outside to close. Picked metadata still goes through the preview screen.'}
             </div>
             <div className="flex items-center gap-2">
+              {progress && (
+                <button onClick={onStopQueue} className="inline-flex h-8 items-center rounded-md border border-[rgb(var(--border))] px-2.5 text-[10px] font-bold text-muted hover:border-red-400/50 hover:text-red-300">
+                  Stop review
+                </button>
+              )}
               <button
                 data-testid="fetch-picker-cancel"
                 onClick={onClose}
                 className="inline-flex items-center gap-1.5 rounded-md hairline px-3 h-8 text-xs text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)]"
               >
-                Cancel
+                {progress ? 'Skip game' : 'Cancel'}
               </button>
               <button
                 data-testid="fetch-picker-accept"
