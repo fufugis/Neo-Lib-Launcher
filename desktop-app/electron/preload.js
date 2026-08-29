@@ -63,6 +63,7 @@ contextBridge.exposeInMainWorld('api', {
   listSaveBackups: (gameId) => ipcRenderer.invoke('saves:listBackups', gameId),
   createSaveBackup: (payload) => ipcRenderer.invoke('saves:createBackup', payload),
   restoreSaveBackup: (payload) => ipcRenderer.invoke('saves:restore', payload),
+  detectCommonSaveFolders: (payload) => ipcRenderer.invoke('saves:detectCommon', payload),
   findSaveCandidates: (payload) => ipcRenderer.invoke('saves:findCandidates', payload),
   scanGameStorage: (payload) => ipcRenderer.invoke('storage:scanGames', payload),
   inspectLaunchDoctor: (payload) => ipcRenderer.invoke('doctor:inspectLaunch', payload),
@@ -77,6 +78,7 @@ contextBridge.exposeInMainWorld('api', {
   // steam news feed (last N days, all owned Steam games)
   fetchSteamNews: (opts) => ipcRenderer.invoke('news:fetchSteam', opts),
   fetchAllNews: (opts) => ipcRenderer.invoke('news:fetchAll', opts),
+  fetchWeeklyReleases: (opts) => ipcRenderer.invoke('releases:weekly', opts),
   latestNewsForGame: (game) => ipcRenderer.invoke('news:latestForGame', game),
   getSteamManifest: (appid) => ipcRenderer.invoke('steam:manifest', appid),
   importSteamPlaytime: (opts) => ipcRenderer.invoke('steam:importPlaytime', opts),

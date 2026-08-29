@@ -16,12 +16,24 @@ import { sendChangelogReaction } from './FeedbackModal';
 
 export const CHANGELOG = [
   {
+    version: '1.7.2',
+    title: 'Released This Week — selective discovery for games that matter',
+    items: [
+      '**Released This Week** — Home now has a dedicated, rearrangeable pane for notable games launched in the past seven days. Each card shows artwork, title, Steam source, official release date, and a clear reason it earned its place.',
+      '**A quality filter instead of a release dump** — NEO-LIB verifies the actual store release date and only includes full games showing meaningful early player, review, or launch-reach signals. Small low-visibility uploads are intentionally excluded.',
+      '**Transparent and refreshable** — the pane explains the inclusion criteria, uses a six-hour cache to stay light on services, and offers a manual Refresh button. Selecting a title opens its official store page; NEO-LIB never accesses an account for this feed.',
+    ],
+  },
+  {
     version: '1.7.1',
     title: 'Home intelligence — safe save backups, play suggestions, storage, and your Chronicle',
     items: [
       '**Library Health** — Home now gives your library a colour-coded health score with a visual progress bar, highlighting missing art, missing details, missing launch targets, and possible duplicate names. Review issues opens Tidy Up directly.',
       '**More visual Home** — news cards are larger and easier to read, use Steam game artwork where available, and Top 5 now includes game cover art alongside platform and playtime.',
+      '**Arrange Home your way** — drag each Home pane by its left grip to reorder it. The hover control hides a pane, and the Home header lists hidden panes so you can restore them later. News now opens in NEO-LIB first with a clear “Read full story” link, and My Best Games shows your top ten personal ratings alongside Metacritic where available.',
+      '**Cleaner library shell** — Friends now lives as a substantial button at the bottom of a selected game’s preview pane. Coffee joins Discord in the title bar; Settings follows Visuals in Library controls; Refresh/Tidy is grouped with Auto-sort; and the sponsored rail is centred, permanent, slightly taller, and no longer overlaps or duplicates Coffee.',
       '**Smarter Game Ready thresholds** — yellow now starts at 65% usage and red at 85%, avoiding warnings caused by normal desktop multitasking. The Library scroll area also reserves space so its last games are never trapped behind the footer.',
+      '**Rest Mode while gaming** — enabled by default for games launched through NEO-LIB. While the game is open, NEO-LIB pauses ambience, animations, UI sounds, local health polling, launcher scans, news/deal checks, and social refreshes. The Game Ready footer changes to “NEO-LIB RESTING” with the game name, then everything resumes automatically when it closes. You can turn this off in Settings.',
       '**Save Game Folder** — every game now has a Save games button and a right-click shortcut. Pick its save folder, open it, search a chosen drive or folder for possible older save locations, and review every result before selecting it.',
       '**Safe local save backups** — create backups inside NEO-LIB\'s own app-data folder and view their date, file count, size, and location. Recovery never overwrites a non-empty live save folder: it stops and offers a separate “NEOLIB Restored” folder for manual review instead.',
       '**What should I play?** — Home now surfaces timely, personal reasons to return: a game with fresh patch notes, a highly rated game you have not touched in a while, or an unplayed recent addition.',
@@ -30,7 +42,11 @@ export const CHANGELOG = [
       '**Launch Doctor** — after two immediate failures or very short launches within ten minutes, NEO-LIB opens a guided diagnostic. It checks the configured executable, lists plausible nearby executables for review, and explains what to check; it never changes files automatically or guesses that antivirus is at fault.',
       '**More distinct theme ambience** — the shared floating sparkle layer is now reinterpreted per theme: Midnight star dust, Ocean bubbles, Crimson embers, Gaming pixels, Mint pollen, Daybreak rays, Anime ink flecks, Modern dust, Colorful prism motes, and Industrial metal sparks. All still obey each theme’s Effects intensity dial.',
       '**Three new sound chimes** — Aurora (soft northern-light chord), Ember (warm bell), and Harbor (gentle sonar chime) join the selectable sound packs in Settings.',
-      '**Three new Visuals textures** — Weave, Topography, and Stardust extend the library background texture collection.',
+      '**Three new Visuals textures** — Weave, Brushed, and Stardust extend the library background texture collection. Brushed replaces the earlier Topography tile with a seamless material finish.',
+      '**Theme polish** — Anime now has an original manga line-art character in its distant background and a pink-forward/violet palette. Pro is now **Industrial**: graphite, safety yellow, burnt orange, moving safety lights and metal sparks, with no CRT scanlines.',
+      '**Fixed: Category marker None** — selecting None now removes both the dot and the coloured backdrop, leaving the category text cleanly on its own.',
+      '**Fixed: Library Health review** — health now recognises descriptions from every metadata field and Review issues lists the affected games (missing details, art, or launch target) instead of opening an empty duplicate-only screen.',
+      '**Automatic common-save check** — opening Save Game Folder now safely checks standard Documents, Saved Games, AppData, game-folder, and Steam Cloud mirror locations. It never guesses or changes your live folder; you choose any detected candidate yourself.',
       '**Cleaner Visuals controls** — the popover is now grouped into Object sizes, Text & category, FX, and Layout. Quick presets are gone so custom tuning stays in control. Icon position is a Left / Right / None slider; category marker is a Dot / Backdrop / None slider. Backdrop strength scales with Category glow, topping out at a translucent 65%.',
     ],
   },

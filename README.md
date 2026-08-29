@@ -2,7 +2,7 @@
 
 > A synthwave-flavored, **fully portable Windows game library** that unifies every game on your PC — Steam, Epic, EA App, GOG, standalone — into one neon-lit interface. No accounts. No cloud. No telemetry.
 
-![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.7.1-8a4fff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.7.2-8a4fff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
 ---
 
@@ -55,18 +55,30 @@ Library + settings live at `%APPDATA%\NEO-LIB\`. Delete that folder to factory-r
 
 ## 📜 Patch notes
 
-### v1.7.1 — Home intelligence · safe save backups · play suggestions · storage · Chronicle *(current)*
+### v1.7.2 — Released This Week · selective major-release discovery *(current)*
+
+- **Released This Week** — a rearrangeable Home pane identifies notable full-game launches from the past seven days. Each card shows artwork, Steam source, official release date, and why it qualifies.
+- **Selective by design** — NEO-LIB verifies each candidate's real store date, then requires meaningful early player, review, or launch-reach signals. It avoids padding the feed with low-visibility uploads.
+- **Transparent and light** — the feed explains its criteria, uses a six-hour cache plus a manual refresh, and opens official store pages. No account access is required.
+
+### v1.7.1 — Home intelligence · safe save backups · play suggestions · storage · Chronicle
 
 - **Library Health** — a colour-coded score highlights metadata gaps, missing launch targets, and duplicate candidates, with a direct path into Tidy Up.
 - **Richer Home** — larger news cards use game artwork where available and Top 5 gains cover art, platform, and playtime.
+- **Home you can arrange** — drag Home panes into your preferred order, hide a pane from its hover control, and restore any hidden pane from the Home header. News now opens in NEO-LIB first with a clear Full story link, and **My Best Games** compares your top ten personal ratings with Metacritic where available.
+- **Cleaner shell** — Friends lives as a substantial action in the selected game’s preview pane; Coffee joins Discord in the title bar; Settings follows Visuals in Library controls; and Refresh/Tidy lives beside Auto-sort. The sponsored rail is now always present, centred, slightly taller, and no longer dismissible.
 - **Smarter Game Ready** — yellow begins at 65% and red at 85%; the Library can scroll fully above its footer.
+- **Rest Mode while gaming** — enabled by default for games launched through NEO-LIB. It temporarily pauses ambience, animations, UI sounds, local health polling, launcher scans, news/deal checks, and social refreshes, while keeping the app ready to return to normal the moment the game closes.
 - **Save Game Folder + safe backups** — a detail-page button and library right-click action let users choose and open a save folder, search a chosen drive/folder for name-matched older save candidates, create local NEO-LIB backups, and recover them safely. NEO-LIB never overwrites a non-empty live save folder; it offers a separate restored folder instead.
 - **What should I play?** — Home suggests an updated game, a forgotten rated favourite, or a fresh unplayed addition using only the user’s local library and already-fetched news.
 - **Storage Control Centre** — an explicit, read-only Home scan measures game folders and conventional mod/workshop folders, showing the largest entries without background drive crawling.
 - **Gaming Chronicle** — a private Home timeline records games added, played, rated, and recently updated.
 - **Launch Doctor** — only after repeated immediate failures/very short launches, NEO-LIB checks the configured executable and offers nearby candidates for review. It changes nothing automatically and gives cautious antivirus-quarantine guidance rather than making assumptions.
 - **Theme ambience variation** — each theme now gives the shared particle system a different visual language: stars, bubbles, embers, pixels, pollen, rays, ink flecks, dust, prism motes, or metal sparks, while staying tied to the Effects intensity control.
-- **New chimes and textures** — Aurora, Ember, and Harbor sound packs; plus Weave, Topography, and Stardust Visuals textures.
+- **New chimes and textures** — Aurora, Ember, and Harbor sound packs; plus Weave, Brushed, and Stardust Visuals textures. Brushed replaces the earlier Topography tile with a seamless material finish.
+- **Theme polish** — Anime gains original manga line art plus a pink-forward/violet palette. Pro is renamed **Industrial**, with graphite, safety yellow, burnt orange, lively safety-light effects, and no CRT scanlines.
+- **Category marker fix** — `None` now removes both the dot and backdrop as intended.
+- **Library Health and saves** — Review issues now opens the actual affected games, and Save Game Folder checks common local locations plus Steam Cloud's local mirror without changing anything until you choose a folder.
 - **Visuals reorganisation** — Object sizes, Text & category, FX, and Layout groups replace Quick presets. Icon position and category marker style are discrete sliders; the category Backdrop mode scales its translucent strength with Category glow.
 
 ### v1.7.0 — Friends Hub · Local launcher status · Safe native social handoff

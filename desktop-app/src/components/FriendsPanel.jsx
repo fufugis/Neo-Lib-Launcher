@@ -11,7 +11,7 @@ const PLATFORMS = [
 ];
 
 /** Privacy-first social launcher: status detection and native client handoff only. */
-export default function FriendsPanel({ manualPaths = {}, onUpdateManualPaths }) {
+export default function FriendsPanel({ manualPaths = {}, onUpdateManualPaths, resting = false, variant = 'titlebar' }) {
   const [open, setOpen] = React.useState(false);
   const [filter, setFilter] = React.useState('all');
   const [clients, setClients] = React.useState({});
@@ -28,12 +28,12 @@ export default function FriendsPanel({ manualPaths = {}, onUpdateManualPaths }) 
   }, [manualPaths]);
 
   React.useEffect(() => {
-    if (!open) return undefined;
+    if (!open || resting) return undefined;
     setMessage('');
     refresh();
     const timer = window.setInterval(refresh, 15_000);
     return () => window.clearInterval(timer);
-  }, [open, refresh]);
+  }, [open, refresh, resting]);
 
   React.useEffect(() => {
     if (!open) return undefined;
@@ -65,16 +65,17 @@ export default function FriendsPanel({ manualPaths = {}, onUpdateManualPaths }) 
   };
 
   return (
-    <div ref={rootRef} className="titlebar-nodrag relative">
+    <div ref={rootRef} className={`${variant === 'detail' ? 'relative w-full' : 'titlebar-nodrag relative'}`}>
       <button
         data-testid="friends-hub-button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
-        className={`group inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[10.5px] font-bold transition-all ${open ? 'border-[rgb(var(--accent-2)/0.85)] bg-[rgb(var(--accent)/0.15)] text-ink' : 'border-[rgb(var(--border))] bg-panel/45 text-muted hover:border-[rgb(var(--accent-2)/0.6)] hover:text-ink'}`}
+        className={`group ${variant === 'detail' ? 'flex h-11 w-full items-center justify-between rounded-lg px-3.5 text-xs' : 'inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[10.5px]'} border font-bold transition-all ${open ? 'border-[rgb(var(--accent-2)/0.85)] bg-[rgb(var(--accent)/0.15)] text-ink' : 'border-[rgb(var(--border))] bg-panel/45 text-muted hover:border-[rgb(var(--accent-2)/0.6)] hover:text-ink'}`}
         title="Friends Hub — inspect and open your game clients safely"
       >
         <Users size={13} className="text-[rgb(var(--accent-2))]" />
-        <span className="hidden min-[960px]:inline">Friends</span>
+        <span className={variant === 'detail' ? 'inline' : 'hidden min-[960px]:inline'}>Friends</span>
+        {variant === 'detail' && <span className="ml-auto mr-2 text-[10px] font-medium text-muted">Check your running launchers</span>}
         <span className={`h-1.5 w-1.5 rounded-full ${runningCount ? 'bg-emerald-400 shadow-[0_0_7px_rgb(74_222_128/0.8)]' : 'bg-muted/60'}`} />
       </button>
 
@@ -83,7 +84,7 @@ export default function FriendsPanel({ manualPaths = {}, onUpdateManualPaths }) 
           <motion.section
             initial={{ opacity: 0, y: -8, scale: 0.985 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -5, scale: 0.985 }} transition={{ duration: 0.16, ease: 'easeOut' }}
             data-testid="friends-hub-panel"
-            className="absolute right-0 top-9 z-[100] w-[min(440px,calc(100vw-24px))] overflow-hidden rounded-xl border border-[rgb(var(--border))] glass-strong shadow-2xl"
+            className={`absolute right-0 z-[100] w-[min(440px,calc(100vw-24px))] overflow-hidden rounded-xl border border-[rgb(var(--border))] glass-strong shadow-2xl ${variant === 'detail' ? 'bottom-[calc(100%+8px)]' : 'top-9'}`}
           >
             <header className="flex items-center justify-between border-b border-[rgb(var(--border)/0.8)] px-4 py-3">
               <div>
@@ -107,7 +108,7 @@ export default function FriendsPanel({ manualPaths = {}, onUpdateManualPaths }) 
               {visiblePlatforms.map((platform) => <PlatformRow key={platform.id} platform={platform} client={clients[platform.id]} onOpen={() => openNativeSocial(platform)} onLocate={() => locateClient(platform)} />)}
             </div>
             <footer className="border-t border-[rgb(var(--border)/0.7)] bg-[rgb(var(--surface)/0.26)] px-4 py-2.5 text-[10px] leading-relaxed text-muted">
-              {message || 'NEO-LIB never reads launcher credentials, friends, or chats. All conversations stay in the original platform.'}
+              {resting ? 'Rest Mode is active while a game is running. Social checks are paused until it closes.' : (message || 'NEO-LIB never reads launcher credentials, friends, or chats. All conversations stay in the original platform.')}
             </footer>
           </motion.section>
         )}

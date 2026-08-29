@@ -1119,6 +1119,74 @@ ipcMain.handle('saves:restore', async (_e, { backupPath, savePath, mode = 'empty
   } catch (error) { return { ok: false, error: String(error?.message || error) }; }
 });
 
+// A lightweight, automatic first pass for ordinary Windows save locations.
+// It only checks a small set of known folders and existing matching children;
+// it never crawls a drive, reads save content, or changes the chosen folder.
+ipcMain.handle('saves:detectCommon', async (_e, { gameName, exePath, appid } = {}) => {
+  const candidates = new Map();
+  const terms = String(gameName || '').toLowerCase().split(/[^a-z0-9]+/).filter((term) => term.length >= 3).slice(0, 5);
+  const gameKey = String(gameName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (!terms.length) return { ok: true, candidates: [] };
+  const add = async (candidatePath, source, baseScore = 0, allowBaseMatch = false) => {
+    try {
+      const stat = await fsp.stat(candidatePath);
+      if (!stat.isDirectory()) return;
+      const label = path.basename(candidatePath).toLowerCase();
+      const matches = terms.filter((term) => label.includes(term)).length;
+      const score = baseScore + matches + (gameKey && label.replace(/[^a-z0-9]/g, '').includes(gameKey) ? 5 : 0);
+      if (score <= baseScore && !allowBaseMatch) return;
+      const key = path.resolve(candidatePath).toLowerCase();
+      const current = candidates.get(key);
+      if (!current || score > current.score) candidates.set(key, { path: candidatePath, source, score });
+    } catch { /* absent/inaccessible candidate */ }
+  };
+  const addMatchingChildren = async (root, source) => {
+    try {
+      const entries = await fsp.readdir(root, { withFileTypes: true });
+      for (const entry of entries.slice(0, 800)) {
+        if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
+        await add(path.join(root, entry.name), source, 0);
+      }
+    } catch { /* optional Windows folder is unavailable */ }
+  };
+  const home = os.homedir();
+  const roots = [
+    [path.join(home, 'Documents'), 'Documents'],
+    [path.join(home, 'Documents', 'My Games'), 'Documents / My Games'],
+    [path.join(home, 'Saved Games'), 'Saved Games'],
+    [process.env.APPDATA, 'AppData / Roaming'],
+    [process.env.LOCALAPPDATA, 'AppData / Local'],
+    [process.env.USERPROFILE ? path.join(process.env.USERPROFILE, 'AppData', 'LocalLow') : '', 'AppData / LocalLow'],
+  ].filter(([root]) => root);
+  for (const [root, source] of roots) {
+    await add(path.join(root, String(gameName || '')), source, 2);
+    await addMatchingChildren(root, source);
+  }
+  // A selected executable provides a useful local signal for portable/indie
+  // games that keep a clearly named save folder beside the game itself.
+  if (exePath) {
+    const gameRoot = path.dirname(exePath);
+    for (const folder of ['save', 'saves', 'savedata', 'savegame', 'savegames']) await add(path.join(gameRoot, folder), 'Game folder', 1, true);
+  }
+  // Steam Cloud's local mirror is deterministic by app id. It works before a
+  // game is run through NEO-LIB, provided Steam has already created the save.
+  if (appid) {
+    const steamPath = defaultSteamPath();
+    const userdata = steamPath ? path.join(steamPath, 'userdata') : '';
+    try {
+      const users = await fsp.readdir(userdata, { withFileTypes: true });
+      for (const user of users.slice(0, 20)) {
+        if (!user.isDirectory() || !/^\d+$/.test(user.name)) continue;
+        const remote = path.join(userdata, user.name, String(appid), 'remote');
+        try {
+          if ((await fsp.stat(remote)).isDirectory()) candidates.set(path.resolve(remote).toLowerCase(), { path: remote, source: 'Steam Cloud local mirror', score: 12 });
+        } catch { /* no Steam Cloud mirror for this account/game */ }
+      }
+    } catch { /* Steam unavailable */ }
+  }
+  return { ok: true, candidates: [...candidates.values()].sort((a, b) => b.score - a.score || a.path.localeCompare(b.path)).slice(0, 12) };
+});
+
 ipcMain.handle('saves:findCandidates', async (_e, { root, gameName } = {}) => {
   try {
     const rootPath = path.resolve(String(root || ''));
@@ -2557,6 +2625,91 @@ ipcMain.handle('deals:fetch', async () => {
 
   DEALS_CACHE = { ts: Date.now(), items };
   return items;
+});
+
+// ---------------- Released This Week ---------------- //
+// This is intentionally a discovery feed, not an exhaustive release calendar.
+// SteamSpy gives us a small set of titles receiving real recent player interest;
+// we then verify each title's store type and actual release date through Steam's
+// public store details response. That protects Home from filling with tiny,
+// low-visibility uploads while keeping the criteria understandable.
+let WEEKLY_RELEASES_CACHE = { ts: 0, payload: null };
+
+function parseStoreReleaseDate(value) {
+  if (!value || typeof value !== 'string') return 0;
+  const parsed = Date.parse(value.replace(/,/g, ''));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function ownerFloor(value) {
+  const match = String(value || '').match(/([\d,]+)/);
+  return match ? Number(match[1].replace(/,/g, '')) || 0 : 0;
+}
+
+async function mapWithConcurrency(items, limit, worker) {
+  const output = [];
+  let cursor = 0;
+  const run = async () => {
+    while (cursor < items.length) {
+      const index = cursor++;
+      try { output[index] = await worker(items[index]); } catch { output[index] = null; }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
+  return output;
+}
+
+ipcMain.handle('releases:weekly', async (_event, { force = false } = {}) => {
+  const SIX_HOURS = 6 * 60 * 60 * 1000;
+  if (!force && WEEKLY_RELEASES_CACHE.payload && Date.now() - WEEKLY_RELEASES_CACHE.ts < SIX_HOURS) {
+    return { ok: true, ...WEEKLY_RELEASES_CACHE.payload, fetchedAt: WEEKLY_RELEASES_CACHE.ts, cached: true };
+  }
+
+  try {
+    const trend = await httpGetJson('https://steamspy.com/api.php?request=top100in2weeks', 10_000);
+    const candidates = Object.values(trend || {})
+      .filter((item) => item && Number(item.appid))
+      .sort((a, b) => Number(b.ccu || 0) - Number(a.ccu || 0))
+      .slice(0, 45);
+    const now = Date.now();
+    const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+    const verified = await mapWithConcurrency(candidates, 4, async (signal) => {
+      const raw = await httpGetJson(`https://store.steampowered.com/api/appdetails?appids=${signal.appid}&l=en&cc=us`, 8_000);
+      const data = raw?.[signal.appid]?.success ? raw[signal.appid].data : null;
+      const releaseAt = parseStoreReleaseDate(data?.release_date?.date);
+      if (!data || data.type !== 'game' || data.release_date?.coming_soon || releaseAt < weekAgo || releaseAt > now + 24 * 60 * 60 * 1000) return null;
+      const ccu = Number(signal.ccu || 0);
+      const positives = Number(signal.positive || 0);
+      const owners = ownerFloor(signal.owners);
+      // Transparent major-title gate. One strong current signal is enough;
+      // titles with no meaningful player/review/owner interest stay out.
+      if (ccu < 150 && positives < 250 && owners < 20_000) return null;
+      const why = ccu >= 500 ? 'High current player interest' : positives >= 1_000 ? 'Strong early review interest' : owners >= 100_000 ? 'Major launch reach' : 'Notable early player interest';
+      return {
+        id: `steam-${signal.appid}`,
+        appid: Number(signal.appid),
+        title: data.name || signal.name || 'Untitled game',
+        image: data.header_image || `https://cdn.akamai.steamstatic.com/steam/apps/${signal.appid}/header.jpg`,
+        platform: 'Steam',
+        releaseAt,
+        releaseDate: data.release_date?.date || '',
+        url: `https://store.steampowered.com/app/${signal.appid}`,
+        why,
+        ccu,
+        reviewCount: positives,
+        genres: (data.genres || []).map((genre) => genre.description).slice(0, 3),
+      };
+    });
+    const items = verified.filter(Boolean).sort((a, b) => b.releaseAt - a.releaseAt || b.ccu - a.ccu).slice(0, 12);
+    const payload = {
+      items,
+      criteria: 'Released within seven days, verified as a full game, and showing meaningful recent player, review, or launch-reach signals. Steam is the initial discovery source for this v1.7.2 feed.',
+    };
+    WEEKLY_RELEASES_CACHE = { ts: Date.now(), payload };
+    return { ok: true, ...payload, fetchedAt: WEEKLY_RELEASES_CACHE.ts, cached: false };
+  } catch (error) {
+    return { ok: false, items: [], error: error?.message || 'Release feed unavailable.' };
+  }
 });
 
 // ---------------- Steam News (per-appid, cached 30 min) ---------------- //

@@ -14,7 +14,7 @@ import { formatPlaytime } from '../lib/utils';
  *
  * User is shown each cluster side-by-side and picks which one to keep.
  */
-export default function TidyUpModal({ open, games, onDelete, onClose }) {
+export default function TidyUpModal({ open, games, onDelete, onSelect, onClose }) {
   const dragControls = useDragControls();
   const [clusters, setClusters] = React.useState([]);
   const [ci, setCi] = React.useState(0);
@@ -25,6 +25,9 @@ export default function TidyUpModal({ open, games, onDelete, onClose }) {
     setClusters(findDuplicates(games || []));
     setCi(0);
   }, [open, games]);
+
+  const reviewGroups = React.useMemo(() => findReviewGroups(games || []), [games]);
+  const reviewCount = reviewGroups.reduce((sum, group) => sum + group.games.length, 0);
 
   if (!open) return null;
 
@@ -72,7 +75,7 @@ export default function TidyUpModal({ open, games, onDelete, onClose }) {
             <div className="flex items-center gap-2">
               <GripVertical size={14} className="text-muted" />
               <Sparkles size={14} className="text-[rgb(var(--accent))]" />
-              <h3 className="font-display font-bold uppercase tracking-[0.18em] text-sm">Tidy up · duplicate finder</h3>
+              <h3 className="font-display font-bold uppercase tracking-[0.18em] text-sm">Tidy up · library review</h3>
               {total > 0 && (
                 <span className="rounded-full px-2 py-0.5 text-[10px] hairline text-[rgb(var(--accent-2))] bg-[rgb(var(--accent-2)/0.08)]">
                   {ci + 1} / {total}
@@ -85,7 +88,13 @@ export default function TidyUpModal({ open, games, onDelete, onClose }) {
           </div>
 
           <div className="flex-1 overflow-y-auto p-5">
-            {total === 0 && (
+            {reviewGroups.length > 0 && (
+              <section className="mb-5 rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.22)] p-3.5">
+                <div className="mb-3 flex items-center gap-2"><AlertCircle size={14} className="text-[rgb(var(--accent-2))]" /><div><h4 className="text-xs font-black uppercase tracking-[0.16em]">Library health review</h4><p className="mt-0.5 text-[10.5px] text-muted">Choose a game to open it and fill in the missing piece. Nothing is changed automatically.</p></div></div>
+                <div className="space-y-3">{reviewGroups.map((group) => <div key={group.key}><p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider" style={{ color: group.color }}>{group.games.length} {group.label}</p><div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">{group.games.slice(0, 60).map((game) => <button key={game.id} onClick={() => onSelect?.(game.id)} className="max-w-full truncate rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.35)] px-2 py-1 text-[10.5px] font-semibold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink" title={`Open ${game.name}`}>{game.name}</button>)}</div>{group.games.length > 60 && <p className="mt-1 text-[10px] text-muted">Showing the first 60; refine these from the library as you go.</p>}</div>)}</div>
+              </section>
+            )}
+            {total === 0 && reviewGroups.length === 0 && (
               <div className="grid h-40 place-items-center text-center text-sm text-muted">
                 <div>
                   <Check className="mx-auto mb-2 text-emerald-400" size={28} />
@@ -131,7 +140,7 @@ export default function TidyUpModal({ open, games, onDelete, onClose }) {
 
           <div className="flex items-center justify-between gap-2 border-t border-[rgb(var(--border))]/60 bg-panel/70 px-5 py-3">
             <span className="text-[11px] text-muted">
-              {total > 0 ? `Scanned ${(games || []).length} games — ${total} cluster${total === 1 ? '' : 's'} to review.` : 'All clean.'}
+              {total > 0 ? `Scanned ${(games || []).length} games — ${total} duplicate cluster${total === 1 ? '' : 's'}${reviewCount ? ` and ${reviewCount} health item${reviewCount === 1 ? '' : 's'}` : ''} to review.` : reviewCount ? `${reviewCount} library health item${reviewCount === 1 ? '' : 's'} to review.` : 'All clean.'}
             </span>
             <div className="flex items-center gap-2">
               {total > 0 && cluster && (
@@ -217,4 +226,14 @@ function findDuplicates(games) {
     }
   }
   return clusters;
+}
+
+function findReviewGroups(games) {
+  const hasDetails = (game) => [game.description, game.about, game.shortDescription].some((value) => String(value || '').trim());
+  const groups = [
+    { key: 'details', label: 'missing details', color: '#c084fc', games: games.filter((game) => !hasDetails(game)) },
+    { key: 'art', label: 'missing cover art', color: '#60a5fa', games: games.filter((game) => !(game.coverUrl || game.headerImage || game.background)) },
+    { key: 'launch', label: 'missing launch target', color: '#fb7185', games: games.filter((game) => !(game.exePath || game.launchUrl)) },
+  ];
+  return groups.filter((group) => group.games.length > 0);
 }

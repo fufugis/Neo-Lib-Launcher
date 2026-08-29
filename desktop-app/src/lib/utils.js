@@ -21,13 +21,13 @@ export const THEMES = [
   // Special themes — extra eye-candy (sparkles, shooting stars, textured surfaces)
   { id: 'colorful',      label: 'Colorful',       swatch: '#ff5abe', tone: 'special',
     gradient: 'linear-gradient(135deg, #0c0a16 0%, #ff5abe 45%, #5aa0ff 100%)' },
-  { id: 'pro',           label: 'Pro',            swatch: '#ff7620', tone: 'special',
-    gradient: 'linear-gradient(135deg, #16161a 0%, #ff7620 55%, #3c8cd2 100%)' },
+  { id: 'pro',           label: 'Industrial',     swatch: '#f0a31a', tone: 'special',
+    gradient: 'linear-gradient(135deg, #101114 0%, #f0a31a 55%, #4a4d54 100%)' },
   // Dark themes
   { id: 'synthwave',     label: 'Synthwave',      swatch: '#ff2a8a', tone: 'dark',
     gradient: 'linear-gradient(135deg, #0a0416 0%, #ff2a8a 55%, #00e5ff 100%)' },
-  { id: 'anime',         label: 'Anime',          swatch: '#9e4ceb', tone: 'dark',
-    gradient: 'linear-gradient(135deg, #10081c 0%, #9e4ceb 50%, #38c8ff 100%)' },
+  { id: 'anime',         label: 'Anime',          swatch: '#ff63b8', tone: 'dark',
+    gradient: 'linear-gradient(135deg, #1d081d 0%, #ff63b8 50%, #b268ff 100%)' },
   { id: 'midnight',      label: 'Midnight',       swatch: '#c4a56e', tone: 'dark',
     gradient: 'linear-gradient(135deg, #0a0a0c 0%, #c4a56e 100%)' },
   { id: 'ocean',         label: 'Ocean',          swatch: '#4ea8f0', tone: 'dark',

@@ -25,10 +25,11 @@ const STATUS = {
   ready: { title: 'GAME READY', color: '#4ade80', Icon: CircleCheck },
   check: { title: 'CHECK YOUR PC', color: '#fbbf24', Icon: CircleAlert },
   high: { title: 'HIGH USAGE', color: '#fb4b5c', Icon: CircleAlert },
+  resting: { title: 'NEO-LIB RESTING', color: '#60a5fa', Icon: CircleCheck },
 };
 
 /** Full-width Library footer overlay. It intentionally sits above the game rows. */
-export default function SystemHealthBar() {
+export default function SystemHealthBar({ resting = false, runningGameName = '' }) {
   const [open, setOpen] = React.useState(false);
   const [health, setHealth] = React.useState(null);
   const [failed, setFailed] = React.useState(false);
@@ -52,19 +53,22 @@ export default function SystemHealthBar() {
   }, []);
 
   React.useEffect(() => {
+    if (resting) return undefined;
     refresh();
     const timer = window.setInterval(refresh, POLL_INTERVAL_MS);
     return () => window.clearInterval(timer);
-  }, [refresh]);
+  }, [refresh, resting]);
 
-  const state = failed ? 'checking' : readiness(health);
+  const state = resting ? 'resting' : (failed ? 'checking' : readiness(health));
   const config = STATUS[state];
   const StatusIcon = config.Icon;
   const cpuLevel = usageLevel(health?.cpuPercent);
   const ramLevel = usageLevel(health?.ramPercent);
   const pulseClass = state === 'check' || state === 'high' ? 'motion-safe:animate-pulse' : '';
   const tips = [];
-  if (cpuLevel === 'high') tips.push('CPU is very busy. Pause downloads, updates, or heavy background apps before launching.');
+  if (resting) tips.push(`NEO-LIB is resting while ${runningGameName || 'your game'} is running.`);
+  if (resting) tips.push('Theme effects, animations, sounds, system polling, launcher scans, news checks, deal rotation, and social checks are paused.');
+  else if (cpuLevel === 'high') tips.push('CPU is very busy. Pause downloads, updates, or heavy background apps before launching.');
   else if (cpuLevel === 'medium') tips.push('CPU use is elevated. Check browser tabs, updates, and launchers running in the background.');
   if (ramLevel === 'high') tips.push('RAM is nearly full. Close memory-heavy apps to help avoid stutter.');
   else if (ramLevel === 'medium') tips.push('RAM use is elevated. Closing a few background apps will leave more room for your game.');
@@ -83,11 +87,11 @@ export default function SystemHealthBar() {
             <header className="flex items-center justify-between gap-3 border-b border-[rgb(var(--border)/0.75)] px-3 py-2.5">
               <div className="flex min-w-0 items-center gap-2">
                 <StatusIcon size={16} style={{ color: config.color }} className={pulseClass} />
-                <div className="min-w-0"><h2 className="text-xs font-black tracking-[0.12em]">{config.title}</h2><p className="text-[10px] text-muted">Local, read-only check · refreshes every 5 seconds</p></div>
+                <div className="min-w-0"><h2 className="text-xs font-black tracking-[0.12em]">{config.title}</h2><p className="text-[10px] text-muted">{resting ? 'Background work paused until the game closes' : 'Local, read-only check · refreshes every 5 seconds'}</p></div>
               </div>
-              <button onClick={refresh} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted hover:bg-panel hover:text-ink" title="Refresh system check"><RefreshCw size={13} className={loading ? 'animate-spin' : ''} /></button>
+              {!resting && <button onClick={refresh} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted hover:bg-panel hover:text-ink" title="Refresh system check"><RefreshCw size={13} className={loading ? 'animate-spin' : ''} /></button>}
             </header>
-            <div className="grid gap-2 p-3 min-[330px]:grid-cols-2"><Metric icon={<Gauge size={14} />} label="CPU" value={health?.cpuPercent} level={cpuLevel} /><Metric icon={<MemoryStick size={14} />} label="RAM" value={health?.ramPercent} level={ramLevel} detail={health ? `${health.memoryUsedGb} / ${health.memoryTotalGb} GB used` : ''} /></div>
+            {!resting && <div className="grid gap-2 p-3 min-[330px]:grid-cols-2"><Metric icon={<Gauge size={14} />} label="CPU" value={health?.cpuPercent} level={cpuLevel} /><Metric icon={<MemoryStick size={14} />} label="RAM" value={health?.ramPercent} level={ramLevel} detail={health ? `${health.memoryUsedGb} / ${health.memoryTotalGb} GB used` : ''} /></div>}
             <div className="border-t border-[rgb(var(--border)/0.75)] bg-[rgb(var(--surface)/0.28)] px-3 py-2.5"><p className="text-[10.5px] leading-relaxed text-muted">{tips.map((tip) => <span key={tip} className="block">• {tip}</span>)}</p></div>
           </motion.section>
         )}
@@ -98,7 +102,7 @@ export default function SystemHealthBar() {
         style={{ background: 'linear-gradient(90deg, rgb(var(--surface)/0.94) 0%, rgb(var(--panel)/0.84) 55%, rgb(var(--surface)/0.94) 100%)' }} title="Open Game Ready details"
       >
         <span className={`flex shrink-0 items-center gap-2 text-[11px] font-black tracking-[0.13em] ${pulseClass}`} style={{ color: config.color }}><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: config.color, boxShadow: `0 0 10px ${config.color}` }} />{config.title}</span>
-        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 text-[10.5px] text-muted"><span className="whitespace-nowrap">CPU <UsageText level={cpuLevel} value={health?.cpuPercent} /></span><span className="hidden text-muted/45 min-[260px]:inline">·</span><span className="whitespace-nowrap">RAM <UsageText level={ramLevel} value={health?.ramPercent} /></span></span>
+        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 text-[10.5px] text-muted">{resting ? <span className="truncate">{runningGameName ? `${runningGameName} is running · background work paused` : 'Game running · background work paused'}</span> : <><span className="whitespace-nowrap">CPU <UsageText level={cpuLevel} value={health?.cpuPercent} /></span><span className="hidden text-muted/45 min-[260px]:inline">·</span><span className="whitespace-nowrap">RAM <UsageText level={ramLevel} value={health?.ramPercent} /></span></>}</span>
         <ChevronUp size={15} className={`shrink-0 text-muted transition-transform ${open ? '' : 'rotate-180'}`} />
       </button>
     </div>

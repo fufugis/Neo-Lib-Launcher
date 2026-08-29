@@ -4,20 +4,32 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.7.1-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.7.2-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.7.1 (Home intelligence — safe save backups, play suggestions, storage, and your Chronicle)
+### Latest — v1.7.2 (Released This Week — selective major-release discovery)
+
+- **Released This Week** — Home gains a rearrangeable pane for notable full-game launches from the last seven days, with cover art, source, official release date, and a transparent inclusion reason.
+- **Selective, not noisy** — NEO-LIB verifies the real store release date and requires meaningful early player, review, or launch-reach signals before including a title.
+- **Lightweight refresh** — the feed is cached for six hours, can be refreshed manually, and opens official store pages without accessing any account.
+
+### Previous — v1.7.1 (Home intelligence — safe save backups, play suggestions, storage, and your Chronicle)
 
 - **Library Health** — a colour-coded score highlights metadata gaps, missing launch targets, and duplicate candidates, with a direct path into Tidy Up.
 - **Richer Home** — larger news cards use game artwork where available and Top 5 gains cover art, platform, and playtime.
+- **Home you can arrange** — drag Home panes into order, hide one from its hover control, and restore hidden panes from the Home header. News opens inside NEO-LIB before offering a Full story link, while **My Best Games** compares personal ratings with Metacritic where available.
+- **Cleaner shell** — Friends now belongs in the selected game preview, Coffee sits beside Discord, Settings follows Visuals in Library controls, and Refresh/Tidy sits beside Auto-sort. The centred sponsored rail is permanent and no longer dismissible.
 - **Smarter Game Ready** — yellow begins at 65% and red at 85%; the Library can scroll fully above its footer.
+- **Rest Mode while gaming** — on by default for games launched through NEO-LIB. It pauses ambience, animations, UI sounds, health polling, launcher scans, news/deal checks, and social refreshes until the game exits, then resumes automatically.
 - **Save Game Folder + safe backups** — choose and open a per-game save folder, search a user-selected location for possible older saves, create private local backups, and recover safely without overwriting a non-empty live save folder.
 - **What should I play?** — Home suggests a recently updated game, a forgotten personal favourite, or a fresh unplayed addition using local library signals.
 - **Storage Control Centre** — a user-triggered, read-only scan measures game folders and recognised mod/workshop folders; it never crawls drives silently.
 - **Gaming Chronicle** — a private local timeline captures games added, played, rated, and updated.
 - **Launch Doctor** — only after repeated immediate failures or very short launches, checks the configured executable and offers nearby candidates for review without changing anything automatically.
 - **Theme ambience variation** — each theme now has its own particle language (stars, bubbles, embers, pixels, pollen, rays, ink, dust, prism, or metal) while respecting its Effects intensity.
-- **Three new chimes** — Aurora, Ember, and Harbor; plus Weave, Topography, and Stardust textures in Visuals.
+- **Three new chimes** — Aurora, Ember, and Harbor; plus Weave, Brushed, and Stardust textures in Visuals. Brushed replaces the earlier Topography tile with a seamless material finish.
+- **Theme polish** — Anime gains original manga line art plus a pink-forward/violet palette. Pro is renamed **Industrial**, with lively safety-light effects and no CRT scanlines.
+- **Category marker fix** — `None` now removes both the dot and backdrop as intended.
+- **Library Health and saves** — Review issues now opens the actual affected games, and Save Game Folder safely checks common local locations plus Steam Cloud's local mirror.
 - **Cleaner Visuals menu** — grouped into Object sizes, Text & category, FX, and Layout; Quick presets removed in favour of direct control. Icon position and category marker style are sliders, and the translucent category backdrop scales with Category glow.
 
 - **Friends Hub** — a compact, theme-aware top-right panel detects Steam, Battle.net, Epic, EA app, and Ubisoft Connect locally.

@@ -1,11 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Minus, Square, X, DownloadCloud, MessageCircle, Settings } from 'lucide-react';
-import FriendsPanel from './FriendsPanel';
+import { Minus, Square, X, DownloadCloud, MessageCircle, Heart } from 'lucide-react';
 
 const DISCORD_INVITE = 'https://discord.gg/spk6QWREk8';
 
-export default function TitleBar({ search, setSearch, currentVersion, updateAvailable, latestVersion, onClickUpdate, onOpenSettings, onOpenFeedback, friendsClientPaths, onUpdateFriendsClientPaths }) {
+export default function TitleBar({ search, setSearch, currentVersion, updateAvailable, latestVersion, onClickUpdate, onOpenFeedback, onDonate }) {
   const openDiscord = () => {
     if (typeof window !== 'undefined' && window.api?.openExternal) window.api.openExternal(DISCORD_INVITE);
     else window.open(DISCORD_INVITE, '_blank');
@@ -30,14 +29,6 @@ export default function TitleBar({ search, setSearch, currentVersion, updateAvai
 
       {/* Global actions live beside the brand, leaving the sidebar tabs room to breathe. */}
       <div className="titlebar-nodrag flex items-center gap-1">
-        <button
-          data-testid="tab-settings"
-          onClick={onOpenSettings}
-          title="Settings"
-          className="group grid h-7 w-7 place-items-center rounded-md hairline text-muted transition-all hover:border-[rgb(var(--accent)/0.55)] hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink"
-        >
-          <Settings size={14} className="cog-hover-spin text-[rgb(var(--accent))]" />
-        </button>
         {onOpenFeedback && (
           <button
             data-testid="tab-feedback"
@@ -66,6 +57,17 @@ export default function TitleBar({ search, setSearch, currentVersion, updateAvai
           <MessageCircle size={12} className="transition-transform group-hover:rotate-[-6deg]" />
           <span className="hidden min-[1100px]:inline">Discord</span>
         </button>
+        {onDonate && (
+          <button
+            data-testid="titlebar-coffee-btn"
+            onClick={onDonate}
+            title="Buy KenLun a coffee — support NEO-LIB"
+            className="group inline-flex h-7 items-center gap-1.5 rounded-md border border-[#ffd140]/45 bg-[#ffd140]/12 px-2 text-[10px] font-bold text-[#ffe597] transition-all hover:border-[#ffd140]/80 hover:bg-[#ffd140]/22 hover:text-[#fff4c6]"
+          >
+            <Heart size={12} fill="currentColor" className="transition-transform group-hover:scale-110" />
+            <span className="hidden min-[1100px]:inline">Coffee</span>
+          </button>
+        )}
       </div>
 
       <div className="titlebar-nodrag relative ml-1 flex-1 max-w-md min-w-[150px]">
@@ -100,8 +102,6 @@ export default function TitleBar({ search, setSearch, currentVersion, updateAvai
           v{latestVersion}
         </motion.button>
       )}
-
-      <FriendsPanel manualPaths={friendsClientPaths} onUpdateManualPaths={onUpdateFriendsClientPaths} />
 
       <div className="titlebar-nodrag flex items-center">
         <WinBtn onClick={() => window.api?.minimize()} testid="titlebar-min">

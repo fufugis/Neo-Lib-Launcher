@@ -1,0 +1,15 @@
+---
+description: Capture implied user-requested product changes and confirm them before a batch is called ready
+alwaysApply: true
+---
+
+# Interpretive change capture
+
+Treat natural-language feedback about a UI, visual, interaction, or feature as a requested change unless the user clearly marks it as a question or hypothetical.
+
+Examples: “the text is small”, “this feels cluttered”, and “I do not like this texture” each create a change item.
+
+- Keep a concise working checklist of explicit and implied changes for the current batch.
+- Before describing work as ready, present the checklist with each item marked complete, partial, deferred, or blocked.
+- If an item is unsafe, unsupported by platform APIs, or needs a material product choice, flag it immediately rather than silently dropping it.
+- Update `PROGRESS.md` and both repository and in-app patch notes for user-facing changes.

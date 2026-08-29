@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { cn, colorFromId } from '../lib/utils';
 import { hoverThrottled, playLaunch } from '../lib/sound';
+import FriendsPanel from './FriendsPanel';
 
 /**
  * GameDetail — fully horizontal, "seamless" layout:
@@ -19,6 +20,7 @@ import { hoverThrottled, playLaunch } from '../lib/sound';
 export default function GameDetail({
   game, categories, onLaunch, onRefetch, onRevealFolder,
   onToggleCategory, onCustomize, onUpdateGame, onOpenSaveManager, fetching, settings = {},
+  friendsClientPaths, onUpdateFriendsClientPaths, friendsResting = false,
 }) {
   if (!game) return <EmptyState />;
   const bg = game.background || game.headerImage || game.coverUrl;
@@ -209,6 +211,7 @@ export default function GameDetail({
           data-testid="game-gallery-panel"
         >
           <GalleryBox shots={game.screenshots || []} />
+          <FriendsPanel manualPaths={friendsClientPaths} onUpdateManualPaths={onUpdateFriendsClientPaths} resting={friendsResting} variant="detail" />
         </section>
       </div>
     </motion.div>
@@ -292,7 +295,7 @@ function HeroTitle({ game, onUpdateGame }) {
           >
             <span className="flex items-center gap-2">
               <span className="h-1 w-1 rounded-full bg-[rgb(var(--accent-2))]" />
-              Now viewing
+              My rating
             </span>
             <StarRating
               value={Number(game.rating) || 0}
@@ -939,7 +942,7 @@ function StarRating({ value = 0, onChange }) {
               filter: filled ? 'drop-shadow(0 0 4px rgba(255,204,74,0.7))' : 'none',
             }}
           >
-            <Star size={13} strokeWidth={2} fill={filled ? '#ffcc4a' : 'none'} />
+            <Star size={16} strokeWidth={2} fill={filled ? '#ffcc4a' : 'none'} />
           </button>
         );
       })}

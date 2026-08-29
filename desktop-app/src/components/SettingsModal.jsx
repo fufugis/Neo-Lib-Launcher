@@ -159,37 +159,16 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
           </div>
         </Section>
 
-        {/* v1.4.0 — All visual settings live in the sidebar "Visuals" menu now.
-            Keeping only a redirect hint here so users know where to look. */}
-        <Section title="Visual effects">
-          <div className="rounded-md hairline bg-panel/30 p-3 text-[11.5px] text-muted flex items-start gap-2">
-            <span className="mt-0.5 text-[rgb(var(--accent))]">→</span>
-            <span>
-              All visual controls — <strong className="text-ink">theme effects intensity, background
-              texture &amp; opacity, row size, category text, glow, spacing, icon position, category
-              dot, sub-category strip</strong> — live in the new <em>Visuals</em> button in the sidebar
-              toolbar. Look for the pill between <em>Refresh</em> and <em>Two-column</em>.
-            </span>
-          </div>
-        </Section>
-
-        {/* Deals — sponsored content visibility (no public-facing affiliate fields here;
-            affiliate IDs are baked at build time in `src/lib/affiliateConfig.js`) */}
-        <Section title="Deals">
-          <div className="space-y-3">
-            <Toggle
-              label="Show sponsored footer rail"
-              hint="One compact, clearly labelled deal at the bottom. View all deals only when you choose to open them."
-              value={settings.dealsEnabled !== false}
-              onChange={(v) => setKey({ dealsEnabled: v, dealsBarHidden: false })}
-              testid="opt-deals"
-            />
-          </div>
-        </Section>
-
         {/* App behaviour */}
         <Section title="App behaviour">
           <div className="space-y-3">
+            <Toggle
+              label="Rest NEO-LIB while a game is running"
+              hint="On by default. Pauses visual effects, animations, sounds, health polling, launcher scans, news checks, deal rotation, and social checks while a game launched through NEO-LIB is open."
+              value={settings.gameRestMode !== false}
+              onChange={(v) => setKey({ gameRestMode: v })}
+              testid="opt-game-rest-mode"
+            />
             <Toggle
               label="Start with Windows"
               hint="Launch NEO-LIB automatically when you log in."

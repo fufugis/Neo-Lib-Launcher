@@ -31,7 +31,7 @@ import LaunchDoctorModal from './components/LaunchDoctorModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.7.1';
+const APP_VERSION = '1.7.2';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin, formatPlaytime } from './lib/utils';
 import { setSoundPack } from './lib/sound';
@@ -125,6 +125,10 @@ export default function App() {
   });
   const [selectedId, setSelectedId] = React.useState(null);
   const [selectedToolId, setSelectedToolId] = React.useState(null);
+  // A game launched by NEO-LIB is still tracked while the window stays open.
+  // Rest Mode uses this to pause every non-essential bit of background work.
+  const [runningGame, setRunningGame] = React.useState(null);
+  const gameRestActive = !!runningGame && settings.gameRestMode !== false;
   const [unlockedCategories, setUnlockedCategories] = React.useState([]);
   const [search, setSearch] = React.useState('');
 
@@ -178,8 +182,8 @@ export default function App() {
 
   /* --- Sound pack: apply when settings change --- */
   React.useEffect(() => {
-    setSoundPack(settings.soundsEnabled === false ? 'none' : (settings.soundPack || 'synthwave'));
-  }, [settings.soundsEnabled, settings.soundPack]);
+    setSoundPack(gameRestActive || settings.soundsEnabled === false ? 'none' : (settings.soundPack || 'synthwave'));
+  }, [gameRestActive, settings.soundsEnabled, settings.soundPack]);
 
   /* --- CRT boot animation on first paint --- */
   const [bootDone, setBootDone] = React.useState(false);
@@ -253,7 +257,7 @@ export default function App() {
   React.useEffect(() => { libraryRef.current = library; }, [library]);
   React.useEffect(() => {
     if (!isElectron || !window.api?.detectLaunchers) return undefined;
-    if (settings.launcherDetectEnabled === false) return undefined;
+    if (settings.launcherDetectEnabled === false || gameRestActive) return undefined;
     let cancelled = false;
     const dismissed = settings.launcherDetectDismissed || {};
     const askLater = settings.launcherAskLater || {};
@@ -362,7 +366,7 @@ export default function App() {
     tick();
     const t = setInterval(tick, 5 * 60 * 1000); // every 5 minutes
     return () => { cancelled = true; clearInterval(t); };
-  }, [settings.launcherDetectEnabled, settings.launcherDetectDismissed, settings.launcherAskLater, settings.launcherAutoImport]);
+  }, [gameRestActive, settings.launcherDetectEnabled, settings.launcherDetectDismissed, settings.launcherAskLater, settings.launcherAutoImport]);
 
   const importDetectedLauncher = async () => {
     const key = detectedLauncher;
@@ -453,6 +457,7 @@ export default function App() {
         // Steam's localconfig.vdf unit and StatsPanel expectations). Convert
         // the raw session seconds → minutes here so we stop inflating values.
         window.api.onGameExited(({ gameId, seconds }) => {
+          setRunningGame((active) => !gameId || active?.id === gameId ? null : active);
           if (!gameId) return;
           const addMinutes = (Number(seconds) || 0) / 60;
           setLibrary((curr) => ({
@@ -620,7 +625,7 @@ export default function App() {
   // Runs every 10 min while the app is open. Silent failure if not in Electron.
   const [unseenNewsCount, setUnseenNewsCount] = React.useState(0);
   React.useEffect(() => {
-    if (typeof window === 'undefined' || !window.api?.fetchAllNews) return undefined;
+    if (gameRestActive || typeof window === 'undefined' || !window.api?.fetchAllNews) return undefined;
     let cancelled = false;
     const check = async () => {
       const games = (library.games || []).filter(
@@ -643,7 +648,7 @@ export default function App() {
     check();
     const iv = setInterval(check, 10 * 60 * 1000);
     return () => { cancelled = true; clearInterval(iv); };
-  }, [library.games, settings.newsLastSeenAt]);
+  }, [gameRestActive, library.games, settings.newsLastSeenAt]);
 
   // v1.4.0 — Watched games news alert.
   // For games that are either pinned (favorited) OR rated 5⭐, poll once per
@@ -698,7 +703,7 @@ export default function App() {
     notify(`Applied ${patches.filter((p) => p.playtime !== undefined).length} playtime change(s).`);
   }, []);
   React.useEffect(() => {
-    if (typeof window === 'undefined' || !window.api?.fetchAllNews) return undefined;
+    if (gameRestActive || typeof window === 'undefined' || !window.api?.fetchAllNews) return undefined;
     let cancelled = false;
     const pinnedSet = new Set(settings.pinnedGameIds || []);
     const watched = (library.games || []).filter((g) =>
@@ -740,7 +745,7 @@ export default function App() {
     const first = setTimeout(check, 30_000);
     const iv = setInterval(check, 60 * 60 * 1000); // hourly
     return () => { cancelled = true; clearTimeout(first); clearInterval(iv); };
-  }, [library.games, settings.pinnedGameIds, settings.newsAlertLastAt]);
+  }, [gameRestActive, library.games, settings.pinnedGameIds, settings.newsAlertLastAt]);
 
 
   /* --- Helpers --- */
@@ -846,7 +851,10 @@ export default function App() {
       recordLaunchProblem(g.id, res.error || 'could not start');
       notify('Launch failed: ' + (res.error || ''));
     }
-    else notify(`Launching ${g.name}…`);
+    else {
+      setRunningGame({ id: g.id, name: g.name });
+      notify(`Launching ${g.name}… NEO-LIB is resting in the background.`);
+    }
   };
 
   /* --- Metadata --- */
@@ -1358,10 +1366,10 @@ export default function App() {
   const selected = currentItems.find((g) => g.id === currentSelectedId) || null;
 
   return (
-    <div className="relative flex h-screen w-screen flex-col bg-surface text-ink">
+    <div className="relative flex h-screen w-screen flex-col bg-surface text-ink" data-neolib-resting={gameRestActive ? 'true' : 'false'}>
       {/* Window edge glow — soft inner halo around the frameless window (Riot/Discord style) */}
       <div className="window-edge-glow" aria-hidden="true" />
-      <BgAmbience theme={settings.theme} settings={settings} game={selected} />
+      <BgAmbience theme={settings.theme} settings={settings} game={selected} resting={gameRestActive} />
       {/* v1.6.4 — BgTexture no longer renders as full-viewport overlay.
           Sidebar renders the texture inside its own body via bgTextureStyle. */}
       <TitleBar
@@ -1371,10 +1379,8 @@ export default function App() {
         updateAvailable={updateInfo?.available || false}
         latestVersion={updateInfo?.latestVersion || ''}
         onClickUpdate={openReleasesPage}
-        onOpenSettings={() => setShowSettings(true)}
         onOpenFeedback={openFeedback}
-        friendsClientPaths={settings.friendsClientPaths || {}}
-        onUpdateFriendsClientPaths={(friendsClientPaths) => updateSetting({ friendsClientPaths })}
+        onDonate={() => setDonateOpen(true)}
       />
 
       <div className="relative z-10 flex min-h-0 flex-1">
@@ -1452,48 +1458,28 @@ export default function App() {
           onToggleCollapsed={toggleCollapsed}
           onUnlockCategory={requestUnlock}
           updatingAll={updatingAll}
+          gameResting={gameRestActive}
+          runningGameName={runningGame?.name || ''}
+          onOpenSettings={() => setShowSettings(true)}
         />
 
         <main className="relative flex min-w-0 flex-1 flex-col">
           <div className="flex-1 min-h-0 overflow-hidden">
             {!isTools && (settings.mode === 'home' || !selected) ? (
-              <HomeHub games={library.games || []} onSelect={(id) => { setSelectedId(id); setMode('library'); }} onOpenPlaytimeImport={() => openPlaytimeImport({ force: true })} onOpenTidyUp={() => setTidyOpen(true)} />
+              <HomeHub games={library.games || []} resting={gameRestActive} homeLayout={settings.homeLayout || {}} onUpdateHomeLayout={(homeLayout) => updateSetting({ homeLayout })} onSelect={(id) => { setSelectedId(id); setMode('library'); }} onOpenPlaytimeImport={() => openPlaytimeImport({ force: true })} onOpenTidyUp={() => setTidyOpen(true)} />
             ) : (
-              <AnimatePresence mode="wait"><GameDetail key={selected?.id || 'empty'} game={selected} categories={currentCats.filter((c) => !c.private || unlockedCategories.includes(c.id))} fetching={fetching} settings={settings} onLaunch={launchGame} onRefetch={(g) => setFetchPickerGame(g)} onRevealFolder={(g) => (isElectron ? window.api.revealInFolder(g.exePath) : notify('Open: ' + g.exePath))} onToggleCategory={toggleGameInCategory} onCustomize={(g) => setEditMetaGame(g)} onOpenSaveManager={(g) => setSaveManagerGame(g)} onUpdateGame={updateGame} /></AnimatePresence>
+              <AnimatePresence mode="wait"><GameDetail key={selected?.id || 'empty'} game={selected} categories={currentCats.filter((c) => !c.private || unlockedCategories.includes(c.id))} fetching={fetching} settings={settings} onLaunch={launchGame} onRefetch={(g) => setFetchPickerGame(g)} onRevealFolder={(g) => (isElectron ? window.api.revealInFolder(g.exePath) : notify('Open: ' + g.exePath))} onToggleCategory={toggleGameInCategory} onCustomize={(g) => setEditMetaGame(g)} onOpenSaveManager={(g) => setSaveManagerGame(g)} onUpdateGame={updateGame} friendsClientPaths={settings.friendsClientPaths || {}} onUpdateFriendsClientPaths={(friendsClientPaths) => updateSetting({ friendsClientPaths })} friendsResting={gameRestActive} /></AnimatePresence>
             )}
           </div>
         </main>
       </div>
 
       {/* One subtle sponsored rail — all deals remain available from its popover. */}
-      {settings.dealsEnabled !== false && settings.dealsBarHidden !== true ? (
+      {(
         <DealsBar
           settings={settings}
-          onClose={() => updateSetting({ dealsBarHidden: true })}
-          onDonate={() => setDonateOpen(true)}
+          resting={gameRestActive}
         />
-      ) : (
-        <div
-          className="relative z-20 flex h-7 shrink-0 items-center justify-between border-t hairline px-4 text-[10.5px] text-muted/80"
-          style={{ backgroundColor: 'rgb(var(--surface) / 0.9)' }}
-          data-testid="credits-bar"
-        >
-          <span>NEO-LIB · made by <span className="text-ink font-semibold">KenLun</span></span>
-          <button
-            data-testid="credits-bar-donate"
-            onClick={() => setDonateOpen(true)}
-            className="donate-pulse group flex items-center gap-1.5 rounded-full px-3 h-7 text-[11px] font-bold transition-all hover:scale-105 hover:brightness-110"
-            style={{
-              background: 'linear-gradient(135deg, #FFD140 0%, #FFB400 100%)',
-              color: '#000',
-              boxShadow: '0 0 14px -2px rgba(255, 209, 64, 0.55)',
-            }}
-            title="Buy KenLun a coffee — directly funds NEO-LIB updates"
-          >
-            <span className="transition-transform group-hover:rotate-12">☕</span>
-            Buy me a coffee
-          </button>
-        </div>
       )}
 
       {/* Modals */}
@@ -1647,6 +1633,7 @@ export default function App() {
         open={tidyOpen}
         games={library.games || []}
         onDelete={(id) => removeGame(id)}
+        onSelect={(id) => { setSelectedId(id); setMode('library'); setTidyOpen(false); }}
         onClose={() => setTidyOpen(false)}
       />
 
@@ -1826,8 +1813,8 @@ export default function App() {
   );
 }
 
-function BgAmbience({ theme, settings = {}, game = null }) {
-  if (settings.synthGridEnabled === false) return null;
+function BgAmbience({ theme, settings = {}, game = null, resting = false }) {
+  if (resting || settings.synthGridEnabled === false) return null;
   // Effects Level (0=None, 1=Low, 2=Med, 3=High, 4=Max) — persisted per-theme
   // in settings.effectsLevelByTheme[theme], so Synthwave can be Max and Modern
   // can be Low without cross-contamination. Falls back to settings.effectsLevel
@@ -2045,6 +2032,18 @@ function AnimeSketches({ level = 2 }) {
           <path d="M244 736V426M522 736V426M188 431h390M220 475h326M283 431l-34-73h266l-34 73M302 475l-25-47h212l-25 47" />
           <path d="M305 736h156M326 574h114M384 475v99" />
         </g>
+        <g className="anime-sketch-character">
+          {/* Original, non-franchise manga heroine silhouette: hair, face,
+              jacket and a small flower pin. Kept as line art behind the UI. */}
+          <path d="M342 738c-26-97-20-194 18-273 29-60 90-96 154-96 68 0 127 38 153 99 30 70 37 170 15 270" />
+          <path d="M406 490c-15-81 14-154 95-166 81-11 144 49 128 139-8 49-25 78-63 98-39 21-82 21-119-1-28-17-37-41-41-70z" />
+          <path d="M400 464c16-99 99-143 172-118 48 16 78 63 61 124-25-41-54-64-90-72-34 47-81 76-143 86" />
+          <path d="M432 438c-28-35-18-104 25-139 42-35 116-43 157-3 33 33 39 81 18 117" />
+          <path d="M447 497c20 15 42 23 66 23 26 0 48-8 68-24M476 460h24M540 460h24M505 488c8 5 17 5 25 0" />
+          <path d="M434 586l78 57 80-57M469 558l43 35 47-35M381 738l36-142 95 82 97-82 43 142" />
+          <path d="M463 617l-25 58M561 617l27 58M491 653l21 21 21-21" />
+          <circle cx="466" cy="627" r="7" /><path d="M454 627h24M466 615v24" />
+        </g>
         <g className="anime-sketch-city">
           <path d="M754 786V574l59-54v266M826 786V472l73-66v380M913 786V545l55-49v290M982 786V433l102-91v444M1098 786V557l61-55v284M1173 786V493l73-65v358M1262 786V590l49-43v239" />
           <path d="M726 786h640M778 625h22m-22 43h22m50-142h28m-28 53h28m-28 53h28m128-148h35m-35 58h35m-35 58h35m-35 58h35m95-121h24m-24 49h24m-24 49h24m92-106h26m-26 50h26m-26 50h26" />
@@ -2155,7 +2154,7 @@ export function useBgTextureStyle(textureId = 'none', opacity = 40) {
       circuit: { backgroundImage: 'linear-gradient(rgb(var(--accent) / 0.7) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--accent) / 0.7) 1px, transparent 1px), radial-gradient(rgb(var(--accent-2) / 0.9) 1.5px, transparent 2.5px)', backgroundSize: '24px 24px, 24px 24px, 24px 24px', backgroundPosition: '0 0, 0 0, 12px 12px' },
       chevron: { backgroundImage: 'repeating-linear-gradient(45deg, rgb(var(--accent) / 0.8) 0 2px, transparent 2px 12px), repeating-linear-gradient(-45deg, rgb(var(--accent-2) / 0.7) 0 2px, transparent 2px 12px)' },
       weave: { backgroundImage: 'repeating-linear-gradient(0deg, rgb(var(--accent) / 0.42) 0 1px, transparent 1px 8px), repeating-linear-gradient(90deg, rgb(var(--accent-2) / 0.30) 0 1px, transparent 1px 8px)', backgroundSize: '16px 16px' },
-      topography: { backgroundImage: 'radial-gradient(ellipse at 20% 30%, transparent 0 26%, rgb(var(--accent) / 0.40) 27% 28%, transparent 29% 42%, rgb(var(--accent-2) / 0.28) 43% 44%, transparent 45%)', backgroundSize: '86px 62px' },
+      brushed: { backgroundImage: 'repeating-linear-gradient(105deg, rgb(var(--accent) / 0.30) 0 1px, transparent 1px 5px), repeating-linear-gradient(105deg, transparent 0 8px, rgb(var(--accent-2) / 0.18) 8px 9px, transparent 9px 17px)' },
       stardust: { backgroundImage: 'radial-gradient(circle at 20% 30%, rgb(var(--accent-2) / 0.7) 0 1px, transparent 1.8px), radial-gradient(circle at 75% 70%, rgb(var(--accent) / 0.6) 0 1.2px, transparent 2px)', backgroundSize: '34px 34px, 53px 53px' },
     };
     return { ...patterns[textureId], opacity: Math.max(0, Math.min(100, opacity)) / 100 };

@@ -6,7 +6,7 @@ import {
   Lock, ChevronRight, ChevronDown, Tag, GripVertical, Terminal,
   Info, ArrowUp, ArrowDown, Palette, Eye, EyeOff, Sliders, Library as LibIcon,
   Wrench, Columns, Pin, PinOff, X as XIcon, Home, MessageCircle,
-  Bug, Lightbulb, RotateCcw, Check, ArchiveRestore, Stethoscope,
+  Bug, Lightbulb, RotateCcw, Check, ArchiveRestore, Stethoscope, Settings,
 } from 'lucide-react';
 import { cn, colorFromId, sizeById, formatPlaytime, playtimeSource } from '../lib/utils';
 import SystemHealthBar from './SystemHealthBar';
@@ -62,9 +62,15 @@ const BG_TEXTURE_PATTERNS = {
     backgroundImage: 'repeating-linear-gradient(0deg, rgb(var(--accent) / 0.42) 0 1px, transparent 1px 8px), repeating-linear-gradient(90deg, rgb(var(--accent-2) / 0.30) 0 1px, transparent 1px 8px)',
     backgroundSize: '16px 16px',
   },
+  brushed: {
+    // Fine diagonal grain, deliberately tile-safe rather than a repeated
+    // circular motif. It reads as a quiet material finish at low opacity.
+    backgroundImage: 'repeating-linear-gradient(105deg, rgb(var(--accent) / 0.30) 0 1px, transparent 1px 5px), repeating-linear-gradient(105deg, transparent 0 8px, rgb(var(--accent-2) / 0.18) 8px 9px, transparent 9px 17px)',
+  },
+  // Saved installs using the retired Topography key receive the seamless
+  // finish rather than silently losing their selected texture.
   topography: {
-    backgroundImage: 'radial-gradient(ellipse at 20% 30%, transparent 0 26%, rgb(var(--accent) / 0.40) 27% 28%, transparent 29% 42%, rgb(var(--accent-2) / 0.28) 43% 44%, transparent 45%)',
-    backgroundSize: '86px 62px',
+    backgroundImage: 'repeating-linear-gradient(105deg, rgb(var(--accent) / 0.30) 0 1px, transparent 1px 5px), repeating-linear-gradient(105deg, transparent 0 8px, rgb(var(--accent-2) / 0.18) 8px 9px, transparent 9px 17px)',
   },
   stardust: {
     backgroundImage: 'radial-gradient(circle at 20% 30%, rgb(var(--accent-2) / 0.7) 0 1px, transparent 1.8px), radial-gradient(circle at 75% 70%, rgb(var(--accent) / 0.6) 0 1.2px, transparent 2px)',
@@ -113,6 +119,9 @@ export default function Sidebar({
   sidebarWidth = 320,
   onStartResize,
   updatingAll,
+  gameResting = false,
+  runningGameName = '',
+  onOpenSettings,
 }) {
   // size based on rowSize slider (in px).
   // v1.2.9 — text size can now be overridden explicitly via nameTextSize
@@ -129,6 +138,8 @@ export default function Sidebar({
   const libSettingsBtnRef = React.useRef(null);
   const [addMenuOpen, setAddMenuOpen] = React.useState(false);
   const [refreshMenuOpen, setRefreshMenuOpen] = React.useState(false);
+  const addMenuRef = React.useRef(null);
+  const refreshMenuRef = React.useRef(null);
   const treeScrollRef = React.useRef(null);
   const isTools = mode === 'tools';
   // Keep toolbar labels legible while the sidebar is resized: they shrink over
@@ -142,6 +153,20 @@ export default function Sidebar({
     transition: 'font-size 100ms ease, max-width 100ms ease, opacity 100ms ease',
   };
   const pinnedIdsSet = React.useMemo(() => new Set(pinnedIds || []), [pinnedIds]);
+
+  // Every small Library popover follows the same simple escape hatch: click
+  // anywhere outside it (or press Escape) and it goes away.
+  React.useEffect(() => {
+    if (!addMenuOpen && !refreshMenuOpen) return undefined;
+    const close = (event) => {
+      if (addMenuRef.current && !addMenuRef.current.contains(event.target)) setAddMenuOpen(false);
+      if (refreshMenuRef.current && !refreshMenuRef.current.contains(event.target)) setRefreshMenuOpen(false);
+    };
+    const escape = (event) => { if (event.key === 'Escape') { setAddMenuOpen(false); setRefreshMenuOpen(false); } };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', escape); };
+  }, [addMenuOpen, refreshMenuOpen]);
 
   // Library reference used by the PinnedStrip (it pulls full game objects by id).
   // We keep it as a plain object since we only need it inside the render.
@@ -282,7 +307,7 @@ export default function Sidebar({
           background: 'linear-gradient(180deg, rgb(0 0 0 / 0.20) 0%, rgb(0 0 0 / 0.08) 100%)',
         }}
       >
-        <div className="relative">
+        <div ref={addMenuRef} className="relative">
           <SideBtn
             label={labelsVisible ? "Add" : null}
             labelStyle={toolbarLabelStyle}
@@ -335,55 +360,6 @@ export default function Sidebar({
           <SideBtn label={labelsVisible ? "Wizard" : null} labelStyle={toolbarLabelStyle} icon={<Wand2 size={16} />} onClick={onOpenWizard} testid="sidebar-wizard-btn" title="Wizard" />
         )}
         <div className="flex-1" />
-        {!isTools && (
-          <div className="relative">
-            <SideBtn
-              icon={<RefreshCw size={16} className={updatingAll ? 'animate-spin' : ''} />}
-              onClick={() => setRefreshMenuOpen((v) => !v)}
-              testid="sidebar-refresh-menu-btn"
-              title="Refresh · Tidy up"
-            />
-            <AnimatePresence>
-              {refreshMenuOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: -6, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.15 }}
-                  onClick={(e) => e.stopPropagation()}
-                  className="absolute right-0 z-30 mt-1 w-64 rounded-lg hairline glass shadow-2xl p-1.5"
-                >
-                  <button
-                    data-testid="refresh-menu-refresh"
-                    onClick={() => { setRefreshMenuOpen(false); onUpdateAll?.(); }}
-                    className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left hover:bg-[rgb(var(--accent)/0.08)] transition-colors"
-                  >
-                    <span className="flex items-center gap-2 text-[12px] font-semibold text-ink">
-                      <RefreshCw size={12} className="text-[rgb(var(--accent))]" />
-                      Refresh all metadata
-                    </span>
-                    <span className="text-[10.5px] text-muted">
-                      Re-fetches covers, descriptions & screenshots for every game (skips manually edited ones).
-                    </span>
-                  </button>
-                  <button
-                    data-testid="refresh-menu-tidy"
-                    onClick={() => { setRefreshMenuOpen(false); onTidyUp?.(); }}
-                    className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left hover:bg-[rgb(var(--accent-2)/0.08)] transition-colors"
-                  >
-                    <span className="flex items-center gap-2 text-[12px] font-semibold text-ink">
-                      <Sparkles size={12} className="text-[rgb(var(--accent-2))]" />
-                      Tidy up (find duplicates)
-                    </span>
-                    <span className="text-[10.5px] text-muted">
-                      Scans for duplicate games and multiple .exes from the same folder tree. Shows a side-by-side compare so you can pick which one to keep.
-                    </span>
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        )}
         <div className="relative">
           <button
             ref={libSettingsBtnRef}
@@ -452,6 +428,16 @@ export default function Sidebar({
             )}
           </AnimatePresence>
         </div>
+        {onOpenSettings && (
+          <SideBtn
+            label={labelsVisible ? 'Settings' : null}
+            labelStyle={toolbarLabelStyle}
+            icon={<Settings size={15} />}
+            onClick={onOpenSettings}
+            testid="sidebar-settings-btn"
+            title="Settings"
+          />
+        )}
         <button
           data-testid="sidebar-tworow-btn-hidden"
           onClick={() => onToggleTwoRow?.(!twoRow)}
@@ -486,6 +472,24 @@ export default function Sidebar({
               <Wand2 size={10} /> Auto-sort
             </button>
           )}
+          <div ref={refreshMenuRef} className="relative">
+            <button
+              data-testid="sidebar-refresh-menu-btn"
+              onClick={() => setRefreshMenuOpen((v) => !v)}
+              title="Refresh metadata or tidy up your library"
+              className="inline-flex shrink-0 items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] text-[rgb(var(--accent-2))] hover:text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)]"
+            >
+              <RefreshCw size={10} className={updatingAll ? 'animate-spin' : ''} /> Refresh
+            </button>
+            <AnimatePresence>
+              {refreshMenuOpen && (
+                <motion.div initial={{ opacity: 0, y: -6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }} onClick={(e) => e.stopPropagation()} className="absolute right-0 z-30 mt-1 w-64 rounded-lg hairline glass shadow-2xl p-1.5">
+                  <button data-testid="refresh-menu-refresh" onClick={() => { setRefreshMenuOpen(false); onUpdateAll?.(); }} className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left hover:bg-[rgb(var(--accent)/0.08)] transition-colors"><span className="flex items-center gap-2 text-[12px] font-semibold text-ink"><RefreshCw size={12} className="text-[rgb(var(--accent))]" />Refresh all metadata</span><span className="text-[10.5px] text-muted">Re-fetches covers, descriptions & screenshots for every game.</span></button>
+                  <button data-testid="refresh-menu-tidy" onClick={() => { setRefreshMenuOpen(false); onTidyUp?.(); }} className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left hover:bg-[rgb(var(--accent-2)/0.08)] transition-colors"><span className="flex items-center gap-2 text-[12px] font-semibold text-ink"><Sparkles size={12} className="text-[rgb(var(--accent-2))]" />Tidy up library</span><span className="text-[10.5px] text-muted">Review duplicates and games needing attention.</span></button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       )}
 
@@ -573,7 +577,7 @@ export default function Sidebar({
           </div>
         )}
       </div>
-      {!isTools && <SystemHealthBar />}
+      {!isTools && <SystemHealthBar resting={gameResting} runningGameName={runningGameName} />}
     </aside>
   );
 }
@@ -1102,7 +1106,7 @@ export const BG_TEXTURES = [
   { id: 'circuit',   label: 'Circuit' },
   { id: 'chevron',   label: 'Chevron' },
   { id: 'weave',     label: 'Weave' },
-  { id: 'topography', label: 'Topo' },
+  { id: 'brushed',    label: 'Brushed' },
   { id: 'stardust',  label: 'Stardust' },
 ];
 function BgTexturePicker({ textureId = 'none', opacity = 12, onChange, onChangeOpacity }) {
@@ -1222,8 +1226,8 @@ function bgTexturePreview(id) {
       };
     case 'weave':
       return { backgroundImage: 'repeating-linear-gradient(0deg, rgb(var(--accent)/0.38) 0 1px, transparent 1px 5px), repeating-linear-gradient(90deg, rgb(var(--accent-2)/0.3) 0 1px, transparent 1px 5px)', backgroundSize: '10px 10px' };
-    case 'topography':
-      return { backgroundImage: 'radial-gradient(ellipse at 20% 30%, transparent 0 26%, rgb(var(--accent)/0.45) 27% 28%, transparent 29% 42%, rgb(var(--accent-2)/0.3) 43% 44%, transparent 45%)', backgroundSize: '32px 24px' };
+    case 'brushed':
+      return { backgroundImage: 'repeating-linear-gradient(105deg, rgb(var(--accent)/0.38) 0 1px, transparent 1px 5px), repeating-linear-gradient(105deg, transparent 0 8px, rgb(var(--accent-2)/0.24) 8px 9px, transparent 9px 17px)' };
     case 'stardust':
       return { backgroundImage: 'radial-gradient(circle at 20% 30%, rgb(var(--accent-2)/0.7) 0 1px, transparent 1.6px), radial-gradient(circle at 75% 70%, rgb(var(--accent)/0.6) 0 1px, transparent 1.7px)', backgroundSize: '14px 14px, 22px 22px' };
     default:
@@ -1401,7 +1405,7 @@ function Section({
           // stripe instead (see parent style). Reserve a tiny spacer so the
           // chevron alignment stays consistent.
           <span aria-hidden className="shrink-0" style={{ width: 2, height: 2 }} />
-        ) : (
+        ) : categoryMarkerMode === 'dot' ? (
           <span
             className="shrink-0 rounded-full cat-icon"
             style={{
@@ -1412,7 +1416,7 @@ function Section({
               color, // for filter:drop-shadow on hover
             }}
           />
-        )}
+        ) : null}
 
         {/* Name — applies dynamic font size + glow (catTextSize / catGlow sliders) */}
         <span

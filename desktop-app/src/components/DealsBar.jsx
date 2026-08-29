@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Tag, ExternalLink, Heart, Grid3x3, Flame } from 'lucide-react';
+import { X, Tag, ExternalLink, Grid3x3, Flame } from 'lucide-react';
 import { wrapDealUrl } from '../lib/deals';
 
 // Platform metadata for the deal badge overlay on each card image.
@@ -45,29 +45,29 @@ function PlatformBadge({ platform, size = 'md' }) {
  * "View all" pill opens a small popover above the bar with every deal in a
  * scrollable grid — opt-in, hidden until clicked, so the bar stays subtle.
  *
- * The bar is dismissible per-session; re-enable from Settings.
+ * It stays present as a small, clearly labelled sponsored rail.
  */
-export default function DealsBar({ settings = {}, onClose, onDonate }) {
+export default function DealsBar({ settings = {}, resting = false }) {
   const [items, setItems] = React.useState([]);
   const [idx, setIdx] = React.useState(0);
   const [allOpen, setAllOpen] = React.useState(false);
 
   // Fetch once on mount
   React.useEffect(() => {
-    if (typeof window === 'undefined' || !window.api?.fetchDeals) return;
+    if (resting || typeof window === 'undefined' || !window.api?.fetchDeals) return undefined;
     let cancelled = false;
     window.api.fetchDeals().then((arr) => {
       if (!cancelled && Array.isArray(arr)) setItems(arr);
     }).catch(() => {});
     return () => { cancelled = true; };
-  }, []);
+  }, [resting]);
 
   // Rotate every 8s
   React.useEffect(() => {
-    if (items.length < 2) return undefined;
+    if (resting || items.length < 2) return undefined;
     const t = setInterval(() => setIdx((i) => (i + 1) % items.length), 8000);
     return () => clearInterval(t);
-  }, [items.length]);
+  }, [items.length, resting]);
 
   if (!items.length) return null;
   const d = items[idx];
@@ -87,16 +87,16 @@ export default function DealsBar({ settings = {}, onClose, onDonate }) {
   return (
     <div
       data-testid="deals-bar"
-      className="relative z-20 flex h-[40px] shrink-0 items-center gap-2 border-t hairline px-3 glass-soft"
+      className="relative z-20 flex h-[52px] shrink-0 items-center justify-center gap-2 border-t hairline px-4 glass-soft"
       style={{}}
     >
       {/* Sponsored label */}
-      <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.22em] text-muted/80">
-        <Tag size={9} /> Deal
+      <div className="hidden min-[560px]:flex items-center gap-1.5 text-[9px] uppercase tracking-[0.22em] text-muted/80">
+        <Tag size={9} /> Sponsored
       </div>
 
       {/* Rotating deal content */}
-      <div className="relative flex-1 min-w-0 overflow-hidden">
+      <div className="relative h-8 w-[min(640px,55vw)] min-w-[180px] overflow-hidden">
         <AnimatePresence mode="wait">
           <motion.button
             key={d.id}
@@ -172,25 +172,6 @@ export default function DealsBar({ settings = {}, onClose, onDonate }) {
         <Flame size={11} className="drop-shadow" />
         <span>All {items.length}</span>
       </motion.button>
-
-      <button
-        data-testid="deals-bar-donate"
-        onClick={onDonate}
-        title="Buy KenLun a coffee — support NEO-LIB"
-        className="hidden min-[620px]:flex items-center gap-1 rounded-full px-2.5 h-6 text-[10px] font-bold transition-colors"
-        style={{ background: '#FFD140', color: '#000' }}
-      >
-        <Heart size={11} fill="#000" /> Tip
-      </button>
-
-      <button
-        data-testid="deals-bar-close"
-        onClick={onClose}
-        title="Hide deals bar (re-enable in Settings)"
-        className="grid h-6 w-6 place-items-center rounded text-muted/70 hover:text-ink hover:bg-surface/60"
-      >
-        <X size={12} />
-      </button>
 
       {/* All-deals popover — opens above the bar, click outside to dismiss */}
       <AnimatePresence>
