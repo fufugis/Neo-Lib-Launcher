@@ -128,6 +128,21 @@
   --hairline-glow: 184 58 69;
 }
 
+/* HOME — soft architectural gray with an airy blue edge and a quiet, warm
+   yellow glow. It is calm enough for everyday use while keeping lines crisp. */
+[data-theme='home'] {
+  --ink: 18 23 29;
+  --muted: 92 105 116;
+  --surface: 231 234 237;
+  --panel: 245 247 248;
+  --border: 135 158 174;
+  --accent: 102 190 239;
+  --accent-2: 245 194 82;
+  --accent-soft: 204 222 232;
+  --hairline-glow: 102 190 239;
+  --sidebar-tint: 153 206 236;
+}
+
 /* ANIME — pink-forward manga-night palette, anchored by violet rather than
    the old blue/green mix. The warmth keeps it clearly separate from Midnight. */
 [data-theme='anime'] {
@@ -190,24 +205,32 @@
 
 /* GENERIC BLUE — a classic navy application shell with no extra colour story. */
 [data-theme='generic-blue'] {
-  --ink: 232 240 255;
-  --muted: 145 167 207;
-  --surface: 5 10 25;
-  --panel: 10 24 53;
-  --border: 32 66 123;
-  --accent: 60 125 255;
-  --accent-2: 26 78 174;
-  --accent-soft: 22 47 99;
-  --hairline-glow: 60 125 255;
-  --sidebar-tint: 26 78 174;
+  --ink: 238 246 255;
+  --muted: 168 191 228;
+  --surface: 16 28 54;
+  --panel: 30 53 94;
+  --border: 69 108 170;
+  --accent: 107 165 255;
+  --accent-2: 88 139 220;
+  --accent-soft: 50 83 141;
+  --hairline-glow: 107 165 255;
+  --sidebar-tint: 65 108 178;
 }
 
-.amb-generic-gray, .amb-generic-blue { position: absolute; inset: 0; pointer-events: none; }
+.amb-generic-gray, .amb-generic-blue, .amb-home { position: absolute; inset: 0; pointer-events: none; }
 .amb-generic-gray {
   background: linear-gradient(128deg, transparent 0 45%, rgb(255 255 255 / 0.035) 45.1% 45.3%, transparent 45.4% 100%), radial-gradient(ellipse at 82% 0%, rgb(255 255 255 / 0.06), transparent 46%);
 }
 .amb-generic-blue {
   background: radial-gradient(ellipse at 78% 10%, rgb(60 125 255 / 0.16), transparent 48%), linear-gradient(135deg, transparent 0 48%, rgb(120 165 255 / 0.045) 48.1% 48.3%, transparent 48.4% 100%);
+}
+.amb-home {
+  background:
+    linear-gradient(112deg, transparent 0 42%, rgb(15 20 26 / 0.09) 42.08% 42.18%, transparent 42.28% 100%),
+    linear-gradient(90deg, transparent 0 73%, rgb(255 255 255 / 0.72) 73.08% 73.22%, transparent 73.32% 100%),
+    radial-gradient(ellipse 50vw 62vh at 90% 4%, rgb(116 199 241 / 0.28), transparent 68%),
+    radial-gradient(ellipse 46vw 45vh at 12% 94%, rgb(247 196 79 / 0.26), transparent 70%),
+    repeating-linear-gradient(0deg, transparent 0 43px, rgb(10 16 22 / 0.045) 44px, transparent 45px);
 }
 
 @keyframes new-update-reactive {
@@ -729,6 +752,23 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
   -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 50%, black 30%, transparent 80%);
   opacity: 0.55;
 }
+
+.neolib-hover-tip {
+  position: fixed;
+  z-index: 99999;
+  max-width: min(330px, calc(100vw - 28px));
+  transform: translateX(-50%);
+  border: 1px solid rgb(var(--accent) / .52);
+  border-radius: 8px;
+  background: rgb(var(--surface) / .97);
+  box-shadow: 0 12px 28px rgb(0 0 0 / .28), 0 0 16px rgb(var(--accent) / .16);
+  padding: 7px 10px;
+  color: rgb(var(--ink));
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  pointer-events: none;
+}
 /* Original anime-inspired artwork layer: abstract manga line work, moon,
    shrine gate and distant city. Kept below panels and intentionally free of
    characters or franchise imagery. BgAmbience scales its opacity per effect level. */
@@ -1106,6 +1146,7 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
 .particles--crimson span { width: 2px; height: 8px; border-radius: 40% 40% 70% 70%; background: rgb(var(--accent-2)); box-shadow: 0 0 9px rgb(var(--accent)); animation-name: emberFall; }
 .particles--gaming span { width: 4px; height: 4px; border-radius: 0; background: rgb(var(--accent-2)); box-shadow: 3px 0 0 rgb(var(--accent) / .55); animation-name: pixelDrift; }
 .particles--modern span { width: 1px; height: 1px; background: rgb(var(--ink)); box-shadow: none; opacity: .22; animation-name: dustSlide; }
+.particles--home span { width: 2px; height: 2px; border-radius: 0; background: rgb(var(--accent)); box-shadow: 0 0 7px rgb(var(--accent-2) / .62); opacity: .38; animation-name: dustSlide; }
 .particles--mint span { width: 4px; height: 8px; border-radius: 100% 0 100% 0; background: rgb(var(--accent)); box-shadow: 0 0 5px rgb(var(--accent-2)); animation-name: pollenDrift; }
 .particles--daybreak span { width: 1px; height: 14px; border-radius: 0; background: rgb(var(--accent)); box-shadow: none; animation-name: sunRayFall; }
 .particles--synthwave-day span { width: 5px; height: 2px; border-radius: 999px; background: rgb(var(--accent-2)); box-shadow: 0 0 6px rgb(var(--accent)); animation-name: cloudGlide; }
@@ -1220,7 +1261,8 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
   opacity: 0.85;
 }
 [data-theme='synthwave-day'] .window-edge-glow,
-[data-theme='daybreak'] .window-edge-glow {
+[data-theme='daybreak'] .window-edge-glow,
+[data-theme='home'] .window-edge-glow {
   /* Light themes — drop intensity so it doesn't wash out */
   box-shadow:
     inset 0 0 60px -16px rgb(var(--accent) / 0.18),

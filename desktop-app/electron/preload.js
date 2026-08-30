@@ -28,6 +28,8 @@ contextBridge.exposeInMainWorld('api', {
   extractIcon: (exePath) => ipcRenderer.invoke('exe:icon', exePath),
   launchGame: (opts) => ipcRenderer.invoke('game:launch', opts),
   onGameExited: (cb) => ipcRenderer.on('game:exited', (_e, info) => cb(info)),
+  watchExternalGames: (payload) => ipcRenderer.invoke('game:watchExternal', payload),
+  onExternalGameState: (cb) => ipcRenderer.on('game:externalState', (_e, info) => cb(info)),
 
   // scan
   scanDirectory: (root, excludes, options) => ipcRenderer.invoke('scan:directory', root, excludes, options),
@@ -58,6 +60,13 @@ contextBridge.exposeInMainWorld('api', {
   discordRpcStatus: () => ipcRenderer.invoke('app:discordRpcStatus'),
   getAutoStart: () => ipcRenderer.invoke('app:getAutoStart'),
   getSystemHealth: () => ipcRenderer.invoke('system:health'),
+  detectGpuSetup: () => ipcRenderer.invoke('tools:detectGpuSetup'),
+  verifyManagedTool: (payload) => ipcRenderer.invoke('tools:verifyManagedTool', payload),
+  installManagedTool: (toolId) => ipcRenderer.invoke('tools:installManagedTool', toolId),
+  inspectGamingPerformance: () => ipcRenderer.invoke('optimize:inspectGaming'),
+  closeOptimizableProcess: (payload) => ipcRenderer.invoke('optimize:closeProcess', payload),
+  scanSafeJunk: (payload) => ipcRenderer.invoke('optimize:scanJunk', payload),
+  trashSafeJunk: (payload) => ipcRenderer.invoke('optimize:trashJunk', payload),
 
   // local save folders — all writes stay inside NEO-LIB's app-data backup area
   inspectSaveFolder: (savePath) => ipcRenderer.invoke('saves:inspect', savePath),

@@ -6,7 +6,7 @@ import {
   Lock, ChevronRight, ChevronDown, Tag, GripVertical, Terminal,
   Info, ArrowUp, ArrowDown, Palette, Eye, EyeOff, Sliders, Library as LibIcon,
   Boxes, Columns, Pin, PinOff, X as XIcon, Home, MessageCircle,
-  Bug, Lightbulb, RotateCcw, Check, ArchiveRestore, Stethoscope, Settings,
+  Bug, Lightbulb, RotateCcw, Check, ArchiveRestore, Stethoscope, Settings, Wrench,
 } from 'lucide-react';
 import { cn, colorFromId, sizeById, formatPlaytime, playtimeSource } from '../lib/utils';
 import SystemHealthBar from './SystemHealthBar';
@@ -121,6 +121,7 @@ export default function Sidebar({
   updatingAll,
   gameResting = false,
   runningGameName = '',
+  allGames = [],
   onOpenSettings,
 }) {
   // size based on rowSize slider (in px).
@@ -577,7 +578,7 @@ export default function Sidebar({
           </div>
         )}
       </div>
-      {!isTools && <SystemHealthBar resting={gameResting} runningGameName={runningGameName} />}
+      {!isTools && <SystemHealthBar resting={gameResting} runningGameName={runningGameName} games={allGames} />}
     </aside>
   );
 }
@@ -949,7 +950,7 @@ function LibrarySettingsPopover({
       />
       <PopSlider label="Spacing between games" value={rowGap} min={-8} max={16} suffix="px" onChange={onChangeRowGap} testid="pop-row-gap" />
       <PopSlider label="Spacing under category header" value={catGap} min={-6} max={32} suffix="px" onChange={onChangeCatGap} testid="pop-cat-gap" />
-      <PopSlider label="Gap between header & first game" value={catTopGap} min={-4} max={24} suffix="px" onChange={onChangeCatTopGap} testid="pop-cat-top-gap" />
+      <PopSlider label="Gap between header & first game" value={catTopGap} min={0} max={24} suffix="px" onChange={onChangeCatTopGap} testid="pop-cat-top-gap" />
       <DiscretePopSlider label="Icon position" labels={['Left', 'Right', 'None']} value={['left', 'right', 'none'].indexOf(iconPosition)} onChange={(value) => onChangeIconPosition?.(['left', 'right', 'none'][value])} testid="pop-icon-position" />
       </VisualGroup>
 
@@ -1302,6 +1303,16 @@ function Section({
   // so a small text size + tight category gap let the bloom bleed into the
   // section above/below. Scale every glow dimension off the same slider.
   const catScale = Math.max(0.55, Math.min(1.3, (catTextSize || 11) / 11));
+  // Backdrop is a real companion to the category type, rather than a fixed
+  // stripe that feels oversized at small text or cramped at large text.
+  const backdropPadY = Math.max(3, Math.round(6 * catScale));
+  const backdropPadX = Math.max(4, Math.round(6 * catScale));
+  const backdropLeft = Math.max(6, Math.round(10 * catScale));
+  const backdropBorder = Math.max(1, Math.round(2 * catScale));
+  // Zero truly means close: keep only a tiny collision-safe breathing room
+  // for the first game, scaled with the category label so tight settings do
+  // not cause a glow/header overlap.
+  const firstGameGap = Math.max(Number(catTopGap) || 0, 0);
   const [hover, setHover] = React.useState(false);
   const sectionRef = React.useRef(null);
 
@@ -1371,8 +1382,11 @@ function Section({
           categoryMarkerMode === 'background' && !section.isGhost && !isUncat
             ? {
                 background: `linear-gradient(90deg, ${color}${backdropOpacity} 0%, ${color}24 58%, transparent 100%)`,
-                borderLeft: `2px solid ${color}`,
-                paddingLeft: '10px',
+                borderLeft: `${backdropBorder}px solid ${color}`,
+                paddingLeft: `${backdropLeft}px`,
+                paddingRight: `${backdropPadX}px`,
+                paddingTop: `${backdropPadY}px`,
+                paddingBottom: `${backdropPadY}px`,
               }
             : undefined
         }
@@ -1506,7 +1520,7 @@ function Section({
               }
             }}
           >
-            <div className="pl-4" style={{ overflow: 'visible', paddingTop: catTopGap }}>
+            <div className="pl-4" style={{ overflow: 'visible', paddingTop: firstGameGap }}>
               {section.games.length === 0 ? (
                 <div className="px-3 py-2 text-[11px] text-muted/70 italic">
                   Empty — drop a game here.
@@ -1637,6 +1651,7 @@ function GameRow({
       className={cn(
         'group relative flex cursor-pointer items-center gap-2.5 rounded-md transition-colors',
         selected ? 'bg-[rgb(var(--accent)/0.10)] text-ink' : 'text-muted hover:bg-panel/70 hover:text-ink',
+        g.managedTool && g.availability !== 'installed' && 'opacity-60 grayscale-[0.3]',
         isSmall ? 'px-1.5' : 'px-2',
         Number(g.rating) === 5 && 'row-5star-shimmer'
       )}
@@ -1730,7 +1745,7 @@ function GameRow({
                   <span className="truncate">{formatPlaytime(g.playtime)} played</span>
                 </>
               ) : (
-                <span>{g.genres?.[0] || 'Local game'}</span>
+                <span>{g.managedTool && g.availability !== 'installed' ? 'Set up required' : (g.genres?.[0] || 'Local game')}</span>
               )}
             </span>
           </div>
@@ -1754,6 +1769,8 @@ function GameRow({
           )}
         </div>
       )}
+
+      {g.managedTool && g.availability !== 'installed' && <Wrench size={12} className="shrink-0 text-[rgb(var(--accent-2))]" title="Select this tool to locate or install it" />}
 
       {/* Hover menu trigger */}
       <button

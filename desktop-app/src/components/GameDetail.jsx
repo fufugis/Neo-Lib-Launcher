@@ -19,7 +19,7 @@ import UpdateHistoryModal from './UpdateHistoryModal';
  */
 export default function GameDetail({
   game, categories, onLaunch, onRefetch, onRevealFolder,
-  onToggleCategory, onCustomize, onUpdateGame, onOpenSaveManager, fetching, settings = {},
+  onToggleCategory, onCustomize, onUpdateGame, onOpenSaveManager, onLocateManagedTool, onInstallManagedTool, managedToolInstalling = false, fetching, settings = {},
 }) {
   if (!game) return <EmptyState />;
   const bg = game.background || game.headerImage || game.coverUrl;
@@ -153,6 +153,9 @@ export default function GameDetail({
           onToggleCategory={onToggleCategory}
           onCustomize={onCustomize}
           onOpenSaveManager={onOpenSaveManager}
+          onLocateManagedTool={onLocateManagedTool}
+          onInstallManagedTool={onInstallManagedTool}
+          managedToolInstalling={managedToolInstalling}
           fetching={fetching}
           settings={settings}
         />
@@ -165,6 +168,7 @@ export default function GameDetail({
           className="min-h-0 overflow-y-auto rounded-lg hairline bg-panel/30 px-5 py-4"
           data-testid="game-text-panel"
         >
+          <ManagedToolSetup game={game} onLocate={onLocateManagedTool} onInstall={onInstallManagedTool} installing={managedToolInstalling} />
           <UpdateAvailablePill game={game} />
           <LatestNewsPill game={game} />
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_185px]">
@@ -337,7 +341,7 @@ function openSearch(query, engine = 'google') {
 }
 
 /* ---------- Action bar ---------- */
-function ActionBar({ game, categories, onLaunch, onRefetch, onRevealFolder, onToggleCategory, onCustomize, onOpenSaveManager, fetching, settings = {} }) {
+function ActionBar({ game, categories, onLaunch, onRefetch, onRevealFolder, onToggleCategory, onCustomize, onOpenSaveManager, onLocateManagedTool, onInstallManagedTool, managedToolInstalling, fetching, settings = {} }) {
   const [catOpen, setCatOpen] = React.useState(false);
   const [catAnchor, setCatAnchor] = React.useState(null);
   const popRef = React.useRef(null);
@@ -354,12 +358,15 @@ function ActionBar({ game, categories, onLaunch, onRefetch, onRevealFolder, onTo
         whileTap={{ scale: 0.95 }}
         whileHover={{ scale: 1.03 }}
         onMouseEnter={() => { if (settings.soundsEnabled !== false) hoverThrottled(); }}
+        disabled={game.managedTool && game.availability !== 'installed'}
         onClick={() => { if (settings.soundsEnabled !== false) playLaunch(); onLaunch(game); }}
-        className="neon group inline-flex items-center gap-2 rounded-full bg-[rgb(var(--accent))] px-5 py-2 text-[13px] font-bold tracking-wide text-[rgb(var(--surface))]"
+        className="neon group inline-flex items-center gap-2 rounded-full bg-[rgb(var(--accent))] px-5 py-2 text-[13px] font-bold tracking-wide text-[rgb(var(--surface))] disabled:cursor-not-allowed disabled:opacity-40"
       >
         <Play size={14} className="transition-transform group-hover:translate-x-0.5" />
-        LAUNCH
+        {game.managedTool && game.availability !== 'installed' ? 'SET UP REQUIRED' : 'LAUNCH'}
       </motion.button>
+
+      {game.managedTool && game.availability !== 'installed' && <ManagedToolMenu game={game} onLocate={onLocateManagedTool} onInstall={onInstallManagedTool} installing={managedToolInstalling} />}
 
       <div className="detail-action-menu flex flex-wrap items-center gap-1 rounded-xl border border-[rgb(var(--border)/0.75)] bg-[rgb(var(--surface)/0.45)] p-1" aria-label="Game actions">
       <button
@@ -758,6 +765,7 @@ function LatestNewsPill({ game }) {
   const daysAgo = Math.max(0, Math.floor((Date.now() - item.date) / 86400000));
   const timeStr = daysAgo === 0 ? 'today' : daysAgo === 1 ? 'yesterday' : `${daysAgo}d ago`;
   const platformLabel = { steam: 'Steam', itch: 'itch.io', gog: 'GOG' }[item.platform] || 'News';
+  const visual = item.image || game.headerImage || game.background || game.hero || game.screenshots?.[0] || game.coverUrl || game.cover || '';
 
   const openLink = (e) => {
     e.stopPropagation();
@@ -807,6 +815,7 @@ function LatestNewsPill({ game }) {
         }}
       />
       <div className="relative flex items-center gap-3 px-4 py-3">
+        {visual && <div className="h-14 w-24 shrink-0 overflow-hidden rounded-lg border border-[rgb(var(--accent)/0.28)] bg-black/25 shadow-lg"><img src={visual} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" onError={(event) => { event.currentTarget.parentElement.style.display = 'none'; }} /></div>}
         {/* Left rail — big pulsing indicator + LIVE label */}
         <div className="flex shrink-0 items-center gap-2.5">
           <motion.span
@@ -871,6 +880,7 @@ function LatestNewsPill({ game }) {
             className="overflow-hidden"
           >
             <div className="px-4 pb-4 pt-2 border-t" style={{ borderColor: 'rgb(var(--accent)/0.3)' }}>
+              {visual && <img src={visual} alt="" className="mb-3 max-h-44 w-full rounded-lg object-cover" onError={(event) => { event.currentTarget.style.display = 'none'; }} />}
               {item.snippet && (
                 <p className="text-[12.5px] leading-relaxed text-muted line-clamp-6">
                   {item.snippet}
@@ -893,6 +903,37 @@ function LatestNewsPill({ game }) {
       </AnimatePresence>
     </motion.div>
   );
+}
+
+/* ---------- Managed hardware utility setup ---------- */
+function ManagedToolSetup({ game, onLocate, onInstall, installing }) {
+  if (!game?.managedTool) return null;
+  const installed = game.availability === 'installed' && !!game.exePath;
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}
+      className={`mb-4 overflow-hidden rounded-xl border ${installed ? 'border-emerald-400/28 bg-emerald-400/[0.06]' : 'border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.38)] opacity-85'}`}
+      data-testid="managed-tool-setup"
+    >
+      <div className="flex flex-wrap items-center gap-3 px-4 py-3">
+        <span className={`grid h-9 w-9 place-items-center rounded-lg ${installed ? 'bg-emerald-400/12 text-emerald-300' : 'bg-[rgb(var(--muted)/0.16)] text-muted'}`}><Wrench size={16} /></span>
+        <div className="min-w-0 flex-1"><p className={`text-[10px] font-black uppercase tracking-[0.17em] ${installed ? 'text-emerald-300' : 'text-muted'}`}>{installed ? 'Ready to launch' : 'Not located yet'}</p><p className="mt-0.5 text-[11px] text-muted">{installed ? `Official utility linked · ${game.managedInstallMode === 'located' ? 'manual location confirmed' : 'managed tool ready'}` : 'Locate an existing copy, or let NEO-LIB download it from its official publisher.'}</p></div>
+        {!installed && <span className="rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.38)] px-2 py-1 text-[9px] font-black text-muted">USE SET UP ABOVE</span>}
+        {installed && <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-1 text-[9px] font-black text-emerald-300">INSTALLED</span>}
+      </div>
+    </motion.section>
+  );
+}
+
+function ManagedToolMenu({ game, onLocate, onInstall, installing, compact = false }) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const close = (event) => { if (ref.current && !ref.current.contains(event.target)) setOpen(false); };
+    if (open) document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+  return <div ref={ref} className="relative shrink-0"><button onClick={() => setOpen((value) => !value)} disabled={installing} className={`${compact ? 'h-8 px-3 text-[10px]' : 'h-9 px-4 text-[11px]'} inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.42)] bg-[rgb(var(--accent)/0.1)] font-black text-[rgb(var(--accent))] hover:bg-[rgb(var(--accent)/0.18)] disabled:opacity-50`} title={`Set up ${game.name}`}><Wrench size={compact ? 12 : 14} />{installing ? 'Downloading…' : 'Set up'}<ChevronDown size={12} className={open ? 'rotate-180 transition-transform' : 'transition-transform'} /></button>{open && <div className="absolute right-0 top-[calc(100%+6px)] z-[90] w-56 overflow-hidden rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.98)] p-1.5 shadow-2xl"><button onClick={() => { setOpen(false); onLocate?.(game); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[10.5px] font-semibold text-ink hover:bg-[rgb(var(--accent)/0.12)]"><FolderOpen size={13} className="text-[rgb(var(--accent-2))]" /><span><b className="block">Locate it</b><span className="text-[9px] font-normal text-muted">Choose an existing official executable</span></span></button><button onClick={() => { setOpen(false); onInstall?.(game); }} className="mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[10.5px] font-semibold text-ink hover:bg-[rgb(var(--accent)/0.12)]"><Download size={13} className="text-emerald-300" /><span><b className="block">Install from official site</b><span className="text-[9px] font-normal text-muted">Downloads only after this click</span></span></button></div>}</div>;
 }
 
 
@@ -918,7 +959,8 @@ function StarRating({ value = 0, onChange }) {
       onClick={(e) => e.stopPropagation()}
     >
       {[1, 2, 3, 4, 5].map((i) => {
-        const filled = i <= Math.floor(shown);
+        const fillRatio = Math.max(0, Math.min(1, shown - (i - 1)));
+        const filled = fillRatio > 0;
         return (
           <button
             key={i}
@@ -929,18 +971,20 @@ function StarRating({ value = 0, onChange }) {
               e.stopPropagation();
               setOpenFor((current) => current === i ? null : i);
             }}
-            className="grid place-items-center transition-transform hover:scale-110"
+            className="relative grid h-6 w-6 place-items-center transition-transform hover:scale-110"
             style={{
-              padding: 2,
               color: filled ? '#ffcc4a' : 'rgb(var(--muted) / 0.5)',
               filter: filled ? 'drop-shadow(0 0 4px rgba(255,204,74,0.7))' : 'none',
             }}
           >
-            <Star size={19} strokeWidth={2} fill={filled ? '#ffcc4a' : 'none'} />
+            <Star className="absolute" size={19} strokeWidth={2} fill="none" />
+            <span className="absolute inset-0 overflow-hidden" style={{ width: `${fillRatio * 100}%` }} aria-hidden="true">
+              <Star className="absolute left-[2px] top-[2px] text-[#ffcc4a]" size={19} strokeWidth={2} fill="#ffcc4a" />
+            </span>
           </button>
         );
       })}
-      <span className="ml-1 min-w-7 text-[10px] font-black tracking-normal text-[#ffdc72]">{value ? value.toFixed(1) : '—'}</span>
+      <span className="ml-1 min-w-7 text-[10px] font-black tracking-normal text-[#ffdc72]" aria-label={value ? `${value.toFixed(1)} out of 5 stars` : 'No rating'}>{value ? value.toFixed(1) : '—'}</span>
       {openFor && <span className="absolute left-0 top-[calc(100%+7px)] z-[80] grid w-[186px] grid-cols-5 gap-1 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.98)] p-2 shadow-2xl" role="menu" aria-label={`Choose ${openFor}-star rating`}><button onClick={() => { onChange?.(0); setOpenFor(null); }} className="col-span-5 rounded px-2 py-1 text-left text-[10px] font-bold text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink">Clear my rating</button>{(openFor === 5 ? [5] : Array.from({ length: 10 }, (_, index) => Number((openFor + index / 10).toFixed(1)))).map((rating) => <button key={rating} onClick={() => { onChange?.(rating); setOpenFor(null); }} className={`rounded px-1 py-1.5 text-[10px] font-black transition ${value === rating ? 'bg-[#ffcc4a] text-[#2d1c00]' : 'bg-[rgb(var(--surface)/0.5)] text-ink hover:bg-[rgb(var(--accent)/0.2)]'}`}>{rating.toFixed(1)}</button>)}</span>}
     </span>
   );
@@ -952,25 +996,26 @@ function UpdateAvailablePill({ game }) {
   React.useEffect(() => {
     let alive = true;
     setUpdate(null);
-    if ((!game?.appid && !(game?.installedVersion && game?.updateWatchUrl)) || !window.api?.scanGameUpdates) return () => { alive = false; };
-    window.api.scanGameUpdates({ games: [{ id: game.id, name: game.name, appid: game.appid, launcher: game.launcher, source: game.source, installedVersion: game.installedVersion, updateWatchUrl: game.updateWatchUrl }] })
+    if (game?.managedTool) return () => { alive = false; };
+    if ((!game?.appid && !(game?.exePath || game?.installedVersion || game?.updateWatchUrl || game?.website)) || !window.api?.scanGameUpdates) return () => { alive = false; };
+    window.api.scanGameUpdates({ games: [{ id: game.id, name: game.name, appid: game.appid, launcher: game.launcher, source: game.source, installedVersion: game.installedVersion, updateWatchUrl: game.updateWatchUrl, website: game.website, exePath: game.exePath }] })
       .then((result) => { if (alive) setUpdate(result?.items?.[0] || null); })
       .catch(() => {});
     return () => { alive = false; };
-  }, [game?.id, game?.appid, game?.name, game?.launcher, game?.source, game?.installedVersion, game?.updateWatchUrl]);
+  }, [game?.id, game?.appid, game?.name, game?.launcher, game?.source, game?.installedVersion, game?.updateWatchUrl, game?.website, game?.exePath]);
   if (!update) return null;
   const isWatchPage = update.sourceKind === 'watch-page';
   const remaining = isWatchPage ? `${update.currentVersion} → ${update.latestVersion}` : update.remainingBytes >= 1024 ** 3 ? `${(update.remainingBytes / 1024 ** 3).toFixed(1)} GB` : `${Math.max(1, Math.round(update.remainingBytes / 1024 ** 2))} MB`;
   return <>
     <motion.button
       onClick={() => isWatchPage ? setHistoryOpen(true) : window.api?.openExternal?.(update.actionUrl || 'steam://downloads/')}
-      animate={{ boxShadow: ['0 0 12px -4px rgb(52 211 153 / .45)', '0 0 24px -2px rgb(52 211 153 / .8)', '0 0 12px -4px rgb(52 211 153 / .45)'] }}
+      animate={{ opacity: [1, 0.78, 1], boxShadow: ['0 0 12px -4px rgb(52 211 153 / .45)', '0 0 28px 0px rgb(52 211 153 / .85)', '0 0 12px -4px rgb(52 211 153 / .45)'] }}
       transition={{ duration: 2.2, repeat: Infinity }}
       className="mb-4 flex w-full items-center gap-3 rounded-xl border border-emerald-400/40 bg-emerald-400/[0.07] px-4 py-3 text-left"
       data-testid="game-update-available"
     >
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-400/15 text-emerald-300"><Download size={16} /></span>
-      <span className="min-w-0 flex-1"><span className="block text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">New update · {update.platform}</span><span className="mt-0.5 block text-[12px] font-bold text-ink">{isWatchPage ? `Version ${remaining} available` : `${remaining} remains in the launcher queue`}</span><span className="mt-0.5 block text-[10.5px] text-muted">There is a new update for this game you might want to check out.</span></span>
+      <span className="min-w-0 flex-1"><span className="block text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">New update · {update.platform}</span><span className="mt-0.5 block text-[12px] font-bold text-ink">{isWatchPage ? `Version ${remaining} available` : `${remaining} remains in the launcher queue`}</span><span className="mt-0.5 block text-[10.5px] text-muted">There is a new update for this game you might want to check out{update.installedVersionEvidence ? ` · local version found in ${update.installedVersionEvidence}` : ''}.</span></span>
       <span className="shrink-0 text-[10px] font-bold text-emerald-300">{isWatchPage ? 'Patch history' : 'Open downloads'} ↗</span>
     </motion.button>
     <UpdateHistoryModal item={historyOpen ? update : null} onClose={() => setHistoryOpen(false)} />

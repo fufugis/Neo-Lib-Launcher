@@ -9,6 +9,32 @@ The authoritative item-by-item status is maintained in [`WORK_QUEUE.md`](WORK_QU
 - **v1.7.0** — source commit pushed to `main` (`fc65001`). A GitHub Release tag and compiled installer have not been published yet.
 - **v1.7.1** — local development batch; not release-ready yet.
 - **v1.7.2** — active development batch: Released This Week, safer Steam metadata identity, Home cleanup, and theme cleanup.
+- **vNext** — active development batch: Rating System v2, richer launcher metadata, and Home interaction cleanup. The authoritative item-level queue is in [`WORK_QUEUE.md`](WORK_QUEUE.md).
+
+## Completed locally for the next update
+
+- **Optimize Center** — a new bottom-right action beside CPU/RAM opens two animated, theme-aware power-up rows and remembers each tool’s latest result. Speed Up Gaming samples real per-process CPU and memory, shows GPU engine activity and its responsible processes when Windows exposes them, protects critical Windows/NEO-LIB processes, and explains Game Mode, GPU scheduling, recording, power-plan, and restart status with honest pros and trade-offs. Windows settings open in their native page; no hidden tuning is applied.
+- **Safe Junk Review** — an on-demand bounded scan checks known Windows temporary/crash locations plus large old archives/installers beside configured games. Every exact file links to its folder and must be individually marked inspected before selection. Two confirmations, including typed authorization, are required; approved files go to the Windows Recycle Bin, never through recursive permanent deletion.
+- **Post-play rating prompt** — a session lasting at least fifteen minutes can gently ask for the game’s one-decimal private rating. The player can rate, snooze for another session, or permanently suppress the prompt for that game.
+- **Richer Preview news** — preview news now uses an article image when its public feed supplies one, then falls back to the game’s existing hero, background, screenshot, or cover art.
+- **GPU setup assistant** — the first desktop launch reads Windows’ ordinary adapter list and adds a Hardware & graphics group in Tools: GPU-Z, CPU-Z, and the detected NVIDIA/AMD/Intel control centre when its local executable is found. If a vendor centre is not installed, the shortcut honestly opens Windows Graphics Settings instead. It never changes drivers, GPU settings, or the registry.
+- **Managed GPU-Z / CPU-Z** — missing utilities are muted and say Set up required. Their compact setup menu can validate a manually located executable or, only after the player clicks Install, download from TechPowerUp/CPUID’s official site. GPU-Z is placed as its official portable executable in NEO-LIB’s managed tools area; CPU-Z opens CPUID’s visible installer without silent flags or elevation.
+
+- **Rating System v2 reset** — existing personal ratings are deliberately cleared once on first run of the new system, so old whole-star choices are not silently treated as equivalent to precise decimal ratings. New ratings remain one-decimal values.
+- **Fractional star fill** — the preview rating control now fills each star by its actual decimal share: for example, `3.5` displays three full gold stars and one half-filled star, rather than only three whole stars.
+- **Battle.net metadata enrichment** — known Battle.net products now use a bounded map to their official public Blizzard/Battle.net product pages before generic sources. This supplies the official title, description, artwork, website, and direct tags without login, account access, or launcher writes; unmapped products still use the normal picker/search path.
+- **Provider tag visibility** — Game identity now keeps a compact direct-source tag group in addition to core genres and subgenres, so a game can read as `Action` plus `Third-Person Shooter`, `Action Roguelike`, `Co-op`, and `Multiplayer` rather than collapsing to the broadest label.
+- **Home interaction overhaul** — Top 5 Played is a fixed centred Home feature that can still be hidden/restored; Library Health is a dedicated detailed panel; and pane ordering now previews the placement in real time with a glowing active handle, dimmed neighbours, animated layout movement, and an insertion line.
+- **Stronger suggestions and Friends** — What should I play? now uses larger cards and states why a game is timely, unplayed, or worth rediscovering. Friends has a larger, more readable, less-transparent theme-aware surface.
+- **Independent update discovery** — refreshes now inspect only nearby, bounded Version/Changelog/Readme files for an explicit installed version and compare it to a saved update page or public game website. A game without enough evidence is reported as needing setup rather than incorrectly being called current.
+- **Background update intelligence** — version evidence is warmed shortly after library startup and whenever a game is launched. It safely considers launcher manifests, saved metadata, executable/version naming, and bounded nearby Version/Changelog/Readme/Config files, then checks official/public sources in a small parallel queue with a short cache. A verified update blinks in a dedicated Preview bar directly above the news alert.
+- **Update checklist** — every conclusive check is saved locally per game as current, pending, available, or needs-evidence. Home and Preview show only real available/pending alerts; a game drops away automatically once its launcher/local version evidence reports it current again.
+- **Library precision pass** — the first-game gap now reaches a true compact zero safely, Backdrop headers scale their padding/border with category text size, and a new NEO-LIB window begins at 75% usable width by 90% usable height before later restoring the player’s own bounds.
+- **External-launch Rest Mode** — while Rest Mode is enabled, NEO-LIB checks ordinary Windows process paths every ten seconds and rests when one exactly matches a game already in the local library, including games launched from Steam, Battle.net, Epic, and other clients. It never rests merely because a launcher is open, and it performs no injection, overlay, memory inspection, or credential access.
+- **Storage Control fix** — scans now ignore non-file launcher targets, measure a shared game-install folder only once, and keep the completed result while moving between Library and Home. The scanner never walks a whole drive: it checks only configured local game folders, with up to three folder walks at once for a quicker result.
+- **New Mid theme: Home** — a comfortable light-gray workspace built around sharp black/white structure, light-blue window edges and effects, plus a warm yellow/gray architectural blend pattern.
+- **Onboarding refresh** — first run now uses a short, current seven-step guide for importing, Hidden privacy, Home, game controls, customization, hover help, and Rest Mode. A new theme-aware hover-tip layer explains titled controls after one second throughout the launcher.
+- **Mid-theme balance** — Generic Gray and Generic Blue now belong to Mid; Generic Blue has a brighter navy/blue palette.
 
 ## Completed locally for v1.7.1
 
@@ -66,6 +92,7 @@ The authoritative item-by-item status is maintained in [`WORK_QUEUE.md`](WORK_QU
 
 ## Next up
 
+- **Queued next feature: post-play rating prompt** — after a meaningful completed session, NEO-LIB will gently invite the player to set a decimal personal rating. It will support dismissal/snooze choices and will not repeatedly nag for the same game.
 - Run the desktop bug-test pass, then build the Windows installer in a normal Windows/GitHub Actions environment.
 - Native itch.io import now reads only the desktop app’s configured install locations and completed-install receipt markers. It deliberately leaves itch’s live `butler.db` catalog alone and sends folder-derived titles through the normal approval-first metadata flow. A real local itch fixture still needs desktop verification.
 

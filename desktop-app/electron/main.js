@@ -8,7 +8,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell, nativeImage, Tray, Menu } = 
 const path = require('path');
 const fs = require('fs');
 const fsp = require('fs/promises');
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
 const http = require('http');
 const https = require('https');
 const os = require('os');
@@ -80,6 +80,7 @@ const libraryFile = () => path.join(dataDir(), 'library.json');
 const settingsFile = () => path.join(dataDir(), 'settings.json');
 const coversDir = () => path.join(dataDir(), 'covers');
 const saveBackupsDir = () => path.join(dataDir(), 'save-backups');
+const managedToolsDir = () => path.join(dataDir(), 'managed-tools');
 // v1.6.4 — Daily playtime snapshots so Stats can compute "played in the last N
 // days" (Steam's localconfig only stores lifetime totals, not deltas).
 const playtimeHistoryFile = () => path.join(dataDir(), 'playtime-history.json');
@@ -87,6 +88,7 @@ const playtimeHistoryFile = () => path.join(dataDir(), 'playtime-history.json');
 async function ensureDirs() {
   await fsp.mkdir(coversDir(), { recursive: true });
   await fsp.mkdir(saveBackupsDir(), { recursive: true });
+  await fsp.mkdir(managedToolsDir(), { recursive: true });
 }
 
 function safePathPart(value, fallback = 'game') {
@@ -244,9 +246,10 @@ function destroyTray() {
 function createWindow() {
   const { screen } = require('electron');
   const primary = screen.getPrimaryDisplay().workAreaSize;
-  // Default = 75% of the user's native screen, centered.
+  // First launch uses a comfortably wide, almost full-height working view.
+  // Later launches always prefer the user's own saved resize/move bounds.
   const defaultW = Math.max(960, Math.round(primary.width * 0.75));
-  const defaultH = Math.max(600, Math.round(primary.height * 0.75));
+  const defaultH = Math.max(600, Math.round(primary.height * 0.90));
 
   // Restore the last window bounds the user resized to (if saved). Validate
   // against current displays so a saved bound that's now off-screen (monitor
@@ -450,6 +453,12 @@ ipcMain.handle('game:launch', async (_e, { exePath, launchArgs, gameId, name } =
     return { ok: false, error: 'No exePath provided' };
   }
   try {
+    // Managed system shortcuts (for example Windows Graphics Settings) are
+    // explicit URI targets, never guessed from a game path.
+    if (/^(?:ms-settings:|shell:)/i.test(exePath)) {
+      await shell.openExternal(exePath);
+      return { ok: true, target: 'uri' };
+    }
     const argv = (launchArgs || '').trim()
       ? (launchArgs || '').trim().split(/\s+/)
       : [];
@@ -893,6 +902,174 @@ ipcMain.handle('app:openContainingDir', async (_e, p) => {
   await shell.openPath(dir);
 });
 
+// ---------------- GPU setup + managed hardware utilities ---------------- //
+// First-run detection is read-only: Windows reports adapter names and drivers
+// through Win32_VideoController. We add only a normal local shortcut; no
+// graphics driver, control-panel, or registry setting is changed.
+function firstExistingPath(paths) {
+  return paths.find((candidate) => candidate && fs.existsSync(candidate)) || '';
+}
+
+function gpuVendor(name = '') {
+  const text = String(name).toLowerCase();
+  if (/nvidia|geforce|quadro|rtx|gtx/.test(text)) return 'nvidia';
+  if (/amd|radeon|firepro/.test(text)) return 'amd';
+  if (/intel|arc|iris/.test(text)) return 'intel';
+  return 'generic';
+}
+
+function gpuControlCenterFor(vendor) {
+  const programs = process.env.ProgramFiles || 'C:\\Program Files';
+  const programsX86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+  const known = {
+    nvidia: {
+      label: 'NVIDIA Control Centre',
+      paths: [
+        path.join(programs, 'NVIDIA Corporation', 'Control Panel Client', 'nvcplui.exe'),
+        path.join(programs, 'NVIDIA Corporation', 'NVIDIA App', 'NVIDIA App.exe'),
+        path.join(programsX86, 'NVIDIA Corporation', 'Control Panel Client', 'nvcplui.exe'),
+      ],
+    },
+    amd: {
+      label: 'AMD Software: Adrenalin Edition',
+      paths: [
+        path.join(programs, 'AMD', 'CNext', 'CNext', 'RadeonSoftware.exe'),
+        path.join(programs, 'AMD', 'CNext', 'CNext', 'AMDSoftware.exe'),
+      ],
+    },
+    intel: {
+      label: 'Intel Graphics Control Centre',
+      paths: [
+        path.join(programs, 'Intel', 'Intel Arc Control', 'ArcControl.exe'),
+        path.join(programs, 'Intel', 'Intel Graphics Software', 'IntelGraphicsSoftware.exe'),
+      ],
+    },
+  };
+  const entry = known[vendor] || { label: 'Windows Graphics Settings', paths: [] };
+  const exePath = firstExistingPath(entry.paths);
+  return {
+    name: exePath ? entry.label : 'Windows Graphics Settings',
+    exePath,
+    target: exePath || 'ms-settings:display-advancedgraphics',
+    source: exePath ? 'vendor-control-centre' : 'windows-fallback',
+  };
+}
+
+const MANAGED_TOOL_PATHS = {
+  gpuz: () => [
+    path.join(managedToolsDir(), 'GPU-Z', 'GPU-Z.exe'),
+    path.join(process.env.ProgramFiles || 'C:\\Program Files', 'GPU-Z', 'GPU-Z.exe'),
+    path.join(process.env.ProgramFiles || 'C:\\Program Files', 'TechPowerUp', 'GPU-Z', 'GPU-Z.exe'),
+  ],
+  cpuz: () => [
+    path.join(process.env.ProgramFiles || 'C:\\Program Files', 'CPUID', 'CPU-Z', 'cpuz_x64.exe'),
+    path.join(process.env.ProgramFiles || 'C:\\Program Files', 'CPUID', 'CPU-Z', 'cpuz.exe'),
+    path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'CPUID', 'CPU-Z', 'cpuz.exe'),
+  ],
+};
+
+function installedManagedToolPath(toolId) {
+  return firstExistingPath(MANAGED_TOOL_PATHS[toolId]?.() || []);
+}
+
+ipcMain.handle('tools:detectGpuSetup', async () => {
+  const script = String.raw`
+    Get-CimInstance Win32_VideoController | Select-Object Name,VideoProcessor,DriverVersion,PNPDeviceID,AdapterRAM | ConvertTo-Json -Depth 3 -Compress
+  `;
+  const raw = await runPowerShellJson(script, 12_000);
+  const adapters = (Array.isArray(raw) ? raw : raw ? [raw] : []).map((adapter) => ({
+    name: String(adapter.Name || adapter.VideoProcessor || 'Unknown GPU'),
+    videoProcessor: String(adapter.VideoProcessor || ''),
+    driverVersion: String(adapter.DriverVersion || ''),
+    pnpDeviceId: String(adapter.PNPDeviceID || ''),
+    memoryBytes: Number(adapter.AdapterRAM || 0),
+  }));
+  const preferred = adapters.find((adapter) => gpuVendor(adapter.name) !== 'generic') || adapters[0] || { name: 'Unknown GPU' };
+  const vendor = gpuVendor(`${preferred.name} ${preferred.videoProcessor}`);
+  return {
+    ok: true,
+    adapters,
+    primary: { ...preferred, vendor },
+    controlCenter: gpuControlCenterFor(vendor),
+    utilities: {
+      gpuz: { exePath: installedManagedToolPath('gpuz') },
+      cpuz: { exePath: installedManagedToolPath('cpuz') },
+    },
+  };
+});
+
+ipcMain.handle('tools:verifyManagedTool', async (_event, { toolId, exePath } = {}) => {
+  if (!['gpuz', 'cpuz'].includes(toolId) || !exePath || !path.isAbsolute(exePath) || !fs.existsSync(exePath)) return { ok: false, error: 'Choose an existing executable file.' };
+  const base = path.basename(exePath).toLowerCase();
+  const expected = toolId === 'gpuz' ? /gpu[_-]?z.*\.exe$/ : /cpu[_-]?z.*\.exe$/;
+  if (!expected.test(base)) return { ok: false, error: `That does not look like the ${toolId === 'gpuz' ? 'GPU-Z' : 'CPU-Z'} executable.` };
+  return { ok: true, exePath };
+});
+
+function officialDownloadHost(url, allowedHosts) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' && allowedHosts.includes(parsed.hostname.toLowerCase()) ? parsed.toString() : '';
+  } catch { return ''; }
+}
+
+async function resolveManagedToolDownload(toolId) {
+  if (toolId === 'gpuz') {
+    const page = await httpGetText('https://www.techpowerup.com/download/techpowerup-gpu-z/', 15_000);
+    const urls = [...page.matchAll(/(?:href|data-download-url)=["']([^"']+\.exe(?:\?[^"']*)?)["']/gi)].map((match) => new URL(match[1], 'https://www.techpowerup.com/').toString());
+    const url = urls.map((value) => officialDownloadHost(value, ['www.techpowerup.com', 'download.techpowerup.com', 'techpowerup.com'])).find(Boolean);
+    if (!url) throw new Error('TechPowerUp did not expose a verified GPU-Z executable link right now.');
+    return { url, fileName: 'GPU-Z.exe', portable: true, officialPage: 'https://www.techpowerup.com/download/techpowerup-gpu-z/' };
+  }
+  if (toolId === 'cpuz') {
+    const page = await httpGetText('https://www.cpuid.com/softwares/cpu-z.html', 15_000);
+    const urls = [...page.matchAll(/(?:href|data-[\w-]+)=["']([^"']*cpu-z[\w._-]*-en\.exe(?:\?[^"']*)?)["']/gi)].map((match) => new URL(match[1], 'https://www.cpuid.com/').toString());
+    const url = urls.map((value) => officialDownloadHost(value, ['www.cpuid.com', 'cpuid.com', 'download.cpuid.com'])).find(Boolean);
+    if (!url) throw new Error('CPUID did not expose a verified CPU-Z installer link right now.');
+    return { url, fileName: 'CPU-Z-setup.exe', portable: false, officialPage: 'https://www.cpuid.com/softwares/cpu-z.html' };
+  }
+  throw new Error('Unsupported managed tool.');
+}
+
+async function validExecutable(filePath) {
+  try {
+    const handle = await fsp.open(filePath, 'r');
+    const buffer = Buffer.alloc(2);
+    await handle.read(buffer, 0, 2, 0);
+    await handle.close();
+    return buffer.toString('ascii') === 'MZ';
+  } catch { return false; }
+}
+
+ipcMain.handle('tools:installManagedTool', async (_event, toolId) => {
+  if (!['gpuz', 'cpuz'].includes(toolId)) return { ok: false, error: 'Unsupported managed tool.' };
+  try {
+    const download = await resolveManagedToolDownload(toolId);
+    const targetDir = path.join(managedToolsDir(), toolId === 'gpuz' ? 'GPU-Z' : 'CPU-Z');
+    await fsp.mkdir(targetDir, { recursive: true });
+    const target = path.join(targetDir, download.fileName);
+    await httpDownload(download.url, target);
+    if (!(await validExecutable(target))) { await fsp.unlink(target).catch(() => {}); throw new Error('The official download was not a valid Windows executable.'); }
+    if (download.portable) {
+      return { ok: true, exePath: target, installed: true, mode: 'portable', officialPage: download.officialPage };
+    }
+    // CPU-Z is distributed as an installer. Do not pass silent flags or elevate
+    // it: the user sees CPUID's own installer and controls every installer step.
+    const installerResult = await new Promise((resolve) => {
+      const child = spawn(target, [], { detached: false, stdio: 'ignore', windowsHide: false });
+      child.on('error', (error) => resolve({ ok: false, error: error?.message || 'Could not open the official installer.' }));
+      child.on('close', () => resolve({ ok: true }));
+    });
+    if (!installerResult.ok) return installerResult;
+    const exePath = installedManagedToolPath('cpuz');
+    return exePath
+      ? { ok: true, exePath, installed: true, mode: 'installer', officialPage: download.officialPage }
+      : { ok: true, exePath: '', installed: false, mode: 'installer-finished', officialPage: download.officialPage, error: 'The installer closed, but CPU-Z was not found in its usual location. Use Locate to select it.' };
+  } catch (error) {
+    return { ok: false, error: error?.message || 'Official tool download failed.' };
+  }
+});
+
 // ---------------- Steam library detection ---------------- //
 function readSteamLibraryFolders(steamPath) {
   // Parses libraryfolders.vdf (very simple key/value parser, good enough).
@@ -1043,6 +1220,53 @@ ipcMain.handle('app:getAutoStart', async () => {
   } catch {
     return false;
   }
+});
+
+// External-game Rest Mode monitor. It deliberately matches only executable
+// paths already stored in the user's library. It never probes game memory,
+// injects code, hooks graphics, or assumes that an idle launcher means a game
+// is running. Windows exposes these paths through the ordinary process list.
+const externalGameWatch = { games: [], timer: null, checking: false, activeId: null };
+const PROCESS_PATH_SCRIPT = 'Get-CimInstance -ClassName Win32_Process | Where-Object { $_.ExecutablePath } | Select-Object ProcessId,ExecutablePath | ConvertTo-Json -Compress';
+function normalWinPath(value) { return String(value || '').replace(/^"|"$/g, '').replace(/\//g, '\\').toLowerCase(); }
+function runningWindowsExePaths() {
+  return new Promise((resolve) => {
+    if (process.platform !== 'win32') return resolve([]);
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', PROCESS_PATH_SCRIPT], { windowsHide: true, timeout: 8000, maxBuffer: 8 * 1024 * 1024 }, (error, stdout) => {
+      if (error || !stdout) return resolve([]);
+      try {
+        const parsed = JSON.parse(stdout);
+        const records = Array.isArray(parsed) ? parsed : [parsed];
+        resolve(records.map((entry) => normalWinPath(entry?.ExecutablePath)).filter(Boolean));
+      } catch { resolve([]); }
+    });
+  });
+}
+async function checkExternalGameWatch() {
+  if (externalGameWatch.checking || !externalGameWatch.games.length) return;
+  externalGameWatch.checking = true;
+  try {
+    const paths = new Set(await runningWindowsExePaths());
+    const launchedHere = new Set([...runningGames.keys()].map(String));
+    const active = externalGameWatch.games.find((game) => paths.has(game.exePath) && !launchedHere.has(String(game.id))) || null;
+    const nextId = active?.id || null;
+    if (nextId === externalGameWatch.activeId) return;
+    externalGameWatch.activeId = nextId;
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('game:externalState', { active: !!active, gameId: active?.id || null, name: active?.name || '' });
+  } finally {
+    externalGameWatch.checking = false;
+  }
+}
+ipcMain.handle('game:watchExternal', async (_e, { games = [] } = {}) => {
+  externalGameWatch.games = (games || []).map((game) => ({ id: game?.id, name: String(game?.name || 'Game'), exePath: normalWinPath(game?.exePath) })).filter((game) => game.id && game.exePath && path.isAbsolute(game.exePath));
+  if (!externalGameWatch.games.length) {
+    externalGameWatch.activeId = null;
+    if (externalGameWatch.timer) { clearInterval(externalGameWatch.timer); externalGameWatch.timer = null; }
+    return { ok: true, watching: 0 };
+  }
+  if (!externalGameWatch.timer) externalGameWatch.timer = setInterval(checkExternalGameWatch, 10_000);
+  checkExternalGameWatch();
+  return { ok: true, watching: externalGameWatch.games.length };
 });
 
 function queryRegistry(root, view) {
@@ -1594,14 +1818,30 @@ ipcMain.handle('saves:findCandidates', async (_e, { root, gameName } = {}) => {
 // User-triggered only: measuring whole game folders can be expensive on large
 // libraries, so Home never scans disks silently. "Mod content" is an estimate
 // of folders conventionally named mods/mod/workshop inside the game directory.
-ipcMain.handle('storage:scanGames', async (_e, { games = [] } = {}) => {
+const STORAGE_FOLDER_CACHE = new Map();
+ipcMain.handle('storage:scanGames', async (_e, { games = [], force = false } = {}) => {
   const results = [];
+  const candidates = [];
+  const seenRoots = new Set();
   for (const game of Array.isArray(games) ? games.slice(0, 250) : []) {
+    if (!game?.id || !game?.exePath || typeof game.exePath !== 'string' || !path.isAbsolute(game.exePath)) continue;
+    const root = path.resolve(path.dirname(game.exePath));
+    const rootKey = root.toLowerCase();
+    // Multiple entries aimed at the same install folder are one storage unit;
+    // showing the same byte count five times is misleading and wastes I/O.
+    if (seenRoots.has(rootKey)) continue;
+    seenRoots.add(rootKey);
+    candidates.push({ id: game.id, root, rootKey });
+  }
+  const measure = async ({ id, root, rootKey }) => {
     try {
-      if (!game?.id || !game?.exePath || typeof game.exePath !== 'string') continue;
-      const root = path.dirname(game.exePath);
       const stat = await fsp.stat(root);
-      if (!stat.isDirectory()) continue;
+      if (!stat.isDirectory()) return;
+      const cached = STORAGE_FOLDER_CACHE.get(rootKey);
+      if (!force && cached && Date.now() - cached.ts < 10 * 60 * 1000) {
+        results.push({ id, ...cached.result, cached: true });
+        return;
+      }
       const total = await folderStats(root, 60000);
       let modBytes = 0;
       let modFiles = 0;
@@ -1612,8 +1852,16 @@ ipcMain.handle('storage:scanGames', async (_e, { games = [] } = {}) => {
         const mod = await folderStats(path.join(root, entry.name), 30000);
         modBytes += mod.bytes; modFiles += mod.files;
       }
-      results.push({ id: game.id, bytes: total.bytes, files: total.files, modBytes, modFiles, truncated: total.truncated });
+      const result = { bytes: total.bytes, files: total.files, modBytes, modFiles, truncated: total.truncated };
+      STORAGE_FOLDER_CACHE.set(rootKey, { ts: Date.now(), result });
+      results.push({ id, ...result, cached: false });
     } catch { /* inaccessible or external drive disconnected */ }
+  };
+  // Three folder walks at once keeps the UI responsive while significantly
+  // reducing the wait for libraries spread across several game folders.
+  for (let start = 0; start < candidates.length; start += 3) {
+    // eslint-disable-next-line no-await-in-loop
+    await Promise.all(candidates.slice(start, start + 3).map(measure));
   }
   return { ok: true, results, scannedAt: Date.now() };
 });
@@ -1651,6 +1899,200 @@ ipcMain.handle('doctor:inspectLaunch', async (_e, { exePath, gameName } = {}) =>
 
 // Lightweight, local-only system readiness snapshot used by the Library footer.
 ipcMain.handle('system:health', async () => readSystemHealth());
+
+// ---------------- Optimize Center ---------------- //
+// These tools are deliberately on-demand. The process view uses ordinary
+// Windows performance/process APIs and never inspects process memory. Cleanup
+// only returns exact file candidates from bounded roots and moves confirmed
+// files to the Recycle Bin; it never recursively deletes a directory.
+const optimizeProcessSnapshot = new Map();
+const optimizeJunkSnapshot = new Map();
+
+function runPowerShellJson(script, timeout = 20_000) {
+  return new Promise((resolve) => {
+    if (process.platform !== 'win32') return resolve(null);
+    const encoded = Buffer.from(script, 'utf16le').toString('base64');
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], {
+      windowsHide: true, timeout, maxBuffer: 12 * 1024 * 1024,
+    }, (error, stdout) => {
+      if (error || !stdout?.trim()) return resolve(null);
+      try { resolve(JSON.parse(stdout)); } catch { resolve(null); }
+    });
+  });
+}
+
+const GAMING_INSPECT_SCRIPT = String.raw`
+$ErrorActionPreference = 'SilentlyContinue'
+$cores = [Math]::Max(1, [Environment]::ProcessorCount)
+$before = @{}
+Get-Process | ForEach-Object { $before[[int]$_.Id] = [double]($_.CPU) }
+Start-Sleep -Milliseconds 650
+$processes = Get-Process | ForEach-Object {
+  $pidValue = [int]$_.Id
+  $previous = $before[$pidValue]
+  $current = [double]($_.CPU)
+  $cpu = if ($null -ne $previous -and $current -ge $previous) { [Math]::Round((($current - $previous) / 0.65 / $cores) * 100, 1) } else { 0 }
+  $filePath = $null
+  try { $filePath = $_.Path } catch {}
+  [pscustomobject]@{ pid=$pidValue; name=$_.ProcessName; cpuPercent=[Math]::Min(100,$cpu); memoryBytes=[double]$_.WorkingSet64; path=$filePath }
+}
+$gpuByPid = @{}
+$gpuCounterAvailable = $false
+try {
+  $samples = (Get-Counter '\GPU Engine(*)\Utilization Percentage').CounterSamples
+  $gpuCounterAvailable = $true
+  foreach ($sample in $samples) {
+    if ($sample.InstanceName -match 'pid_(\d+)' -and [double]$sample.CookedValue -gt 0.05) {
+      $gpuPid = [int]$Matches[1]
+      if (-not $gpuByPid.ContainsKey($gpuPid)) { $gpuByPid[$gpuPid] = 0.0 }
+      $gpuByPid[$gpuPid] += [double]$sample.CookedValue
+    }
+  }
+} catch {}
+$gpu = @($gpuByPid.GetEnumerator() | ForEach-Object {
+  $proc = Get-Process -Id $_.Key -ErrorAction SilentlyContinue
+  [pscustomobject]@{ pid=[int]$_.Key; name=if($proc){$proc.ProcessName}else{'Unknown'}; percent=[Math]::Round([Math]::Min(100,[double]$_.Value),1) }
+} | Sort-Object percent -Descending | Select-Object -First 8)
+$gameBar = Get-ItemProperty 'HKCU:\Software\Microsoft\GameBar'
+$gameConfig = Get-ItemProperty 'HKCU:\System\GameConfigStore'
+$graphics = Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers'
+$capture = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR'
+$powerText = (powercfg /getactivescheme | Out-String).Trim()
+$pendingRestart = (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending') -or (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired')
+$topProcesses = @($processes | Sort-Object cpuPercent -Descending | Select-Object -First 30) + @($processes | Sort-Object memoryBytes -Descending | Select-Object -First 30)
+[pscustomobject]@{
+  processes=@($topProcesses | Sort-Object pid -Unique)
+  gpu=@($gpu)
+  gpuAvailable=[bool]$gpuCounterAvailable
+  settings=[pscustomobject]@{
+    gameMode=if($null -eq $gameBar.AutoGameModeEnabled){'system default'}elseif([int]$gameBar.AutoGameModeEnabled -eq 1){'on'}else{'off'}
+    hags=if($null -eq $graphics.HwSchMode){'system default'}elseif([int]$graphics.HwSchMode -eq 2){'on'}elseif([int]$graphics.HwSchMode -eq 1){'off'}else{'system default'}
+    backgroundCapture=if(($null -ne $capture.AppCaptureEnabled -and [int]$capture.AppCaptureEnabled -eq 0) -or ($null -ne $gameConfig.GameDVR_Enabled -and [int]$gameConfig.GameDVR_Enabled -eq 0)){'off'}else{'on'}
+    powerPlan=$powerText
+    pendingRestart=[bool]$pendingRestart
+  }
+} | ConvertTo-Json -Depth 6 -Compress
+`;
+
+const protectedProcessNames = new Set(['system', 'registry', 'smss', 'csrss', 'wininit', 'services', 'lsass', 'svchost', 'winlogon', 'dwm', 'explorer', 'fontdrvhost', 'sihost', 'taskhostw']);
+ipcMain.handle('optimize:inspectGaming', async () => {
+  const payload = await runPowerShellJson(GAMING_INSPECT_SCRIPT);
+  if (!payload) return { ok: false, error: 'Windows performance details are unavailable.' };
+  optimizeProcessSnapshot.clear();
+  const processes = (Array.isArray(payload.processes) ? payload.processes : payload.processes ? [payload.processes] : []).map((entry) => {
+    const pid = Number(entry.pid);
+    const name = String(entry.name || 'Unknown');
+    const protectedEntry = pid <= 4 || pid === process.pid || protectedProcessNames.has(name.toLowerCase()) || normalWinPath(entry.path) === normalWinPath(process.execPath);
+    const record = { pid, name, path: String(entry.path || ''), protected: protectedEntry, capturedAt: Date.now() };
+    if (pid > 0) optimizeProcessSnapshot.set(pid, record);
+    return { ...record, cpuPercent: Number(entry.cpuPercent || 0), memoryBytes: Number(entry.memoryBytes || 0) };
+  });
+  const gpu = (Array.isArray(payload.gpu) ? payload.gpu : payload.gpu ? [payload.gpu] : []).map((entry) => ({ pid: Number(entry.pid), name: String(entry.name || 'Unknown'), percent: Number(entry.percent || 0) }));
+  return { ok: true, processes, gpu, gpuAvailable: !!payload.gpuAvailable, settings: payload.settings || {}, inspectedAt: Date.now() };
+});
+
+ipcMain.handle('optimize:closeProcess', async (_event, { pid, name } = {}) => {
+  const numericPid = Number(pid);
+  const record = optimizeProcessSnapshot.get(numericPid);
+  if (!record || Date.now() - record.capturedAt > 2 * 60 * 1000) return { ok: false, error: 'The process list is stale. Refresh it first.' };
+  if (record.protected || record.name !== String(name || '')) return { ok: false, error: 'NEO-LIB will not close this protected or changed process.' };
+  return new Promise((resolve) => {
+    // Deliberately omit taskkill /F: Windows gets the non-forced close request
+    // first so cooperative apps can shut down normally.
+    execFile('taskkill.exe', ['/PID', String(numericPid)], { windowsHide: true, timeout: 8000 }, (error) => {
+      if (error) return resolve({ ok: false, error: 'Windows refused the normal close request. NEO-LIB will not force-kill it.' });
+      optimizeProcessSnapshot.delete(numericPid);
+      resolve({ ok: true, name: record.name });
+    });
+  });
+});
+
+function optimizeFileToken(filePath, stat) {
+  return Buffer.from(`${filePath}|${stat.size}|${stat.mtimeMs}`).toString('base64url').slice(0, 120);
+}
+
+async function collectJunkFiles(root, options, out, seen) {
+  const { depth = 0, maxDepth = 1, kind = 'Temporary file', match, minAgeMs = 0, maxEntries = 3000 } = options;
+  if (!root || !path.isAbsolute(root) || out.length >= 600 || seen.visited >= maxEntries) return;
+  let entries = [];
+  try { entries = await fsp.readdir(root, { withFileTypes: true }); } catch { return; }
+  for (const entry of entries) {
+    if (out.length >= 600 || seen.visited >= maxEntries) break;
+    seen.visited += 1;
+    const fullPath = path.join(root, entry.name);
+    if (entry.isSymbolicLink()) continue;
+    if (entry.isDirectory()) {
+      if (depth < maxDepth) await collectJunkFiles(fullPath, { ...options, depth: depth + 1 }, out, seen);
+      continue;
+    }
+    if (!entry.isFile() || !match(entry.name, fullPath)) continue;
+    try {
+      const stat = await fsp.stat(fullPath);
+      if (Date.now() - stat.mtimeMs < minAgeMs) continue;
+      const token = optimizeFileToken(fullPath, stat);
+      if (optimizeJunkSnapshot.has(token)) continue;
+      const item = { token, path: fullPath, name: entry.name, folder: path.dirname(fullPath), bytes: stat.size, modifiedAt: stat.mtimeMs, kind, selectedByDefault: kind !== 'Large installer or archive' };
+      optimizeJunkSnapshot.set(token, { ...item, capturedAt: Date.now() });
+      out.push(item);
+    } catch { /* file disappeared or became inaccessible */ }
+  }
+}
+
+ipcMain.handle('optimize:scanJunk', async (_event, { games = [] } = {}) => {
+  optimizeJunkSnapshot.clear();
+  const out = [];
+  const protectedFiles = new Set((games || []).flatMap((game) => [game?.exePath, game?.saveFolder]).filter(Boolean).map(normalWinPath));
+  const safeMatch = (name, fullPath) => !protectedFiles.has(normalWinPath(fullPath)) && /(?:\.tmp$|\.log$|\.dmp$|\.old$|\.bak$|crash|report)/i.test(name);
+  const seen = { visited: 0 };
+  const week = 7 * 24 * 60 * 60 * 1000;
+  const knownRoots = [
+    { root: app.getPath('temp'), kind: 'Old temporary/log file', maxDepth: 2, match: safeMatch, minAgeMs: week },
+    { root: path.join(process.env.LOCALAPPDATA || '', 'CrashDumps'), kind: 'Crash dump', maxDepth: 1, match: (name, fullPath) => !protectedFiles.has(normalWinPath(fullPath)) && /\.dmp$/i.test(name), minAgeMs: 24 * 60 * 60 * 1000 },
+  ];
+  for (const config of knownRoots) await collectJunkFiles(config.root, { ...config, maxEntries: 5000 }, out, seen);
+
+  const archiveRoots = new Set();
+  for (const game of (games || []).slice(0, 500)) {
+    const exePath = String(game?.exePath || '');
+    if (!path.isAbsolute(exePath)) continue;
+    const gameRoot = path.dirname(exePath);
+    archiveRoots.add(gameRoot);
+    archiveRoots.add(path.dirname(gameRoot));
+  }
+  const largeArchive = (name, fullPath) => !protectedFiles.has(normalWinPath(fullPath)) && /(?:\.zip|\.rar|\.7z|\.iso|\.msi|setup\.exe)$/i.test(name);
+  for (const root of [...archiveRoots].slice(0, 120)) {
+    const before = out.length;
+    await collectJunkFiles(root, { maxDepth: 1, kind: 'Large installer or archive', match: largeArchive, minAgeMs: 14 * 24 * 60 * 60 * 1000, maxEntries: 1200 }, out, seen);
+    for (let index = before; index < out.length; index += 1) {
+      if (out[index].bytes < 250 * 1024 * 1024) {
+        optimizeJunkSnapshot.delete(out[index].token);
+        out[index] = null;
+      }
+    }
+  }
+  const items = out.filter(Boolean).sort((a, b) => b.bytes - a.bytes).slice(0, 500);
+  const keep = new Set(items.map((item) => item.token));
+  for (const token of optimizeJunkSnapshot.keys()) if (!keep.has(token)) optimizeJunkSnapshot.delete(token);
+  return { ok: true, items, totalBytes: items.reduce((sum, item) => sum + item.bytes, 0), scannedAt: Date.now(), visited: seen.visited, scope: 'Known Windows temp/crash locations and folders beside configured library games only.' };
+});
+
+ipcMain.handle('optimize:trashJunk', async (_event, { tokens = [] } = {}) => {
+  const selected = [...new Set(tokens)].slice(0, 100);
+  const trashed = [];
+  const failed = [];
+  for (const token of selected) {
+    const record = optimizeJunkSnapshot.get(String(token));
+    if (!record || Date.now() - record.capturedAt > 30 * 60 * 1000) { failed.push({ token, error: 'Stale scan result' }); continue; }
+    try {
+      const stat = await fsp.stat(record.path);
+      if (!stat.isFile() || optimizeFileToken(record.path, stat) !== token) { failed.push({ token, error: 'File changed since scan' }); continue; }
+      await shell.trashItem(record.path);
+      trashed.push({ token, path: record.path, bytes: record.bytes });
+      optimizeJunkSnapshot.delete(token);
+    } catch (error) { failed.push({ token, error: error?.message || 'Could not move file to Recycle Bin' }); }
+  }
+  return { ok: failed.length === 0, trashed, failed, reclaimedBytes: trashed.reduce((sum, item) => sum + item.bytes, 0) };
+});
 
 // ---------------- GOG search & details ---------------- //
 ipcMain.handle('gog:search', async (_e, query) => {
@@ -2074,6 +2516,71 @@ const LAUNCHER_EXCLUSIVES = {
 function curatedMatch(query) {
   const k = (query || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   return LAUNCHER_EXCLUSIVES[k] || null;
+}
+
+// Battle.net does not provide a public, keyless library-metadata API. For its
+// well-known locally-installed products, read the matching public product page
+// instead of guessing from a Steam search result. This is deliberately bounded
+// to a maintained product map: no login, account data, launcher files, or broad
+// web scrape is involved. Unmapped names still continue through the normal
+// multi-source pipeline below.
+const BATTLENET_PRODUCTS = [
+  { match: /diablo\s*iv|diablo4/i, name: 'Diablo IV', url: 'https://eu.shop.battle.net/en-us/product/diablo-iv', genres: ['Action RPG'], tags: ['Action RPG', 'Open World', 'Co-op', 'Multiplayer'] },
+  { match: /diablo\s*ii.*resurrected|d2r/i, name: 'Diablo II: Resurrected', url: 'https://eu.shop.battle.net/en-us/product/diablo-ii-resurrected', genres: ['Action RPG'], tags: ['Action RPG', 'Loot', 'Co-op', 'Multiplayer'] },
+  { match: /diablo\s*iii|diablo3/i, name: 'Diablo III', url: 'https://eu.shop.battle.net/en-us/product/diablo-iii', genres: ['Action RPG'], tags: ['Action RPG', 'Loot', 'Co-op', 'Multiplayer'] },
+  { match: /diablo\s*immortal/i, name: 'Diablo Immortal', url: 'https://diabloimmortal.blizzard.com/', genres: ['Action RPG'], tags: ['Action RPG', 'MMORPG', 'Free to Play', 'Multiplayer'] },
+  { match: /warcraft\s*(iii|3).*reforged|warcraft3reforged/i, name: 'Warcraft III: Reforged', url: 'https://eu.shop.battle.net/en-us/product/warcraft-3-reforged', genres: ['Real-Time Strategy'], tags: ['Real-Time Strategy', 'Fantasy', 'Campaign', 'Multiplayer'] },
+  { match: /world\s*of\s*warcraft|\bwow\b/i, name: 'World of Warcraft', url: 'https://worldofwarcraft.blizzard.com/', genres: ['MMORPG'], tags: ['MMORPG', 'Open World', 'Fantasy', 'Multiplayer'] },
+  { match: /starcraft\s*ii|starcraft2/i, name: 'StarCraft II', url: 'https://starcraft2.blizzard.com/', genres: ['Real-Time Strategy'], tags: ['Real-Time Strategy', 'Sci-Fi', 'Competitive', 'Multiplayer'] },
+  { match: /starcraft.*remastered/i, name: 'StarCraft: Remastered', url: 'https://eu.shop.battle.net/en-us/product/starcraft-remastered', genres: ['Real-Time Strategy'], tags: ['Real-Time Strategy', 'Sci-Fi', 'Competitive', 'Multiplayer'] },
+  { match: /overwatch\s*2|overwatch2/i, name: 'Overwatch 2', url: 'https://overwatch.blizzard.com/', genres: ['Shooter'], tags: ['Hero Shooter', 'First-Person Shooter', 'Team-Based', 'Multiplayer'] },
+  { match: /hearthstone/i, name: 'Hearthstone', url: 'https://hearthstone.blizzard.com/', genres: ['Card Game'], tags: ['Card Game', 'Strategy', 'Free to Play', 'Multiplayer'] },
+  { match: /heroes\s*of\s*the\s*storm/i, name: 'Heroes of the Storm', url: 'https://heroesofthestorm.blizzard.com/', genres: ['MOBA'], tags: ['MOBA', 'Strategy', 'Team-Based', 'Multiplayer'] },
+  { match: /warzone/i, name: 'Call of Duty: Warzone', url: 'https://eu.shop.battle.net/en-us/product/call-of-duty-warzone-2', genres: ['Shooter'], tags: ['First-Person Shooter', 'Battle Royale', 'Multiplayer', 'Free to Play'] },
+  { match: /black\s*ops\s*6|bo6/i, name: 'Call of Duty: Black Ops 6', url: 'https://eu.shop.battle.net/en-us/product/call-of-duty-black-ops-6', genres: ['Shooter'], tags: ['First-Person Shooter', 'Campaign', 'Multiplayer', 'Zombies'] },
+  { match: /black\s*ops\s*cold\s*war/i, name: 'Call of Duty: Black Ops Cold War', url: 'https://eu.shop.battle.net/en-us/product/call-of-duty-black-ops-cold-war', genres: ['Shooter'], tags: ['First-Person Shooter', 'Campaign', 'Multiplayer', 'Zombies'] },
+];
+const BATTLENET_METADATA_CACHE = new Map();
+
+function metaTag(html, key) {
+  const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const patterns = [
+    new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']+)["']`, 'i'),
+    new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${escaped}["']`, 'i'),
+  ];
+  const value = patterns.map((pattern) => html.match(pattern)?.[1]).find(Boolean) || '';
+  return stripHtml(value.replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"'));
+}
+
+async function battleNetMetadata(query) {
+  const product = BATTLENET_PRODUCTS.find((entry) => entry.match.test(String(query || '')));
+  if (!product) return null;
+  const cached = BATTLENET_METADATA_CACHE.get(product.name);
+  if (cached && Date.now() - cached.at < 12 * 60 * 60 * 1000) return cached.value;
+  try {
+    const html = await httpGetText(product.url, 10_000);
+    const image = metaTag(html, 'og:image');
+    const description = metaTag(html, 'og:description') || metaTag(html, 'description');
+    const value = {
+      source: 'battlenet',
+      name: product.name,
+      shortDescription: description,
+      about: description,
+      headerImage: image,
+      capsuleImage: image,
+      background: image,
+      screenshots: [],
+      genres: product.genres,
+      genreTags: product.tags,
+      developers: ['Blizzard Entertainment'],
+      publishers: ['Blizzard Entertainment'],
+      website: product.url,
+    };
+    BATTLENET_METADATA_CACHE.set(product.name, { at: Date.now(), value });
+    return value;
+  } catch {
+    return null;
+  }
 }
 
 // ---------------- Per-source candidate search ---------------- //
@@ -2529,7 +3036,7 @@ Return ONLY a single compact JSON object (no markdown) with these fields:
   } catch { return []; }
 }
 
-ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey, lockedAppid }) => {
+ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey, lockedAppid, launcher }) => {
   // If a lockedAppid is provided, skip search entirely and just refresh that exact entry.
   // Delisted Steam products can remain in a customer's library and manifest while
   // disappearing from public store search (and sometimes appdetails).  Never let a
@@ -2588,6 +3095,11 @@ ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey,
   // 0b. Curated launcher-exclusives (LoL, Fortnite, Valorant, Minecraft, etc.) — instant, no network
   const curated = curatedMatch(term);
   if (curated) return curated;
+
+  if (String(launcher || '').toLowerCase() === 'battlenet') {
+    const battleNet = await battleNetMetadata(term);
+    if (battleNet) return battleNet;
+  }
 
   // 1. Steam
   if (!skipSources.includes('steam')) {
@@ -3247,6 +3759,9 @@ ipcMain.handle('news:fetchSteam', async (_e, { games = [], days = 14, force = fa
             if (typeof it.date !== 'number' || it.date < cutoffSec) continue;
             // Strip Steam BBCode-ish tags and heavy HTML for the snippet
             const raw = String(it.contents || '');
+            const articleImage = raw.match(/\[img](https?:\/\/[^\]\s]+)\[\/img]/i)?.[1]
+              || raw.match(/<img[^>]+src=["'](https?:\/\/[^"']+)["']/i)?.[1]
+              || '';
             const snippet = raw
               .replace(/\[img][\s\S]*?\[\/img]/gi, '')
               .replace(/\[url=[^\]]*]([\s\S]*?)\[\/url]/gi, '$1')
@@ -3270,6 +3785,7 @@ ipcMain.handle('news:fetchSteam', async (_e, { games = [], days = 14, force = fa
               feedlabel: it.feedlabel || '',
               feed_type: typeof it.feed_type === 'number' ? it.feed_type : null,
               snippet,
+              image: articleImage,
             });
           }
         } catch (err) {
@@ -3323,11 +3839,49 @@ ipcMain.handle('steam:manifest', async (_e, appid) => {
   return { ok: false, error: 'Manifest not found (game not installed locally?).' };
 });
 
+// Read a small, local set of version files beside a selected game executable.
+// This intentionally does not scan drives, unpack archives, or inspect process
+// memory: it is only enough to make independent/repack version checks useful
+// when a release build left its version in a readme, changelog, or file name.
+function deriveInstalledVersionFromLocalGame(game = {}) {
+  const exePath = String(game.exePath || '');
+  if (!exePath || !path.isAbsolute(exePath)) return null;
+  const roots = [path.dirname(exePath), path.dirname(path.dirname(exePath))];
+  const candidates = [];
+  const seen = new Set();
+  for (const root of roots) {
+    try {
+      for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+        if (candidates.length >= 24) break;
+        if (!entry.isFile()) continue;
+        const fullPath = path.join(root, entry.name);
+        if (seen.has(fullPath)) continue;
+        seen.add(fullPath);
+        if (/^(?:version|changelog|patch|readme|release|notes|about|config|game).*\.(?:txt|md|nfo|html?|json|ini|cfg)$/i.test(entry.name)) candidates.push(fullPath);
+      }
+    } catch { /* inaccessible game folder is not an error */ }
+  }
+  const nameVersion = (value) => String(value || '').match(/(?:\bv(?:ersion)?\s*|[_\- ])(\d+(?:\.\d+){1,3}(?:[a-z]|\s*(?:alpha|beta|rc)\d*)?)(?=$|[_\- .])/i)?.[1];
+  for (const file of candidates) {
+    try {
+      const text = fs.readFileSync(file, 'utf8').slice(0, 96_000);
+      const match = text.match(/(?:\b(?:game\s+)?version|\bbuild)\s*(?:is|:|=|#|-|to)?\s*v?(\d+(?:\.\d+){1,3}(?:[a-z]|\s*(?:alpha|beta|rc)\d*)?)/i);
+      if (match?.[1]) return { version: match[1].replace(/\s+/g, ''), evidence: path.basename(file) };
+    } catch { /* skip unreadable/non-text files */ }
+  }
+  const fromExe = nameVersion(path.basename(exePath));
+  return fromExe ? { version: fromExe, evidence: path.basename(exePath) } : null;
+}
+
+const INDEPENDENT_UPDATE_CACHE = new Map();
+
 // Read-only update intelligence. NEO-LIB only reports an update as pending
 // when the launcher's own manifest exposes concrete undownloaded bytes. Raw
 // state flags are returned for diagnostics but never guessed into a warning.
 ipcMain.handle('updates:scan', async (_e, { games = [] } = {}) => {
   const items = [];
+  const needsSetup = [];
+  const ledger = [];
   let checked = 0;
   const steamPath = defaultSteamPath();
   const libraries = steamPath ? readSteamLibraryFolders(steamPath) : [];
@@ -3348,8 +3902,11 @@ ipcMain.handle('updates:scan', async (_e, { games = [] } = {}) => {
     const total = Number(manifest.bytesToDownload || 0);
     const downloaded = Number(manifest.bytesDownloaded || 0);
     const remainingBytes = total > downloaded ? total - downloaded : 0;
-    if (remainingBytes <= 0) continue;
-    items.push({
+    if (remainingBytes <= 0) {
+      ledger.push({ id: game.id, status: 'current', source: 'Steam manifest', checkedAt: Date.now(), currentVersion: manifest.buildid || '' });
+      continue;
+    }
+    const pendingItem = {
       id: game.id,
       name: game.name || manifest.name,
       platform: 'Steam',
@@ -3360,7 +3917,9 @@ ipcMain.handle('updates:scan', async (_e, { games = [] } = {}) => {
       stateFlags: Number(manifest.stateFlags || 0),
       status: downloaded > 0 ? 'downloading' : 'pending',
       actionUrl: `steam://downloads/`,
-    });
+    };
+    items.push(pendingItem);
+    ledger.push({ id: game.id, status: pendingItem.status, source: 'Steam manifest', checkedAt: Date.now(), currentVersion: manifest.buildid || '' });
   }
   const versionParts = (value) => String(value || '').toLowerCase().replace(/^v/, '').match(/\d+/g)?.map(Number) || [];
   const compareVersions = (a, b) => {
@@ -3371,11 +3930,33 @@ ipcMain.handle('updates:scan', async (_e, { games = [] } = {}) => {
     }
     return 0;
   };
-  for (const game of (games || []).filter((entry) => entry?.updateWatchUrl && entry?.installedVersion).slice(0, 80)) {
-    if (items.some((entry) => entry.id === game.id)) continue;
+  // Independent games are checked in a small parallel queue. This lets the
+  // startup scan cover a real library without opening a burst of requests or
+  // serially holding it up behind one slow forum page.
+  const independentCandidates = (games || []).slice(0, 500);
+  const scanIndependent = async (game) => {
+    if (items.some((entry) => entry.id === game.id)) return;
+    const localVersion = game.installedVersion ? { version: String(game.installedVersion), evidence: 'saved game metadata' } : deriveInstalledVersionFromLocalGame(game);
+    const sourceUrl = game.updateWatchUrl || game.website || '';
+    if (!localVersion || !sourceUrl) {
+      if (game.exePath || game.updateWatchUrl || game.website) {
+        const missing = !localVersion ? 'installed version' : 'public update page';
+        needsSetup.push({ id: game.id, name: game.name || 'Unnamed game', missing });
+        ledger.push({ id: game.id, status: 'needs-evidence', source: 'Independent game', checkedAt: Date.now(), missing });
+      }
+      return;
+    }
     let parsed;
-    try { parsed = new URL(game.updateWatchUrl); } catch { continue; }
-    if (!['http:', 'https:'].includes(parsed.protocol)) continue;
+    try { parsed = new URL(sourceUrl); } catch { return; }
+    if (!['http:', 'https:'].includes(parsed.protocol)) return;
+    const cacheKey = `${game.id}|${localVersion.version}|${parsed.toString()}`;
+    const cached = INDEPENDENT_UPDATE_CACHE.get(cacheKey);
+    if (cached && Date.now() - cached.ts < 15 * 60 * 1000) {
+      checked += 1;
+      if (cached.item) items.push({ ...cached.item });
+      ledger.push({ id: game.id, status: cached.item ? 'available' : 'current', source: 'Independent source', checkedAt: Date.now(), currentVersion: localVersion.version, latestVersion: cached.item?.latestVersion || localVersion.version });
+      return;
+    }
     try {
       const html = await httpGetText(parsed.toString(), 9_000);
       const text = stripHtml(html).replace(/\s+/g, ' ').slice(0, 500_000);
@@ -3384,21 +3965,28 @@ ipcMain.handle('updates:scan', async (_e, { games = [] } = {}) => {
       let match;
       while ((match = pattern.exec(text)) !== null && matches.length < 80) matches.push(match[1] || match[2]);
       const latestVersion = matches.sort((a, b) => compareVersions(b, a))[0];
-      if (!latestVersion || compareVersions(latestVersion, game.installedVersion) <= 0) continue;
-      items.push({
+      checked += 1;
+      const foundUpdate = latestVersion && compareVersions(latestVersion, localVersion.version) > 0 ? {
         id: game.id,
         name: game.name,
         platform: 'Independent source',
         status: 'available',
-        currentVersion: game.installedVersion,
+        currentVersion: localVersion.version,
         latestVersion,
         actionUrl: parsed.toString(),
         sourceKind: 'watch-page',
-      });
-      checked += 1;
+        installedVersionEvidence: localVersion.evidence,
+      } : null;
+      INDEPENDENT_UPDATE_CACHE.set(cacheKey, { ts: Date.now(), item: foundUpdate });
+      if (foundUpdate) items.push(foundUpdate);
+      ledger.push({ id: game.id, status: foundUpdate ? 'available' : 'current', source: 'Independent source', checkedAt: Date.now(), currentVersion: localVersion.version, latestVersion: latestVersion || localVersion.version });
     } catch { /* inaccessible or protected page — do not create a false alert */ }
+  };
+  for (let start = 0; start < independentCandidates.length; start += 4) {
+    // eslint-disable-next-line no-await-in-loop
+    await Promise.all(independentCandidates.slice(start, start + 4).map(scanIndependent));
   }
-  return { ok: true, checked, items, scannedAt: Date.now(), confidence: 'launcher-manifest' };
+  return { ok: true, checked, items, needsSetup: needsSetup.slice(0, 20), ledger, scannedAt: Date.now(), confidence: 'launcher-manifest-and-local-version' };
 });
 
 ipcMain.handle('updates:history', async (_e, { url, currentVersion = '' } = {}) => {
@@ -3473,6 +4061,10 @@ async function fetchItchDevlog(game, cutoffMs) {
       const link = ((block.match(/<link>([\s\S]*?)<\/link>/) || [])[1] || '').trim();
       const pub = (block.match(/<pubDate>([\s\S]*?)<\/pubDate>/) || [])[1] || '';
       const desc = stripHtml((block.match(/<description>([\s\S]*?)<\/description>/) || [])[1] || '');
+      const image = (block.match(/<media:content[^>]+url=["'](https?:\/\/[^"']+)["']/i) || [])[1]
+        || (block.match(/<enclosure[^>]+url=["'](https?:\/\/[^"']+)["']/i) || [])[1]
+        || (block.match(/<img[^>]+src=["'](https?:\/\/[^"']+)["']/i) || [])[1]
+        || '';
       const dateMs = pub ? Date.parse(pub) : 0;
       if (!dateMs || dateMs < cutoffMs) continue;
       items.push({
@@ -3486,6 +4078,7 @@ async function fetchItchDevlog(game, cutoffMs) {
         author: '',
         date: dateMs,
         snippet: desc.slice(0, 320),
+        image,
       });
     }
     return items;

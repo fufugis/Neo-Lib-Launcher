@@ -14,6 +14,8 @@ import PromptModal from './components/PromptModal';
 import ConfirmModal from './components/ConfirmModal';
 import TroubleshootModal from './components/TroubleshootModal';
 import TutorialModal from './components/TutorialModal';
+import HoverTips from './components/HoverTips';
+import PostPlayRatingModal from './components/PostPlayRatingModal';
 import CategoryModal from './components/CategoryModal';
 import Confetti from './components/Confetti';
 import StartupIntro from './components/StartupIntro';
@@ -115,6 +117,60 @@ const DEMO_TOOL_CATEGORIES = [
   { id: 'tcat-hw', name: 'Hardware monitors', colorId: 'lime', private: false },
 ];
 
+const HARDWARE_TOOLS_CATEGORY = { id: '__hardware_tools__', name: 'Hardware & graphics', colorId: 'lime', private: false, pinnedBottom: true };
+
+function sameToolName(a, b) {
+  return String(a || '').replace(/[^a-z0-9]/gi, '').toLowerCase() === String(b || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+}
+
+/** Adds first-run hardware conveniences without replacing a user's own tools. */
+function withGpuSetupTools(current, setup) {
+  const utilities = setup?.utilities || {};
+  const existing = current.tools || [];
+  const managedDefaults = [
+    {
+      id: 'managed-gpuz', name: 'GPU-Z', managedTool: 'gpuz', exePath: utilities.gpuz?.exePath || '',
+      availability: utilities.gpuz?.exePath ? 'installed' : 'missing', categoryIds: [HARDWARE_TOOLS_CATEGORY.id],
+      shortDescription: 'Official TechPowerUp utility for graphics-card information.',
+      about: 'GPU-Z shows detailed graphics-card, sensor, driver, and PCIe information. NEO-LIB can locate an existing copy or download the official portable utility after you ask.',
+      genres: ['System info'], website: 'https://www.techpowerup.com/gpuz/', source: 'managed-hardware', addedAt: Date.now(),
+    },
+    {
+      id: 'managed-cpuz', name: 'CPU-Z', managedTool: 'cpuz', exePath: utilities.cpuz?.exePath || '',
+      availability: utilities.cpuz?.exePath ? 'installed' : 'missing', categoryIds: [HARDWARE_TOOLS_CATEGORY.id],
+      shortDescription: 'Official CPUID utility for processor, memory, and mainboard information.',
+      about: 'CPU-Z reports processor, mainboard, memory, and live clock information. NEO-LIB can locate it or download CPUID’s official interactive installer after you ask.',
+      genres: ['System info'], website: 'https://www.cpuid.com/softwares/cpu-z.html', source: 'managed-hardware', addedAt: Date.now(),
+    },
+  ];
+  let tools = existing.map((tool) => {
+    const managed = managedDefaults.find((item) => sameToolName(item.name, tool.name));
+    if (!managed) return tool;
+    // A manually added utility stays the user's tool; NEO-LIB merely enables
+    // its Locate/Install treatment and never overwrites a working path.
+    return { ...managed, ...tool, managedTool: managed.managedTool, availability: tool.exePath || managed.exePath ? 'installed' : 'missing' };
+  });
+  for (const tool of managedDefaults) if (!tools.some((item) => sameToolName(item.name, tool.name))) tools.push(tool);
+
+  const control = setup?.controlCenter;
+  if (control?.target && !tools.some((tool) => tool.id === 'managed-gpu-control-center')) {
+    tools.push({
+      id: 'managed-gpu-control-center', name: control.name, exePath: control.target,
+      launchTargetType: control.exePath ? 'exe' : 'uri', categoryIds: [HARDWARE_TOOLS_CATEGORY.id],
+      shortDescription: control.source === 'vendor-control-centre' ? 'Detected graphics-driver control centre.' : 'Windows graphics settings shortcut (vendor control centre was not found locally).',
+      about: control.source === 'vendor-control-centre'
+        ? 'A local shortcut to the graphics control centre detected for your installed GPU.'
+        : 'A safe Windows fallback shortcut. Install your GPU vendor’s control centre later and NEO-LIB can refresh this shortcut in a future hardware refresh.',
+      genres: ['Graphics settings'], source: 'gpu-setup', addedAt: Date.now(),
+    });
+  }
+  const hasManaged = tools.some((tool) => tool.managedTool || tool.id === 'managed-gpu-control-center');
+  const categories = hasManaged && !(current.toolCategories || []).some((category) => category.id === HARDWARE_TOOLS_CATEGORY.id)
+    ? [...(current.toolCategories || []), HARDWARE_TOOLS_CATEGORY]
+    : (current.toolCategories || []);
+  return { ...current, tools, toolCategories: categories };
+}
+
 export default function App() {
   const [library, setLibrary] = React.useState({
     games: [], categories: [], gameOrderByCategory: {},
@@ -129,6 +185,8 @@ export default function App() {
   // A game launched by NEO-LIB is still tracked while the window stays open.
   // Rest Mode uses this to pause every non-essential bit of background work.
   const [runningGame, setRunningGame] = React.useState(null);
+  const [ratingPromptGame, setRatingPromptGame] = React.useState(null);
+  const [managedToolInstallId, setManagedToolInstallId] = React.useState('');
   const gameRestActive = !!runningGame && settings.gameRestMode !== false;
   const [unlockedCategories, setUnlockedCategories] = React.useState([]);
   const [search, setSearch] = React.useState('');
@@ -464,9 +522,17 @@ export default function App() {
       if (isElectron) {
         const lib = await window.api.loadLibrary();
         const s = await window.api.loadSettings();
-        setLibrary({
+        // Rating System v2 deliberately starts everyone fresh. Earlier whole-
+        // star ratings are not comparable to the new precise fractional scale,
+        // so clear them exactly once rather than quietly reinterpreting them.
+        const resetRatings = Number(s.ratingSystemVersion || 0) < 2;
+        const loadedLibrary = {
           games: (lib.games || []).map((g) => {
             const hydrated = { categoryIds: [], addedAt: Date.now(), ...g };
+            if (resetRatings) {
+              delete hydrated.rating;
+              delete hydrated.ratedAt;
+            }
             // Lightweight local migration: existing libraries get a profile
             // from their already-stored direct genre evidence. No network
             // calls, no category changes, and no guessing from descriptions.
@@ -480,14 +546,53 @@ export default function App() {
           tools: (lib.tools || []).map((t) => ({ categoryIds: [], addedAt: Date.now(), ...t })),
           toolCategories: lib.toolCategories || [],
           toolOrderByCategory: lib.toolOrderByCategory || {},
-        });
+        };
+        setLibrary(loadedLibrary);
         // Reset collapsed state each session by default — user wanted "always expanded unless I close them"
         const cleanSettings = { ...s };
         if (!s.categoriesCollapsedDefault) cleanSettings.collapsed = {};
         // Home is the default landing screen. Tools is the only workspace that
         // remains selected across restarts; legacy News/Stats modes migrate home.
         if (cleanSettings.mode !== 'tools') cleanSettings.mode = 'home';
+        if (resetRatings) cleanSettings.ratingSystemVersion = 2;
         setSettings((prev) => ({ ...prev, ...cleanSettings }));
+
+        // First desktop run: read only the ordinary Windows adapter list, then
+        // add managed GPU-Z / CPU-Z and a genuine vendor control-centre shortcut
+        // when one exists. This never installs drivers or changes GPU settings.
+        if (!s.gpuSetupVersion) {
+          window.api.detectGpuSetup?.().then((setup) => {
+            if (!setup?.ok) return;
+            setLibrary((current) => {
+              const next = withGpuSetupTools(current, setup);
+              // First hydration normally skips its auto-save. Persist this
+              // one-time hardware setup directly so a fast GPU query cannot
+              // race the initial effect and lose the new Tools shortcuts.
+              window.api.saveLibrary(next).catch(() => {});
+              return next;
+            });
+            const gpuSettings = {
+              ...cleanSettings,
+              gpuSetupVersion: 1,
+              detectedGpu: {
+                name: setup.primary?.name || 'Unknown GPU', vendor: setup.primary?.vendor || 'generic',
+                driverVersion: setup.primary?.driverVersion || '', detectedAt: Date.now(),
+              },
+            };
+            setSettings((current) => ({ ...current, ...gpuSettings }));
+            window.api.saveSettings(gpuSettings).catch(() => {});
+          }).catch(() => {});
+        }
+
+        // The normal persistence effect skips its first hydration write. Save
+        // this intentional migration directly so ratings cannot reappear on a
+        // subsequent boot if the user closes NEO-LIB immediately.
+        if (resetRatings) {
+          await Promise.all([
+            window.api.saveLibrary(loadedLibrary),
+            window.api.saveSettings(cleanSettings),
+          ]);
+        }
 
         // "What's new" toast — show once per installed version. First-ever
         // run sets the version silently so the tutorial owns the welcome moment.
@@ -499,6 +604,14 @@ export default function App() {
         }
         // Keep selection empty at startup so Home is never obscured by a game.
 
+        // Warm the read-only update evidence cache after the UI has settled.
+        // The main process uses a bounded, rate-limited queue; this never
+        // changes launchers or downloads files, and makes a later preview
+        // update alert fast even when Home has not been opened.
+        window.setTimeout(() => {
+          window.api.scanGameUpdates?.({ games: loadedLibrary.games.map(({ id, name, appid, launcher, source, installedVersion, updateWatchUrl, website, exePath }) => ({ id, name, appid, launcher, source, installedVersion, updateWatchUrl, website, exePath })) }).then(recordUpdateLedger).catch(() => {});
+        }, 4500);
+
         // Wire playtime tracking event
         // v1.4.0 — playtime is stored in MINUTES throughout the app (matches
         // Steam's localconfig.vdf unit and StatsPanel expectations). Convert
@@ -507,7 +620,12 @@ export default function App() {
           setRunningGame((active) => !gameId || active?.id === gameId ? null : active);
           if (!gameId) return;
           const addMinutes = (Number(seconds) || 0) / 60;
-          setLibrary((curr) => ({
+          setLibrary((curr) => {
+            const playedGame = curr.games.find((game) => game.id === gameId);
+            const meaningfulSession = Number(seconds) >= 15 * 60;
+            const canPrompt = playedGame && !Number(playedGame.rating) && !playedGame.ratingPromptDismissed && Number(playedGame.ratingPromptSnoozedUntil || 0) <= Date.now();
+            if (meaningfulSession && canPrompt) window.setTimeout(() => setRatingPromptGame({ game: playedGame, seconds: Number(seconds) }), 650);
+            return {
             ...curr,
             games: curr.games.map((g) =>
               g.id === gameId
@@ -518,11 +636,21 @@ export default function App() {
                   }
                 : g
             ),
-          }));
+          }; });
           // A game process that closes almost immediately can be a wrong exe,
           // launcher bootstrap, or a real failure. We wait for a second event
           // before offering Doctor so a one-off launcher handoff is not noisy.
           if (Number(seconds) > 0 && Number(seconds) < 8) recordLaunchProblem(gameId, 'closed immediately');
+        });
+        window.api.onExternalGameState?.(({ active, gameId, name }) => {
+          setRunningGame((current) => {
+            if (active) {
+              if (current?.id === gameId && current?.source === 'external') return current;
+              notify(`${name || 'A library game'} is running from another launcher. NEO-LIB is resting.`);
+              return { id: gameId, name: name || 'External game', source: 'external' };
+            }
+            return current?.source === 'external' ? null : current;
+          });
         });
       } else {
         setLibrary({
@@ -635,6 +763,16 @@ export default function App() {
     if (skipPersist.current) { skipPersist.current = false; return; }
     if (isElectron) window.api.saveLibrary(library);
   }, [library]);
+
+  // Rest Mode also covers a known library game started from Steam, Battle.net,
+  // Epic, or another client. The main process does a path-only process check;
+  // an idle launcher alone never activates it.
+  React.useEffect(() => {
+    if (!isElectron || !window.api?.watchExternalGames) return undefined;
+    const games = settings.gameRestMode === false ? [] : (library.games || []).map(({ id, name, exePath }) => ({ id, name, exePath }));
+    window.api.watchExternalGames({ games }).catch(() => {});
+    return undefined;
+  }, [library.games, settings.gameRestMode]);
 
   const persistSettings = (next) => {
     setSettings(next);
@@ -801,6 +939,23 @@ export default function App() {
     const set = new Set(order);
     return [...order, ...gameIds.filter((id) => !set.has(id))];
   };
+  // Persist a compact, read-only update checklist. It records evidence from
+  // the scan rather than guessing, so callers can actively filter known-current
+  // games instead of treating an empty alert list as an unknown result.
+  const recordUpdateLedger = React.useCallback((result) => {
+    const entries = Array.isArray(result?.ledger) ? result.ledger.filter((entry) => entry?.id && entry?.status) : [];
+    if (!entries.length) return;
+    setSettings((prev) => {
+      const prior = prev.updateStatusLedger && typeof prev.updateStatusLedger === 'object' ? prev.updateStatusLedger : {};
+      const merged = { ...prior };
+      entries.forEach((entry) => { merged[entry.id] = entry; });
+      // Keep the local settings file bounded even for a very large library.
+      const trimmed = Object.fromEntries(Object.entries(merged).sort((a, b) => Number(b[1]?.checkedAt || 0) - Number(a[1]?.checkedAt || 0)).slice(0, 1500));
+      const next = { ...prev, updateStatusLedger: trimmed };
+      if (isElectron) window.api.saveSettings(next);
+      return next;
+    });
+  }, []);
   const withGenreProfile = (data) => {
     if (data?.genreProfile || !data?.genres?.length) return data;
     const source = data.source || data.launcher || 'web';
@@ -884,6 +1039,34 @@ export default function App() {
       }),
     }));
   };
+  const updateTool = (id, patch) => {
+    setLibrary((prev) => ({ ...prev, tools: (prev.tools || []).map((tool) => tool.id === id ? { ...tool, ...patch } : tool) }));
+  };
+  const locateManagedTool = async (tool) => {
+    if (!isElectron || !tool?.managedTool) return;
+    const exePath = await window.api.pickExe();
+    if (!exePath) return;
+    const result = await window.api.verifyManagedTool({ toolId: tool.managedTool, exePath });
+    if (!result?.ok) { notify(result?.error || 'That executable could not be used.'); return; }
+    updateTool(tool.id, { exePath: result.exePath, availability: 'installed', managedInstalledAt: Date.now(), managedInstallMode: 'located' });
+    notify(`${tool.name} located and ready.`);
+  };
+  const installManagedTool = async (tool) => {
+    if (!isElectron || !tool?.managedTool || managedToolInstallId) return;
+    setManagedToolInstallId(tool.id);
+    try {
+      const result = await window.api.installManagedTool(tool.managedTool);
+      if (!result?.ok) { notify(result?.error || `${tool.name} could not be downloaded.`); return; }
+      if (result.exePath) {
+        updateTool(tool.id, { exePath: result.exePath, availability: 'installed', managedInstalledAt: Date.now(), managedInstallMode: result.mode || 'official' });
+        notify(`${tool.name} is ready in Tools.`);
+      } else {
+        updateTool(tool.id, { availability: 'missing', officialInstallerOpenedAt: Date.now() });
+        notify(result.error || `${tool.name} installer finished. Use Locate if it chose a custom folder.`);
+      }
+    } catch (error) { notify(`${tool.name} install failed: ${error?.message || 'unknown error'}`); }
+    finally { setManagedToolInstallId(''); }
+  };
   const recordLaunchProblem = (gameId, reason) => {
     const current = (libraryRef.current?.games || []).find((game) => game.id === gameId);
     if (!current) return;
@@ -929,8 +1112,18 @@ export default function App() {
       notify('Launch failed: ' + (res.error || ''));
     }
     else {
-      setRunningGame({ id: g.id, name: g.name });
+      if (isTools || g.launchTargetType === 'uri') {
+        notify(`${g.name} opened.`);
+        return;
+      }
+      setRunningGame({ id: g.id, name: g.name, source: 'neolib' });
       notify(`Launching ${g.name}… NEO-LIB is resting in the background.`);
+      // A new play session is also a useful time to refresh version evidence.
+      // It runs out of view, is bounded in the main process, and only reads
+      // local game files/public update pages.
+      window.setTimeout(() => {
+        window.api.scanGameUpdates?.({ games: library.games.map(({ id, name, appid, launcher, source, installedVersion, updateWatchUrl, website, exePath }) => ({ id, name, appid, launcher, source, installedVersion, updateWatchUrl, website, exePath })) }).then(recordUpdateLedger).catch(() => {});
+      }, 1250);
     }
   };
 
@@ -953,6 +1146,7 @@ export default function App() {
       skipSources: skip,
       geminiKey: settings.geminiKey || '',
       lockedAppid,
+      launcher: g.launcher || '',
     });
     // Accept-before-add: when called interactively (not silent), open the Accept
     // modal so the user can compare current vs proposed metadata before it's
@@ -1278,6 +1472,7 @@ export default function App() {
       skipSources: [],
       geminiKey: settings.geminiKey || '',
       lockedAppid: g.appid || null,
+      launcher: g.launcher || '',
     });
     if (result?.genres?.length) updateGame(g.id, { genres: result.genres, genreTags: result.genreTags || [] });
   };
@@ -1440,6 +1635,7 @@ export default function App() {
       skipSources: [],
       geminiKey: settings.geminiKey || '',
       lockedAppid: g.appid || null,
+      launcher: g.launcher || '',
     });
     if (!result) {
       setFetching(false);
@@ -1491,6 +1687,7 @@ export default function App() {
 
   return (
     <div className="relative flex h-screen w-screen flex-col bg-surface text-ink" data-neolib-resting={gameRestActive ? 'true' : 'false'}>
+      <HoverTips />
       {/* Window edge glow — soft inner halo around the frameless window (Riot/Discord style) */}
       <div className="window-edge-glow" aria-hidden="true" />
       <BgAmbience theme={settings.theme} settings={settings} game={selected} resting={gameRestActive} />
@@ -1584,6 +1781,7 @@ export default function App() {
           updatingAll={updatingAll}
           gameResting={gameRestActive}
           runningGameName={runningGame?.name || ''}
+          allGames={library.games || []}
           onOpenSettings={() => setShowSettings(true)}
         />
 
@@ -1592,7 +1790,7 @@ export default function App() {
             {!isTools && (settings.mode === 'home' || !selected) ? (
               <HomeHub games={library.games || []} resting={gameRestActive} homeLayout={settings.homeLayout || {}} onUpdateHomeLayout={(homeLayout) => updateSetting({ homeLayout })} onSelect={(id) => { setSelectedId(id); setMode('library'); }} onOpenPlaytimeImport={() => openPlaytimeImport({ force: true })} onOpenTidyUp={() => setTidyOpen(true)} />
             ) : (
-              <AnimatePresence mode="wait"><GameDetail key={selected?.id || 'empty'} game={selected} categories={currentCats.filter((c) => !c.private || unlockedCategories.includes(c.id))} fetching={fetching} settings={settings} onLaunch={launchGame} onRefetch={(g) => setFetchPickerGame(g)} onRevealFolder={(g) => (isElectron ? window.api.revealInFolder(g.exePath) : notify('Open: ' + g.exePath))} onToggleCategory={toggleGameInCategory} onCustomize={(g) => setEditMetaGame(g)} onOpenSaveManager={(g) => setSaveManagerGame(g)} onUpdateGame={updateGame} /></AnimatePresence>
+              <AnimatePresence mode="wait"><GameDetail key={selected?.id || 'empty'} game={selected} categories={currentCats.filter((c) => !c.private || unlockedCategories.includes(c.id))} fetching={fetching} settings={settings} onLaunch={launchGame} onRefetch={(g) => setFetchPickerGame(g)} onRevealFolder={(g) => (isElectron ? window.api.revealInFolder(g.exePath) : notify('Open: ' + g.exePath))} onToggleCategory={toggleGameInCategory} onCustomize={(g) => setEditMetaGame(g)} onOpenSaveManager={(g) => setSaveManagerGame(g)} onUpdateGame={updateGame} onLocateManagedTool={locateManagedTool} onInstallManagedTool={installManagedTool} managedToolInstalling={managedToolInstallId === selected?.id} /></AnimatePresence>
             )}
           </div>
         </main>
@@ -1770,6 +1968,24 @@ export default function App() {
         onSelect={(id) => { setSelectedId(id); setMode('library'); setTidyOpen(false); }}
         onRepairMetadata={beginMetadataRepairQueue}
         onClose={() => setTidyOpen(false)}
+      />
+
+      <PostPlayRatingModal
+        game={ratingPromptGame?.game || null}
+        seconds={ratingPromptGame?.seconds || 0}
+        onRate={(rating) => {
+          if (ratingPromptGame?.game?.id) updateGame(ratingPromptGame.game.id, { rating, ratingPromptSnoozedUntil: 0 });
+          setRatingPromptGame(null);
+          notify(`Rated ${ratingPromptGame?.game?.name || 'game'} · ${Number(rating).toFixed(1)}`);
+        }}
+        onSnooze={() => {
+          if (ratingPromptGame?.game?.id) updateGame(ratingPromptGame.game.id, { ratingPromptSnoozedUntil: Date.now() + 7 * 24 * 60 * 60 * 1000 });
+          setRatingPromptGame(null);
+        }}
+        onNever={() => {
+          if (ratingPromptGame?.game?.id) updateGame(ratingPromptGame.game.id, { ratingPromptDismissed: true });
+          setRatingPromptGame(null);
+        }}
       />
 
       {/* Theme-aware confetti — bumps key when fired, auto-cleans */}
@@ -2084,12 +2300,13 @@ function BgAmbience({ theme, settings = {}, game = null, resting = false }) {
     mint:     'amb-mint',
     gaming:   'amb-gaming',
     modern:   'amb-modern',
+    home:     'amb-home',
     colorful: 'amb-colorful',
     pro:      'amb-pro',
     'generic-gray': 'amb-generic-gray',
     'generic-blue': 'amb-generic-blue',
   }[theme];
-  const isSpecial = ['colorful', 'pro', 'generic-gray', 'generic-blue'].includes(theme);
+  const isSpecial = ['colorful', 'pro'].includes(theme);
   // Special themes bump particle count so they always feel "extra"
   const particleCount = isSpecial
     ? Math.max(lvl.particles * 1.5, 12) | 0

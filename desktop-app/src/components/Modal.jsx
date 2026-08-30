@@ -56,7 +56,7 @@ export default function Modal({ open, onClose, title, children, wide, testid }) 
             onMouseDown={(e) => e.stopPropagation()}
             className={
               'relative w-full max-h-[90vh] overflow-hidden rounded-2xl hairline bg-panel shadow-2xl ' +
-              (wide ? 'max-w-3xl' : 'max-w-md')
+              (wide === 'xl' ? 'max-w-6xl' : wide ? 'max-w-3xl' : 'max-w-md')
             }
           >
             {/* Drag handle / title bar — only this starts a drag */}

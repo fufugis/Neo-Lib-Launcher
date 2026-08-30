@@ -72,10 +72,11 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
             skipSources: [],
             geminiKey,
             lockedAppid: it.appid,
+            launcher: kind,
           });
         } catch { /* retain the authoritative manifest title below */ }
       } else {
-        try { result = await window.api?.fetchMetadata({ query: it.name, skipSources: [], geminiKey }); } catch { /* ignore */ }
+        try { result = await window.api?.fetchMetadata({ query: it.name, skipSources: [], geminiKey, launcher: kind }); } catch { /* ignore */ }
       }
       let coverUrl = result?.capsuleImage || result?.headerImage || null;
       if (coverUrl && coverUrl.startsWith('http')) {

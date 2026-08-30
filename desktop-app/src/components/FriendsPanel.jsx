@@ -86,30 +86,30 @@ export default function FriendsPanel({ manualPaths = {}, onUpdateManualPaths, re
           <motion.section
             initial={{ opacity: 0, y: -8, scale: 0.985 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -5, scale: 0.985 }} transition={{ duration: 0.16, ease: 'easeOut' }}
             data-testid="friends-hub-panel"
-            className={`absolute right-0 z-[100] w-[min(440px,calc(100vw-24px))] overflow-hidden rounded-xl border border-[rgb(var(--border))] glass-strong shadow-2xl ${variant === 'detail' || isFooter ? 'bottom-[calc(100%+8px)]' : 'top-9'}`}
+            className={`absolute right-0 z-[100] w-[min(500px,calc(100vw-24px))] overflow-hidden rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.88)] shadow-2xl backdrop-blur-xl ${variant === 'detail' || isFooter ? 'bottom-[calc(100%+8px)]' : 'top-9'}`}
           >
-            <header className="flex items-center justify-between border-b border-[rgb(var(--border)/0.8)] px-4 py-3">
+            <header className="flex items-center justify-between border-b border-[rgb(var(--border)/0.8)] px-5 py-3.5">
               <div>
                 <div className="flex items-center gap-2">
-                  <Users size={16} className="text-[rgb(var(--accent-2))]" />
-                  <h2 className="text-sm font-black tracking-tight">Friends</h2>
-                  <span className="rounded-full bg-[rgb(var(--accent)/0.16)] px-1.5 py-0.5 text-[9px] font-bold text-[rgb(var(--accent-2))]">{loading ? 'checking' : `${runningCount} running`}</span>
+                  <Users size={17} className="text-[rgb(var(--accent-2))]" />
+                  <h2 className="text-[15px] font-black tracking-tight">Friends</h2>
+                  <span className="rounded-full bg-[rgb(var(--accent)/0.16)] px-2 py-0.5 text-[10px] font-bold text-[rgb(var(--accent-2))]">{loading ? 'checking' : `${runningCount} running`}</span>
                 </div>
-                <p className="mt-0.5 text-[10px] text-muted">Clients are checked locally when you open this panel.</p>
+                <p className="mt-0.5 text-[11px] text-muted">Clients are checked locally when you open this panel.</p>
               </div>
               <div className="flex items-center gap-1">
                 <button data-testid="friends-hub-refresh" onClick={() => refresh()} className="grid h-7 w-7 place-items-center rounded-md text-muted transition-colors hover:bg-panel hover:text-ink" title="Rescan game clients"><RefreshCw size={13} className={loading ? 'animate-spin' : ''} /></button>
                 <button onClick={() => setOpen(false)} className="grid h-7 w-7 place-items-center rounded-md text-muted transition-colors hover:bg-panel hover:text-ink" aria-label="Close Friends"><X size={15} /></button>
               </div>
             </header>
-            <div className="flex gap-1 overflow-x-auto border-b border-[rgb(var(--border)/0.7)] px-3 py-2 scrollbar-none">
+            <div className="flex gap-1 overflow-x-auto border-b border-[rgb(var(--border)/0.7)] px-4 py-2.5 scrollbar-none">
               <FilterButton active={filter === 'all'} onClick={() => setFilter('all')}>All</FilterButton>
               {PLATFORMS.map((platform) => <FilterButton key={platform.id} active={filter === platform.id} onClick={() => setFilter(platform.id)}>{platform.label.replace(' Connect', '').replace(' app', '')}</FilterButton>)}
             </div>
-            <div className="max-h-[min(440px,calc(100vh-112px))] overflow-y-auto p-2">
+            <div className="max-h-[min(500px,calc(100vh-112px))] overflow-y-auto p-2.5">
               {visiblePlatforms.map((platform) => <PlatformRow key={platform.id} platform={platform} client={clients[platform.id]} onOpen={() => openNativeSocial(platform)} onLocate={() => locateClient(platform)} />)}
             </div>
-            <footer className="border-t border-[rgb(var(--border)/0.7)] bg-[rgb(var(--surface)/0.26)] px-4 py-2.5 text-[10px] leading-relaxed text-muted">
+            <footer className="border-t border-[rgb(var(--border)/0.7)] bg-[rgb(var(--surface)/0.38)] px-5 py-3 text-[11px] leading-relaxed text-muted">
               {resting ? 'Rest Mode is active while a game is running. Social checks are paused until it closes.' : (message || 'NEO-LIB never reads launcher credentials, friends, or chats. All conversations stay in the original platform.')}
             </footer>
           </motion.section>
@@ -120,7 +120,7 @@ export default function FriendsPanel({ manualPaths = {}, onUpdateManualPaths, re
 }
 
 function FilterButton({ active, children, onClick }) {
-  return <button onClick={onClick} className={`shrink-0 rounded-md border px-2 py-1 text-[10px] font-semibold transition-colors ${active ? 'border-[rgb(var(--accent-2)/0.8)] bg-[rgb(var(--accent)/0.15)] text-ink' : 'border-[rgb(var(--border)/0.8)] text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink'}`}>{children}</button>;
+  return <button onClick={onClick} className={`shrink-0 rounded-md border px-2.5 py-1.5 text-[10.5px] font-semibold transition-colors ${active ? 'border-[rgb(var(--accent-2)/0.8)] bg-[rgb(var(--accent)/0.15)] text-ink' : 'border-[rgb(var(--border)/0.8)] text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink'}`}>{children}</button>;
 }
 
 function PlatformRow({ platform, client, onOpen, onLocate }) {
@@ -133,18 +133,18 @@ function PlatformRow({ platform, client, onOpen, onLocate }) {
   }[state];
   const active = state === 'running';
   return (
-    <div className="group flex items-center gap-3 rounded-lg px-2.5 py-3 transition-colors hover:bg-[rgb(var(--accent)/0.07)]">
-      <div className="relative grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.55)] text-[10px] font-black text-[rgb(var(--accent-2))]">
+    <div className="group flex items-center gap-3.5 rounded-lg px-3 py-3.5 transition-colors hover:bg-[rgb(var(--accent)/0.07)]">
+      <div className="relative grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.65)] text-[10.5px] font-black text-[rgb(var(--accent-2))]">
         {platform.short}<span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[rgb(var(--panel))] ${active ? 'bg-emerald-400' : state === 'attention' ? 'bg-amber-400' : 'bg-muted/60'}`} />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2"><span className="truncate text-xs font-bold">{platform.label}</span><span className={`text-[10px] font-medium ${active ? 'text-emerald-400' : state === 'attention' ? 'text-amber-300' : 'text-muted'}`}>{copy[0]}</span></div>
-        <p className="mt-0.5 truncate text-[10px] text-muted">{copy[2]}</p>
+        <div className="flex items-center gap-2"><span className="truncate text-[13px] font-bold">{platform.label}</span><span className={`text-[10.5px] font-medium ${active ? 'text-emerald-400' : state === 'attention' ? 'text-amber-300' : 'text-muted'}`}>{copy[0]}</span></div>
+        <p className="mt-0.5 truncate text-[10.5px] text-muted">{copy[2]}</p>
       </div>
       {state === 'running' || state === 'installed' ? (
-        <button data-testid={`friends-hub-open-${platform.id}`} onClick={onOpen} className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[rgb(var(--border))] px-2 py-1.5 text-[10px] font-bold text-muted transition-colors hover:border-[rgb(var(--accent-2)/0.65)] hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink"><ExternalLink size={11} />{copy[1]}</button>
+        <button data-testid={`friends-hub-open-${platform.id}`} onClick={onOpen} className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[rgb(var(--border))] px-2.5 py-1.5 text-[10.5px] font-bold text-muted transition-colors hover:border-[rgb(var(--accent-2)/0.65)] hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink"><ExternalLink size={11} />{copy[1]}</button>
       ) : (
-        <button data-testid={`friends-hub-locate-${platform.id}`} onClick={onLocate} className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[rgb(var(--border))] px-2 py-1.5 text-[10px] font-bold text-muted transition-colors hover:border-[rgb(var(--accent-2)/0.65)] hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink">{state === 'attention' ? <CircleAlert size={11} /> : <FolderSearch size={11} />}{copy[1]}</button>
+        <button data-testid={`friends-hub-locate-${platform.id}`} onClick={onLocate} className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[rgb(var(--border))] px-2.5 py-1.5 text-[10.5px] font-bold text-muted transition-colors hover:border-[rgb(var(--accent-2)/0.65)] hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink">{state === 'attention' ? <CircleAlert size={11} /> : <FolderSearch size={11} />}{copy[1]}</button>
       )}
     </div>
   );

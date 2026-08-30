@@ -197,8 +197,16 @@ export function normalizeGenreProfile({ rawTags = [], source = 'web', existing =
 
 export function genreDisplayGroups(profile) {
   if (!profile) return [];
+  // Keep the provider's direct tags visible as a separate, compact layer.
+  // Core genre answers “what is it?”; tags answer “what kind of Action game?”
+  // (for example Third-Person Shooter, Action Roguelike, Online Co-op). They
+  // are not used to create Library categories and remain capped so the preview
+  // stays readable even when a provider supplies a very long tag list.
+  const sourceTags = Array.from(new Set(profile.rawTags || [])).slice(0, 12)
+    .map((label) => ({ id: `source-${canonicalKey(label)}`, label }));
   const groups = [
     ['Core genre', profile.core], ['Subgenres', profile.subgenres],
+    ['Source tags', sourceTags],
     ['Playstyle', [...(profile.traits?.mechanics || []), ...(profile.traits?.modes || [])]],
     ['Perspective', profile.traits?.perspectives || []], ['Themes', profile.traits?.themes || []],
   ];

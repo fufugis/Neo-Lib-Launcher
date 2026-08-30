@@ -1,6 +1,7 @@
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronUp, CircleAlert, CircleCheck, Gauge, MemoryStick, RefreshCw } from 'lucide-react';
+import { ChevronUp, CircleAlert, CircleCheck, Gauge, MemoryStick, RefreshCw, Rocket } from 'lucide-react';
+import OptimizeCenter from './OptimizeCenter';
 
 const POLL_INTERVAL_MS = 5_000;
 
@@ -29,8 +30,9 @@ const STATUS = {
 };
 
 /** Full-width Library footer overlay. It intentionally sits above the game rows. */
-export default function SystemHealthBar({ resting = false, runningGameName = '' }) {
+export default function SystemHealthBar({ resting = false, runningGameName = '', games = [] }) {
   const [open, setOpen] = React.useState(false);
+  const [optimizeOpen, setOptimizeOpen] = React.useState(false);
   const [health, setHealth] = React.useState(null);
   const [failed, setFailed] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
@@ -96,15 +98,18 @@ export default function SystemHealthBar({ resting = false, runningGameName = '' 
           </motion.section>
         )}
       </AnimatePresence>
-      <button
-        type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}
-        className="pointer-events-auto flex w-full flex-wrap items-center gap-x-3 gap-y-1 border-t border-[rgb(var(--border)/0.8)] px-3 py-2.5 text-left backdrop-blur-xl transition-colors hover:bg-[rgb(var(--surface)/0.68)]"
-        style={{ background: 'linear-gradient(90deg, rgb(var(--surface)/0.94) 0%, rgb(var(--panel)/0.84) 55%, rgb(var(--surface)/0.94) 100%)' }} title="Open Game Ready details"
-      >
-        <span className={`flex shrink-0 items-center gap-2 text-[11px] font-black tracking-[0.13em] ${pulseClass}`} style={{ color: config.color }}><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: config.color, boxShadow: `0 0 10px ${config.color}` }} />{config.title}</span>
-        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 text-[10.5px] text-muted">{resting ? <span className="truncate">{runningGameName ? `${runningGameName} is running · background work paused` : 'Game running · background work paused'}</span> : <><span className="whitespace-nowrap">CPU <UsageText level={cpuLevel} value={health?.cpuPercent} /></span><span className="hidden text-muted/45 min-[260px]:inline">·</span><span className="whitespace-nowrap">RAM <UsageText level={ramLevel} value={health?.ramPercent} /></span></>}</span>
-        <ChevronUp size={15} className={`shrink-0 text-muted transition-transform ${open ? '' : 'rotate-180'}`} />
-      </button>
+      <div className="pointer-events-auto flex border-t border-[rgb(var(--border)/0.8)] backdrop-blur-xl" style={{ background: 'linear-gradient(90deg, rgb(var(--surface)/0.94) 0%, rgb(var(--panel)/0.84) 55%, rgb(var(--surface)/0.94) 100%)' }}>
+        <button
+          type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}
+          className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 text-left transition-colors hover:bg-[rgb(var(--surface)/0.68)]" title="Open Game Ready details"
+        >
+          <span className={`flex shrink-0 items-center gap-2 text-[11px] font-black tracking-[0.13em] ${pulseClass}`} style={{ color: config.color }}><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: config.color, boxShadow: `0 0 10px ${config.color}` }} />{config.title}</span>
+          <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 text-[10.5px] text-muted">{resting ? <span className="truncate">{runningGameName ? `${runningGameName} is running · background work paused` : 'Game running · background work paused'}</span> : <><span className="whitespace-nowrap">CPU <UsageText level={cpuLevel} value={health?.cpuPercent} /></span><span className="hidden text-muted/45 min-[260px]:inline">·</span><span className="whitespace-nowrap">RAM <UsageText level={ramLevel} value={health?.ramPercent} /></span></>}</span>
+          <ChevronUp size={15} className={`shrink-0 text-muted transition-transform ${open ? '' : 'rotate-180'}`} />
+        </button>
+        <button type="button" onClick={() => { setOpen(false); setOptimizeOpen(true); }} className="group flex shrink-0 items-center gap-1.5 border-l border-[rgb(var(--border)/0.75)] px-3 text-[10px] font-black uppercase tracking-[0.08em] text-[rgb(var(--accent))] hover:bg-[rgb(var(--accent)/0.1)]" title="Open Optimize Center for gaming performance and safe cleanup"><Rocket size={14} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /><span className="hidden min-[285px]:inline">Optimize</span></button>
+      </div>
+      <OptimizeCenter open={optimizeOpen} onClose={() => setOptimizeOpen(false)} games={games} />
     </div>
   );
 }

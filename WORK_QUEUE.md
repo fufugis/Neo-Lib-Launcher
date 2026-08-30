@@ -4,6 +4,40 @@ This is the authoritative live queue. New user requests are appended here and re
 
 ## In progress
 
+- [x] vNext ratings migration: reset all stored personal ratings for the new decimal rating system, then render dynamically filled fractional stars.
+
+## Queued — next update
+
+- [x] Onboarding refresh: replace the first-run tutorial with a short, current walkthrough of importing games, privacy/Hidden, Home, game Preview/Customize, and Rest Mode; keep it skippable and practical.
+- [x] Unified hover tips: add a shared delayed (one-second) tooltip treatment and apply clear descriptions across the primary launcher controls, actions, Home panes, and important status indicators.
+- [x] Preview news imagery: enrich the in-library game news bar with each article’s own image when safely available; otherwise use the selected game’s existing hero, cover, or screenshot as a local visual fallback. Preserve a clean text-only layout only when no suitable artwork exists.
+- [x] New Mid theme — Home: a calm light-gray workspace with crisp black/white structure, light-blue edges and FX, and a warm-yellow/gray comfort blend pattern.
+- [x] Storage Control bugfix: ignore non-file launcher targets, deduplicate shared install folders so identical disk sizes are not repeated, keep completed results when returning to Home, and speed up folder-only scans with a small bounded parallel pass.
+- [x] Automatic Rest Mode for externally launched library games: safely monitor ordinary Windows process paths and enter Rest Mode when a running executable matches a NEO-LIB library game, even when started from its original launcher; never rest just because a launcher is open.
+- [x] Library compact spacing: make the gap between the Library header and first game reduce cleanly at the minimum spacing slider value, while preserving collision-safe spacing with all text/row-size slider combinations.
+- [x] Category backdrop scaling: make the category Backdrop option scale proportionally with category text size, including its padding/radius/glow relationship.
+- [x] First-launch window geometry: default the width to 75% of the usable display and height to 90%, while retaining a user-resized/restored window on later launches.
+- [x] Update status ledger: persist a read-only per-game latest-version check result so known-current games are actively filtered out of Preview and Home update surfaces; retain only verified available/pending updates and explicit insufficient-evidence guidance.
+- [x] Background update intelligence: on library startup and after a game launch, inspect every eligible game through layered, bounded local version evidence (launcher manifest, saved version, executable/folder naming, version/changelog/readme/config files), then compare only against its official/public update source. Show a clear blinking update bar above Preview news when a verified newer version exists.
+- [x] Post-play rating prompt: after a meaningful completed play session, gently invite the player to give the game a decimal personal rating; respect dismissal/snooze choices and never repeatedly nag for the same game.
+- [x] Optimize Center: add an **Optimize** entry beside the CPU/RAM footer that opens a theme-aware power-up dashboard with two action rows and persistent last-run summaries.
+- [x] Speed Up Gaming: provide an on-demand view of the top five CPU and memory consumers, safe confirmed closing of non-protected programs, GPU activity/process attribution when Windows exposes it, and clearly explained Windows gaming settings (Game Mode, GPU scheduling, power plan, capture/background recording, and other worthwhile checks) with honest pros/cons and safe actions.
+- [x] Safe Junk Review: scan bounded cache/log/crash-report locations plus likely leftover installers and archives near configured game folders; show every result with an open-folder action, require physical inspection guidance and two confirmations before deletion, protect live game/save/application folders, and summarize reclaimed space without claiming unverified savings.
+- [x] GPU setup assistant: on first desktop launch, identify the installed GPU(s), add a native vendor control-center shortcut when available (with Windows Graphics Settings as an honest fallback), and add managed GPU-Z / CPU-Z utilities to Tools.
+- [x] Managed GPU-Z / CPU-Z tools: render missing utilities as clearly unavailable, offer a compact Locate-or-Install menu, validate a manually located executable, and download only from the official TechPowerUp/CPUID sources after explicit user action. GPU-Z will be installed as its official portable executable; CPU-Z will open its official interactive installer rather than use a hidden or silent install.
+- [x] Battle.net metadata enrichment: use reliable local Battle.net identity clues before the normal public metadata sources so installed Blizzard games receive correct artwork and descriptions.
+- [x] Friends Hub polish: make the panel slightly larger, increase text size slightly, and reduce transparency slightly.
+- [x] Theme taxonomy and balance: move Generic Gray and Generic Blue from Special to Mid; make Generic Blue visibly lighter.
+- [x] Genre intelligence: retain specific provider tags such as Third-Person Shooter, Action Roguelike, Co-op, and Multiplayer alongside the core genre instead of reducing games such as Risk of Rain 2 to only Action.
+- [x] What should I play?: increase the pane/card scale and add clearer, richer personal reasons to play each recommendation.
+- [x] Independent/repack update intelligence: investigate why older non-launcher games do not surface after Refresh; fix the scan timing/evidence path so explicit installed-vs-latest information is checked safely without claiming unsupported launcher data.
+- [x] Home Top 5 Played redesign: promote it into its own centered top pane; keep hide/restore, but lock it against Home reordering.
+- [x] Home reordering redesign: replace the current drag interaction with a modern live-reorder experience—active glow, dimmed peers, animated movement before drop, and a visible insertion indicator.
+- [x] Library Health redesign: remove it from This Week, restore it as its own Home pane, and add useful health detail beyond the headline score.
+- [x] After source work: run full source audit, update GitHub/in-app patch notes and progress, then perform desktop and package validation gates.
+
+## Deferred verification from v1.7.2
+
 - [ ] Run desktop interaction checks for the completed v1.7.2 source work in an unrestricted Windows session, including a real itch desktop install fixture.
 
 ## Verification and release gates
