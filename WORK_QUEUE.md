@@ -36,16 +36,16 @@ This is the authoritative live queue. New user requests are appended here and re
 - [x] Library Health redesign: remove it from This Week, restore it as its own Home pane, and add useful health detail beyond the headline score.
 - [x] After source work: run full source audit, update GitHub/in-app patch notes and progress, then perform desktop and package validation gates.
 
-## Deferred verification from v1.7.2
+## Deferred verification for v1.7.3
 
-- [ ] Run desktop interaction checks for the completed v1.7.2 source work in an unrestricted Windows session, including a real itch desktop install fixture.
+- [ ] Run desktop interaction checks for the completed v1.7.3 source work in an unrestricted Windows session, including a real itch desktop install fixture.
 
 ## Verification and release gates
 
 - [ ] Run desktop interaction tests for the metadata repair queue, genre approval, Home update pane, game-preview update alert, and launcher imports. Blocked here because Chromium cannot create its Windows platform channel under the managed process sandbox (`Access is denied`).
 - [ ] Run the normal Vite/Windows package build in an environment that permits child processes. Direct renderer/Tailwind compilation passes; Vite and electron-builder are blocked here at `esbuild` / `app-builder.exe` with `spawn EPERM`.
-- [x] Perform a requirement-by-requirement source completion audit against this queue and the v1.7.2 scope.
-- [x] Confirm GitHub-facing notes and the in-app changelog match the current source-validated build. Recheck after the external desktop/package gates before recommending push/release.
+- [x] Perform a requirement-by-requirement source completion audit against this queue and the carried-forward v1.7.2 scope.
+- [x] Confirm GitHub-facing notes and the in-app changelog match the v1.7.3 source-validated build. Recheck after the external desktop/package gates before recommending push/release.
 
 ## Blocked — required evidence/dependency
 
@@ -67,9 +67,9 @@ This is the authoritative live queue. New user requests are appended here and re
 - [x] Native Rockstar installed-game import from verified Windows installation records, excluding launcher/support components.
 - [x] Safe native itch.io installed-game import from the desktop app's explicitly configured install locations and completed-install receipt markers, without database/account access or broad folder scanning.
 - [x] First-time launcher detection and Wizard routes audited so all supported adapters preserve their executable and launcher-specific identity.
-- [x] Launcher filters, Home platform labels, and Settings version display audited for complete v1.7.2 identity/version coverage.
+- [x] Launcher filters, Home platform labels, and Settings version display audited for complete v1.7.3 identity/version coverage.
 - [x] Single-click-outside dismissal audited across standard and custom modal surfaces.
-- [x] GitHub documentation, v1.7.2 scope, `PROGRESS.md`, and in-app changelog updated for the completed source work.
+- [x] GitHub documentation, carried-forward v1.7.2 scope, `PROGRESS.md`, and in-app changelog updated for the v1.7.3 source work.
 
 ## Explicitly not queued
 

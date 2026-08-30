@@ -4,9 +4,26 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.7.2-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.7.3-8a4fff) ![status](https://img.shields.io/badge/status-active-ff2bd6) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.7.2 (Released This Week — selective major-release discovery)
+### Latest — v1.7.3 (PC Power-Up · smarter updates · a more helpful library)
+
+#### Major changes & new features
+
+- **Optimize Center** — the new animated action beside CPU/RAM gives a clear Speed Up Gaming view: top CPU and memory users, GPU activity where Windows exposes it, and useful Game Mode, GPU scheduling, capture, power-plan, and restart guidance.
+- **Safe Junk Review** — review temporary files, crash reports, logs, and nearby forgotten installers before anything changes. Every file links to its folder, requires inspection and two confirmations, then moves to the Windows Recycle Bin.
+- **Hardware & graphics in Tools** — first launch can detect the graphics adapter and add GPU-Z, CPU-Z, plus the appropriate NVIDIA, AMD, Intel, or Windows graphics shortcut. Missing utilities can be located or installed only after an explicit click.
+- **Smarter game updates** — a light startup/launch queue combines reliable launcher data with bounded local version, Readme, Changelog, and Config clues before showing a verified newer release above Preview news.
+- **A richer personal library** — meaningful play sessions can request a precise one-decimal rating; Preview news has more artwork; direct provider tags remain next to broad genres; and Rest Mode can activate for a tracked game launched from its original client.
+
+#### Fixes, adjustments & polish
+
+- **Storage Control accuracy** — shared folders are measured once, launcher links are ignored, results survive Home navigation, and scans stay within configured game folders rather than whole drives.
+- **Home and Library precision** — the first game can sit cleanly against the Library header, category Backdrops scale with label size, and a first window opens at 75% width by 90% height while later launches remember your own size.
+- **Theme and Friends polish** — the new Mid Home theme joins refined Generic Gray, Generic Blue, Midnight, Industrial, Modern, Daybreak, and Mint Garden treatments. Friends is roomier and easier to read.
+- **Safer background behavior** — protected Windows/NEO-LIB processes cannot be closed from Optimize, NEO-LIB applies no hidden system tweaks, and an idle launcher never triggers Rest Mode.
+
+#### v1.7.2 release highlights
 
 - **GPU setup assistant** — on first desktop launch, NEO-LIB reads Windows’ normal graphics-adapter list and adds GPU-Z, CPU-Z, and a detected NVIDIA/AMD/Intel control-centre shortcut to a Hardware & graphics Tools group. If no local vendor centre is found, it uses Windows Graphics Settings instead—no driver, registry, or GPU setting is changed.
 - **Locate or install GPU-Z / CPU-Z** — missing utilities are visibly muted with a clear setup state. Select one for a compact Locate or Install menu: Locate validates the chosen executable; Install starts only after your click and uses the official publisher source. GPU-Z is placed as its portable executable; CPU-Z opens CPUID’s normal visible installer, never a silent install.

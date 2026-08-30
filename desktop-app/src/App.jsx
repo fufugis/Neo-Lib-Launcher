@@ -33,7 +33,7 @@ import LaunchDoctorModal from './components/LaunchDoctorModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.7.2';
+const APP_VERSION = '1.7.3';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin, formatPlaytime } from './lib/utils';
 import { normalizeGenreProfile } from './lib/genreTaxonomy';

@@ -8,8 +8,8 @@ The authoritative item-by-item status is maintained in [`WORK_QUEUE.md`](WORK_QU
 
 - **v1.7.0** — source commit pushed to `main` (`fc65001`). A GitHub Release tag and compiled installer have not been published yet.
 - **v1.7.1** — local development batch; not release-ready yet.
-- **v1.7.2** — active development batch: Released This Week, safer Steam metadata identity, Home cleanup, and theme cleanup.
-- **vNext** — active development batch: Rating System v2, richer launcher metadata, and Home interaction cleanup. The authoritative item-level queue is in [`WORK_QUEUE.md`](WORK_QUEUE.md).
+- **v1.7.2** — previous development batch: Released This Week, safer Steam metadata identity, Home cleanup, and theme cleanup.
+- **v1.7.3** — testing candidate: PC Power-Up, Hardware & graphics Tools, smarter update checks, and the latest Library/Home refinements. The authoritative item-level queue is in [`WORK_QUEUE.md`](WORK_QUEUE.md).
 
 ## Completed locally for the next update
 
@@ -58,7 +58,7 @@ The authoritative item-by-item status is maintained in [`WORK_QUEUE.md`](WORK_QU
 - Follow-up Visuals polish: Category marker `None` now removes both dot and backdrop; Brushed replaced the non-seamless Topography tile; Anime is pink-forward with original manga line art; Pro is renamed Industrial with animated safety-light geometry and metal sparks, without CRT scanlines.
 - Library Health now counts all supported description fields and its Review action lists the actual affected games. Save Game Folder now automatically checks bounded, common Windows, game-folder, and Steam Cloud mirror locations; it never changes a save path until the user selects a result.
 
-## Completed locally for v1.7.2
+## Completed locally for v1.7.3
 
 - **Released This Week** Home pane: a selective, rearrangeable release feed that verifies official Steam store dates and only shows full games with meaningful early player, review, or launch-reach signals. It displays artwork, source, date, and an inclusion reason; caches for six hours; supports manual refresh; and opens official store pages without account access.
 - **Steam delisted-title safety**: launcher imports now lock metadata to the exact Steam app ID found locally. A missing public Store entry keeps the confirmed manifest title and identity instead of falling through to fuzzy matching.
@@ -96,7 +96,7 @@ The authoritative item-by-item status is maintained in [`WORK_QUEUE.md`](WORK_QU
 - Run the desktop bug-test pass, then build the Windows installer in a normal Windows/GitHub Actions environment.
 - Native itch.io import now reads only the desktop app’s configured install locations and completed-install receipt markers. It deliberately leaves itch’s live `butler.db` catalog alone and sends folder-derived titles through the normal approval-first metadata flow. A real local itch fixture still needs desktop verification.
 
-**Current state:** v1.7.2 is implemented locally and source-validated, including Genre Intelligence, the repair queue, Steam/independent update intelligence, patch history, and the native launcher adapters listed above. It still needs desktop interaction testing and a normal Windows build before release. Discord presence/mirroring remains explicitly dropped.
+**Current state:** v1.7.3 is implemented locally and source-validated, including Genre Intelligence, the repair queue, Steam/independent update intelligence, patch history, PC Power-Up tools, and the native launcher adapters listed above. It still needs desktop interaction testing and a normal Windows build before release. Discord presence/mirroring remains explicitly dropped.
 
 ## Planned research / platform-dependent work
 

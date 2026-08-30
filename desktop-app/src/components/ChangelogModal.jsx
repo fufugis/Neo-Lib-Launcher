@@ -16,6 +16,50 @@ import { sendChangelogReaction } from './FeedbackModal';
 
 export const CHANGELOG = [
   {
+    version: '1.7.3',
+    title: 'PC Power-Up · smarter updates · a more helpful library',
+    major: [
+      {
+        title: 'Optimize Center',
+        body: 'A new animated Optimize action beside CPU/RAM gives you a clear Speed Up Gaming view: top CPU and memory users, GPU activity where Windows exposes it, and practical Game Mode, GPU scheduling, capture, power-plan, and restart guidance.',
+      },
+      {
+        title: 'Safe Junk Review',
+        body: 'Review temporary files, crash reports, logs, and forgotten nearby installers before anything changes. Every item opens its folder first, requires inspection and two confirmations, then moves safely to the Windows Recycle Bin.',
+      },
+      {
+        title: 'Hardware & graphics in Tools',
+        body: 'NEO-LIB can detect your graphics adapter on first launch and add GPU-Z, CPU-Z, plus the right NVIDIA, AMD, Intel, or Windows graphics shortcut. Missing utilities can be located or installed only after you choose to do so.',
+      },
+      {
+        title: 'Smarter game updates',
+        body: 'Update checks now warm in a light background queue after startup and launches. They combine trustworthy launcher data with bounded local version, readme, changelog, and config clues before surfacing a verified newer release above Preview news.',
+      },
+      {
+        title: 'A richer, more personal library',
+        body: 'Meaningful play sessions can ask for a precise one-decimal rating, Preview news has more artwork, provider tags stay alongside broad genres, and NEO-LIB can rest even when a tracked game is started from its original launcher.',
+      },
+    ],
+    fixes: [
+      {
+        title: 'Storage Control stays accurate',
+        body: 'Shared install folders are measured once, launcher links are ignored, results remain when returning Home, and scans stay focused on configured game folders instead of whole drives.',
+      },
+      {
+        title: 'Home and Library polish',
+        body: 'The first game can sit neatly against the Library header, category Backdrops scale with label size, and a first-ever window opens at a comfortable 75% width by 90% height while later launches remember your size.',
+      },
+      {
+        title: 'Cleaner visual choices',
+        body: 'The new Mid Home theme joins refined Generic Gray, Generic Blue, Midnight, Industrial, Modern, Daybreak, and Mint Garden treatments. Friends is roomier and easier to read, too.',
+      },
+      {
+        title: 'Safer in the background',
+        body: 'Protected Windows and NEO-LIB processes cannot be closed from Optimize, no hidden system tweaks are applied, and Rest Mode never activates just because a launcher is idle.',
+      },
+    ],
+  },
+  {
     version: '1.7.2',
     title: 'Released This Week · safer Steam matching · a cleaner Home and theme collection',
     items: [
@@ -530,14 +574,37 @@ export default function ChangelogModal({ open, currentVersion, lastSeenVersion, 
                     </span>
                     <span className="text-[11px] text-muted">{entry.title}</span>
                   </div>
-                  <ul className="space-y-1.5">
-                    {entry.items.map((item, i) => (
-                      <li key={i} className="flex items-start gap-2 text-[12.5px] leading-relaxed text-ink/90">
-                        <Check size={12} className="mt-1 shrink-0 text-[rgb(var(--accent))]" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  {(() => {
+                    const sections = entry.major || entry.fixes
+                      ? [
+                          { title: 'Major changes & new features', items: entry.major || [] },
+                          { title: 'Fixes, adjustments & polish', items: entry.fixes || [] },
+                        ].filter((section) => section.items.length > 0)
+                      : [{ title: null, items: entry.items || [] }];
+
+                    return sections.map((section) => (
+                      <div key={section.title || 'changes'} className="mb-4 last:mb-0">
+                        {section.title && (
+                          <h4 className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[rgb(var(--accent-2))]">
+                            {section.title}
+                          </h4>
+                        )}
+                        <ul className="space-y-2">
+                          {section.items.map((item, i) => {
+                            const structured = typeof item === 'object';
+                            return (
+                              <li key={i} className="flex items-start gap-2 text-[12.5px] leading-relaxed text-ink/90">
+                                <Check size={12} className="mt-1 shrink-0 text-[rgb(var(--accent))]" />
+                                {structured ? (
+                                  <span><strong className="text-ink">{item.title}</strong> — {item.body}</span>
+                                ) : <span>{item}</span>}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    ));
+                  })()}
                 </section>
               ))}
               {entries.length === 0 && (
