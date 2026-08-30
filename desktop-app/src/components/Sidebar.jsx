@@ -123,6 +123,8 @@ export default function Sidebar({
   runningGameName = '',
   allGames = [],
   onOpenSettings,
+  onSystemHealthChange,
+  systemHealthOpenRequest = 0,
 }) {
   // size based on rowSize slider (in px).
   // v1.2.9 — text size can now be overridden explicitly via nameTextSize
@@ -578,7 +580,7 @@ export default function Sidebar({
           </div>
         )}
       </div>
-      {!isTools && <SystemHealthBar resting={gameResting} runningGameName={runningGameName} games={allGames} />}
+      {!isTools && <SystemHealthBar resting={gameResting} runningGameName={runningGameName} games={allGames} onStatusChange={onSystemHealthChange} openRequest={systemHealthOpenRequest} />}
     </aside>
   );
 }
@@ -1305,9 +1307,11 @@ function Section({
   const catScale = Math.max(0.55, Math.min(1.3, (catTextSize || 11) / 11));
   // Backdrop is a real companion to the category type, rather than a fixed
   // stripe that feels oversized at small text or cramped at large text.
-  const backdropPadY = Math.max(3, Math.round(6 * catScale));
-  const backdropPadX = Math.max(4, Math.round(6 * catScale));
-  const backdropLeft = Math.max(6, Math.round(10 * catScale));
+  // Backdrop follows the actual text line-height closely: a marker should
+  // frame a category label, not become a second, oversized row.
+  const backdropPadY = Math.max(1, Math.round(1.5 * catScale));
+  const backdropPadX = Math.max(3, Math.round(5 * catScale));
+  const backdropLeft = Math.max(5, Math.round(8 * catScale));
   const backdropBorder = Math.max(1, Math.round(2 * catScale));
   // Zero truly means close: keep only a tiny collision-safe breathing room
   // for the first game, scaled with the category label so tight settings do

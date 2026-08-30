@@ -20,6 +20,10 @@ export const CHANGELOG = [
     title: 'PC Power-Up · smarter updates · a more helpful library',
     major: [
       {
+        title: 'Meet Fungist, your NEO-LIB companion',
+        body: 'Fungist is now properly alive without becoming a resource drain: a gentle docked hover, blink, smile, shocked, and sleep poses; soft sparkles for ordinary attention; a neon-trail flight and red firework halo for major PC attention; plus green/yellow/red status glows and a cheerful completion pose. Alerts now have sensible per-type cooldowns, a “Why am I seeing this?” explanation, and a real action-complete response. Right-click Fungist for a short Inbox of shown notices plus Quick Settings. Every reaction type—PC use, favourite news/updates, NEO-LIB updates, completion, and idle naps—can be turned on or off in Settings. His AI model is shown as Current in the same place, with a safe allow-list ready for more connected models later.',
+      },
+      {
         title: 'Optimize Center',
         body: 'A new animated Optimize action beside CPU/RAM gives you a clear Speed Up Gaming view: top CPU and memory users, GPU activity where Windows exposes it, and practical Game Mode, GPU scheduling, capture, power-plan, and restart guidance.',
       },
@@ -33,7 +37,7 @@ export const CHANGELOG = [
       },
       {
         title: 'Smarter game updates',
-        body: 'Update checks now warm in a light background queue after startup and launches. They combine trustworthy launcher data with bounded local version, readme, changelog, and config clues before surfacing a verified newer release above Preview news.',
+        body: 'Update checks now warm in a light background queue after startup and launches. They combine trustworthy launcher data with bounded local version, readme, changelog, config, and Battle.net .build.info clues, then try known official pages and a small automatic web discovery pass before surfacing a verified newer release above Preview news.',
       },
       {
         title: 'A richer, more personal library',
@@ -56,6 +60,26 @@ export const CHANGELOG = [
       {
         title: 'Safer in the background',
         body: 'Protected Windows and NEO-LIB processes cannot be closed from Optimize, no hidden system tweaks are applied, and Rest Mode never activates just because a launcher is idle.',
+      },
+      {
+        title: 'NVIDIA and Visuals corrections',
+        body: 'Store-installed NVIDIA Control Panel/NVIDIA App can now be found through Windows Start-app registration instead of falling back too early to Graphics Settings. The Home theme is calmer gray, and Category Backdrops now hug their text more closely as the size slider changes.',
+      },
+      {
+        title: 'No more false “up to date” labels',
+        body: 'A missing explicit latest version now remains “needs stronger evidence” rather than being silently recorded as current. The update card explains the automatic checks already attempted instead of asking you to manually fill every game page first.',
+      },
+      {
+        title: 'Optimize Center stability and lighter monitoring',
+        body: 'Safe Junk Review now completes once and holds its results instead of restarting after every summary update. The Game Ready footer samples on a calmer 15-second cadence, while the external-launch path probe runs every 30 seconds rather than repeatedly waking Windows management tools.',
+      },
+      {
+        title: 'A larger Home and dependable AI fallback',
+        body: 'Home now gives its news, artwork, titles, and spacing more room to breathe, with pane controls moved clear of headings. Gemini metadata now uses one current 2.5 Flash route with validated JSON, visible errors, and a Settings connection test instead of silent, inconsistent fallback calls.',
+      },
+      {
+        title: 'New NEO-LIB icon, everywhere',
+        body: 'The new neon power artwork now drives the app window, taskbar, installer, desktop and Start shortcuts. Windows uses one stable NEO-LIB identity and receives a safe Explorer refresh after upgrade, while the notification area gets its own crisp transparent mark instead of a blank fallback.',
       },
     ],
   },

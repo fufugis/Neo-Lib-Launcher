@@ -131,16 +131,16 @@
 /* HOME — soft architectural gray with an airy blue edge and a quiet, warm
    yellow glow. It is calm enough for everyday use while keeping lines crisp. */
 [data-theme='home'] {
-  --ink: 18 23 29;
-  --muted: 92 105 116;
-  --surface: 231 234 237;
-  --panel: 245 247 248;
-  --border: 135 158 174;
-  --accent: 102 190 239;
-  --accent-2: 245 194 82;
-  --accent-soft: 204 222 232;
-  --hairline-glow: 102 190 239;
-  --sidebar-tint: 153 206 236;
+  --ink: 20 27 34;
+  --muted: 79 92 104;
+  --surface: 190 196 202;
+  --panel: 218 223 227;
+  --border: 112 142 160;
+  --accent: 74 174 229;
+  --accent-2: 229 179 59;
+  --accent-soft: 170 199 214;
+  --hairline-glow: 74 174 229;
+  --sidebar-tint: 112 181 216;
 }
 
 /* ANIME — pink-forward manga-night palette, anchored by violet rather than
@@ -226,11 +226,11 @@
 }
 .amb-home {
   background:
-    linear-gradient(112deg, transparent 0 42%, rgb(15 20 26 / 0.09) 42.08% 42.18%, transparent 42.28% 100%),
-    linear-gradient(90deg, transparent 0 73%, rgb(255 255 255 / 0.72) 73.08% 73.22%, transparent 73.32% 100%),
-    radial-gradient(ellipse 50vw 62vh at 90% 4%, rgb(116 199 241 / 0.28), transparent 68%),
-    radial-gradient(ellipse 46vw 45vh at 12% 94%, rgb(247 196 79 / 0.26), transparent 70%),
-    repeating-linear-gradient(0deg, transparent 0 43px, rgb(10 16 22 / 0.045) 44px, transparent 45px);
+    linear-gradient(112deg, transparent 0 42%, rgb(15 20 26 / 0.12) 42.08% 42.18%, transparent 42.28% 100%),
+    linear-gradient(90deg, transparent 0 73%, rgb(255 255 255 / 0.34) 73.08% 73.22%, transparent 73.32% 100%),
+    radial-gradient(ellipse 50vw 62vh at 90% 4%, rgb(74 174 229 / 0.20), transparent 68%),
+    radial-gradient(ellipse 46vw 45vh at 12% 94%, rgb(229 179 59 / 0.18), transparent 70%),
+    repeating-linear-gradient(0deg, transparent 0 43px, rgb(10 16 22 / 0.075) 44px, transparent 45px);
 }
 
 @keyframes new-update-reactive {

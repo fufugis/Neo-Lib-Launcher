@@ -32,6 +32,12 @@ export default function OptimizeCenter({ open, onClose, games = [] }) {
       return next;
     });
   }, []);
+  // Keep these callback identities stable. Passing a new inline callback into
+  // a view that auto-scans made its effect believe the scan settings changed
+  // after every saved summary, causing the visible “scan → results → scan”
+  // loop and needless disk activity.
+  const saveSpeedSummary = React.useCallback((text) => saveSummary('speed', text), [saveSummary]);
+  const saveJunkSummary = React.useCallback((text) => saveSummary('junk', text), [saveSummary]);
 
   return (
     <Modal open={open} onClose={onClose} title="Optimize Center" wide="xl" testid="optimize-center">
@@ -66,9 +72,9 @@ export default function OptimizeCenter({ open, onClose, games = [] }) {
               </div>
             </motion.div>
           ) : view === 'speed' ? (
-            <SpeedUpView key="speed" onBack={() => setView('home')} onSummary={(text) => saveSummary('speed', text)} />
+            <SpeedUpView key="speed" onBack={() => setView('home')} onSummary={saveSpeedSummary} />
           ) : (
-            <JunkView key="junk" games={games} onBack={() => setView('home')} onSummary={(text) => saveSummary('junk', text)} />
+            <JunkView key="junk" games={games} onBack={() => setView('home')} onSummary={saveJunkSummary} />
           )}
         </AnimatePresence>
       </div>

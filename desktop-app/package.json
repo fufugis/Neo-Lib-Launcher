@@ -45,7 +45,15 @@
     "files": [
       "electron/**/*",
       "dist-renderer/**/*",
+      "build/icon.ico",
+      "build/icon.png",
+      "build/tray-icon.png",
       "package.json"
+    ],
+    "asarUnpack": [
+      "build/icon.ico",
+      "build/icon.png",
+      "build/tray-icon.png"
     ],
     "win": {
       "target": [

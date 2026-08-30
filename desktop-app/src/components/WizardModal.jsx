@@ -16,7 +16,7 @@ import { genreDisplayGroups, normalizeGenreProfile } from '../lib/genreTaxonomy'
  *     - Accept / Skip / Re-search (with custom query, skips current source)
  *  4. Done → option to add more manually
  */
-export default function WizardModal({ open, onClose, onImport, onAccept, onAddManual, geminiKey, existingExePaths = [], prefilledRoot = '', autoScan = false }) {
+export default function WizardModal({ open, onClose, onImport, onAccept, onAddManual, geminiKey, aiModel = 'gemini-2.5-flash', existingExePaths = [], prefilledRoot = '', autoScan = false }) {
   const [step, setStep] = React.useState(1);
   const [root, setRoot] = React.useState('');
   const [candidates, setCandidates] = React.useState([]);
@@ -71,12 +71,13 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
             query: it.name,
             skipSources: [],
             geminiKey,
+            aiModel,
             lockedAppid: it.appid,
             launcher: kind,
           });
         } catch { /* retain the authoritative manifest title below */ }
       } else {
-        try { result = await window.api?.fetchMetadata({ query: it.name, skipSources: [], geminiKey, launcher: kind }); } catch { /* ignore */ }
+        try { result = await window.api?.fetchMetadata({ query: it.name, skipSources: [], geminiKey, aiModel, launcher: kind }); } catch { /* ignore */ }
       }
       let coverUrl = result?.capsuleImage || result?.headerImage || null;
       if (coverUrl && coverUrl.startsWith('http')) {
@@ -200,7 +201,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
     setCurrent(cand);
     const ico = await window.api?.extractIcon(cand.exe);
     setIcon(ico);
-    const r = await window.api?.fetchMetadata({ query: guess, skipSources: [], geminiKey });
+    const r = await window.api?.fetchMetadata({ query: guess, skipSources: [], geminiKey, aiModel });
     setResult(r);
     setBusy(false);
   };
@@ -208,7 +209,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
   const reSearch = async () => {
     setBusy(true);
     const q = queryOverride || current?.folderName || '';
-    const r = await window.api?.fetchMetadata({ query: q, skipSources, geminiKey });
+    const r = await window.api?.fetchMetadata({ query: q, skipSources, geminiKey, aiModel });
     setResult(r);
     setBusy(false);
   };
@@ -222,6 +223,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
       query: queryOverride || current?.folderName || '',
       skipSources: newSkips,
       geminiKey,
+      aiModel,
     });
     setResult(r);
     setBusy(false);

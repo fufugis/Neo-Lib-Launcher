@@ -19,7 +19,7 @@ import PostPlayRatingModal from './components/PostPlayRatingModal';
 import CategoryModal from './components/CategoryModal';
 import Confetti from './components/Confetti';
 import StartupIntro from './components/StartupIntro';
-import GameNewsAlert from './components/GameNewsAlert';
+import FungistMascot from './components/FungistMascot';
 import FeedbackModal from './components/FeedbackModal';
 import PlaytimeImportModal from './components/PlaytimeImportModal';
 import EditMetadataModal from './components/EditMetadataModal';
@@ -153,16 +153,23 @@ function withGpuSetupTools(current, setup) {
   for (const tool of managedDefaults) if (!tools.some((item) => sameToolName(item.name, tool.name))) tools.push(tool);
 
   const control = setup?.controlCenter;
-  if (control?.target && !tools.some((tool) => tool.id === 'managed-gpu-control-center')) {
-    tools.push({
+  if (control?.target) {
+    const controlTool = {
       id: 'managed-gpu-control-center', name: control.name, exePath: control.target,
       launchTargetType: control.exePath ? 'exe' : 'uri', categoryIds: [HARDWARE_TOOLS_CATEGORY.id],
-      shortDescription: control.source === 'vendor-control-centre' ? 'Detected graphics-driver control centre.' : 'Windows graphics settings shortcut (vendor control centre was not found locally).',
-      about: control.source === 'vendor-control-centre'
+      shortDescription: /^vendor-/.test(control.source) ? 'Detected graphics-driver control centre.' : 'Windows graphics settings shortcut (vendor control centre was not found locally).',
+      about: /^vendor-/.test(control.source)
         ? 'A local shortcut to the graphics control centre detected for your installed GPU.'
         : 'A safe Windows fallback shortcut. Install your GPU vendor’s control centre later and NEO-LIB can refresh this shortcut in a future hardware refresh.',
       genres: ['Graphics settings'], source: 'gpu-setup', addedAt: Date.now(),
-    });
+    };
+    // Upgrade a previous Windows fallback on the next startup when a vendor
+    // control centre becomes discoverable (for example Store-based NVIDIA
+    // Control Panel). The shortcut itself is managed, never a user tool.
+    const existingControl = tools.find((tool) => tool.id === controlTool.id);
+    tools = existingControl
+      ? tools.map((tool) => tool.id === controlTool.id ? { ...controlTool, addedAt: tool.addedAt || controlTool.addedAt } : tool)
+      : [...tools, controlTool];
   }
   const hasManaged = tools.some((tool) => tool.managedTool || tool.id === 'managed-gpu-control-center');
   const categories = hasManaged && !(current.toolCategories || []).some((category) => category.id === HARDWARE_TOOLS_CATEGORY.id)
@@ -176,7 +183,7 @@ export default function App() {
     games: [], categories: [], gameOrderByCategory: {},
   });
   const [settings, setSettings] = React.useState({
-    theme: 'synthwave', firstRun: true, geminiKey: '',
+    theme: 'synthwave', firstRun: true, geminiKey: '', aiModel: 'gemini-2.5-flash', fungistNotifications: {},
     librarySize: 'medium', showcaseMode: 'recent_added',
     collapsed: {},
   });
@@ -275,8 +282,10 @@ export default function App() {
 
   /* --- Confetti & sparkle bursts (theme-aware) --- */
   const [confetti, setConfetti] = React.useState({ key: 0, label: '', origin: null });
+  const [fungistCompletion, setFungistCompletion] = React.useState({ key: 0, label: '' });
   const fireConfetti = React.useCallback((label = '', origin = null) => {
     setConfetti({ key: Date.now(), label, origin });
+    setFungistCompletion({ key: Date.now(), label: String(label || 'Action completed') });
   }, []);
 
   /* --- Edit metadata modal (manual override for itch.io / indie games) --- */
@@ -284,6 +293,8 @@ export default function App() {
 
   /* --- Auto-update checker (GitHub releases API) --- */
   const [updateInfo, setUpdateInfo] = React.useState(null);
+  const [mascotHealth, setMascotHealth] = React.useState({ state: 'checking', health: null });
+  const [mascotHealthOpenRequest, setMascotHealthOpenRequest] = React.useState(0);
 
   /* --- "What's new" changelog modal — shown once per installed version --- */
   const [changelogOpen, setChangelogOpen] = React.useState(false);
@@ -939,6 +950,29 @@ export default function App() {
     const set = new Set(order);
     return [...order, ...gameIds.filter((id) => !set.has(id))];
   };
+
+  // Fungist receives the existing Game Ready sample rather than creating a
+  // second system monitor. Ignore equivalent state snapshots to keep the
+  // app quiet between the footer's deliberately slow 15-second checks.
+  const onMascotHealthChange = React.useCallback((next) => {
+    setMascotHealth((previous) => (
+      previous.state === next?.state
+      && previous.health?.cpuPercent === next?.health?.cpuPercent
+      && previous.health?.ramPercent === next?.health?.ramPercent
+        ? previous : (next || { state: 'checking', health: null })
+    ));
+  }, []);
+  const openMascotHealth = React.useCallback(() => setMascotHealthOpenRequest((value) => value + 1), []);
+  const askFungist = React.useCallback(async (message) => {
+    if (!window.api?.askFungist) return { ok: false, error: 'Fungist chat is available in the NEO-LIB desktop app.' };
+    return window.api.askFungist({ apiKey: settings.geminiKey || '', message, model: settings.aiModel || 'gemini-2.5-flash' });
+  }, [settings.aiModel, settings.geminiKey]);
+  const recordFungistNotice = React.useCallback((entry) => {
+    if (!entry?.key) return;
+    const item = { ...entry, createdAt: Date.now() };
+    updateSetting({ fungistInbox: [item, ...(Array.isArray(settings.fungistInbox) ? settings.fungistInbox : [])].slice(0, 60) });
+  }, [settings.fungistInbox]);
+  const clearFungistInbox = React.useCallback(() => updateSetting({ fungistInbox: [] }), []);
   // Persist a compact, read-only update checklist. It records evidence from
   // the scan rather than guessing, so callers can actively filter known-current
   // games instead of treating an empty alert list as an unknown result.
@@ -1145,6 +1179,7 @@ export default function App() {
       query,
       skipSources: skip,
       geminiKey: settings.geminiKey || '',
+      aiModel: settings.aiModel || 'gemini-2.5-flash',
       lockedAppid,
       launcher: g.launcher || '',
     });
@@ -1471,6 +1506,7 @@ export default function App() {
       query: g.name,
       skipSources: [],
       geminiKey: settings.geminiKey || '',
+      aiModel: settings.aiModel || 'gemini-2.5-flash',
       lockedAppid: g.appid || null,
       launcher: g.launcher || '',
     });
@@ -1634,6 +1670,7 @@ export default function App() {
       query: g.name,
       skipSources: [],
       geminiKey: settings.geminiKey || '',
+      aiModel: settings.aiModel || 'gemini-2.5-flash',
       lockedAppid: g.appid || null,
       launcher: g.launcher || '',
     });
@@ -1684,6 +1721,11 @@ export default function App() {
     });
   }, [currentItems, isTools, launcherFilter]);
   const selected = currentItems.find((g) => g.id === currentSelectedId) || null;
+  const favouriteUpdate = React.useMemo(() => {
+    const ledger = settings.updateStatusLedger || {};
+    const pinned = new Set(settings.pinnedGameIds || []);
+    return (library.games || []).find((game) => pinned.has(game.id) && ['available', 'pending'].includes(ledger[game.id]?.status));
+  }, [library.games, settings.pinnedGameIds, settings.updateStatusLedger]);
 
   return (
     <div className="relative flex h-screen w-screen flex-col bg-surface text-ink" data-neolib-resting={gameRestActive ? 'true' : 'false'}>
@@ -1783,6 +1825,8 @@ export default function App() {
           runningGameName={runningGame?.name || ''}
           allGames={library.games || []}
           onOpenSettings={() => setShowSettings(true)}
+          onSystemHealthChange={onMascotHealthChange}
+          systemHealthOpenRequest={mascotHealthOpenRequest}
         />
 
         <main className="relative flex min-w-0 flex-1 flex-col">
@@ -1806,6 +1850,33 @@ export default function App() {
         />
       )}
 
+      <FungistMascot
+        enabled={settings.fungistEnabled !== false}
+        resting={gameRestActive}
+        notificationSettings={settings.fungistNotifications || {}}
+        healthState={mascotHealth.state}
+        newsAlert={newsAlert}
+        favouriteUpdate={favouriteUpdate}
+        appUpdate={updateInfo?.available ? updateInfo : null}
+        onOpenHealth={openMascotHealth}
+        onOpenNews={(alert) => {
+          if (!alert?.url) return;
+          if (isElectron && window.api?.openExternal) window.api.openExternal(alert.url);
+          else window.open(alert.url, '_blank');
+        }}
+        onOpenGame={(id) => { if (id) { setSelectedId(id); setMode('library'); } }}
+        onOpenAppUpdate={openReleasesPage}
+        onDismissNews={() => setNewsAlert(null)}
+        onAskAi={askFungist}
+        onOpenSettings={() => setShowSettings(true)}
+        inbox={settings.fungistInbox || []}
+        onRecordNotice={recordFungistNotice}
+        onClearInbox={clearFungistInbox}
+        onUpdatePreferences={updateSetting}
+        soundsEnabled={settings.soundsEnabled !== false && (settings.soundPack || 'synthwave') !== 'none'}
+        completion={fungistCompletion}
+      />
+
       {/* Modals */}
       <AddGameModal open={showAdd} onClose={() => setShowAdd(false)} onCreate={addGame} />
       <WizardModal
@@ -1817,6 +1888,7 @@ export default function App() {
         prefilledRoot={wizardPrefillRoot}
         autoScan={wizardAutoScan}
         geminiKey={settings.geminiKey || ''}
+        aiModel={settings.aiModel || 'gemini-2.5-flash'}
       />
       <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} settings={settings} setSettings={persistSettings} onShowChangelog={() => setChangelogOpen(true)} currentVersion={APP_VERSION} />
       <SaveGameModal
@@ -1946,6 +2018,7 @@ export default function App() {
         open={!!fetchPickerGame}
         game={fetchPickerGame}
         geminiKey={settings.geminiKey || ''}
+        aiModel={settings.aiModel || 'gemini-2.5-flash'}
         progress={metadataRepairQueue.active ? {
           current: metadataRepairQueue.index + 1,
           total: metadataRepairQueue.ids.length,
@@ -1998,20 +2071,6 @@ export default function App() {
           onDone={() => setIntroHiddenThisSession(true)}
         />
       )}
-
-      {/* v1.4.0 — watched-game news alert (favorited / 5⭐) */}
-      <GameNewsAlert
-        alert={newsAlert}
-        muted={settings.soundsEnabled === false}
-        onDismiss={() => setNewsAlert(null)}
-        onOpen={(a) => {
-          if (a?.url) {
-            if (isElectron && window.api?.openExternal) window.api.openExternal(a.url);
-            else window.open(a.url, '_blank');
-          }
-          setNewsAlert(null);
-        }}
-      />
 
       {/* v1.5.0 — Feedback / Bug / Suggestion modal (Discord webhook) */}
       <FeedbackModal
@@ -2106,6 +2165,7 @@ export default function App() {
 
       <TutorialModal
         open={tutorialOpen}
+        soundsEnabled={settings.soundsEnabled !== false && (settings.soundPack || 'synthwave') !== 'none'}
         onClose={() => setTutorialOpen(false)}
         onDontShowAgain={() => {
           updateSetting({ tutorialSeen: true, tutorialAlwaysShow: false });

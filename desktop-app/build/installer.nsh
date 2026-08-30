@@ -18,6 +18,9 @@
 ; ---------------------------------------------------------------
 
 !macro customInstall
+  ; Notify Explorer after an upgrade now that the EXE/shortcut icon is ready.
+  ; This does not delete icon caches, alter pinned items, or touch user data.
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0x0000, p 0, p 0)'
   ${IfNot} ${Silent}
     ExecShell "open" "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
   ${EndIf}

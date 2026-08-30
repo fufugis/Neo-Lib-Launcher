@@ -3,6 +3,9 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { ChevronRight, ChevronLeft, Sparkles, X } from 'lucide-react';
+import { playFungistCue } from '../lib/sound';
+
+const FUNGIST_ASSET = '/mascot/fungist-stand.png';
 
 /**
  * TutorialModal — first-time onboarding overlay.
@@ -12,7 +15,7 @@ import { ChevronRight, ChevronLeft, Sparkles, X } from 'lucide-react';
 const STEPS = [
   {
     title: 'Welcome to NEO-LIB',
-    body: 'Your private, portable game library. Start simple: bring in your games, then make the space yours.',
+    body: 'Your private, portable game library. This is Fungist, your optional companion—he keeps ordinary notices out of the way and only flies in when something important needs attention.',
     target: null,
     icon: '✨',
   },
@@ -54,12 +57,20 @@ const STEPS = [
   },
 ];
 
-export default function TutorialModal({ open, onClose, onDontShowAgain }) {
+export default function TutorialModal({ open, onClose, onDontShowAgain, soundsEnabled = true }) {
   const [idx, setIdx] = React.useState(0);
   const [anchor, setAnchor] = React.useState(null);
   const [dontShow, setDontShow] = React.useState(false);
+  const wasOpen = React.useRef(false);
 
-  React.useEffect(() => { if (open) { setIdx(0); setDontShow(false); } }, [open]);
+  React.useEffect(() => {
+    if (open && !wasOpen.current) {
+      setIdx(0);
+      setDontShow(false);
+      if (soundsEnabled) playFungistCue('welcome');
+    }
+    wasOpen.current = open;
+  }, [open, soundsEnabled]);
 
   // Update anchor rect when step changes
   React.useEffect(() => {
@@ -170,6 +181,7 @@ export default function TutorialModal({ open, onClose, onDontShowAgain }) {
           <div className="mb-3 flex items-center gap-2 text-[10px] uppercase tracking-[0.32em] text-[rgb(var(--accent-2))]">
             <Sparkles size={11} /> Step {idx + 1} of {STEPS.length}
           </div>
+          {idx === 0 && <img src={FUNGIST_ASSET} alt="Fungist, the NEO-LIB companion" className="absolute -right-1 bottom-4 h-28 w-28 object-contain opacity-95 pointer-events-none" />}
           <div className="mb-3 text-3xl">{step.icon}</div>
           <h2 className="font-display text-xl font-bold mb-2 neon-text">{step.title}</h2>
           <p className="text-sm text-muted leading-relaxed">{step.body}</p>

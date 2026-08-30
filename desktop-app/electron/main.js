@@ -32,6 +32,12 @@ if (process.env.NEOLIB_DISCORD_APP_ID) DISCORD_APP_ID = process.env.NEOLIB_DISCO
 
 const isDev = process.env.NODE_ENV === 'development';
 
+// Keep the running window, taskbar group, installed EXE, Start shortcut, and
+// desktop shortcut under one stable Windows identity. This matches the
+// electron-builder appId, so Windows does not fall back to a generic or stale
+// pinned taskbar icon after an upgrade.
+if (process.platform === 'win32') app.setAppUserModelId('com.neolib.app');
+
 // Kept in the main process so the renderer receives only a small, read-only
 // snapshot. No game processes are inspected or modified.
 let previousCpuSample = null;
@@ -204,12 +210,42 @@ function shouldMinimizeToTray() {
   } catch { return false; }
 }
 
+// The installer icon is a build resource, but Electron's runtime tray needs
+// its own packaged copy as well. Prefer the unpacked asset in installed builds
+// (Windows Shell can read it directly), then fall back to the development path.
+function runtimeIconPath() {
+  const candidates = [
+    ...(app.isPackaged ? [
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'build', 'icon.ico'),
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'build', 'icon.png'),
+    ] : []),
+    path.join(__dirname, '..', 'build', 'icon.ico'),
+    path.join(__dirname, '..', 'build', 'icon.png'),
+  ];
+  return candidates.find((candidate) => fs.existsSync(candidate)) || '';
+}
+
+// A status-area icon needs a simpler, transparent mark than the full launcher
+// artwork. Keep it separate while applying the same packaged/unpacked lookup
+// rules as the app/EXE icon.
+function runtimeTrayIconPath() {
+  const candidates = [
+    ...(app.isPackaged ? [
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'build', 'tray-icon.png'),
+    ] : []),
+    path.join(__dirname, '..', 'build', 'tray-icon.png'),
+  ];
+  return candidates.find((candidate) => fs.existsSync(candidate)) || runtimeIconPath();
+}
+
 function buildTray() {
   if (tray) return tray;
   try {
-    const iconPath = path.join(__dirname, '..', 'build', 'icon.png');
+    const iconPath = runtimeTrayIconPath();
     const img = nativeImage.createFromPath(iconPath);
-    const trayImg = img.isEmpty() ? nativeImage.createEmpty() : img.resize({ width: 16, height: 16 });
+    // The dedicated transparent mark is intentionally bold enough for the
+    // tiny Windows notification area while the full artwork stays on the EXE.
+    const trayImg = img.isEmpty() ? nativeImage.createEmpty() : img.resize({ width: 20, height: 20, quality: 'best' });
     tray = new Tray(trayImg);
     tray.setToolTip('NEO-LIB');
     const menu = Menu.buildFromTemplate([
@@ -286,7 +322,7 @@ function createWindow() {
     frame: false,
     backgroundColor: '#0a0a0c',
     title: 'NEO-LIB',
-    icon: path.join(__dirname, '..', 'build', 'icon.png'),
+    icon: runtimeIconPath(),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -955,6 +991,21 @@ function gpuControlCenterFor(vendor) {
   };
 }
 
+// NVIDIA Control Panel is commonly installed as a Microsoft Store app rather
+// than an .exe in Program Files.  Ask Windows for its real Start-menu app ID
+// instead of treating a missing legacy nvcplui.exe as proof that NVIDIA tools
+// are unavailable.  This is still only discovery: launching the resulting
+// shell shortcut is exactly the same as selecting it from Start.
+async function windowsStartAppMatching(pattern) {
+  const script = String.raw`
+    Get-StartApps | Where-Object { $_.Name -match '${String(pattern).replace(/'/g, "''")}' -or $_.AppID -match '${String(pattern).replace(/'/g, "''")}' } |
+      Select-Object -First 1 Name,AppID | ConvertTo-Json -Compress
+  `;
+  const result = await runPowerShellJson(script, 8_000);
+  if (!result?.AppID) return null;
+  return { name: String(result.Name || ''), appId: String(result.AppID) };
+}
+
 const MANAGED_TOOL_PATHS = {
   gpuz: () => [
     path.join(managedToolsDir(), 'GPU-Z', 'GPU-Z.exe'),
@@ -986,11 +1037,23 @@ ipcMain.handle('tools:detectGpuSetup', async () => {
   }));
   const preferred = adapters.find((adapter) => gpuVendor(adapter.name) !== 'generic') || adapters[0] || { name: 'Unknown GPU' };
   const vendor = gpuVendor(`${preferred.name} ${preferred.videoProcessor}`);
+  let controlCenter = gpuControlCenterFor(vendor);
+  if (vendor === 'nvidia' && controlCenter.source === 'windows-fallback') {
+    const storeControl = await windowsStartAppMatching('NVIDIA.*(?:Control Panel|App)|NVIDIACorp');
+    if (storeControl) {
+      controlCenter = {
+        name: /control panel/i.test(storeControl.name) ? 'NVIDIA Control Panel' : (storeControl.name || 'NVIDIA App'),
+        exePath: '',
+        target: `shell:AppsFolder\\${storeControl.appId}`,
+        source: 'vendor-store-control-centre',
+      };
+    }
+  }
   return {
     ok: true,
     adapters,
     primary: { ...preferred, vendor },
-    controlCenter: gpuControlCenterFor(vendor),
+    controlCenter,
     utilities: {
       gpuz: { exePath: installedManagedToolPath('gpuz') },
       cpuz: { exePath: installedManagedToolPath('cpuz') },
@@ -1264,7 +1327,10 @@ ipcMain.handle('game:watchExternal', async (_e, { games = [] } = {}) => {
     if (externalGameWatch.timer) { clearInterval(externalGameWatch.timer); externalGameWatch.timer = null; }
     return { ok: true, watching: 0 };
   }
-  if (!externalGameWatch.timer) externalGameWatch.timer = setInterval(checkExternalGameWatch, 10_000);
+  // Full executable-path enumeration needs a Windows management query. Keep
+  // the safety feature light in normal use; NEO-LIB does not need to wake
+  // PowerShell six times a minute merely to notice a game launched elsewhere.
+  if (!externalGameWatch.timer) externalGameWatch.timer = setInterval(checkExternalGameWatch, 30_000);
   checkExternalGameWatch();
   return { ok: true, watching: externalGameWatch.games.length };
 });
@@ -2379,35 +2445,94 @@ function cleanTitle(t) {
 }
 
 // ---------------- Gemini fallback (optional) ---------------- //
-ipcMain.handle('gemini:metadata', async (_e, { apiKey, query }) => {
-  if (!apiKey || !query) return null;
-  const prompt = `You are a video-game database. Given this rough name guessed from a folder/exe: "${query}". 
-Return ONLY a single compact JSON object (no markdown) with these fields:
-{
- "name": "canonical title",
- "shortDescription": "1-2 sentence summary",
- "about": "3-5 sentence description",
- "genres": ["..."],
- "developers": ["..."],
- "publishers": ["..."],
- "releaseDate": "YYYY or 'DD Mon YYYY' if known",
- "website": "official site or wiki URL or empty"
+// Keep every AI route on an explicit, small allow-list. The renderer can show
+// future models before they ship, but the desktop process will only ever call
+// a provider/model that NEO-LIB has deliberately wired and tested.
+const AI_MODELS = Object.freeze([
+  { id: 'gemini-2.5-flash', provider: 'gemini', label: 'Gemini 2.5 Flash' },
+]);
+const DEFAULT_AI_MODEL = AI_MODELS[0].id;
+function resolveAiModel(model) {
+  const id = String(model || '').trim();
+  return AI_MODELS.some((entry) => entry.id === id) ? id : DEFAULT_AI_MODEL;
 }
-If you cannot identify the game, set "name" to "" and return empty strings/arrays.`;
+function geminiTextList(value) {
+  return Array.isArray(value) ? value.map((entry) => String(entry || '').trim()).filter(Boolean).slice(0, 12) : [];
+}
+function normalizeGeminiMetadata(value, fallbackName = '') {
+  if (!value || typeof value !== 'object') return null;
+  const name = String(value.name || '').trim().slice(0, 180);
+  if (!name) return null;
+  return {
+    source: 'gemini', name,
+    shortDescription: String(value.shortDescription || '').trim().slice(0, 700),
+    about: String(value.about || '').trim().slice(0, 3000),
+    genres: geminiTextList(value.genres),
+    developers: geminiTextList(value.developers),
+    publishers: geminiTextList(value.publishers),
+    releaseDate: String(value.releaseDate || '').trim().slice(0, 80),
+    website: String(value.website || '').trim().slice(0, 500),
+    metacritic: Number.isFinite(Number(value.metacritic)) ? Number(value.metacritic) : null,
+    screenshots: [],
+    queryEvidence: fallbackName,
+  };
+}
+async function requestGeminiGameMetadata(apiKey, query, model) {
+  const key = String(apiKey || '').trim();
+  const term = cleanSearchTerm(String(query || '')).slice(0, 180);
+  const activeModel = resolveAiModel(model);
+  if (!key) throw new Error('Add a Gemini API key in Settings first.');
+  if (!term) throw new Error('Enter a game name before asking AI.');
+  const prompt = `You identify PC video games from rough local filenames and folder names.\n\nGame clue: "${term}"\n\nReturn ONLY one JSON object with this exact shape:\n{"name":"canonical title or empty","shortDescription":"","about":"","genres":[],"developers":[],"publishers":[],"releaseDate":"","website":"official game/store/wiki URL or empty","metacritic":null}\n\nRules: Do not invent a title when uncertain. Keep genres specific when known. Do not include markdown, commentary, download links, or file paths.`;
+  const data = await httpPostJson(
+    `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${encodeURIComponent(key)}`,
+    { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.1, maxOutputTokens: 900 } },
+  );
+  if (data?.error?.message) throw new Error(`Gemini: ${data.error.message}`);
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  let parsed;
+  try { parsed = JSON.parse(text); } catch { throw new Error('Gemini returned an unreadable metadata response.'); }
+  const normalized = normalizeGeminiMetadata(parsed, term);
+  if (!normalized) throw new Error('Gemini could not identify this game confidently. Try a clearer title clue or another source.');
+  return normalized;
+}
+
+ipcMain.handle('gemini:metadata', async (_e, { apiKey, query, model } = {}) => {
+  try { return { ok: true, model: resolveAiModel(model), metadata: await requestGeminiGameMetadata(apiKey, query, model) }; }
+  catch (error) { return { ok: false, error: error?.message || 'Gemini request failed.' }; }
+});
+
+ipcMain.handle('gemini:test', async (_e, { apiKey, model } = {}) => {
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${encodeURIComponent(apiKey)}`;
-    const body = {
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
-    };
-    const data = await httpPostJson(url, body);
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const parsed = JSON.parse(text);
-    if (!parsed.name) return null;
-    return { ...parsed, source: 'gemini', screenshots: [] };
-  } catch (e) {
-    return null;
-  }
+    const activeModel = resolveAiModel(model);
+    const metadata = await requestGeminiGameMetadata(apiKey, 'Portal 2', activeModel);
+    return { ok: true, model: activeModel, name: metadata.name };
+  } catch (error) { return { ok: false, error: error?.message || 'Gemini test failed.' }; }
+});
+
+// Fungist's chat is intentionally opt-in and stateless: the player must press
+// Send, and only the typed message is sent to their own Gemini key. No library,
+// process, save, launcher, or account data is attached automatically.
+async function requestGeminiAssistant(apiKey, message, model) {
+  const key = String(apiKey || '').trim();
+  const question = String(message || '').trim().slice(0, 1800);
+  const activeModel = resolveAiModel(model);
+  if (!key) throw new Error('Add a Gemini API key in Settings before asking Fungist.');
+  if (!question) throw new Error('Write a question for Fungist first.');
+  const prompt = `You are Fungist, a friendly concise companion inside NEO-LIB, a local Windows game-library launcher. Answer the player's question helpfully in plain language. You only know what they type here; never claim to inspect their PC, games, accounts, files, or running programs. For safety, describe any destructive or account-related action before suggesting it. Keep the answer under 180 words.\n\nPlayer: ${question}`;
+  const data = await httpPostJson(
+    `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${encodeURIComponent(key)}`,
+    { contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.45, maxOutputTokens: 420 } },
+  );
+  if (data?.error?.message) throw new Error(`Gemini: ${data.error.message}`);
+  const text = String(data?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+  if (!text) throw new Error('Fungist did not receive a usable AI reply.');
+  return text.slice(0, 4000);
+}
+
+ipcMain.handle('gemini:assistant', async (_e, { apiKey, message, model } = {}) => {
+  try { return { ok: true, model: resolveAiModel(model), text: await requestGeminiAssistant(apiKey, message, model) }; }
+  catch (error) { return { ok: false, error: error?.message || 'Fungist could not reach the AI service.' }; }
 });
 
 // ---------------- Unified metadata pipeline ---------------- //
@@ -2656,7 +2781,7 @@ ipcMain.handle('metadata:deriveHints', async (_e, { exePath, currentName } = {})
  *   'google'    → DDG/Google scrape — up to 8 generic web results
  *   'ai'        → Gemini "name this game" → returns a single synthetic hit
  */
-ipcMain.handle('metadata:listCandidates', async (_e, { source, query, geminiKey } = {}) => {
+ipcMain.handle('metadata:listCandidates', async (_e, { source, query, geminiKey, aiModel } = {}) => {
   const term = cleanSearchTerm(query || '');
   if (!term) return { candidates: [], error: 'Empty query' };
 
@@ -2669,7 +2794,7 @@ ipcMain.handle('metadata:listCandidates', async (_e, { source, query, geminiKey 
     if (source === 'ryuugames') return { candidates: await listRyuuCandidates(term) };
     if (source === 'f95zone') return { candidates: await listF95Candidates(term) };
     if (source === 'google') return { candidates: await listGoogleCandidates(term) };
-    if (source === 'ai') return { candidates: await listAiCandidates(term, geminiKey) };
+    if (source === 'ai') return { candidates: await listAiCandidates(term, geminiKey, aiModel) };
   } catch (e) {
     return { candidates: [], error: String(e) };
   }
@@ -2990,7 +3115,7 @@ async function expandGoogle(c) {
   };
 }
 
-async function listAiCandidates(term, geminiKey) {
+async function listAiCandidates(term, geminiKey, aiModel) {
   if (!geminiKey) return [{
     source: 'ai',
     id: 'ai-key-missing',
@@ -3000,43 +3125,15 @@ async function listAiCandidates(term, geminiKey) {
     shortDescription: 'Add your Gemini API key in Settings → Integrations to use the "Ask AI" source.',
     raw: null,
   }];
-  // Reuse existing gemini:metadata handler logic by invoking it inline
-  try {
-    const apiBody = {
-      contents: [{
-        role: 'user',
-        parts: [{ text:
-`You are a video-game database. Given this rough name guessed from a folder/exe: "${term}".
-Return ONLY a single compact JSON object (no markdown) with these fields:
-{ "name": "canonical title", "shortDescription": "1-2 sentence summary",
-  "about": "3-5 sentence description", "genres": ["..."],
-  "developers": ["..."], "publishers": ["..."], "releaseDate": "YYYY-MM-DD",
-  "website": "official URL or store URL", "metacritic": null,
-  "source": "gemini" }` }],
-      }],
-    };
-    const resp = await httpPostJson(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
-      apiBody,
-    );
-    const text = resp?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const jsonStart = text.indexOf('{');
-    const jsonEnd = text.lastIndexOf('}');
-    if (jsonStart === -1 || jsonEnd === -1) return [];
-    const obj = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
-    return [{
-      source: 'ai',
-      id: 'gemini-1',
-      name: obj.name || term,
-      image: '',
-      year: (obj.releaseDate || '').slice(0, 4),
-      shortDescription: obj.shortDescription || '',
-      raw: { ...obj, source: 'gemini' },
-    }];
-  } catch { return []; }
+  const metadata = await requestGeminiGameMetadata(geminiKey, term, aiModel);
+  return [{
+    source: 'ai', id: 'gemini-1', name: metadata.name, image: '',
+    year: (metadata.releaseDate || '').slice(0, 4),
+    shortDescription: metadata.shortDescription || '', raw: metadata,
+  }];
 }
 
-ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey, lockedAppid, launcher }) => {
+ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey, aiModel, lockedAppid, launcher }) => {
   // If a lockedAppid is provided, skip search entirely and just refresh that exact entry.
   // Delisted Steam products can remain in a customer's library and manifest while
   // disappearing from public store search (and sometimes appdetails).  Never let a
@@ -3224,23 +3321,7 @@ ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey,
 
   // 4. Gemini (if user key provided)
   if (!skipSources.includes('gemini') && geminiKey) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${encodeURIComponent(geminiKey)}`;
-      const prompt = `Return ONLY JSON for game "${term}": {"name":"","shortDescription":"","about":"","genres":[],"developers":[],"publishers":[],"releaseDate":"","website":""}. If unknown leave fields empty.`;
-      const data = await httpPostJson(url, {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
-      });
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const parsed = JSON.parse(text);
-      if (parsed && parsed.name) {
-        return {
-          source: 'gemini',
-          ...parsed,
-          screenshots: [],
-        };
-      }
-    } catch {}
+    try { return await requestGeminiGameMetadata(geminiKey, term, aiModel); } catch { /* continue with non-AI sources */ }
   }
 
   // 5. Ryuugames — adult-VN repackager. Sometimes the only place an obscure
@@ -3857,7 +3938,7 @@ function deriveInstalledVersionFromLocalGame(game = {}) {
         const fullPath = path.join(root, entry.name);
         if (seen.has(fullPath)) continue;
         seen.add(fullPath);
-        if (/^(?:version|changelog|patch|readme|release|notes|about|config|game).*\.(?:txt|md|nfo|html?|json|ini|cfg)$/i.test(entry.name)) candidates.push(fullPath);
+        if (/^\.build\.info$/i.test(entry.name) || /^(?:version|changelog|patch|readme|release|notes|about|config|game).*\.(?:txt|md|nfo|html?|json|ini|cfg|info)$/i.test(entry.name)) candidates.push(fullPath);
       }
     } catch { /* inaccessible game folder is not an error */ }
   }
@@ -3865,6 +3946,20 @@ function deriveInstalledVersionFromLocalGame(game = {}) {
   for (const file of candidates) {
     try {
       const text = fs.readFileSync(file, 'utf8').slice(0, 96_000);
+      // Blizzard's ordinary local .build.info file has a typed header line
+      // followed by a pipe-delimited value line. It is an excellent installed
+      // version clue for Battle.net games and avoids treating them as generic
+      // independent titles.
+      if (/\.build\.info$/i.test(file)) {
+        const [headerLine, valueLine] = text.split(/\r?\n/).filter(Boolean);
+        const headers = String(headerLine || '').split('|').map((value) => value.split('!')[0].trim().toLowerCase());
+        const values = String(valueLine || '').split('|').map((value) => value.trim());
+        const versionIndex = headers.findIndex((value) => /^(version|productversion|buildid)$/.test(value));
+        const buildVersion = versionIndex >= 0 ? values[versionIndex] : '';
+        if (/^\d+(?:\.\d+){1,4}(?:[a-z]|\s*(?:alpha|beta|rc)\d*)?$/i.test(buildVersion)) {
+          return { version: buildVersion.replace(/\s+/g, ''), evidence: '.build.info' };
+        }
+      }
       const match = text.match(/(?:\b(?:game\s+)?version|\bbuild)\s*(?:is|:|=|#|-|to)?\s*v?(\d+(?:\.\d+){1,3}(?:[a-z]|\s*(?:alpha|beta|rc)\d*)?)/i);
       if (match?.[1]) return { version: match[1].replace(/\s+/g, ''), evidence: path.basename(file) };
     } catch { /* skip unreadable/non-text files */ }
@@ -3874,6 +3969,58 @@ function deriveInstalledVersionFromLocalGame(game = {}) {
 }
 
 const INDEPENDENT_UPDATE_CACHE = new Map();
+const UPDATE_SOURCE_DISCOVERY_CACHE = new Map();
+
+function updateTitleTokens(name = '') {
+  return String(name).toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter((token) => token.length >= 3 && !['game', 'the', 'for', 'and'].includes(token));
+}
+
+function ddgResultUrl(value = '') {
+  try {
+    const parsed = new URL(String(value));
+    const redirected = parsed.searchParams.get('uddg');
+    return redirected ? decodeURIComponent(redirected) : parsed.toString();
+  } catch { return String(value || ''); }
+}
+
+// This keeps the normal automatic path hands-free. We start with known
+// official metadata/launcher pages, then lightly inspect a few web-search
+// results that clearly mention the game's title and an update/patch context.
+// Results are evidence, not permission to guess: a page without an explicit
+// version never marks a game up to date.
+async function discoverUpdateSources(game) {
+  const key = `${game.id || game.name}|${game.website || ''}|${game.updateWatchUrl || ''}`;
+  const cached = UPDATE_SOURCE_DISCOVERY_CACHE.get(key);
+  if (cached && Date.now() - cached.ts < 6 * 60 * 60 * 1000) return cached.sources;
+  const candidates = [];
+  const add = (url, kind) => {
+    try {
+      const normalized = new URL(url).toString();
+      if (!candidates.some((candidate) => candidate.url === normalized)) candidates.push({ url: normalized, kind });
+    } catch { /* ignore non-web routes */ }
+  };
+  add(game.updateWatchUrl, 'saved source');
+  add(game.website, 'game website');
+  if (String(game.launcher || game.source).toLowerCase() === 'battlenet') {
+    const product = BATTLENET_PRODUCTS.find((entry) => entry.match.test(String(game.name || '')));
+    if (product) add(product.url, 'Battle.net product page');
+  }
+  const tokens = updateTitleTokens(game.name);
+  if (candidates.length < 3 && tokens.length) {
+    try {
+      const results = await ddgSearch(`${game.name} latest version patch notes`);
+      for (const result of results || []) {
+        if (candidates.length >= 3) break;
+        const haystack = `${result.title || ''} ${result.snippet || ''}`.toLowerCase();
+        const titleMatches = tokens.filter((token) => haystack.includes(token)).length;
+        if (titleMatches < Math.min(2, tokens.length) || !/(?:update|patch|version|release|devlog|changelog)/i.test(haystack)) continue;
+        add(ddgResultUrl(result.url), 'automatic web discovery');
+      }
+    } catch { /* source discovery is best effort */ }
+  }
+  UPDATE_SOURCE_DISCOVERY_CACHE.set(key, { ts: Date.now(), sources: candidates });
+  return candidates;
+}
 
 // Read-only update intelligence. NEO-LIB only reports an update as pending
 // when the launcher's own manifest exposes concrete undownloaded bytes. Raw
@@ -3937,19 +4084,22 @@ ipcMain.handle('updates:scan', async (_e, { games = [] } = {}) => {
   const scanIndependent = async (game) => {
     if (items.some((entry) => entry.id === game.id)) return;
     const localVersion = game.installedVersion ? { version: String(game.installedVersion), evidence: 'saved game metadata' } : deriveInstalledVersionFromLocalGame(game);
-    const sourceUrl = game.updateWatchUrl || game.website || '';
-    if (!localVersion || !sourceUrl) {
-      if (game.exePath || game.updateWatchUrl || game.website) {
-        const missing = !localVersion ? 'installed version' : 'public update page';
+    if (!localVersion) {
+      if (game.exePath || game.updateWatchUrl || game.website || game.launcher) {
+        const missing = 'installed version';
         needsSetup.push({ id: game.id, name: game.name || 'Unnamed game', missing });
         ledger.push({ id: game.id, status: 'needs-evidence', source: 'Independent game', checkedAt: Date.now(), missing });
       }
       return;
     }
-    let parsed;
-    try { parsed = new URL(sourceUrl); } catch { return; }
-    if (!['http:', 'https:'].includes(parsed.protocol)) return;
-    const cacheKey = `${game.id}|${localVersion.version}|${parsed.toString()}`;
+    const sources = await discoverUpdateSources(game);
+    if (!sources.length) {
+      const missing = 'a trustworthy update source';
+      needsSetup.push({ id: game.id, name: game.name || 'Unnamed game', missing });
+      ledger.push({ id: game.id, status: 'needs-evidence', source: 'Automatic discovery', checkedAt: Date.now(), currentVersion: localVersion.version, missing });
+      return;
+    }
+    const cacheKey = `${game.id}|${localVersion.version}|${sources.map((source) => source.url).join('|')}`;
     const cached = INDEPENDENT_UPDATE_CACHE.get(cacheKey);
     if (cached && Date.now() - cached.ts < 15 * 60 * 1000) {
       checked += 1;
@@ -3958,13 +4108,20 @@ ipcMain.handle('updates:scan', async (_e, { games = [] } = {}) => {
       return;
     }
     try {
-      const html = await httpGetText(parsed.toString(), 9_000);
-      const text = stripHtml(html).replace(/\s+/g, ' ').slice(0, 500_000);
+      const sourceResults = await Promise.all(sources.map(async (source) => {
+        try {
+          const html = await httpGetText(source.url, 9_000);
+          return { ...source, text: stripHtml(html).replace(/\s+/g, ' ').slice(0, 500_000) };
+        } catch { return null; }
+      }));
       const matches = [];
       const pattern = /(?:\b(?:version|build)\s*(?:is|to|[:=#-])?\s*v?(\d+(?:\.\d+){1,3}[a-z]?)|\bv(\d+(?:\.\d+){1,3}[a-z]?))/gi;
-      let match;
-      while ((match = pattern.exec(text)) !== null && matches.length < 80) matches.push(match[1] || match[2]);
-      const latestVersion = matches.sort((a, b) => compareVersions(b, a))[0];
+      for (const source of sourceResults.filter(Boolean)) {
+        let match;
+        while ((match = pattern.exec(source.text)) !== null && matches.length < 80) matches.push({ version: match[1] || match[2], source });
+      }
+      const latest = matches.sort((a, b) => compareVersions(b.version, a.version))[0];
+      const latestVersion = latest?.version || '';
       checked += 1;
       const foundUpdate = latestVersion && compareVersions(latestVersion, localVersion.version) > 0 ? {
         id: game.id,
@@ -3973,13 +4130,22 @@ ipcMain.handle('updates:scan', async (_e, { games = [] } = {}) => {
         status: 'available',
         currentVersion: localVersion.version,
         latestVersion,
-        actionUrl: parsed.toString(),
+        actionUrl: latest.source.url,
         sourceKind: 'watch-page',
         installedVersionEvidence: localVersion.evidence,
+        latestVersionEvidence: latest.source.kind,
       } : null;
       INDEPENDENT_UPDATE_CACHE.set(cacheKey, { ts: Date.now(), item: foundUpdate });
       if (foundUpdate) items.push(foundUpdate);
-      ledger.push({ id: game.id, status: foundUpdate ? 'available' : 'current', source: 'Independent source', checkedAt: Date.now(), currentVersion: localVersion.version, latestVersion: latestVersion || localVersion.version });
+      // Never call a game current because a web page had no parseable version.
+      // That exact mistake hid older Battle.net and standalone installs.
+      if (latestVersion) {
+        ledger.push({ id: game.id, status: foundUpdate ? 'available' : 'current', source: 'Automatic update evidence', checkedAt: Date.now(), currentVersion: localVersion.version, latestVersion });
+      } else {
+        const missing = 'an explicit latest version';
+        needsSetup.push({ id: game.id, name: game.name || 'Unnamed game', missing });
+        ledger.push({ id: game.id, status: 'needs-evidence', source: 'Automatic update discovery', checkedAt: Date.now(), currentVersion: localVersion.version, missing });
+      }
     } catch { /* inaccessible or protected page — do not create a false alert */ }
   };
   for (let start = 0; start < independentCandidates.length; start += 4) {

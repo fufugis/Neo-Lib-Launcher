@@ -10,10 +10,11 @@
 
 #### Major changes & new features
 
+- **Meet Fungist, your living NEO-LIB companion** — Fungist now has a gentle docked hover plus blink, smile, shocked, and sleep poses; ordinary attention gets soft sparkles, while major PC attention gets neon flight trails, a red firework halo, and clear green/yellow/red status glows. He uses sensible per-type cooldowns, explains every alert through “Why am I seeing this?”, and gives a real completed-action response. Right-click Fungist for a short Inbox and Quick Settings. Settings also lets the player enable or mute each reaction type independently—PC alerts, favourite news/updates, NEO-LIB updates, completion, and idle naps—and visibly marks the current safe AI model, ready for future connected choices. His six lightweight synthesized cues obey both the UI-sounds switch and No sound pack. He remains fully removed during Rest Mode.
 - **Optimize Center** — the new animated action beside CPU/RAM gives a clear Speed Up Gaming view: top CPU and memory users, GPU activity where Windows exposes it, and useful Game Mode, GPU scheduling, capture, power-plan, and restart guidance.
 - **Safe Junk Review** — review temporary files, crash reports, logs, and nearby forgotten installers before anything changes. Every file links to its folder, requires inspection and two confirmations, then moves to the Windows Recycle Bin.
 - **Hardware & graphics in Tools** — first launch can detect the graphics adapter and add GPU-Z, CPU-Z, plus the appropriate NVIDIA, AMD, Intel, or Windows graphics shortcut. Missing utilities can be located or installed only after an explicit click.
-- **Smarter game updates** — a light startup/launch queue combines reliable launcher data with bounded local version, Readme, Changelog, and Config clues before showing a verified newer release above Preview news.
+- **Smarter game updates** — a light startup/launch queue combines reliable launcher data with bounded local version, Readme, Changelog, Config, and Battle.net `.build.info` clues. It then tries known official pages plus a small automatic web discovery pass before showing a verified newer release above Preview news.
 - **A richer personal library** — meaningful play sessions can request a precise one-decimal rating; Preview news has more artwork; direct provider tags remain next to broad genres; and Rest Mode can activate for a tracked game launched from its original client.
 
 #### Fixes, adjustments & polish
@@ -22,6 +23,11 @@
 - **Home and Library precision** — the first game can sit cleanly against the Library header, category Backdrops scale with label size, and a first window opens at 75% width by 90% height while later launches remember your own size.
 - **Theme and Friends polish** — the new Mid Home theme joins refined Generic Gray, Generic Blue, Midnight, Industrial, Modern, Daybreak, and Mint Garden treatments. Friends is roomier and easier to read.
 - **Safer background behavior** — protected Windows/NEO-LIB processes cannot be closed from Optimize, NEO-LIB applies no hidden system tweaks, and an idle launcher never triggers Rest Mode.
+- **NVIDIA and Visual corrections** — Store-installed NVIDIA Control Panel/NVIDIA App is now detected through Windows Start-app registration instead of falling back too early to Graphics Settings. Home is a calmer gray, and Category Backdrops closely follow the text size instead of becoming a thick extra row.
+- **Honest update results** — a page without an explicit latest version no longer records a game as current. NEO-LIB reports that stronger evidence is needed and explains the automatic folder, launcher, official-page, and web checks it already attempted.
+- **Optimize stability and calmer monitoring** — Safe Junk Review holds its completed results rather than restarting its scan; the Game Ready footer refreshes every 15 seconds, and the external-launch path probe now runs every 30 seconds to avoid needless background wake-ups.
+- **Home breathing room + AI reliability** — Home’s news artwork, titles, spacing, and overall dashboard scale are larger, while the pane eye/drag controls now sit clear of headings. Gemini metadata uses one current 2.5 Flash route with validated output, useful visible errors, and a Settings connection test.
+- **New NEO-LIB icon everywhere** — the neon power artwork now covers the app window, taskbar, installer, desktop and Start shortcuts. Windows uses the matching stable NEO-LIB app identity, and the installer safely asks Explorer to refresh icons after upgrade—without deleting a cache, changing pins, or touching user data. A dedicated transparent tray mark keeps Close to tray crisp instead of falling back to a blank notification-area icon.
 
 #### v1.7.2 release highlights
 

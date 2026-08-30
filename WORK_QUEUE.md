@@ -5,6 +5,18 @@ This is the authoritative live queue. New user requests are appended here and re
 ## In progress
 
 - [x] vNext ratings migration: reset all stored personal ratings for the new decimal rating system, then render dynamically filled fractional stars.
+- [x] v1.7.3 test-fix: detect Store-installed NVIDIA Control Panel/NVIDIA App through Windows Start-app registration and replace an earlier managed Windows Graphics Settings fallback on the next launch.
+- [x] v1.7.3 test-fix: darken the Mid Home theme into a more comfortable gray workspace and make Category Backdrop padding track the category text closely.
+- [x] v1.7.3 test-fix: correct Update Intelligence so missing version evidence is never recorded as current; add bounded Battle.net `.build.info` detection and automatic official/web source discovery before any manual page setup is suggested.
+- [x] v1.7.3 test-fix: stop Safe Junk Review from retriggering its scan after rendering results, and reduce low-value background monitoring cadence (system health 15s; external executable-path check 30s).
+- [x] v1.7.3 test-fix: enlarge Home’s visual hierarchy and reserve a control gutter so Home drag/hide buttons cannot overlap pane headings.
+- [x] v1.7.3 test-fix: audit and consolidate Gemini metadata fallback onto one current model and output contract; show real failure feedback and add an explicit Settings connection test.
+- [x] v1.7.3 icon refresh: rebuild the supplied neon power artwork as a multi-size Windows icon for the app, EXE, taskbar, installer, desktop and Start shortcuts; assign the matching stable Windows app identity; safely notify Explorer after upgrade without clearing a cache/pins/data; and package a dedicated transparent tray mark for installed or development assets.
+- [x] v1.7.3 Fungist core: add an optional, static-by-default event-driven companion with a local transparent asset; small attention bubble for favourite news, verified favourite updates, ordinary NEO-LIB updates, and yellow PC status; centre-flight only for red PC status; a tutorial introduction; Rest Mode silence; no duplicate system polling; and explicit-send Gemini chat with no automatic PC/library/account data attachment.
+- [x] v1.7.3 Fungist life pass: add compact stand, blink, fly-with-neon-trails, and completion poses; low-impact docked motion and sparse true pose swaps; six controlled synthesized sound cues (Good Ding, Hey, Welcome, Warning, Attention, Completed Ding); and sound-pack/UI-sound/Rest Mode safeguards.
+- [x] v1.7.3 Fungist FX + expression pass: add smile, shocked, and sleep poses; subtle medium-activity sparkles; green/yellow/red status glows; and an outward heavy-alert firework treatment around the centre-flight event.
+- [x] v1.7.3 Fungist reactive behaviour + controls: make health/news/update/completion/idle reactions independently switchable, reset PC alerts after real recovery, and add a visible current-AI-model selector backed by a safe model allow-list for Fungist chat and AI metadata work.
+- [x] v1.7.3 Fungist attention hygiene: add per-type cooldowns, a persistent bounded Inbox and Quick Settings on right-click, a “Why am I seeing this?” explanation for live alerts, and action-labelled completion feedback.
 
 ## Queued — next update
 

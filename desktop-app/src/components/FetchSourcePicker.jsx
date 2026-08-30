@@ -24,10 +24,11 @@ const isElectron = typeof window !== 'undefined' && !!window.api;
  *   - open: boolean
  *   - game: the game being matched (used for query seeding + exe path)
  *   - geminiKey: optional, enables the "Ask AI" source
+ *   - aiModel: selected, allow-listed AI model for Ask AI and auto fetch
  *   - onPick: (metadata) => void
  *   - onClose: () => void
  */
-export default function FetchSourcePicker({ open, game, geminiKey, progress, onPick, onStopQueue, onClose }) {
+export default function FetchSourcePicker({ open, game, geminiKey, aiModel = 'gemini-2.5-flash', progress, onPick, onStopQueue, onClose }) {
   const dragControls = useDragControls();
   const [query, setQuery] = React.useState('');
   const [source, setSource] = React.useState('auto');
@@ -73,7 +74,7 @@ export default function FetchSourcePicker({ open, game, geminiKey, progress, onP
       if (src === 'auto') {
         // Auto uses the legacy single-best-guess endpoint and presents it
         // as a 1-result carousel so the UI is consistent.
-        const result = await window.api.fetchMetadata({ query, geminiKey });
+        const result = await window.api.fetchMetadata({ query, geminiKey, aiModel });
         if (result) {
           setCandidates([candidateFromMetadata(result)]);
           setStatusMsg(`Auto-fetch found a match on ${prettyName(result.source || 'web')}.`);
@@ -82,7 +83,7 @@ export default function FetchSourcePicker({ open, game, geminiKey, progress, onP
         }
       } else {
         const { candidates: list, error } = await window.api.listCandidates({
-          source: src, query, geminiKey,
+          source: src, query, geminiKey, aiModel,
         });
         if (error) setStatusMsg(`Error: ${error}`);
         setCandidates(list || []);

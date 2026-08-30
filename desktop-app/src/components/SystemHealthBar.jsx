@@ -3,7 +3,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronUp, CircleAlert, CircleCheck, Gauge, MemoryStick, RefreshCw, Rocket } from 'lucide-react';
 import OptimizeCenter from './OptimizeCenter';
 
-const POLL_INTERVAL_MS = 5_000;
+// A footer label does not need a live-monitor cadence. Fifteen seconds keeps
+// it useful without repeatedly waking Electron and forcing a render during a
+// normal desktop session. The manual refresh still remains immediate.
+const POLL_INTERVAL_MS = 15_000;
 
 function usageLevel(value) {
   if (!Number.isFinite(value)) return 'checking';
@@ -30,27 +33,36 @@ const STATUS = {
 };
 
 /** Full-width Library footer overlay. It intentionally sits above the game rows. */
-export default function SystemHealthBar({ resting = false, runningGameName = '', games = [] }) {
+export default function SystemHealthBar({ resting = false, runningGameName = '', games = [], onStatusChange, openRequest = 0 }) {
   const [open, setOpen] = React.useState(false);
   const [optimizeOpen, setOptimizeOpen] = React.useState(false);
   const [health, setHealth] = React.useState(null);
   const [failed, setFailed] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
+  const refreshingRef = React.useRef(false);
 
-  const refresh = React.useCallback(async () => {
+  const refresh = React.useCallback(async ({ manual = false } = {}) => {
+    if (refreshingRef.current) return;
     if (!window.api?.getSystemHealth) {
       setFailed(true);
       return;
     }
-    setLoading(true);
+    refreshingRef.current = true;
+    if (manual) setLoading(true);
     try {
       const result = await window.api.getSystemHealth();
-      setHealth(result || null);
+      setHealth((previous) => {
+        if (!result || !previous) return result || null;
+        const sameCpu = Math.abs(Number(previous.cpuPercent) - Number(result.cpuPercent)) < 2;
+        const sameRam = Math.abs(Number(previous.ramPercent) - Number(result.ramPercent)) < 1;
+        return sameCpu && sameRam ? previous : result;
+      });
       setFailed(false);
     } catch {
       setFailed(true);
     } finally {
-      setLoading(false);
+      refreshingRef.current = false;
+      if (manual) setLoading(false);
     }
   }, []);
 
@@ -67,6 +79,14 @@ export default function SystemHealthBar({ resting = false, runningGameName = '',
   const cpuLevel = usageLevel(health?.cpuPercent);
   const ramLevel = usageLevel(health?.ramPercent);
   const pulseClass = state === 'check' || state === 'high' ? 'motion-safe:animate-pulse' : '';
+  // Reuse this footer's existing 15-second local sample for Fungist instead
+  // of introducing a second CPU/RAM polling loop just for the mascot.
+  React.useEffect(() => {
+    onStatusChange?.({ state, health, cpuLevel, ramLevel });
+  }, [onStatusChange, state, health, cpuLevel, ramLevel]);
+  React.useEffect(() => {
+    if (openRequest > 0) setOpen(true);
+  }, [openRequest]);
   const tips = [];
   if (resting) tips.push(`NEO-LIB is resting while ${runningGameName || 'your game'} is running.`);
   if (resting) tips.push('Theme effects, animations, sounds, system polling, launcher scans, news checks, deal rotation, and social checks are paused.');
@@ -89,9 +109,9 @@ export default function SystemHealthBar({ resting = false, runningGameName = '',
             <header className="flex items-center justify-between gap-3 border-b border-[rgb(var(--border)/0.75)] px-3 py-2.5">
               <div className="flex min-w-0 items-center gap-2">
                 <StatusIcon size={16} style={{ color: config.color }} className={pulseClass} />
-                <div className="min-w-0"><h2 className="text-xs font-black tracking-[0.12em]">{config.title}</h2><p className="text-[10px] text-muted">{resting ? 'Background work paused until the game closes' : 'Local, read-only check · refreshes every 5 seconds'}</p></div>
+                <div className="min-w-0"><h2 className="text-xs font-black tracking-[0.12em]">{config.title}</h2><p className="text-[10px] text-muted">{resting ? 'Background work paused until the game closes' : 'Local, read-only check · refreshes every 15 seconds'}</p></div>
               </div>
-              {!resting && <button onClick={refresh} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted hover:bg-panel hover:text-ink" title="Refresh system check"><RefreshCw size={13} className={loading ? 'animate-spin' : ''} /></button>}
+              {!resting && <button onClick={() => refresh({ manual: true })} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted hover:bg-panel hover:text-ink" title="Refresh system check"><RefreshCw size={13} className={loading ? 'animate-spin' : ''} /></button>}
             </header>
             {!resting && <div className="grid gap-2 p-3 min-[330px]:grid-cols-2"><Metric icon={<Gauge size={14} />} label="CPU" value={health?.cpuPercent} level={cpuLevel} /><Metric icon={<MemoryStick size={14} />} label="RAM" value={health?.ramPercent} level={ramLevel} detail={health ? `${health.memoryUsedGb} / ${health.memoryTotalGb} GB used` : ''} /></div>}
             <div className="border-t border-[rgb(var(--border)/0.75)] bg-[rgb(var(--surface)/0.28)] px-3 py-2.5"><p className="text-[10.5px] leading-relaxed text-muted">{tips.map((tip) => <span key={tip} className="block">• {tip}</span>)}</p></div>

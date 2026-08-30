@@ -45,6 +45,8 @@ contextBridge.exposeInMainWorld('api', {
   expandCandidate: (opts) => ipcRenderer.invoke('metadata:expandCandidate', opts),
   webSearch: (q) => ipcRenderer.invoke('web:search', q),
   gogSearch: (q) => ipcRenderer.invoke('gog:search', q),
+  testGemini: (opts) => ipcRenderer.invoke('gemini:test', opts),
+  askFungist: (opts) => ipcRenderer.invoke('gemini:assistant', opts),
 
   // cache
   cacheImage: (url, name) => ipcRenderer.invoke('image:cache', { url, name }),

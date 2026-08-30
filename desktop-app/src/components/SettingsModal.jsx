@@ -1,16 +1,31 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { THEMES } from '../lib/utils';
-import { SOUND_PACKS, setSoundPack, playLaunch, playHover } from '../lib/sound';
+import { FUNGIST_SOUND_CUES, SOUND_PACKS, setSoundPack, playFungistCue, playLaunch, playHover } from '../lib/sound';
 import { Check, Sparkles, Eye, EyeOff, Sliders, Power, Heart, DownloadCloud, MessageCircle } from 'lucide-react';
 import Modal from './Modal';
 import { DONATE_PAYPAL_URL } from './DonateModal';
 import qrUrl from '../assets/donate-qr.png';
 
+const AI_MODELS = [
+  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', provider: 'Google Gemini', detail: 'Fast, capable, and the current connected model.' },
+];
+
+const FUNGIST_NOTIFICATIONS = [
+  { id: 'pcHigh', label: 'High PC use', hint: 'Major red alert when CPU or RAM remains high.' },
+  { id: 'pcCheck', label: 'PC check', hint: 'Yellow reminder when the PC is elevated before gaming.' },
+  { id: 'favouriteNews', label: 'Favourite game news', hint: 'A light green sparkly notice for new news on a favourite.' },
+  { id: 'favouriteUpdates', label: 'Favourite game updates', hint: 'A light green notice when a favourited game has a verified update.' },
+  { id: 'appUpdates', label: 'NEO-LIB updates', hint: 'A light green notice when a newer NEO-LIB version is available.' },
+  { id: 'completion', label: 'Completion celebrations', hint: 'Smile, celebration pose, and completed chime after successful NEO-LIB actions.' },
+  { id: 'idleNap', label: 'Idle nap', hint: 'Lets Fungist show his sleep pose after a quiet period. Any click or alert wakes him.' },
+];
+
 export default function SettingsModal({ open, onClose, settings, setSettings, onShowChangelog, currentVersion = '1.7.3' }) {
   const setKey = (patch) => setSettings({ ...settings, ...patch });
   const [showKey, setShowKey] = React.useState(false);
   const [autoStart, setAutoStart] = React.useState(false);
+  const [aiTest, setAiTest] = React.useState({ state: 'idle', message: '' });
 
   React.useEffect(() => {
     let cancelled = false;
@@ -24,6 +39,21 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
     const next = !autoStart;
     setAutoStart(next);
     if (window.api?.setAutoStart) await window.api.setAutoStart(next);
+  };
+  const testAiKey = async () => {
+    if (!settings.geminiKey?.trim()) {
+      setAiTest({ state: 'error', message: 'Paste a Gemini API key first.' });
+      return;
+    }
+    if (!window.api?.testGemini) {
+      setAiTest({ state: 'error', message: 'AI testing is available in the installed desktop app.' });
+      return;
+    }
+    setAiTest({ state: 'loading', message: 'Testing Gemini with a harmless game lookup…' });
+    const result = await window.api.testGemini({ apiKey: settings.geminiKey, model: settings.aiModel || 'gemini-2.5-flash' });
+    setAiTest(result?.ok
+      ? { state: 'ok', message: `Connected · ${result.model} identified ${result.name || 'the test game'}.` }
+      : { state: 'error', message: result?.error || 'Gemini could not be reached.' });
   };
 
   return (
@@ -136,6 +166,16 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
                 ))}
               </div>
             </div>
+            <div className="rounded-lg hairline bg-surface/40 px-3 py-2.5">
+              <div className="mb-1 text-[13px] font-medium">Fungist soundscape</div>
+              <p className="mb-2 text-[10px] leading-relaxed text-muted">Short synthesized cues for Fungist alerts. They obey the main UI-sounds switch and the No sound pack, and never play while NEO-LIB is resting.</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {FUNGIST_SOUND_CUES.map((cue) => {
+                  const canPreview = settings.soundsEnabled !== false && (settings.soundPack || 'synthwave') !== 'none';
+                  return <button key={cue.id} type="button" disabled={!canPreview} onClick={() => { if (canPreview) playFungistCue(cue.id); }} className="rounded-md hairline px-2 py-1.5 text-left text-[10px] text-muted hover:border-[rgb(var(--accent)/0.5)] hover:text-ink disabled:cursor-not-allowed disabled:opacity-45">{cue.label}</button>;
+                })}
+              </div>
+            </div>
           </div>
         </Section>
 
@@ -168,6 +208,13 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
               value={settings.gameRestMode !== false}
               onChange={(v) => setKey({ gameRestMode: v })}
               testid="opt-game-rest-mode"
+            />
+            <Toggle
+              label="Show Fungist companion"
+              hint="Lets Fungist show quiet library, favourite-news, update, and PC-attention messages. He stays completely hidden while NEO-LIB is resting for a game."
+              value={settings.fungistEnabled !== false}
+              onChange={(v) => setKey({ fungistEnabled: v })}
+              testid="opt-fungist-enabled"
             />
             <Toggle
               label="Start with Windows"
@@ -213,6 +260,34 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
           </div>
         </Section>
 
+        <Section title="Fungist reactions">
+          <div className="space-y-3">
+            <div className="rounded-lg hairline bg-surface/40 px-3 py-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <div className="text-[13px] font-medium">Fungist AI model</div>
+                  <p className="mt-0.5 text-[10px] leading-relaxed text-muted">This controls Fungist chat. Only genuinely connected models are selectable.</p>
+                </div>
+                <span className="shrink-0 rounded-full border border-[rgb(var(--accent)/0.45)] bg-[rgb(var(--accent)/0.1)] px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-[rgb(var(--accent))]">Current</span>
+              </div>
+              <div className="mt-2 grid gap-1.5">
+                {AI_MODELS.map((model) => {
+                  const selected = (settings.aiModel || 'gemini-2.5-flash') === model.id;
+                  return <button key={model.id} type="button" aria-pressed={selected} onClick={() => setKey({ aiModel: model.id })} className={`rounded-md border px-2.5 py-2 text-left transition-colors ${selected ? 'border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.12)] text-ink' : 'border-[rgb(var(--border)/0.75)] text-muted hover:border-[rgb(var(--accent)/0.4)] hover:text-ink'}`}><span className="flex items-center justify-between gap-2"><span className="text-[11px] font-bold">{model.label}</span>{selected && <Check size={13} className="text-[rgb(var(--accent))]" />}</span><span className="mt-0.5 block text-[9.5px] leading-relaxed opacity-80">{model.provider} · {model.detail}</span></button>;
+                })}
+              </div>
+              <p className="mt-2 text-[9.5px] text-muted">More models appear here only after their provider connection is implemented and tested.</p>
+            </div>
+            <div className="rounded-lg hairline bg-surface/40 px-3 py-2.5">
+              <div className="mb-1 text-[13px] font-medium">Notifications</div>
+              <p className="mb-2 text-[10px] leading-relaxed text-muted">Choose exactly what Fungist may interrupt you about. Rest Mode still pauses every reaction.</p>
+              <div className="space-y-2">
+                {FUNGIST_NOTIFICATIONS.map((notification) => <Toggle key={notification.id} label={notification.label} hint={notification.hint} value={(settings.fungistNotifications || {})[notification.id] !== false} onChange={(value) => setKey({ fungistNotifications: { ...(settings.fungistNotifications || {}), [notification.id]: value } })} testid={`fungist-notification-${notification.id}`} />)}
+              </div>
+            </div>
+          </div>
+        </Section>
+
         {/* AI fallback */}
         <Section title="AI fallback · optional">
           <p className="mb-3 text-xs text-muted leading-relaxed">
@@ -222,8 +297,8 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
               href="#"
               onClick={(e) => { e.preventDefault(); window.api?.openExternal('https://aistudio.google.com/app/apikey'); }}
               className="text-[rgb(var(--accent-2))] hover:underline"
-            >free Gemini API key</a>{' '}
-            below. Stays on this PC, never sent anywhere except Google.
+            >Gemini API key</a>{' '}
+            below. It is saved locally in your NEO-LIB settings and is sent only to Google when you choose Ask AI, Fungist chat, or Auto fetch uses the AI fallback.
           </p>
           <div className="relative">
             <input
@@ -241,6 +316,12 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
             >
               {showKey ? <EyeOff size={13} /> : <Eye size={13} />}
             </button>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button onClick={testAiKey} disabled={aiTest.state === 'loading'} className="rounded-md border border-[rgb(var(--accent)/0.45)] bg-[rgb(var(--accent)/0.08)] px-3 py-1.5 text-[10px] font-black text-[rgb(var(--accent))] hover:bg-[rgb(var(--accent)/0.16)] disabled:opacity-50">
+              {aiTest.state === 'loading' ? 'Testing connection…' : 'Test AI connection'}
+            </button>
+            {aiTest.state !== 'idle' && <span className={`text-[10px] ${aiTest.state === 'ok' ? 'text-emerald-300' : aiTest.state === 'error' ? 'text-rose-300' : 'text-muted'}`}>{aiTest.message}</span>}
           </div>
         </Section>
 

@@ -46,6 +46,63 @@ function connectMaster(g, ac) {
   else g.connect(ac.destination);
 }
 
+// Fungist's soundscape is synthesized only at the moment it is needed. There
+// are no decoded audio files, loops, timers, or resident audio buffers.
+function fungistTone(ac, frequency, offset = 0, duration = 0.2, peak = 0.06, type = 'sine') {
+  const oscillator = ac.createOscillator();
+  const gain = ac.createGain();
+  oscillator.type = type;
+  oscillator.frequency.value = frequency;
+  oscillator.connect(gain);
+  connectMaster(gain, ac);
+  const start = ac.currentTime + offset;
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(Math.max(0.01, peak), start + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  oscillator.start(start);
+  oscillator.stop(start + duration + 0.02);
+}
+
+export const FUNGIST_SOUND_CUES = [
+  { id: 'good-ding', label: 'Good Ding' },
+  { id: 'hey', label: 'Hey' },
+  { id: 'welcome', label: 'Welcome' },
+  { id: 'warning', label: 'Warning' },
+  { id: 'attention', label: 'Attention' },
+  { id: 'completed-ding', label: 'Completed ding' },
+];
+
+export function playFungistCue(cue) {
+  const ac = getCtx();
+  if (!ac) return;
+  if (ac.state === 'suspended') ac.resume().catch(() => {});
+  switch (cue) {
+    case 'good-ding':
+      fungistTone(ac, 880, 0, 0.18, 0.055, 'sine');
+      fungistTone(ac, 1320, 0.1, 0.28, 0.065, 'sine');
+      break;
+    case 'hey':
+      fungistTone(ac, 680, 0, 0.12, 0.05, 'triangle');
+      fungistTone(ac, 960, 0.095, 0.19, 0.055, 'sine');
+      break;
+    case 'welcome':
+      [523.25, 659.25, 783.99].forEach((frequency, index) => fungistTone(ac, frequency, index * 0.12, 0.33, 0.055, 'sine'));
+      break;
+    case 'warning':
+      fungistTone(ac, 220, 0, 0.26, 0.075, 'sawtooth');
+      fungistTone(ac, 196, 0.22, 0.3, 0.07, 'sawtooth');
+      break;
+    case 'attention':
+      fungistTone(ac, 523.25, 0, 0.16, 0.05, 'triangle');
+      fungistTone(ac, 523.25, 0.19, 0.16, 0.055, 'triangle');
+      break;
+    case 'completed-ding':
+      [659.25, 880, 1318.51].forEach((frequency, index) => fungistTone(ac, frequency, index * 0.09, 0.32, 0.06, 'sine'));
+      break;
+    default: break;
+  }
+}
+
 /* ---------- Sound pack: synthwave ---------- */
 const PACK_SYNTHWAVE = {
   hover() {

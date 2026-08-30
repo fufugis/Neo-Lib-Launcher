@@ -44,7 +44,7 @@ export const THEMES = [
   { id: 'modern',        label: 'Modern',         swatch: '#b83a45', tone: 'middle',
     gradient: 'linear-gradient(135deg, #121722 0%, #3c4658 55%, #b83a45 100%)' },
   { id: 'home',          label: 'Home',           swatch: '#7cc7f4', tone: 'middle',
-    gradient: 'linear-gradient(135deg, #e7e9eb 0%, #d2e7f4 52%, #f2c65e 100%)' },
+    gradient: 'linear-gradient(135deg, #b8bec4 0%, #91b9cf 52%, #e3b84f 100%)' },
   // Bright themes
   { id: 'synthwave-day', label: 'Vaporwave Day',  swatch: '#8a4fff', tone: 'bright',
     gradient: 'linear-gradient(135deg, #f0e8ff 0%, #8a4fff 55%, #16b0b0 100%)' },
