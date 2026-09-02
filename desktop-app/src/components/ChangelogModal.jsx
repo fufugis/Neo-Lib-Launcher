@@ -16,6 +16,242 @@ import { sendChangelogReaction } from './FeedbackModal';
 
 export const CHANGELOG = [
   {
+    version: '1.7.4',
+    title: 'Startup Safety Recovery',
+    major: [
+      {
+        title: 'Special themes now decorate the interface',
+        body: 'Special theme decoration is no longer only a faint distant backdrop. Anime now brings delicate blossom-vine curls and leaves to navigation and game controls; Industrial adds bolted rails, rivets, and hazard seams; Magical adds rune arcs and star dust. The controls remain fully clickable, labels stay clear, and one Special decoration slider still governs every flourish. FX 0 and Rest Mode remove them completely.',
+      },
+      {
+        title: 'Settings gray-screen recovery',
+        body: 'The newer Settings-specific sizing route could leave a blank gray shell in the packaged app. Settings now returns to NEO-LIB’s established shared modal layout, where its controls render reliably and the panel remains draggable within the app. A Settings-only recovery layer also prevents any future control error from blanking the launcher: it gives you a safe return to Library and a direct bug-report action.',
+      },
+      {
+        title: 'Cleaner Library names, bigger Preview media',
+        body: 'Library game names are now clean text again, without the dark bordered plate behind them. Preview is anchored back toward the Library instead of centered in a narrow page: game details remain on the left, while a substantially larger dedicated right-side gallery shows up to eight verified headers, backgrounds, covers, and screenshots without interrupting the description.',
+      },
+      {
+        title: 'Game Identity returns to the story card',
+        body: 'Genre, subgenre, and gameplay tags now sit back inside the top-right of About this game. Description prose now has a strict separate column, so it ends before the identity panel begins and can never flow behind or beneath it. The separate Preview column is reserved for larger game artwork.',
+      },
+      {
+        title: 'Fungist points failed AI help to Feedback',
+        body: 'When Fungist cannot reach the configured AI, he no longer responds with an unrelated emotional line. He now tells you plainly, points to the Feedback button at the top of NEO-LIB, and offers a direct Report a bug action that opens the correct report form.',
+      },
+      {
+        title: 'Feedback works without a private relay',
+        body: 'A packaged build without the optional private Discord relay no longer exposes technical configuration instructions. NEO-LIB instead opens a prefilled public GitHub report with only the message you chose to write, plus version, theme, and platform details.',
+      },
+      {
+        title: 'Update cards now open real downloads',
+        body: 'A pending Steam update in Game Preview or Home is now a working action: clicking it opens Steam’s Downloads page through a dedicated, fixed native route. It cannot be treated as a game launch. If a future launcher does not yet expose a safe queue route, NEO-LIB says so directly instead of appearing to do nothing.',
+      },
+      {
+        title: 'Optimize now knows your Windows version',
+        body: 'Speed Up Gaming detects Windows 10 or Windows 11, including the installed release/build. Every gaming card now shows the matching Settings path, and its button opens that exact Windows page. Background capture now goes directly to Game DVR/Captures instead of a generic gaming route, while older Windows builds honestly mark Hardware-accelerated GPU scheduling as unavailable.',
+      },
+      {
+        title: 'A real workspace, not Home everywhere',
+        body: 'Home is now Home only. Opening Library automatically restores the game you played most recently (or the first game if you have not played one yet); Tools restores the last utility you opened, or gives an honest “Add programs first” empty state. Wall stays a true Wall until you select a game, then opens its normal Preview.',
+      },
+      {
+        title: 'Wall grows to 10×10 with sharper landscape cards',
+        body: 'Wall now scales through 9×9 and 10×10. It prefers each game’s wide header/capsule art before a portrait cover, centers the crop, and uses landscape cards so dense views stay more readable. Image quality is still limited by the source artwork NEO-LIB was given, but it no longer stretches a low-resolution portrait cover across every tile.',
+      },
+      {
+        title: 'Private shelves are easier to unlock safely',
+        body: 'A locked category now says exactly what it can unlock—such as “Unlock After Hours (6)”—without exposing its games. The PIN protection and hidden game rows remain unchanged.',
+      },
+      {
+        title: 'Fungist now joins chat and launches',
+        body: 'Opening Fungist chat lifts him above the chat header in a ready-to-help pose with a quiet sparkle gesture instead of hiding him behind the panel. A successful deliberate game launch makes him fly toward the Launch button for a short cheer before NEO-LIB rests.',
+      },
+      {
+        title: 'Nine more Fungist voice moments',
+        body: 'The supplied “Sure, yeah”, “Why not”, “Easy!”, “Nice, good job”, “All finished”, “You should check this”, support, and hand-off lines are now packaged locally. They have deliberate roles in chat, completion, update attention, and the support action; Settings exposes every line for preview.',
+      },
+      {
+        title: 'The startup trigger itself is gone',
+        body: 'The automatic update checker previously appended each library EXE path after PowerShell’s command switch while reading Windows version information. Windows could interpret those paths as commands, matching the reported library-order game launches. Paths are now passed only as inert process data to one fixed encoded reader and cannot be executed by the scan.',
+      },
+      {
+        title: 'A deliberate game-launch handshake',
+        body: 'A game now needs a short-lived native authorization created by a trusted press on the actual Launch button immediately before it starts. The isolated native bridge consumes that press once, avoiding unreliable window-level click timing while automatic renderer calls still have no authorization and are rejected. If a press is blocked, NEO-LIB now explains why instead of silently doing nothing.',
+      },
+      {
+        title: 'A traceable startup boundary',
+        body: 'NEO-LIB records its own startup plus every allowed or blocked game-launch request in a local diagnostic log. If anything unusual occurs, the exact route can be audited instead of guessed.',
+      },
+      {
+        title: 'Launch safety is checked before packaging',
+        body: 'Every renderer and Windows build now verifies the encoded version reader, inert executable-path binding, guarded native bridge, one-time authorization, and visible Launch-button handshake. If one is weakened later, the build stops before an installer is produced.',
+      },
+      {
+        title: 'A safe Categories control centre',
+        body: 'Library now has a dedicated Categories menu with a clear on/off shelf switch and a simple manager for adding, editing, or removing groups. Removing a category never removes a game: its games return to Uncategorized with their artwork and history untouched. A guarded bulk action can clear regular categories while Private categories stay protected.',
+      },
+      {
+        title: 'Launcher imports now stop and check first',
+        body: 'Every supported launcher import now needs a clear confirmation before NEO-LIB scans it. When it finds games that were imported earlier, a second check shows the existing count and offers only genuinely new titles. If everything is already here, it says so and adds nothing. Launcher detection opens this same Wizard path instead of silently importing in the background.',
+      },
+      {
+        title: 'Theme accents now stay readable',
+        body: 'Normal neutral text is now clean and unoutlined. Only small coloured status/accent copy receives a soft dark edge where it needs it. Home has been rebuilt as a calmer graphite workspace: medium-gray room around deeper slate boxes, light-gray regular copy, and blue/gold held back for useful signals, glows, and FX.',
+      },
+      {
+        title: 'More atmosphere, still quiet',
+        body: 'Every current theme now has original, low-contrast environment art behind the interface rather than relying only on lines and particles. Each stays behind your games, follows the FX level, gently drifts only outside Calm motion, and disappears entirely while NEO-LIB rests during a game.',
+      },
+      {
+        title: 'Fungist feels more present',
+        body: 'Fungist is now larger and his lightweight idle life is noticeably more frequent: quicker irregular blinks, a smoother docked hover, and more smile, curiosity, stretch, sparkle, and greeting moments. The 3D pose family still uses only sprite swaps and transform animation—no video/GIF loop, canvas, or background polling—and everything stops completely in Rest Mode.',
+      },
+      {
+        title: 'Fungist has a real voice palette',
+        body: 'Twenty-seven supplied voice lines now cover post-intro welcome, tutorial introduction, favourite news and updates, NEO-LIB updates, PC attention, deliberate game launch, guided actions, task completion, support, and short chat acknowledgements. Settings lets you mute or adjust the voice independently, preview every mapped line, and keeps it quiet during Rest Mode. A shared cooldown prevents overlapping or repetitive chatter.',
+      },
+      {
+        title: 'Fungist now visibly delivers every voice line',
+        body: 'A spoken line is no longer just background audio. Every real Fungist recording now carries its exact on-screen quote, a matching happy, thoughtful, concerned, urgent, or celebratory pose/motion, and a readable speech bubble. This follows voice events from alerts, chat, task completions, launch celebrations, support, Settings previews, and the tutorial itself.',
+      },
+      {
+        title: 'Fungist becomes a real library companion',
+        body: 'The old circular mascot pod is gone. Fungist now appears as a transparent full character with a floating neon ground pad, live aura, hover sparkles, and action FX. In chat he understands your visible library’s names, genres/tags, ratings, and playtime after you manually send a question. You can type “Launch Forza 5” or “Launch a random action game”; NEO-LIB resolves it locally and still requires a named, guarded Launch confirmation before anything starts.',
+      },
+      {
+        title: 'Cleaner motion and calmer Preview media',
+        body: 'Fungist no longer fades transparent as he blinks or changes pose: each swap stays fully opaque while his glow and movement continue. Game Preview now brings back a compact source-owned carousel, limited to two curated images, while the description remains clean uninterrupted prose instead of inserting a long sequence of screenshots between paragraphs.',
+      },
+      {
+        title: 'Fungist’s ground glow stays grounded',
+        body: 'The animated neon pad and its centre light are now centred independently from their pulse animation, so the FX stays aligned directly beneath Fungist instead of drifting sideways.',
+      },
+      {
+        title: 'Wall now stays on the Wall',
+        body: 'The Wall button previously selected Wall and then immediately reopened the normal Library route, which reset the mode back to Preview. Wall now remains active until you deliberately choose a game tile or return to Library.',
+      },
+      {
+        title: 'Calmer theme samples',
+        body: 'Settings theme bars now use one extremely slow 48-second colour drift instead of fast attention-grabbing motion. They remain a useful live sample without overwhelming the rest of Settings.',
+      },
+      {
+        title: 'Theme tiles now use one compact standard',
+        body: 'Theme tiles no longer stretch across the entire Settings width. Every tile now uses the same compact width, sized for the longest current theme name plus comfortable breathing room; labels stay fully visible, and a smaller window scrolls the row safely instead of clipping it.',
+      },
+      {
+        title: 'Library rows now show the full title',
+        body: 'Single and side-by-side Library rows now use a compact accent-edged title plate at the bottom of the game information block. Long names wrap instead of disappearing into an ellipsis. A small New tag appears only for newly added games and clears after you deliberately open that game from the Library into Preview.',
+      },
+      {
+        title: 'Friends is now Launchers',
+        body: 'The permanent rail control is now an honest Launchers hub: one click to open detected Steam, Battle.net, Epic, EA app, or Ubisoft Connect normally. It never presents a friends list or reads account, friend, or chat data. Steam opens its normal client surface rather than the Friends page.',
+      },
+      {
+        title: 'Category arrows now follow their text',
+        body: 'The category expand/collapse arrow now uses the exact Category text size you selected. Its surrounding click target grows or shrinks proportionally, keeping it comfortable to use without looking oversized.',
+      },
+      {
+        title: 'Mascot quiet mode with a clear way back',
+        body: 'Turning off Show NEO-LIB mascot now also mutes every Fungist voice line as one clear quiet mode. Settings immediately explains that you can restore Fungist in Settings → NEO-LIB Mascot and remembers your earlier voice preference for when he returns. The companion switches now share one aligned rail even when a label wraps.',
+      },
+      {
+        title: 'The Library now shares the theme atmosphere',
+        body: 'The left Library gets a deliberately faint, slow-moving copy of the active theme art in addition to its own accent wash. It stays visibly separate from Home, follows the FX level, and remains absent while NEO-LIB rests during a game.',
+      },
+      {
+        title: 'Anime becomes a finished 2D world',
+        body: 'The Anime backdrop now uses an original rendered moonlit shrine-and-cherry-blossom scene with a calm, dark centre for the launcher UI. The earlier manga/SVG outline overlay is gone completely, leaving the finished illustration and gentle petals instead.',
+      },
+      {
+        title: 'Special themes gain their own personality',
+        body: 'Anime now joins Industrial and the renamed Magical theme in the Special group. Settings has one Special theme decoration slider: Anime receives sparse drifting petals, Industrial gets subtle machinery cogs/rivets, and Magical gets spell arcs with small star sparks. Set it to 0% for a clean colour-only theme; every decoration disappears with FX and Rest Mode.',
+      },
+      {
+        title: 'Rest Mode is easier to trust',
+        body: 'Optimize now explains that NEO-LIB can appear in the resource list while you browse. When you launch a tracked game, Rest Mode automatically pauses effects, animations, sound, monitoring, launcher/news/social checks, and other non-essential background work—so you do not need to close NEO-LIB just because it appears in a snapshot.',
+      },
+      {
+        title: 'A steadier tutorial and calmer top bar',
+        body: 'The live tutorial no longer keeps reapplying the Preview destination while settings save, removing its Preview flicker. Feedback, Discord, and Coffee also now share one restrained, theme-aware title-bar action style instead of competing colours.',
+      },
+      {
+        title: 'A safe welcome after boot',
+        body: 'Once the visual intro has completely left, Fungist gives one brief friendly welcome using his raised-hand pose and a slightly larger motion, then returns to his dock. The greeting is renderer-only: it cannot start a game, scan updates, open a link, or touch a launcher, and genuine health/news alerts always take priority.',
+      },
+      {
+        title: 'A smarter, calmer Library',
+        body: 'Category headers now use a clear solid expand/collapse arrow. Sort can preserve your manual drag order or organize the visible scope by Alphabetical, Date Added, My Rating, Most Played, or Last Played. The new Wall view removes the permanent Preview for a cover-and-name grid: adjust from 3×3 to 10×10 and click any game to open its normal Preview. Locked Private titles remain hidden.',
+      },
+      {
+        title: 'Preview descriptions are easier to enjoy',
+        body: 'Game Preview is now a centered, more-solid reading surface rather than two competing translucent columns. The separate screenshot carousel is retired: when a title already has verified screenshots, NEO-LIB uses them as subtle visual breaks inside longer descriptions. The animated theme remains visible around the panel edges, and NEO-LIB never uses a random image search or invented artwork for your games.',
+      },
+      {
+        title: 'Refresh is now deliberate maintenance',
+        body: 'Refresh now distinguishes missing or older metadata from a full metadata re-check. Both show the affected count before anything starts, keep manual edits safe, and show compact progress while they work. Tidy Up remains the separate place to diagnose duplicates and repair issues.',
+      },
+      {
+        title: 'Auto-sort now shows its work',
+        body: 'Auto-sort now offers a small review plan before it creates a shelf. It needs three direct identity matches, avoids loose Adventure and Simulation grouping, lets you disable a proposed shelf, exclude a specific game match, choose which incomplete games receive enrichment, deliberately reuse an existing matching category or create an Auto shelf, and undo its last category assignment transaction.',
+      },
+    ],
+    fixes: [
+      {
+        title: 'Cleaner release source',
+        body: 'Generated build logs and one unreferenced duplicate mascot sleep asset no longer appear in release source. Required active mascot artwork, voice clips, theme art, and launch-safety scripts remain packaged with NEO-LIB.',
+      },
+      {
+        title: 'Cleaner Mascot sound settings',
+        body: 'The redundant Fungist synthesized-soundscape preview has been removed from Settings. Global UI Sounds and Sound Pack remain in Sounds; Fungist’s own voice toggle, volume, and mapped-line preview remain together as the single companion-audio control.',
+      },
+      {
+        title: 'Theme art is visible at normal FX levels',
+        body: 'The new background environments were technically present but graded too softly under the interface. Their normal-level opacity and grading are now strong enough to be seen as artwork while remaining beneath UI and disappearing in Rest Mode.',
+      },
+      {
+        title: 'Update evidence stays with the right game',
+        body: 'Home and Preview now cache only the exact game request, so a library-wide check cannot place one game’s update result on another game. NEO-LIB reads more nearby game-owned version/config/manifest formats, ranks saved and official sources above generic web discovery, records the evidence route, and lets Home target unresolved games with Resolve checks. If a source is blocked or unreachable, that game stays visibly unresolved instead of quietly looking clean.',
+      },
+      {
+        title: 'No more launcher update flood',
+        body: 'A confirmed Steam manifest result is now authoritative: a current launcher game cannot also be rechecked against a loose public patch page and incorrectly surfaced as an update. Games imported from another supported launcher are recorded as launcher-managed until their own pending-download adapter can verify a result; that limitation is shown in the evidence ledger, never turned into an update warning. Standalone and repack installs stay on their separate local-versus-public comparison route, even when their metadata came from Steam.',
+      },
+      {
+        title: 'Update checks wait for startup to finish',
+        body: 'Home and the library-wide update cache now wait 35 seconds before their automatic check. Windows executable-resource inspection also refuses to run during the first 30 seconds, never receives a game path as PowerShell command text, and overlapping warm-up requests share one scan.',
+      },
+      {
+        title: 'Fungist no longer sleeps for a game helper',
+        body: 'Launcher imports now reject converters, assistants, importers, editors, benchmarks, diagnostics, and similar helper EXEs when selecting the playable target. Existing launcher entries with a legacy helper target are repaired from stable launcher identity evidence, and Rest Mode ignores the helper immediately instead of hiding Fungist.',
+      },
+      {
+        title: 'Startup bulk-launch protection',
+        body: 'NEO-LIB now blocks executable starts during its first 15 seconds, requires a fresh native click/key action, allows only one start from that action, prevents a second NEO-LIB instance, rejects rapid repeats across windows, and blocks game-launch links from the generic external-link bridge. The boot intro fully consumes its pointer input. This recovery release must pass the no-click startup check before it is published.',
+      },
+      {
+        title: 'Startup and window-boundary corrections',
+        body: 'The intro sequence is now one-shot, so normal startup re-renders cannot restart its timer and leave the final frame hanging. Tutorial opens only after the intro has fully left; Fungist’s greeting waits until the tutorial is closed, so voice never plays beneath the boot screen. Tutorial cards, core draggable panels, metadata windows, News, Stats, Visuals, and category menus now clamp to the visible app viewport and scroll internally when space is tight. Retired legacy FX switches can no longer silently disable modern Effects/particle layers after an upgrade.',
+      },
+      {
+        title: 'Balanced game tags',
+        body: 'Genre labels now migrate to a compact gameplay-first tag set. Low-value storefront features such as Steam Cloud, Trading Cards, and controller-support badges are removed from the preview, while sparse non-Steam sources receive useful tags from their already-confirmed subgenres and playstyle. This does not change Library categories.',
+      },
+      {
+        title: 'Balanced visual motion is smooth again',
+        body: 'Balanced no longer lowers apparent frame fluidity through hard animation stepping. It remains smooth while reducing expensive particle, bloom, edge-glow, and soft-blur layers; Calm applies the stronger saving. Normal menus and button feedback are unaffected.',
+      },
+      {
+        title: 'Home update results stay put',
+        body: 'Opening a listed update in Game Preview no longer makes Home come back empty. NEO-LIB keeps the last completed update result locally and changes it only when a newer completed detection has evidence to replace it.',
+      },
+      {
+        title: 'Dark themes have more breathing room',
+        body: 'Synthwave, Midnight, Ocean, Crimson, Anime, Magical, and Industrial keep their established accent colours, but near-black backgrounds and boxes now use layered charcoal, navy, graphite, or wine-gray surfaces. The themes remain dark while bright neon reads as a highlight rather than the whole screen.',
+      },
+    ],
+  },
+  {
     version: '1.7.3',
     title: 'PC Power-Up · smarter updates · a more helpful library',
     major: [
@@ -46,8 +282,16 @@ export const CHANGELOG = [
     ],
     fixes: [
       {
-        title: 'Storage Control stays accurate',
-        body: 'Shared install folders are measured once, launcher links are ignored, results remain when returning Home, and scans stay focused on configured game folders instead of whole drives.',
+        title: 'Storage Control is now inspectable',
+        body: 'Every measured game folder is now available in a scrollable list with its exact path, file count, mod-content split, partial-scan status, and an Open folder action. Before measuring, NEO-LIB rejects missing targets, folders entered as executables, known launcher links, and suspicious shared-library roots—with a visible reason instead of inventing a huge game size. Reveal in folder now gives useful feedback and opens the containing folder if a configured executable has moved.',
+      },
+      {
+        title: 'Choose how smoothly ambient FX move',
+        body: 'Effects intensity and the new global Full / Balanced / Calm motion-rate slider now live together under FX. A clear performance tip explains that lowering Effects intensity removes visual layers, while lowering motion rate keeps your chosen particles, art, and scene layers but makes decorative motion advance less often. Either—or both—can improve performance without affecting menus or normal button feedback.',
+      },
+      {
+        title: 'Startup launch safety',
+        body: 'NEO-LIB now requires a short-lived native authorization from the actual Launch button, then permits an executable game start only after a fresh click/key action. It keeps a startup settling window, prevents duplicate app instances, rejects rapid repeats across NEO-LIB windows, and blocks game-launch protocols from the generic external-link bridge. The boot intro fully consumes its own pointer input, so skipping it cannot activate a game card underneath. Startup itself plus every allowed or blocked request is recorded locally for an exact support audit. The experimental post-intro Fungist greeting remains held for this recovery build.',
       },
       {
         title: 'Home and Library polish',
@@ -80,6 +324,34 @@ export const CHANGELOG = [
       {
         title: 'New NEO-LIB icon, everywhere',
         body: 'The new neon power artwork now drives the app window, taskbar, installer, desktop and Start shortcuts. Windows uses one stable NEO-LIB identity and receives a safe Explorer refresh after upgrade, while the notification area gets its own crisp transparent mark instead of a blank fallback.',
+      },
+      {
+        title: 'Fungist and Home test corrections',
+        body: 'Fungist’s packaged pose files now resolve correctly inside the Windows app instead of falling back to image text. His chat clearly shows whether a Gemini key is ready and directs you to Settings when it is not. It is now a proper local scrollable conversation: your message clears as it sends, both sides remain in history, the last small context travels with the next request, and Clear removes that local history. Fungist answers as a cheerful mystical Oracle—short and direct by default, deeper only when asked. The refreshed live tutorial now tours the real Library, Preview, Tools, Visuals, Home, Game Ready, and companion surfaces. Settings now calls this area NEO-LIB Mascot and has a visual Fungist picker ready for future companions; its visible Show NEO-LIB mascot switch always restores the companion, and opening full settings from Fungist also keeps him enabled. Fungist sits safely above Friends. The Home theme uses deeper neutral-gray panels, darker blue/gold accents, and a soft dark edge on light or coloured text—including the Game Ready, CPU, and RAM status colours—for far better readability. Category and fixed interface labels now wrap cleanly at word boundaries instead of cutting off their final words with an ellipsis.',
+      },
+      {
+        title: 'Battle.net metadata that keeps searching',
+        body: 'Battle.net imports now translate short Windows display names into their proper Blizzard identity before fetching—so a known title does not get handed to a random store search first. Weak Steam, GOG, and itch.io matches are rejected instead of ending the automatic search. If the first title clue still fails, NEO-LIB tries safe local executable, folder, and nearby readme title hints, then public sources and your optional Gemini key. When text is confirmed but art is missing, NEO-LIB reads one public product page for its available hero, cover, background, and gallery images. It never invents game artwork or touches launcher/account data.',
+      },
+      {
+        title: 'Vibrant Home, lively Fungist, and a safer flat Library',
+        body: 'Home now has a richer gray, blue, and gold balance with a stronger dark text edge. Fungist gets livelier lightweight idle blinks, smiles, and a clean transparent sleep pose. The guided Visuals panel now opens and closes directly, ending its old tutorial flicker, and the tutorial mascot no longer covers Next. The Library now offers a Categories / Flat List switch; a locked Private category remains visible and protected, while its games never enter the flat list.',
+      },
+      {
+        title: 'Independent update comparison',
+        body: 'When a trusted public patch page shows a newer version but an independent install does not expose its own local version, NEO-LIB now raises an amber comparison-needed card in Home and Preview. Open Patch History to compare safely. It is intentionally not labelled a confirmed update or “up to date.”',
+      },
+      {
+        title: 'Fungist breathes while resting',
+        body: 'Sleep is no longer a frozen pose: Fungist now has a slow transform-only breathing loop, quiet aura pulse, and drifting zZz. It stays light, avoids GIF/video decoding, and is fully silent in NEO-LIB Rest Mode.',
+      },
+      {
+        title: 'Genre Intelligence v2',
+        body: 'A broad label such as Action no longer counts as a completed game identity. NEO-LIB now keeps more direct Steam community tags, remaps existing evidence through a richer exact-match taxonomy, and only derives transparent tag combinations such as Sandbox + Building → Sandbox Builder or Roguelike + Dungeon Crawler → Roguelike Dungeon Crawler. Auto-sort and Tidy Up can run an approval-first Enrich source tags pass; it never mines loose description wording or alters your Library categories.',
+      },
+      {
+        title: 'Better local update evidence',
+        body: 'When a standalone game has no readable version in its own bounded files, NEO-LIB can now read the Windows executable version resource as a local clue. It may raise a public patch for comparison, but never treats that weak clue alone as proof that a game is current or definitely needs an update.',
       },
     ],
   },

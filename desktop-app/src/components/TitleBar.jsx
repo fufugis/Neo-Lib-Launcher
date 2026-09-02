@@ -34,11 +34,7 @@ export default function TitleBar({ search, setSearch, currentVersion, updateAvai
             data-testid="tab-feedback"
             onClick={() => onOpenFeedback('feedback')}
             title="Send feedback, report a bug, or suggest a feature"
-            className="group inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[10px] font-bold text-white transition-all hover:scale-[1.03] active:scale-[0.96]"
-            style={{
-              background: 'linear-gradient(135deg, rgb(var(--accent)) 0%, rgb(var(--accent-2)) 100%)',
-              boxShadow: '0 0 12px -3px rgb(var(--accent)/0.65)',
-            }}
+            className="titlebar-action group"
           >
             <MessageCircle size={12} className="transition-transform group-hover:rotate-[-6deg]" />
             <span className="hidden min-[1100px]:inline">Feedback</span>
@@ -48,11 +44,7 @@ export default function TitleBar({ search, setSearch, currentVersion, updateAvai
           data-testid="titlebar-discord-btn"
           onClick={openDiscord}
           title="Join the NEO-LIB Discord — submit bugs, suggest features, stay updated"
-          className="group inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[10px] font-bold text-white transition-all hover:scale-[1.03] active:scale-[0.96]"
-          style={{
-            background: 'linear-gradient(135deg, #5865F2 0%, #7289DA 100%)',
-            boxShadow: '0 0 10px -3px rgba(88,101,242,0.6)',
-          }}
+          className="titlebar-action group"
         >
           <MessageCircle size={12} className="transition-transform group-hover:rotate-[-6deg]" />
           <span className="hidden min-[1100px]:inline">Discord</span>
@@ -62,7 +54,7 @@ export default function TitleBar({ search, setSearch, currentVersion, updateAvai
             data-testid="titlebar-coffee-btn"
             onClick={onDonate}
             title="Buy KenLun a coffee — support NEO-LIB"
-            className="group inline-flex h-7 items-center gap-1.5 rounded-md border border-[#8a5000] bg-[linear-gradient(135deg,#ffd65a_0%,#e89a19_100%)] px-2 text-[10px] font-extrabold text-[#251500] shadow-[0_0_10px_-4px_rgba(255,180,30,0.9)] transition-all hover:brightness-110 hover:scale-[1.03] active:scale-[0.96]"
+            className="titlebar-action group"
           >
             <Heart size={12} fill="currentColor" className="transition-transform group-hover:scale-110" />
             <span className="hidden min-[1100px]:inline">Coffee</span>

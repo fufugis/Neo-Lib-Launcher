@@ -86,6 +86,7 @@ export default function StatsPanel({ games = [], onClose, anchorSelector, onOpen
   // the ranking is always by lifetime hours regardless of the range chip).
   const [historyDeltas, setHistoryDeltas] = useState({});
   const dragControls = useDragControls();
+  const dragBoundsRef = useRef(null);
 
   // On open: import Steam playtime from localconfig.vdf so ranking is accurate.
   const runImport = React.useCallback(async (force = false) => {
@@ -222,7 +223,7 @@ export default function StatsPanel({ games = [], onClose, anchorSelector, onOpen
 
   const body = (
     <AnimatePresence>
-      <motion.div
+      <motion.div ref={dragBoundsRef}
         key="stats-backdrop"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -236,6 +237,7 @@ export default function StatsPanel({ games = [], onClose, anchorSelector, onOpen
           dragListener={false}
           dragMomentum={false}
           dragElastic={0}
+          dragConstraints={dragBoundsRef}
           initial={{ opacity: 0, x: -8, scale: 0.98 }}
           animate={{ opacity: 1, x: 0, scale: 1 }}
           exit={{ opacity: 0, x: -8, scale: 0.98 }}

@@ -15,22 +15,34 @@ import { motion, AnimatePresence } from 'framer-motion';
 export default function StartupIntro({ onDone, muted = false }) {
   const [visible, setVisible] = React.useState(true);
   const audioRef = React.useRef(null);
+  const onDoneRef = React.useRef(onDone);
+  const finishedRef = React.useRef(false);
+  const finishTimerRef = React.useRef(null);
+
+  React.useEffect(() => { onDoneRef.current = onDone; }, [onDone]);
+
+  const finish = React.useCallback((delay = 420) => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    setVisible(false);
+    finishTimerRef.current = window.setTimeout(() => onDoneRef.current?.(), delay);
+  }, []);
 
   React.useEffect(() => {
     if (!muted) playJingle().then((ctx) => { audioRef.current = ctx; }).catch(() => {});
-    const t = setTimeout(() => {
-      setVisible(false);
-      setTimeout(() => onDone && onDone(), 480);
-    }, 3000);
+    const t = window.setTimeout(() => finish(), 3000);
     return () => {
-      clearTimeout(t);
+      window.clearTimeout(t);
+      window.clearTimeout(finishTimerRef.current);
       try { audioRef.current && audioRef.current.close && audioRef.current.close(); } catch { /* noop */ }
     };
-  }, [muted, onDone]);
+  // The sequence must not restart when App re-renders during startup. Muting is
+  // captured for this one boot; changing sound settings applies next launch.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finish]);
 
   const skip = () => {
-    setVisible(false);
-    setTimeout(() => onDone && onDone(), 200);
+    finish(220);
   };
 
   return (
@@ -42,7 +54,17 @@ export default function StartupIntro({ onDone, muted = false }) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.4 }}
-          onClick={skip}
+          onPointerDown={(event) => {
+            // The boot screen owns its pointer input completely. This avoids a
+            // skip click landing on an interactive game card as it disappears.
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            skip();
+          }}
           data-testid="startup-intro"
           className="fixed inset-0 z-[9998] flex items-center justify-center overflow-hidden cursor-pointer"
           style={{ background: 'radial-gradient(ellipse at 50% 55%, #180a2e 0%, #05020d 65%, #000 100%)' }}

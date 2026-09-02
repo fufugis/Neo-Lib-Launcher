@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play, RefreshCw, Calendar, Award, Building2, Download, Globe, FolderOpen,
-  Tag, Sparkles, ChevronLeft, ChevronRight, ChevronDown, Youtube, FileText, Wrench, Wand2, ExternalLink, Star, ArchiveRestore,
+  Tag, Sparkles, ChevronLeft, ChevronRight, ChevronDown, Youtube, FileText, Wrench, Wand2, ExternalLink, Star, ArchiveRestore, ImageIcon,
 } from 'lucide-react';
 import { cn, colorFromId } from '../lib/utils';
 import { genreDisplayGroups } from '../lib/genreTaxonomy';
@@ -14,11 +14,11 @@ import UpdateHistoryModal from './UpdateHistoryModal';
  * GameDetail — fully horizontal, "seamless" layout:
  *   [ HUGE banner with title overlay ]
  *   [ Launch + compact action menu ]
- *   [ About + vertical genre identity card · gallery ]
- *   [ Calm, readable game-details list ]
+ *   [ Library-hugging information column | richer source-owned gallery ]
+ *   [ Calm, readable game details + genre identity ]
  */
 export default function GameDetail({
-  game, categories, onLaunch, onRefetch, onRevealFolder,
+  game, categories, onLaunch, onLaunchError, onRefetch, onRevealFolder,
   onToggleCategory, onCustomize, onUpdateGame, onOpenSaveManager, onLocateManagedTool, onInstallManagedTool, managedToolInstalling = false, fetching, settings = {},
 }) {
   if (!game) return <EmptyState />;
@@ -148,6 +148,7 @@ export default function GameDetail({
           game={game}
           categories={categories}
           onLaunch={onLaunch}
+          onLaunchError={onLaunchError}
           onRefetch={onRefetch}
           onRevealFolder={onRevealFolder}
           onToggleCategory={onToggleCategory}
@@ -162,46 +163,90 @@ export default function GameDetail({
 
       </div>
 
-      <div className="grid flex-1 min-h-0 grid-cols-[1.4fr_1fr] gap-5 px-6 py-5">
-        {/* LEFT — readable game information, with identity kept deliberately separate */}
+      {/* Preview stays anchored to Library: reading stays left, while verified
+          game artwork has its own fuller gallery on the right. */}
+      <div className="flex min-h-0 flex-1 justify-start overflow-y-auto px-3 py-5 sm:px-4 sm:py-6">
         <section
-          className="min-h-0 overflow-y-auto rounded-lg hairline bg-panel/30 px-5 py-4"
+          className="min-h-min w-full max-w-none rounded-2xl border border-[rgb(var(--border)/0.88)] bg-[rgb(var(--panel)/0.78)] px-4 py-4 shadow-[0_28px_80px_-52px_rgba(0,0,0,.96)] backdrop-blur-xl sm:px-6 sm:py-5"
           data-testid="game-text-panel"
         >
           <ManagedToolSetup game={game} onLocate={onLocateManagedTool} onInstall={onInstallManagedTool} installing={managedToolInstalling} />
           <UpdateAvailablePill game={game} />
           <LatestNewsPill game={game} />
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_185px]">
-            <div>
-              <h3 className="mb-3 text-[10px] uppercase tracking-[0.28em] text-muted">About this game</h3>
-              <p className="whitespace-pre-line text-[13.5px] leading-relaxed text-muted">
-                {game.about ||
-                  game.shortDescription ||
-                  'No description yet. Press "Re-fetch info" to pull metadata online.'}
-              </p>
+           <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(460px,560px)]">
+            <div className="min-w-0">
+              <GameStory game={game} profile={game.genreProfile} />
+              <DetailList game={game} />
+              <div className="mt-5 rounded-xl border border-[rgb(var(--border)/0.56)] bg-[rgb(var(--surface)/0.38)] px-3 py-2.5 text-[10.5px] text-muted/75 break-all font-mono">
+                {game.exePath}
+                {game.appid && <span className="block mt-0.5">Steam App ID · {game.appid}</span>}
+                {game.source && <span className="block mt-0.5">Source · {game.source}</span>}
+              </div>
+              <SteamManifestLine game={game} />
             </div>
-            <GenreProfile profile={game.genreProfile} fallbackGenres={game.genres || []} />
+            <aside className="min-w-0 space-y-5 xl:sticky xl:top-3">
+              <GameMediaGallery game={game} />
+            </aside>
           </div>
-
-          <DetailList game={game} />
-
-          <div className="mt-5 text-[10.5px] text-muted/70 break-all font-mono">
-            {game.exePath}
-            {game.appid && <span className="block mt-0.5">Steam App ID · {game.appid}</span>}
-            {game.source && <span className="block mt-0.5">Source · {game.source}</span>}
-          </div>
-          <SteamManifestLine game={game} />
-        </section>
-
-        {/* RIGHT — gallery: one big shot + clickable thumbnail strip */}
-        <section
-          className="flex min-h-0 flex-col gap-2 rounded-xl hairline glass p-3"
-          data-testid="game-gallery-panel"
-        >
-          <GalleryBox shots={game.screenshots || []} />
         </section>
       </div>
     </motion.div>
+  );
+}
+
+/**
+ * An editorial, source-owned reading treatment for the fetched description.
+ * Images live in the dedicated gallery beside this readable prose rather than
+ * interrupting the description. NEO-LIB never fetches unrelated or generated
+ * imagery for a library entry.
+ */
+function GameStory({ game, profile }) {
+  const description = game.about || game.shortDescription || '';
+  const paragraphs = description
+    .split(/\n{2,}|(?<=[.!?])\s+(?=[A-Z][^.!?]{20,}[.!?])/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  const fallback = 'No description yet. Re-fetch info to ask NEO-LIB’s source resolver for official game details.';
+
+  return (
+    <section className="overflow-hidden rounded-xl border border-[rgb(var(--border)/0.72)] bg-[linear-gradient(145deg,rgb(var(--panel)/0.34),rgb(var(--surface)/0.14))]" data-testid="game-story-panel">
+      <div className="flex items-center justify-between gap-3 border-b border-[rgb(var(--border)/0.55)] px-3.5 py-2.5">
+        <div>
+          <h3 className="text-[10px] font-bold uppercase tracking-[0.28em] text-muted">About this game</h3>
+          <p className="mt-0.5 text-[10px] text-muted/70">A closer look at your library entry</p>
+        </div>
+        {game.releaseDate && <span className="shrink-0 rounded-full border border-[rgb(var(--border)/0.55)] bg-[rgb(var(--surface)/0.24)] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-muted">{game.releaseDate}</span>}
+      </div>
+
+      <div className="grid items-start gap-4 px-3.5 py-3.5 sm:grid-cols-[minmax(0,1fr)_190px]">
+        {/* The prose has its own capped column: it may never flow behind the
+            Game Identity panel or continue beneath its lower edge. */}
+        <div className="min-w-0 space-y-3">
+          {paragraphs.length ? paragraphs.map((paragraph, index) => (
+            <p key={`${game.id}-story-${index}`} className="whitespace-pre-line text-[13.5px] leading-7 text-muted [text-wrap:pretty]">{paragraph}</p>
+          )) : <p className="text-[13px] leading-7 text-muted/80">{fallback}</p>}
+        </div>
+        <GenreProfile profile={profile} fallbackGenres={game.genres || []} embedded />
+      </div>
+    </section>
+  );
+}
+
+function GameMediaGallery({ game }) {
+  const media = [...new Set([game.headerImage, game.background, game.hero, ...(game.screenshots || []), game.coverUrl, game.cover].filter(Boolean))].slice(0, 8);
+  const [active, setActive] = React.useState(0);
+  React.useEffect(() => setActive(0), [media.join('|')]);
+  const current = media[active] || media[0];
+  if (!current) return <section className="rounded-xl border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--panel)/0.26)] p-4 text-center text-[11px] text-muted"><ImageIcon className="mx-auto mb-2 text-[rgb(var(--accent))]" size={18} /><b className="block text-ink">No game media yet</b><span className="mt-1 block">Refresh info or add screenshots in Customize.</span></section>;
+  return (
+    <section className="overflow-hidden rounded-xl border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--panel)/0.3)]" data-testid="game-media-gallery">
+      <div className="flex items-center justify-between border-b border-[rgb(var(--border)/0.55)] px-3.5 py-2.5"><div><h3 className="text-[10px] font-bold uppercase tracking-[0.28em] text-muted">Game media</h3><p className="mt-0.5 text-[10px] text-muted/70">{media.length} verified image{media.length === 1 ? '' : 's'}</p></div><span className="rounded-full border border-[rgb(var(--border)/0.55)] px-2 py-1 text-[9px] font-semibold text-muted">{active + 1} / {media.length}</span></div>
+      <div className="group relative aspect-[16/10] overflow-hidden bg-[rgb(var(--surface)/0.35)]">
+        <motion.img key={current} initial={{ opacity: 0.72, scale: 1.012 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.28 }} src={current} alt={`${game.name} game artwork`} className="h-full w-full object-cover" />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgb(var(--surface)/0.30),transparent_36%,rgb(var(--surface)/0.24))]" />
+      </div>
+      {media.length > 1 && <div className="grid grid-cols-4 gap-1.5 border-t border-[rgb(var(--border)/0.45)] p-2">{media.map((url, index) => <button key={url} type="button" onClick={() => setActive(index)} className={`aspect-[16/10] overflow-hidden rounded-md border transition ${index === active ? 'border-[rgb(var(--accent))] opacity-100 shadow-[0_0_12px_-4px_rgb(var(--accent))]' : 'border-transparent opacity-58 hover:opacity-95'}`} aria-label={`Show image ${index + 1} of ${media.length}`}><img src={url} alt="" className="h-full w-full object-cover" /></button>)}</div>}
+    </section>
   );
 }
 
@@ -341,7 +386,7 @@ function openSearch(query, engine = 'google') {
 }
 
 /* ---------- Action bar ---------- */
-function ActionBar({ game, categories, onLaunch, onRefetch, onRevealFolder, onToggleCategory, onCustomize, onOpenSaveManager, onLocateManagedTool, onInstallManagedTool, managedToolInstalling, fetching, settings = {} }) {
+function ActionBar({ game, categories, onLaunch, onLaunchError, onRefetch, onRevealFolder, onToggleCategory, onCustomize, onOpenSaveManager, onLocateManagedTool, onInstallManagedTool, managedToolInstalling, fetching, settings = {} }) {
   const [catOpen, setCatOpen] = React.useState(false);
   const [catAnchor, setCatAnchor] = React.useState(null);
   const popRef = React.useRef(null);
@@ -352,14 +397,27 @@ function ActionBar({ game, categories, onLaunch, onRefetch, onRevealFolder, onTo
   }, [catOpen]);
 
   return (
-    <div className="relative z-10 flex flex-wrap items-center gap-3 border-y hairline px-6 py-3" style={{ backgroundColor: 'rgb(var(--surface) / 0.45)', backdropFilter: 'blur(14px) saturate(140%)' }}>
+    <div className="special-control-surface relative z-10 flex flex-wrap items-center gap-3 border-y hairline px-6 py-3" style={{ backgroundColor: 'rgb(var(--surface) / 0.45)', backdropFilter: 'blur(14px) saturate(140%)' }}>
       <motion.button
         data-testid="detail-launch-btn"
         whileTap={{ scale: 0.95 }}
         whileHover={{ scale: 1.03 }}
         onMouseEnter={() => { if (settings.soundsEnabled !== false) hoverThrottled(); }}
         disabled={game.managedTool && game.availability !== 'installed'}
-        onClick={() => { if (settings.soundsEnabled !== false) playLaunch(); onLaunch(game); }}
+        data-neolib-launch="true"
+        onClick={async (event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          const launchOrigin = { x: rect.left + (rect.width / 2), y: rect.top + (rect.height / 2) };
+          if (!window.api?.armGameLaunch) {
+            if (settings.soundsEnabled !== false) playLaunch();
+            onLaunch(game, '', launchOrigin);
+            return;
+          }
+          const armed = await window.api?.armGameLaunch?.();
+          if (!armed?.ok) { onLaunchError?.(armed?.error || 'Launch safety could not verify that click. Please try again.'); return; }
+          if (settings.soundsEnabled !== false) playLaunch();
+          onLaunch(game, armed.token, launchOrigin);
+        }}
         className="neon group inline-flex items-center gap-2 rounded-full bg-[rgb(var(--accent))] px-5 py-2 text-[13px] font-bold tracking-wide text-[rgb(var(--surface))] disabled:cursor-not-allowed disabled:opacity-40"
       >
         <Play size={14} className="transition-transform group-hover:translate-x-0.5" />
@@ -993,42 +1051,57 @@ function StarRating({ value = 0, onChange }) {
 function UpdateAvailablePill({ game }) {
   const [update, setUpdate] = React.useState(null);
   const [historyOpen, setHistoryOpen] = React.useState(false);
+  const [openError, setOpenError] = React.useState('');
   React.useEffect(() => {
     let alive = true;
     setUpdate(null);
+    setOpenError('');
     if (game?.managedTool) return () => { alive = false; };
     if ((!game?.appid && !(game?.exePath || game?.installedVersion || game?.updateWatchUrl || game?.website)) || !window.api?.scanGameUpdates) return () => { alive = false; };
-    window.api.scanGameUpdates({ games: [{ id: game.id, name: game.name, appid: game.appid, launcher: game.launcher, source: game.source, installedVersion: game.installedVersion, updateWatchUrl: game.updateWatchUrl, website: game.website, exePath: game.exePath }] })
+    window.api.scanGameUpdates({ games: [{ id: game.id, name: game.name, appid: game.appid, launcher: game.launcher, source: game.source, steamOwned: game.steamOwned, installedVersion: game.installedVersion, updateWatchUrl: game.updateWatchUrl, website: game.website, exePath: game.exePath }] })
       .then((result) => { if (alive) setUpdate(result?.items?.[0] || null); })
       .catch(() => {});
     return () => { alive = false; };
   }, [game?.id, game?.appid, game?.name, game?.launcher, game?.source, game?.installedVersion, game?.updateWatchUrl, game?.website, game?.exePath]);
   if (!update) return null;
   const isWatchPage = update.sourceKind === 'watch-page';
+  const needsVersionCheck = update.status === 'attention';
   const remaining = isWatchPage ? `${update.currentVersion} → ${update.latestVersion}` : update.remainingBytes >= 1024 ** 3 ? `${(update.remainingBytes / 1024 ** 3).toFixed(1)} GB` : `${Math.max(1, Math.round(update.remainingBytes / 1024 ** 2))} MB`;
+  const tone = needsVersionCheck ? {
+    border: 'border-amber-300/45', bg: 'bg-amber-300/[0.08]', icon: 'bg-amber-300/15 text-amber-200', text: 'text-amber-200', shadow: 'rgb(251 191 36 / .78)',
+  } : {
+    border: 'border-emerald-400/40', bg: 'bg-emerald-400/[0.07]', icon: 'bg-emerald-400/15 text-emerald-300', text: 'text-emerald-300', shadow: 'rgb(52 211 153 / .85)',
+  };
+  const openUpdateAction = async () => {
+    setOpenError('');
+    if (isWatchPage) { setHistoryOpen(true); return; }
+    const result = await window.api?.openLauncherDownloads?.(update.platform);
+    if (!result?.ok) setOpenError(result?.error || 'The launcher Downloads page could not be opened.');
+  };
   return <>
     <motion.button
-      onClick={() => isWatchPage ? setHistoryOpen(true) : window.api?.openExternal?.(update.actionUrl || 'steam://downloads/')}
-      animate={{ opacity: [1, 0.78, 1], boxShadow: ['0 0 12px -4px rgb(52 211 153 / .45)', '0 0 28px 0px rgb(52 211 153 / .85)', '0 0 12px -4px rgb(52 211 153 / .45)'] }}
+      onClick={openUpdateAction}
+      animate={{ opacity: [1, 0.78, 1], boxShadow: [`0 0 12px -4px ${tone.shadow}`, `0 0 28px 0px ${tone.shadow}`, `0 0 12px -4px ${tone.shadow}`] }}
       transition={{ duration: 2.2, repeat: Infinity }}
-      className="mb-4 flex w-full items-center gap-3 rounded-xl border border-emerald-400/40 bg-emerald-400/[0.07] px-4 py-3 text-left"
+      className={`mb-4 flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left ${tone.border} ${tone.bg}`}
       data-testid="game-update-available"
     >
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-400/15 text-emerald-300"><Download size={16} /></span>
-      <span className="min-w-0 flex-1"><span className="block text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">New update · {update.platform}</span><span className="mt-0.5 block text-[12px] font-bold text-ink">{isWatchPage ? `Version ${remaining} available` : `${remaining} remains in the launcher queue`}</span><span className="mt-0.5 block text-[10.5px] text-muted">There is a new update for this game you might want to check out{update.installedVersionEvidence ? ` · local version found in ${update.installedVersionEvidence}` : ''}.</span></span>
-      <span className="shrink-0 text-[10px] font-bold text-emerald-300">{isWatchPage ? 'Patch history' : 'Open downloads'} ↗</span>
+      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${tone.icon}`}><Download size={16} /></span>
+      <span className="min-w-0 flex-1"><span className={`block text-[10px] font-black uppercase tracking-[0.22em] ${tone.text}`}>{needsVersionCheck ? 'Possible update · comparison needed' : `New update · ${update.platform}`}</span><span className="mt-0.5 block text-[12px] font-bold text-ink">{needsVersionCheck ? `Latest public version ${update.latestVersion} found` : isWatchPage ? `Version ${remaining} available` : `${remaining} remains in the launcher queue`}</span><span className="mt-0.5 block text-[10.5px] text-muted">{needsVersionCheck ? update.currentVersion && update.currentVersion !== 'Unknown' ? `NEO-LIB found ${update.currentVersion} in the Windows executable, but needs stronger game-owned evidence before comparing it. Open patch history.` : 'NEO-LIB could not read this local build version yet. Open patch history to compare it safely.' : `There is a new update for this game you might want to check out${update.installedVersionEvidence ? ` · local version found in ${update.installedVersionEvidence}` : ''}.`}</span></span>
+      <span className={`shrink-0 text-[10px] font-bold ${tone.text}`}>{isWatchPage ? 'Patch history' : 'Open downloads'} ↗</span>
     </motion.button>
+    {openError && <p role="status" className="-mt-2 mb-3 rounded-lg border border-amber-300/30 bg-amber-300/[0.08] px-3 py-2 text-[10px] font-bold text-amber-200">{openError}</p>}
     <UpdateHistoryModal item={historyOpen ? update : null} onClose={() => setHistoryOpen(false)} />
   </>;
 }
 
 /** A structured identity is deliberately separate from a user's Library categories. */
-function GenreProfile({ profile, fallbackGenres = [] }) {
+function GenreProfile({ profile, fallbackGenres = [], embedded = false }) {
   const groups = genreDisplayGroups(profile);
   if (!groups.length && !fallbackGenres.length) return null;
   const shownGroups = groups.length ? groups : [['Source genres', fallbackGenres.map((label) => ({ id: label, label }))]];
   return (
-    <aside className="genre-identity-blob self-start overflow-hidden rounded-xl border border-[rgb(var(--accent)/0.34)] bg-[rgb(var(--surface)/0.45)]" data-testid="game-genre-profile">
+    <aside className={`genre-identity-blob self-start overflow-hidden rounded-xl border border-[rgb(var(--accent)/0.34)] bg-[rgb(var(--surface)/0.45)] ${embedded ? 'w-full shadow-[0_12px_28px_-22px_rgb(var(--accent))]' : ''}`} data-testid="game-genre-profile">
       <div className="border-b border-[rgb(var(--accent)/0.22)] bg-[rgb(var(--accent)/0.11)] px-3 py-2.5">
         <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[rgb(var(--accent))]">Game identity</div>
         <div className="mt-1 flex items-center justify-between gap-2">

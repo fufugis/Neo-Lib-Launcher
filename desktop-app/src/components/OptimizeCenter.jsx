@@ -135,6 +135,7 @@ function SpeedUpView({ onBack, onSummary }) {
   const processes = data?.processes || [];
   const cpuTop = [...processes].sort((a, b) => b.cpuPercent - a.cpuPercent).slice(0, 5);
   const ramTop = [...processes].sort((a, b) => b.memoryBytes - a.memoryBytes).slice(0, 5);
+  const neoLibListed = processes.some(isNeoLibProcess);
   const gpuTotal = Math.min(100, (data?.gpu || []).reduce((sum, item) => sum + Number(item.percent || 0), 0));
   return <motion.div initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }}>
     <SubHeader icon={<Rocket size={18} />} title="Speed up gaming" subtitle="On-demand Windows performance snapshot" onBack={onBack} action={<button onClick={inspect} disabled={loading} className="grid h-9 w-9 place-items-center rounded-lg hairline text-muted hover:text-ink" title="Refresh analysis"><RefreshCw size={15} className={loading ? 'animate-spin' : ''} /></button>} />
@@ -145,11 +146,12 @@ function SpeedUpView({ onBack, onSummary }) {
           <ProcessList title="Top CPU use" icon={<Cpu size={15} />} entries={cpuTop} metric={(item) => `${item.cpuPercent.toFixed(1)}%`} warn={(item) => item.cpuPercent > 10} onClose={setClosing} />
           <ProcessList title="Top memory use" icon={<MemoryStick size={15} />} entries={ramTop} metric={(item) => formatBytes(item.memoryBytes)} warn={(item) => item.memoryBytes > 2 * 1024 ** 3} onClose={setClosing} />
         </div>
+        {neoLibListed && <section className="flex items-start gap-2 rounded-xl border border-sky-300/25 bg-sky-300/[0.07] p-3 text-[10.5px] leading-relaxed text-muted" data-testid="optimize-rest-mode-note"><ShieldCheck size={15} className="mt-0.5 shrink-0 text-sky-300" /><p><b className="text-sky-200">NEO-LIB is safe to leave open.</b> It can appear in this snapshot while you browse. Once you launch a tracked game, Rest Mode pauses its effects, animations, sound, health polling, launcher/news/social checks, and other background work until the game closes.</p></section>}
         <section className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.28)] p-4">
           <div className="flex items-center justify-between gap-3"><span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.14em]"><Gauge size={15} className="text-[rgb(var(--accent))]" /> GPU activity</span><span className={`text-sm font-black ${gpuTotal > 10 ? 'text-amber-300' : 'text-emerald-300'}`}>{data?.gpuAvailable ? `${gpuTotal.toFixed(1)}%` : 'Unavailable'}</span></div>
           {data?.gpuAvailable ? <div className="mt-3 grid gap-1.5 sm:grid-cols-2">{(data.gpu || []).slice(0, 6).map((entry) => <div key={`${entry.pid}-${entry.name}`} className={`flex items-center justify-between rounded-lg px-3 py-2 text-[10.5px] ${entry.percent > 10 ? 'border border-amber-300/25 bg-amber-300/[0.08]' : 'bg-[rgb(var(--panel)/0.45)]'}`}><span className="truncate">{entry.name}</span><span className={entry.percent > 10 ? 'font-black text-amber-300' : 'text-muted'}>{entry.percent.toFixed(1)}%</span></div>)}</div> : <p className="mt-2 text-[10.5px] text-muted">Windows did not expose GPU engine counters on this PC. NEO-LIB leaves the value unknown instead of guessing.</p>}
         </section>
-        <WindowsGamingSettings settings={data?.settings || {}} />
+        <WindowsGamingSettings settings={data?.settings || {}} os={data?.os || {}} />
       </>}
     </div>
     {closing && <ConfirmProcess process={closing} onCancel={() => setClosing(null)} onConfirm={closeProcess} />}
@@ -157,18 +159,49 @@ function SpeedUpView({ onBack, onSummary }) {
 }
 
 function ProcessList({ title, icon, entries, metric, warn, onClose }) {
-  return <section className="overflow-hidden rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.28)]"><header className="flex items-center gap-2 border-b border-[rgb(var(--border)/0.7)] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.16em] text-muted">{icon}{title}</header><div className="divide-y divide-[rgb(var(--border)/0.45)]">{entries.map((item) => <div key={`${title}-${item.pid}`} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 px-3 py-2"><div className="min-w-0"><p className="truncate text-[11px] font-bold" title={item.path || item.name}>{item.name}</p><p className="text-[8.5px] text-muted">PID {item.pid}{item.protected ? ' · Windows protected' : ''}</p></div><span className={`text-[10.5px] font-black ${warn(item) ? 'text-amber-300' : 'text-emerald-300'}`}>{metric(item)}</span>{item.protected ? <ShieldCheck size={13} className="text-muted" /> : <button onClick={() => onClose(item)} className="rounded-md border border-red-400/20 px-2 py-1 text-[9px] font-bold text-red-300 hover:bg-red-400/10">Exit</button>}</div>)}{!entries.length && <p className="p-3 text-[10px] text-muted">No process data available.</p>}</div></section>;
+  return <section className="overflow-hidden rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.28)]"><header className="flex items-center gap-2 border-b border-[rgb(var(--border)/0.7)] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.16em] text-muted">{icon}{title}</header><div className="divide-y divide-[rgb(var(--border)/0.45)]">{entries.map((item) => <div key={`${title}-${item.pid}`} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 px-3 py-2"><div className="min-w-0"><p className="truncate text-[11px] font-bold" title={item.path || item.name}>{item.name}</p><p className="text-[8.5px] text-muted">PID {item.pid}{item.protected ? ' · Windows protected' : ''}{isNeoLibProcess(item) ? ' · rests when a game runs' : ''}</p></div><span className={`text-[10.5px] font-black ${warn(item) ? 'text-amber-300' : 'text-emerald-300'}`}>{metric(item)}</span>{item.protected ? <ShieldCheck size={13} className="text-muted" /> : <button onClick={() => onClose(item)} className="rounded-md border border-red-400/20 px-2 py-1 text-[9px] font-bold text-red-300 hover:bg-red-400/10">Exit</button>}</div>)}{!entries.length && <p className="p-3 text-[10px] text-muted">No process data available.</p>}</div></section>;
 }
 
-function WindowsGamingSettings({ settings }) {
+function isNeoLibProcess(item) {
+  return /neo[\s_-]*lib/i.test(`${item?.name || ''} ${item?.path || ''}`);
+}
+
+function WindowsGamingSettings({ settings, os }) {
   const plan = String(settings.powerPlan || 'Unknown');
+  const isWindows11 = os?.family === 'Windows 11' || Number(os?.build || 0) >= 22000;
+  const osLabel = os?.family || 'Windows';
+  const osDetail = [os?.release, os?.build ? `build ${os.build}` : ''].filter(Boolean).join(' · ');
+  const capturePath = isWindows11
+    ? 'Settings → Gaming → Captures → Record what happened'
+    : 'Settings → Gaming → Captures → Record in the background while I’m playing a game';
+  const powerPath = isWindows11
+    ? 'Settings → System → Power & battery → Power mode'
+    : 'Settings → System → Power & sleep → Additional power settings';
+  const hagsSupported = os?.supportsHags !== false;
   const cards = [
-    { label: 'Game Mode', status: settings.gameMode || 'unknown', good: settings.gameMode !== 'off', route: 'ms-settings:gaming-gamemode', pro: 'Prioritizes game responsiveness and reduces disruptive background activity.', con: 'Usually beneficial; rare older games or capture setups may prefer it off.' },
-    { label: 'GPU scheduling', status: settings.hags || 'unknown', good: settings.hags === 'on', route: 'ms-settings:display-advancedgraphics', pro: 'Can reduce scheduling overhead and latency on supported GPUs.', con: 'Results vary by driver and game; a restart is required after changing it.' },
-    { label: 'Background capture', status: settings.backgroundCapture || 'unknown', good: settings.backgroundCapture === 'off', route: 'ms-settings:gaming-captures', pro: 'Turning background recording off can save disk writes and some GPU/CPU time.', con: 'You lose automatic recording of the previous moments of gameplay.' },
-    { label: 'Power plan', status: /high performance|ultimate performance/i.test(plan) ? 'performance' : /power saver/i.test(plan) ? 'power saver' : 'balanced', good: !/power saver/i.test(plan), route: 'ms-settings:powersleep', pro: 'Balanced is sensible for most desktops; performance plans reduce aggressive power saving.', con: 'Performance modes use more electricity, create heat, and reduce laptop battery life.' },
+    { label: 'Game Mode', status: settings.gameMode || 'unknown', good: settings.gameMode !== 'off', route: 'ms-settings:gaming-gamemode', path: 'Settings → Gaming → Game Mode', pro: 'Prioritizes game responsiveness and reduces disruptive background activity.', con: 'Usually beneficial; rare older games or capture setups may prefer it off.' },
+    { label: 'GPU scheduling', status: hagsSupported ? (settings.hags || 'unknown') : 'not supported', good: hagsSupported && settings.hags === 'on', route: 'ms-settings:display-advancedgraphics', path: 'Settings → System → Display → Graphics → Default graphics settings', pro: 'Can reduce scheduling overhead and latency on supported GPUs.', con: hagsSupported ? 'Results vary by driver and game; a restart is required after changing it.' : 'This Windows build predates Hardware-accelerated GPU scheduling, so no setting is available.' },
+    { label: 'Background capture', status: settings.backgroundCapture || 'unknown', good: settings.backgroundCapture === 'off', route: 'ms-settings:gaming-gamedvr', path: capturePath, pro: 'Turning background recording off can save disk writes and some GPU/CPU time.', con: 'You lose automatic recording of the previous moments of gameplay.' },
+    { label: 'Power plan', status: /high performance|ultimate performance/i.test(plan) ? 'performance' : /power saver/i.test(plan) ? 'power saver' : 'balanced', good: !/power saver/i.test(plan), route: 'ms-settings:powersleep', path: powerPath, pro: 'Balanced is sensible for most desktops; performance plans reduce aggressive power saving.', con: 'Performance modes use more electricity, create heat, and reduce laptop battery life.' },
   ];
-  return <section><div className="mb-2 flex items-end justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-[rgb(var(--accent))]">Windows gaming checks</p><p className="mt-1 text-[10px] text-muted">Open the real Windows page to make a change. NEO-LIB records no hidden tweaks.</p></div>{settings.pendingRestart && <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-1 text-[9px] font-bold text-amber-300">Restart pending</span>}</div><div className="grid gap-2 sm:grid-cols-2">{cards.map((card) => <div key={card.label} className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.46)] p-3"><div className="flex items-center justify-between gap-2"><span className="flex items-center gap-1.5 text-[11px] font-black"><MonitorCog size={13} className="text-[rgb(var(--accent))]" />{card.label}</span><span className={`rounded-full px-2 py-0.5 text-[8.5px] font-black uppercase ${card.good ? 'bg-emerald-400/10 text-emerald-300' : 'bg-amber-300/10 text-amber-300'}`}>{card.status}</span></div><p className="mt-2 text-[9.5px] leading-relaxed text-muted"><b className="text-emerald-300">Pro:</b> {card.pro}</p><p className="mt-1 text-[9.5px] leading-relaxed text-muted"><b className="text-amber-300">Trade-off:</b> {card.con}</p><button onClick={() => window.api?.openExternal?.(card.route)} className="mt-2 inline-flex items-center gap-1 text-[9.5px] font-bold text-[rgb(var(--accent-2))] hover:underline"><Settings2 size={11} /> Open Windows setting</button></div>)}</div></section>;
+  return <section>
+    <div className="mb-2 flex items-end justify-between gap-3">
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[rgb(var(--accent))]">Windows gaming checks</p>
+        <p className="mt-1 text-[10px] text-muted">Detected: <b className="text-foreground">{osLabel}</b>{osDetail ? ` · ${osDetail}` : ''}. NEO-LIB opens Windows’ real setting pages and never applies hidden tweaks.</p>
+      </div>
+      {settings.pendingRestart && <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-1 text-[9px] font-bold text-amber-300">Restart pending</span>}
+    </div>
+    <div className="grid gap-2 sm:grid-cols-2">
+      {cards.map((card) => <div key={card.label} className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.46)] p-3">
+        <div className="flex items-center justify-between gap-2"><span className="flex items-center gap-1.5 text-[11px] font-black"><MonitorCog size={13} className="text-[rgb(var(--accent))]" />{card.label}</span><span className={`rounded-full px-2 py-0.5 text-[8.5px] font-black uppercase ${card.good ? 'bg-emerald-400/10 text-emerald-300' : 'bg-amber-300/10 text-amber-300'}`}>{card.status}</span></div>
+        <p className="mt-2 text-[9.5px] leading-relaxed text-muted"><b className="text-foreground">Where:</b> {card.path}</p>
+        <p className="mt-1 text-[9.5px] leading-relaxed text-muted"><b className="text-emerald-300">Pro:</b> {card.pro}</p>
+        <p className="mt-1 text-[9.5px] leading-relaxed text-muted"><b className="text-amber-300">Trade-off:</b> {card.con}</p>
+        <button onClick={() => window.api?.openExternal?.(card.route)} className="mt-2 inline-flex items-center gap-1 text-[9.5px] font-bold text-[rgb(var(--accent-2))] hover:underline"><Settings2 size={11} /> Open {osLabel} setting</button>
+      </div>)}
+    </div>
+  </section>;
 }
 
 function ConfirmProcess({ process: item, onCancel, onConfirm }) {

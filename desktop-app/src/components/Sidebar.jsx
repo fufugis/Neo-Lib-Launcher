@@ -4,9 +4,9 @@ import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import {
   Plus, Wand2, RefreshCw, Trash2, Pencil, FolderOpen, MoreVertical, Sparkles,
   Lock, ChevronRight, ChevronDown, Tag, GripVertical, Terminal,
-  Info, ArrowUp, ArrowDown, Palette, Eye, EyeOff, Sliders, Library as LibIcon,
+  Info, ArrowUp, ArrowDown, ArrowDownUp, Palette, Eye, EyeOff, Sliders, Library as LibIcon,
   Boxes, Columns, Pin, PinOff, X as XIcon, Home, MessageCircle,
-  Bug, Lightbulb, RotateCcw, Check, ArchiveRestore, Stethoscope, Settings, Wrench,
+  Bug, Lightbulb, RotateCcw, Check, ArchiveRestore, Stethoscope, Settings, Wrench, ListTree,
 } from 'lucide-react';
 import { cn, colorFromId, sizeById, formatPlaytime, playtimeSource } from '../lib/utils';
 import SystemHealthBar from './SystemHealthBar';
@@ -78,6 +78,19 @@ const BG_TEXTURE_PATTERNS = {
   },
 };
 
+// A quiet copy of the active theme art gives the Library its own atmosphere
+// without turning the sidebar into a second Home canvas. It is intentionally
+// much dimmer than the main backdrop and disappears with visual effects.
+const SIDEBAR_THEME_ART = {
+  synthwave: 'synthwave-atmosphere.png',
+  'synthwave-day': 'synthwave-day-atmosphere.png',
+  midnight: 'midnight-atmosphere.png', daybreak: 'daybreak-atmosphere.png',
+  mint: 'mint-atmosphere.png', ocean: 'ocean-atmosphere.png', crimson: 'crimson-atmosphere.png',
+  anime: 'anime-atmosphere.png', gaming: 'gaming-atmosphere.png', modern: 'modern-atmosphere.png',
+  colorful: 'colorful-atmosphere.png', pro: 'industrial-atmosphere.png', home: 'home-atmosphere.png',
+  'generic-gray': 'generic-gray-atmosphere.png', 'generic-blue': 'generic-blue-atmosphere.png',
+};
+
 /**
  * Sidebar (tree view)
  * - Top toolbar: Add · Wizard · Refresh-all · Library settings (size, etc.) · App settings
@@ -100,7 +113,7 @@ export default function Sidebar({
   showCategoryDot = true, categoryMarkerMode = 'dot',
   showSubcatStrip = true,
   nameTextSize = null,
-  effectsLevel = 2, currentTheme = 'synthwave', onChangeEffectsLevel,
+  effectsLevel = 2, currentTheme = 'synthwave', motionCadence = 'full', onChangeEffectsLevel, onChangeMotionCadence,
   unseenNewsCount = 0,
   pinnedIds = [],
   onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
@@ -108,7 +121,7 @@ export default function Sidebar({
   onToggleSubcatStrip, onChangeNameTextSize,
   bgTextureId, bgTextureOpacity,
   onChangeBgTextureId, onChangeBgTextureOpacity,
-  onSelect,
+  onSelect, onGameViewed,
   onAddManual, onOpenWizard, onOpenFeedback, onOpenPlaytimeImport, onUpdateAll, onTidyUp,
   onCreateCategory, onCategoryContext, onGameContext,
   onSetLibrarySize, onMoveGameToCategory,
@@ -116,9 +129,14 @@ export default function Sidebar({
   onToggleCollapsed, onUnlockCategory,
   onAutoSort,
   twoRow = false, onToggleTwoRow,
+  showCategories = true, onToggleCategories, onManageCategories,
+  librarySortMode = 'manual', onChangeLibrarySort,
+  libraryViewMode = 'preview', onChangeLibraryViewMode,
+  tutorialVisualsOpen = false,
   sidebarWidth = 320,
   onStartResize,
   updatingAll,
+  metadataRefreshProgress = { done: 0, total: 0, mode: '' },
   gameResting = false,
   runningGameName = '',
   allGames = [],
@@ -141,8 +159,12 @@ export default function Sidebar({
   const libSettingsBtnRef = React.useRef(null);
   const [addMenuOpen, setAddMenuOpen] = React.useState(false);
   const [refreshMenuOpen, setRefreshMenuOpen] = React.useState(false);
+  const [categoriesMenuOpen, setCategoriesMenuOpen] = React.useState(false);
+  const [sortMenuOpen, setSortMenuOpen] = React.useState(false);
   const addMenuRef = React.useRef(null);
   const refreshMenuRef = React.useRef(null);
+  const categoriesMenuRef = React.useRef(null);
+  const sortMenuRef = React.useRef(null);
   const treeScrollRef = React.useRef(null);
   const isTools = mode === 'tools';
   // Keep toolbar labels legible while the sidebar is resized: they shrink over
@@ -156,24 +178,53 @@ export default function Sidebar({
     transition: 'font-size 100ms ease, max-width 100ms ease, opacity 100ms ease',
   };
   const pinnedIdsSet = React.useMemo(() => new Set(pinnedIds || []), [pinnedIds]);
+  const selectGame = React.useCallback((id) => {
+    onGameViewed?.(id);
+    onSelect?.(id);
+  }, [onGameViewed, onSelect]);
 
   // Every small Library popover follows the same simple escape hatch: click
   // anywhere outside it (or press Escape) and it goes away.
   React.useEffect(() => {
-    if (!addMenuOpen && !refreshMenuOpen) return undefined;
+    if (!addMenuOpen && !refreshMenuOpen && !categoriesMenuOpen && !sortMenuOpen) return undefined;
     const close = (event) => {
       if (addMenuRef.current && !addMenuRef.current.contains(event.target)) setAddMenuOpen(false);
       if (refreshMenuRef.current && !refreshMenuRef.current.contains(event.target)) setRefreshMenuOpen(false);
+      if (categoriesMenuRef.current && !categoriesMenuRef.current.contains(event.target)) setCategoriesMenuOpen(false);
+      if (sortMenuRef.current && !sortMenuRef.current.contains(event.target)) setSortMenuOpen(false);
     };
-    const escape = (event) => { if (event.key === 'Escape') { setAddMenuOpen(false); setRefreshMenuOpen(false); } };
+    const escape = (event) => { if (event.key === 'Escape') { setAddMenuOpen(false); setRefreshMenuOpen(false); setCategoriesMenuOpen(false); setSortMenuOpen(false); } };
     document.addEventListener('mousedown', close);
     document.addEventListener('keydown', escape);
     return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', escape); };
-  }, [addMenuOpen, refreshMenuOpen]);
+  }, [addMenuOpen, refreshMenuOpen, categoriesMenuOpen, sortMenuOpen]);
+
+  // Tutorial controls Visuals directly, rather than synthetically clicking
+  // the toggle. That avoids a timer race which used to leave it flickering or
+  // open after the tutorial moved on. Normal player clicks remain unchanged.
+  React.useEffect(() => {
+    setLibSettingsOpen(Boolean(tutorialVisualsOpen));
+  }, [tutorialVisualsOpen]);
 
   // Library reference used by the PinnedStrip (it pulls full game objects by id).
   // We keep it as a plain object since we only need it inside the render.
   const library = { games };
+  const sortGames = (list) => {
+    const stable = [...list].map((game, index) => ({ game, index }));
+    const numeric = (value) => Number(value || 0);
+    const compareName = (a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { numeric: true, sensitivity: 'base' });
+    stable.sort((a, b) => {
+      let result = 0;
+      if (librarySortMode === 'alphabetical') result = compareName(a.game, b.game);
+      else if (librarySortMode === 'added') result = numeric(b.game.addedAt) - numeric(a.game.addedAt);
+      else if (librarySortMode === 'rating') result = numeric(b.game.rating) - numeric(a.game.rating);
+      else if (librarySortMode === 'played') result = numeric(b.game.playtime) - numeric(a.game.playtime);
+      else if (librarySortMode === 'recent') result = numeric(b.game.lastPlayedAt) - numeric(a.game.lastPlayedAt);
+      if (librarySortMode === 'manual') return a.index - b.index;
+      return result || compareName(a.game, b.game) || a.index - b.index;
+    });
+    return stable.map((entry) => entry.game);
+  };
 
   // Build per-category game lists honoring per-category ordering
   const orderedGamesIn = (catId) => {
@@ -191,7 +242,7 @@ export default function Sidebar({
         byId.delete(id);
       }
     }
-    return [...ordered, ...byId.values()];
+    return sortGames([...ordered, ...byId.values()]);
   };
 
   const searchFilter = (list) => {
@@ -219,6 +270,10 @@ export default function Sidebar({
       count: orderedGamesIn('__uncat__').length,
     },
   ];
+  const lockedPrivateIds = new Set(categories.filter((category) => category.private && !unlockedCategories.includes(category.id)).map((category) => category.id));
+  const flatGames = sortGames(searchFilter(games).filter((game) => !(game.categoryIds || []).some((categoryId) => lockedPrivateIds.has(categoryId)) && !pinnedIdsSet.has(game.id)));
+  const lockedPrivateSections = sections.filter((section) => section.category.private && section.isGhost);
+  const visiblePinnedGames = games.filter((game) => pinnedIdsSet.has(game.id) && !(game.categoryIds || []).some((categoryId) => lockedPrivateIds.has(categoryId)));
 
   return (
     <aside
@@ -238,6 +293,17 @@ export default function Sidebar({
             opacity: Math.max(0, Math.min(100, Number(bgTextureOpacity) || 40)) / 100,
           }}
           data-testid="sidebar-bg-texture"
+        />
+      )}
+      {Number(effectsLevel) > 0 && SIDEBAR_THEME_ART[currentTheme] && (
+        <span
+          aria-hidden
+          className={`sidebar-theme-art ${motionCadence === 'calm' ? '' : 'sidebar-theme-art-drift'}`}
+          style={{
+            opacity: Math.min(0.12, 0.035 + (Number(effectsLevel) * 0.022)),
+            backgroundImage: `url(${import.meta.env.BASE_URL}theme-art/${SIDEBAR_THEME_ART[currentTheme]})`,
+          }}
+          data-testid="sidebar-theme-art"
         />
       )}
       {/* Per-theme tint wash — subtle accent-colored glow behind sidebar content.
@@ -271,7 +337,8 @@ export default function Sidebar({
         data-testid="top-toolbar"
       >
         <TabPill label="Home" icon={<Home size={15} />} showLabel={labelsVisible} labelStyle={toolbarLabelStyle} active={mode === 'home'} onClick={() => { onSelect?.(null); onSetMode('home'); }} testid="tab-home" />
-        <TabPill label="Library" icon={<LibIcon size={15} />} showLabel={labelsVisible} labelStyle={toolbarLabelStyle} active={mode === 'library'} onClick={() => { onSetMode('library'); onSetLauncherFilter?.('all'); }} testid="tab-library" />
+        <TabPill label="Library" icon={<LibIcon size={15} />} showLabel={labelsVisible} labelStyle={toolbarLabelStyle} active={mode === 'library' && libraryViewMode !== 'wall'} onClick={() => { onChangeLibraryViewMode?.('preview'); onSetMode('library'); onSetLauncherFilter?.('all'); }} testid="tab-library" />
+        <TabPill label="Wall" icon={<Columns size={15} />} showLabel={labelsVisible} labelStyle={toolbarLabelStyle} active={mode === 'library' && libraryViewMode === 'wall'} onClick={() => { onChangeLibraryViewMode?.('wall'); onSelect?.(null); }} testid="tab-cover-wall" />
         <TabPill
           label="Tools"
           icon={<Boxes size={15} />}
@@ -417,6 +484,8 @@ export default function Sidebar({
                 effectsLevel={effectsLevel}
                 currentTheme={currentTheme}
                 onChangeEffectsLevel={onChangeEffectsLevel}
+                motionCadence={motionCadence}
+                onChangeMotionCadence={onChangeMotionCadence}
                 bgTextureId={bgTextureId}
                 bgTextureOpacity={bgTextureOpacity}
                 onChangeBgTextureId={onChangeBgTextureId}
@@ -465,6 +534,70 @@ export default function Sidebar({
             onChange={(v) => onSetLauncherFilter?.(v)}
           />
           <div className="flex-1 min-w-[6px]" />
+          <div ref={sortMenuRef} className="relative shrink-0">
+            <button
+              type="button"
+              data-testid="sidebar-sort-menu"
+              onClick={() => setSortMenuOpen((open) => !open)}
+              title={showCategories ? 'Sort games inside every visible category' : 'Sort all visible games'}
+              className={`inline-flex items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] transition-colors ${sortMenuOpen || librarySortMode !== 'manual' ? 'border-[rgb(var(--accent)/0.6)] bg-[rgb(var(--accent)/0.11)] text-ink' : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)]'}`}
+            >
+              <ArrowDownUp size={10} /> Sort <ChevronDown size={10} className={sortMenuOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />
+            </button>
+            <AnimatePresence>
+              {sortMenuOpen && (
+                <motion.div initial={{ opacity: 0, y: -6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }} className="absolute right-0 z-30 mt-1 w-52 rounded-lg hairline glass p-1.5 shadow-2xl">
+                  <div className="px-2.5 py-1.5"><p className="text-[9.5px] font-bold uppercase tracking-[0.16em] text-muted">{showCategories ? 'Sort each category' : 'Sort all visible games'}</p></div>
+                  {[
+                    ['manual', 'Custom order', 'Keep your own drag order'],
+                    ['alphabetical', 'Alphabetical', 'A to Z'],
+                    ['added', 'Date added', 'Newest first'],
+                    ['rating', 'My rating', 'Highest first'],
+                    ['played', 'Most played', 'Most hours first'],
+                    ['recent', 'Last played', 'Most recent first'],
+                  ].map(([value, label, hint]) => <button key={value} type="button" onClick={() => { onChangeLibrarySort?.(value); setSortMenuOpen(false); }} className={`flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left hover:bg-[rgb(var(--accent)/0.09)] ${librarySortMode === value ? 'bg-[rgb(var(--accent)/0.12)] text-ink' : 'text-muted'}`}><span><span className="block text-[11px] font-semibold">{label}</span><span className="block text-[9.5px] text-muted">{hint}</span></span>{librarySortMode === value && <Check size={13} className="shrink-0 text-[rgb(var(--accent-2))]" />}</button>)}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          <div ref={categoriesMenuRef} className="relative shrink-0">
+            <button
+              data-testid="sidebar-category-quick-switch"
+              onClick={() => setCategoriesMenuOpen((open) => !open)}
+              title="Categories — show shelves or manage your categories"
+              className={`inline-flex items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] transition-colors ${categoriesMenuOpen ? 'border-[rgb(var(--accent)/0.6)] bg-[rgb(var(--accent)/0.13)] text-ink' : 'text-[rgb(var(--accent-2))] hover:text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)]'}`}
+            >
+              {showCategories ? <ListTree size={10} /> : <Boxes size={10} />}
+              Categories <ChevronDown size={10} className={categoriesMenuOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />
+            </button>
+            <AnimatePresence>
+              {categoriesMenuOpen && (
+                <motion.div initial={{ opacity: 0, y: -6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }} className="absolute right-0 z-30 mt-1 w-64 rounded-lg hairline glass p-1.5 shadow-2xl">
+                  <div className="px-2.5 py-1.5">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted">Library categories</p>
+                  </div>
+                  <button
+                    data-testid="categories-menu-visibility-switch"
+                    onClick={() => onToggleCategories?.(!showCategories)}
+                    className="flex w-full items-center justify-between gap-3 rounded-md px-2.5 py-2 text-left hover:bg-[rgb(var(--accent)/0.08)]"
+                  >
+                    <span><span className="block text-xs font-semibold text-ink">Show category shelves</span><span className="block pt-0.5 text-[10.5px] leading-snug text-muted">Off shows one flat list; Private stays hidden.</span></span>
+                    <span className={`inline-flex h-6 min-w-12 items-center rounded-full p-0.5 transition-colors ${showCategories ? 'justify-end bg-[rgb(var(--accent))]' : 'justify-start bg-black/35 hairline'}`} aria-label={showCategories ? 'Categories on' : 'Categories off'}>
+                      <span className="grid h-5 w-5 place-items-center rounded-full bg-white text-[8px] font-black text-black shadow">{showCategories ? 'ON' : 'OFF'}</span>
+                    </span>
+                  </button>
+                  <button
+                    data-testid="categories-menu-manage"
+                    onClick={() => { setCategoriesMenuOpen(false); onManageCategories?.(); }}
+                    className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left hover:bg-[rgb(var(--accent-2)/0.08)]"
+                  >
+                    <span className="flex items-center gap-2 text-xs font-semibold text-ink"><Tag size={12} className="text-[rgb(var(--accent-2))]" />Manage categories</span>
+                    <span className="text-[10.5px] leading-snug text-muted">Add, edit, or remove groups. Games are kept safely.</span>
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
           {onAutoSort && (
             <button
               data-testid="sidebar-autosort-btn"
@@ -479,15 +612,16 @@ export default function Sidebar({
             <button
               data-testid="sidebar-refresh-menu-btn"
               onClick={() => setRefreshMenuOpen((v) => !v)}
-              title="Refresh metadata or tidy up your library"
+              title={updatingAll && metadataRefreshProgress.total ? `Refreshing ${metadataRefreshProgress.done}/${metadataRefreshProgress.total} games` : 'Refresh metadata or tidy up your library'}
               className="inline-flex shrink-0 items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] text-[rgb(var(--accent-2))] hover:text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)]"
             >
-              <RefreshCw size={10} className={updatingAll ? 'animate-spin' : ''} /> Refresh
+              <RefreshCw size={10} className={updatingAll ? 'animate-spin' : ''} /> {updatingAll && metadataRefreshProgress.total ? `${metadataRefreshProgress.done}/${metadataRefreshProgress.total}` : 'Refresh'}
             </button>
             <AnimatePresence>
               {refreshMenuOpen && (
                 <motion.div initial={{ opacity: 0, y: -6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }} onClick={(e) => e.stopPropagation()} className="absolute right-0 z-30 mt-1 w-64 rounded-lg hairline glass shadow-2xl p-1.5">
-                  <button data-testid="refresh-menu-refresh" onClick={() => { setRefreshMenuOpen(false); onUpdateAll?.(); }} className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left hover:bg-[rgb(var(--accent)/0.08)] transition-colors"><span className="flex items-center gap-2 text-[12px] font-semibold text-ink"><RefreshCw size={12} className="text-[rgb(var(--accent))]" />Refresh all metadata</span><span className="text-[10.5px] text-muted">Re-fetches covers, descriptions & screenshots for every game.</span></button>
+                  <button data-testid="refresh-menu-refresh" onClick={() => { setRefreshMenuOpen(false); onUpdateAll?.('missing'); }} className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left hover:bg-[rgb(var(--accent)/0.08)] transition-colors"><span className="flex items-center gap-2 text-[12px] font-semibold text-ink"><RefreshCw size={12} className="text-[rgb(var(--accent))]" />Refresh missing metadata</span><span className="text-[10.5px] text-muted">Targets incomplete or older metadata first. Manual edits stay protected.</span></button>
+                  <button data-testid="refresh-menu-full" onClick={() => { setRefreshMenuOpen(false); onUpdateAll?.('full'); }} className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left hover:bg-[rgb(var(--accent-2)/0.08)] transition-colors"><span className="flex items-center gap-2 text-[12px] font-semibold text-ink"><RefreshCw size={12} className="text-[rgb(var(--accent-2))]" />Full metadata refresh…</span><span className="text-[10.5px] text-muted">Shows the affected count and needs confirmation before it starts.</span></button>
                   <button data-testid="refresh-menu-tidy" onClick={() => { setRefreshMenuOpen(false); onTidyUp?.(); }} className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left hover:bg-[rgb(var(--accent-2)/0.08)] transition-colors"><span className="flex items-center gap-2 text-[12px] font-semibold text-ink"><Sparkles size={12} className="text-[rgb(var(--accent-2))]" />Tidy up library</span><span className="text-[10.5px] text-muted">Review duplicates and games needing attention.</span></button>
                 </motion.div>
               )}
@@ -529,16 +663,75 @@ export default function Sidebar({
       >
         {/* Pinned strip — full-width, sits above all categories in both single & two-row modes */}
         <PinnedStrip
-          games={(library.games || []).filter((g) => pinnedIdsSet.has(g.id))}
+          games={visiblePinnedGames}
           selectedId={selectedId}
-          onSelect={onSelect}
+          onSelect={selectGame}
           onContext={onGameContext}
         />
-        {twoRow ? (
+        {!showCategories ? (
+          <>
+            <div className="pb-2" data-testid="sidebar-flat-game-list">
+              <p className="px-2.5 pb-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-muted">All visible games · private stays protected</p>
+              {flatGames.map((g, idx) => (
+                <GameRow
+                  key={g.id}
+                  g={g}
+                  size={size}
+                  iconPosition={iconPosition}
+                  rowGap={rowGap}
+                  showCategoryDot={false}
+                  showSubcatStrip={showSubcatStrip}
+                  isPinned={false}
+                  selected={selectedId === g.id}
+                  indexInCat={idx}
+                  sectionGames={flatGames}
+                  fromCatId={null}
+                  flatList
+                  onClick={() => selectGame(g.id)}
+                  onContext={(action) => onGameContext(action, g)}
+                  onReorderInCat={() => {}}
+                  onMoveBetween={() => {}}
+                  categories={categories}
+                />
+              ))}
+              {!flatGames.length && <div className="px-3 py-3 text-[11px] italic text-muted/75">No visible games match this view.</div>}
+            </div>
+            {lockedPrivateSections.map((s, sectionIdx) => (
+              <Section
+                key={s.id}
+                section={s}
+                sectionIdx={sectionIdx}
+                collapsed={!!collapsed[s.id]}
+                size={size}
+                iconPosition={iconPosition}
+                catTextSize={catTextSize}
+                catGlow={catGlow}
+                rowGap={rowGap}
+                catGap={catGap}
+                catTopGap={catTopGap}
+                showCategoryDot={showCategoryDot}
+                categoryMarkerMode={categoryMarkerMode}
+                showSubcatStrip={showSubcatStrip}
+                pinnedIdsSet={pinnedIdsSet}
+                selectedId={selectedId}
+                onSelect={selectGame}
+                onContext={(action, payload) => onGameContext(action, payload.game, payload)}
+                onCategoryContext={(category, anchor) => onCategoryContext(category, anchor)}
+                onUnlockCategory={() => onUnlockCategory(s.category)}
+                onToggleCollapsed={() => onToggleCollapsed(s.id)}
+                onMoveGameToCategory={onMoveGameToCategory}
+                onReorderGameInCategory={onReorderGameInCategory}
+                onReorderCategory={onReorderCategory}
+                unlockedCategories={unlockedCategories}
+                categories={categories}
+              />
+            ))}
+          </>
+        ) : twoRow ? (
           <TwoColumnSections sections={sections} commonProps={{
             collapsed, size, iconPosition, catTextSize, catGlow, rowGap, catGap, catTopGap, selectedId,
             showCategoryDot, categoryMarkerMode, showSubcatStrip, pinnedIdsSet,
-            onSelect, onGameContext, onCategoryContext, onUnlockCategory, onToggleCollapsed,
+            onSelect: selectGame, onGameContext, onCategoryContext, onUnlockCategory, onToggleCollapsed,
             onMoveGameToCategory, onReorderGameInCategory, onReorderCategory,
             unlockedCategories, categories,
           }} />
@@ -561,7 +754,7 @@ export default function Sidebar({
               showSubcatStrip={showSubcatStrip}
               pinnedIdsSet={pinnedIdsSet}
               selectedId={selectedId}
-              onSelect={onSelect}
+              onSelect={selectGame}
               onContext={(action, payload) => onGameContext(action, payload.game, payload)}
               onCategoryContext={(category, anchor) => onCategoryContext(category, anchor)}
               onUnlockCategory={() => onUnlockCategory(s.category)}
@@ -694,7 +887,7 @@ function TabPill({ label, icon, active, onClick, testid, big = false, badge = nu
       onClick={onClick}
       title={label}
       className={cn(
-        'group relative inline-flex flex-1 min-w-0 items-center justify-center gap-1.5 rounded-lg transition-all overflow-hidden',
+        'neolib-nav-tab group relative inline-flex flex-1 min-w-0 items-center justify-center gap-1.5 rounded-lg transition-all overflow-hidden',
         big ? 'px-3 h-11 text-[12px]' : 'px-2 h-9 text-[10.5px]',
         'font-bold uppercase tracking-[0.14em]',
         active
@@ -871,12 +1064,12 @@ function LibrarySettingsPopover({
   librarySize, rowSize = 44, catTextSize = 11, catGlow = 40, iconPosition = 'left',
   rowGap = 2, catGap = 8, catTopGap = 4, showCategoryDot = true, categoryMarkerMode = 'dot',
   showSubcatStrip = true, nameTextSize = null,
-  effectsLevel = 2, currentTheme = 'synthwave',
+  effectsLevel = 2, currentTheme = 'synthwave', motionCadence = 'full',
   bgTextureId = 'none', bgTextureOpacity = 12,
   onSetLibrarySize, onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
   onChangeRowGap, onChangeCatGap, onChangeCatTopGap, onChangeCategoryMarkerMode,
   onToggleSubcatStrip, onChangeNameTextSize,
-  onChangeEffectsLevel,
+  onChangeEffectsLevel, onChangeMotionCadence,
   onChangeBgTextureId, onChangeBgTextureOpacity,
   onOpenFeedback,
   onOpenPlaytimeImport,
@@ -885,17 +1078,21 @@ function LibrarySettingsPopover({
 }) {
   const ref = React.useRef(null);
   const dragControls = useDragControls();
+  const clampPopoverPosition = (top, left) => ({
+    top: Math.max(12, Math.min(top, window.innerHeight - 116)),
+    left: Math.max(12, Math.min(left, window.innerWidth - 432)),
+  });
   // Anchor the popover to the trigger button's rect (portaled to body so no
   // parent stacking context can hide it under the game preview).
   const [pos, setPos] = React.useState(() => {
-    if (!anchorEl) return { top: 80, left: 12 };
+    if (!anchorEl) return clampPopoverPosition(80, 12);
     const r = anchorEl.getBoundingClientRect();
-    return { top: r.bottom + 6, left: r.left };
+    return clampPopoverPosition(r.bottom + 6, r.left);
   });
   React.useEffect(() => {
     if (!anchorEl) return;
     const r = anchorEl.getBoundingClientRect();
-    setPos({ top: r.bottom + 6, left: r.left });
+    setPos(clampPopoverPosition(r.bottom + 6, r.left));
   }, [anchorEl]);
   React.useEffect(() => {
     const h = (e) => {
@@ -905,6 +1102,12 @@ function LibrarySettingsPopover({
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, [onClose, anchorEl]);
+  const dragBounds = {
+    left: Math.min(0, 12 - pos.left),
+    right: Math.max(0, window.innerWidth - pos.left - 432),
+    top: Math.min(0, 12 - pos.top),
+    bottom: Math.max(0, window.innerHeight - pos.top - 96),
+  };
   const body = (
     <motion.div
       ref={ref}
@@ -913,6 +1116,7 @@ function LibrarySettingsPopover({
       dragListener={false}
       dragMomentum={false}
       dragElastic={0}
+      dragConstraints={dragBounds}
       initial={{ opacity: 0, y: -6, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -6, scale: 0.96 }}
@@ -989,7 +1193,7 @@ function LibrarySettingsPopover({
         onChange={onChangeCatGlow}
         testid="pop-cat-glow"
       />
-      <div className="rounded-md hairline bg-panel/40 p-2.5"><EffectsPopSlider theme={currentTheme} value={effectsLevel} onChange={onChangeEffectsLevel} /></div>
+      <div className="rounded-md hairline bg-panel/40 p-2.5" data-testid="visual-performance-controls"><EffectsPopSlider theme={currentTheme} value={effectsLevel} onChange={onChangeEffectsLevel} /><div className="my-2 border-t border-[rgb(var(--border))]/70" /><MotionCadenceSlider value={motionCadence} onChange={onChangeMotionCadence} /><p className="mt-2 rounded-md border border-[rgb(var(--accent)/0.22)] bg-[rgb(var(--accent)/0.06)] px-2 py-1.5 text-[10px] leading-relaxed text-muted"><b className="text-ink">Performance tip:</b> lowering Effects intensity reduces visual layers; lowering Visual motion rate makes the same FX update less often. Lower both if NEO-LIB feels heavy.</p></div>
       <BgTexturePicker textureId={bgTextureId} opacity={bgTextureOpacity} onChange={onChangeBgTextureId} onChangeOpacity={onChangeBgTextureOpacity} />
       </VisualGroup>
 
@@ -1285,6 +1489,17 @@ function EffectsPopSlider({ theme, value, onChange }) {
   );
 }
 
+const MOTION_CADENCE = [
+  { id: 'full', label: 'Full', hint: 'Native smooth motion — default.' },
+  { id: 'balanced', label: 'Balanced', hint: 'Smooth motion with fewer glow, blur, and particle actors.' },
+  { id: 'calm', label: 'Calm', hint: 'Lower-impact ambient motion and the lightest decorative FX.' },
+];
+function MotionCadenceSlider({ value = 'full', onChange }) {
+  const index = Math.max(0, MOTION_CADENCE.findIndex((item) => item.id === value));
+  const current = MOTION_CADENCE[index];
+  return <div data-testid="visual-motion-cadence"><div className="mb-1 flex items-center justify-between"><div className="text-[11px] text-ink/90">Visual motion rate</div><div className="text-[10.5px] font-bold" style={{ color: 'rgb(var(--accent-2))' }}>{current.label}</div></div><input type="range" min={0} max={2} step={1} value={index} onChange={(event) => onChange?.(MOTION_CADENCE[Number(event.target.value)]?.id || 'full')} className="w-full accent-[rgb(var(--accent))]" /><div className="mt-0.5 flex justify-between px-0.5 text-[8.5px] uppercase tracking-widest text-muted/70">{MOTION_CADENCE.map((item) => <span key={item.id}>{item.label}</span>)}</div><p className="mt-0.5 text-[10px] text-muted">{current.hint}</p></div>;
+}
+
 
 /* ---------------- Section ---------------- */
 function Section({
@@ -1305,6 +1520,11 @@ function Section({
   // so a small text size + tight category gap let the bloom bleed into the
   // section above/below. Scale every glow dimension off the same slider.
   const catScale = Math.max(0.55, Math.min(1.3, (catTextSize || 11) / 11));
+  // The category control is part of its label, not a fixed toolbar control.
+  // Keep the arrow glyph exactly in step with the category text slider while
+  // retaining a comfortable clickable target around it.
+  const categoryArrowSize = Math.max(6, Math.round(catTextSize || 11));
+  const categoryControlSize = Math.max(20, Math.min(30, categoryArrowSize + 10));
   // Backdrop is a real companion to the category type, rather than a fixed
   // stripe that feels oversized at small text or cramped at large text.
   // Backdrop follows the actual text line-height closely: a marker should
@@ -1376,7 +1596,7 @@ function Section({
         }}
         data-testid={`section-${c.id}`}
         className={cn(
-          'group flex cursor-pointer select-none items-center gap-1 rounded-md px-1.5 py-1.5 transition-colors',
+          'group flex cursor-pointer select-none items-start gap-1 rounded-md px-1.5 py-1.5 transition-colors',
           'hover:bg-[rgb(var(--accent)/0.06)]'
         )}
         style={
@@ -1398,16 +1618,29 @@ function Section({
         {/* Drag handle */}
         <span
           className={cn(
-            'mr-0.5 text-muted/60 transition-opacity',
+            'mr-0.5 mt-[2px] text-muted/60 transition-opacity',
             hover && !isUncat ? 'opacity-100' : 'opacity-0'
           )}
         >
           <GripVertical size={11} />
         </span>
 
-        {/* Expand chevron */}
-        <button className="text-muted">
-          {collapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+        {/* A solid, deliberately generous category control: it remains easy to
+            see and hit even in compact Library layouts. */}
+        <button
+          type="button"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (section.isGhost) onUnlockCategory();
+            else onToggleCollapsed();
+          }}
+          className="mt-0.5 grid shrink-0 place-items-center rounded-md border border-[rgb(var(--border)/0.9)] bg-[rgb(var(--surface)/0.56)] text-[rgb(var(--accent-2))] shadow-sm transition hover:border-[rgb(var(--accent)/0.68)] hover:bg-[rgb(var(--accent)/0.14)] hover:text-ink"
+          style={{ width: categoryControlSize, height: categoryControlSize }}
+          title={section.isGhost ? 'Unlock Private category' : collapsed ? 'Expand category' : 'Collapse category'}
+          aria-label={section.isGhost ? 'Unlock Private category' : collapsed ? 'Expand category' : 'Collapse category'}
+        >
+          {section.isGhost ? <Lock size={categoryArrowSize} strokeWidth={2.6} /> : collapsed ? <ChevronRight size={categoryArrowSize} strokeWidth={3} /> : <ChevronDown size={categoryArrowSize} strokeWidth={3} />}
         </button>
 
         {/* Color/lock indicator (or launcher logo text for pinned launcher cats) */}
@@ -1445,7 +1678,9 @@ function Section({
         {/* Name — applies dynamic font size + glow (catTextSize / catGlow sliders) */}
         <span
           className={cn(
-            'flex-1 truncate font-display font-bold uppercase tracking-[0.18em]',
+            // Fixed UI wording must stay complete. When the sidebar is narrow,
+            // wrap at a natural word boundary instead of hiding the last words.
+            'min-w-0 flex-1 break-words whitespace-normal font-display font-bold uppercase leading-[1.12] tracking-[0.18em]',
             section.isGhost ? 'text-[rgb(var(--accent))]/80' : 'text-ink/95'
           )}
           style={(() => {
@@ -1479,11 +1714,25 @@ function Section({
             };
           })()}
         >
-          {section.isGhost ? 'Private' : c.name}
+          {section.isGhost ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onUnlockCategory();
+              }}
+              className="-my-1 inline-flex max-w-full items-center gap-1.5 rounded-md px-1 py-1 text-left hover:bg-[rgb(var(--accent)/0.14)] hover:text-[rgb(var(--accent))]"
+              title={`Unlock ${c.name} (${section.count} game${section.count === 1 ? '' : 's'})`}
+            >
+              <span className="min-w-0 break-words">Unlock {c.name}</span>
+              <span className="shrink-0 text-[0.8em] opacity-70">({section.count})</span>
+            </button>
+          ) : c.name}
         </span>
 
         {/* Count */}
-        <span className="rounded-full bg-panel/60 hairline px-1.5 py-0.5 text-[10px] text-muted">
+        <span className="mt-[1px] shrink-0 rounded-full bg-panel/60 hairline px-1.5 py-0.5 text-[10px] text-muted">
           {section.count}
         </span>
 
@@ -1566,7 +1815,7 @@ function Section({
 function GameRow({
   g, size, selected, onClick, onContext, fromCatId, indexInCat,
   sectionGames, onReorderInCat, onMoveBetween, categories,
-  iconPosition = 'left', rowGap = 2, showCategoryDot = true, showSubcatStrip = true, isPinned = false,
+  iconPosition = 'left', rowGap = 2, showCategoryDot = true, showSubcatStrip = true, isPinned = false, flatList = false,
 }) {
   const [menu, setMenu] = React.useState({ open: false, x: 0, y: 0 });
   const ref = React.useRef(null);
@@ -1599,6 +1848,7 @@ function GameRow({
 
   const isSmall = size.id === 'small';
   const isBig = size.id === 'big';
+  const isNewToLibrary = g.librarySeenAt === null;
   // v1.6.5 — the gold ring used to be a fixed inset:0 regardless of text
   // size, so at very small nameTextSize the ring (sized to the full row box)
   // visually overlapped the row above/below. Scale the ring inward as the
@@ -1613,7 +1863,7 @@ function GameRow({
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -6 }}
       transition={{ duration: 0.14 }}
-      draggable
+      draggable={!flatList}
       onDragStart={(e) => {
         e.dataTransfer.setData('text/game-id', g.id);
         // v1.4.0 — always set the from-cat key. Use '__uncat__' as the
@@ -1686,6 +1936,16 @@ function GameRow({
         )}
       />
 
+      {isNewToLibrary && (
+        <span
+          className="pointer-events-none absolute right-5 top-1.5 rounded-sm border border-[rgb(var(--accent)/0.72)] bg-[rgb(var(--surface)/0.92)] px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.14em] text-[rgb(var(--accent-2))] shadow-[0_0_10px_rgb(var(--accent)/0.28)]"
+          data-testid={`game-new-badge-${g.id}`}
+          title="New to your library — clears after opening this game from the Library"
+        >
+          New
+        </span>
+      )}
+
       {/* Icon — position controlled by iconPosition setting (left | right | none) */}
       {iconPosition !== 'none' && iconPosition !== 'right' && (
         <div
@@ -1705,15 +1965,12 @@ function GameRow({
       )}
 
       {/* Name + meta */}
-      <div className="min-w-0 flex-1">
-        <div className={cn('truncate font-medium', `text-[${size.font}px]`)} style={{ fontSize: size.font }}>
-          {g.name || 'Untitled'}
-        </div>
+      <div className="flex min-w-0 flex-1 flex-col justify-end">
         {/* Genre/meta strip — shown when the "Sub-category" toggle is on and
             row size is not the compact "small" preset (where there's no room).
             Category color dots hide when the "Category dot" toggle is off. */}
         {!isSmall && showSubcatStrip && (
-          <div className="flex items-center gap-1.5 truncate text-[10.5px] text-muted">
+          <div className="mb-1 flex items-center gap-1.5 truncate text-[10.5px] text-muted">
             {showCategoryDot && (g.categoryIds || []).slice(0, 3).map((cid) => {
               const cc = categories.find((x) => x.id === cid);
               if (!cc) return null;
@@ -1754,6 +2011,9 @@ function GameRow({
             </span>
           </div>
         )}
+        <div className="game-row-nameplate" style={{ fontSize: size.font }} title={g.name || 'Untitled'}>
+          {g.name || 'Untitled'}
+        </div>
       </div>
 
       {/* Icon on right side */}
@@ -1869,6 +2129,16 @@ export function CategoryContextMenu({ open, anchor, category, onClose, onAction 
   }, [open, onClose]);
 
   if (!open || !category || !anchor) return null;
+  const menuPos = {
+    x: Math.max(10, Math.min(anchor.x, window.innerWidth - 236)),
+    y: Math.max(10, Math.min(anchor.y, window.innerHeight - 80)),
+  };
+  const dragBounds = {
+    left: Math.min(0, 10 - menuPos.x),
+    right: Math.max(0, window.innerWidth - menuPos.x - 236),
+    top: Math.min(0, 10 - menuPos.y),
+    bottom: Math.max(0, window.innerHeight - menuPos.y - 80),
+  };
 
   const items = [
     { icon: <Pencil size={13} />, label: 'Rename / recolor', action: 'edit' },
@@ -1889,9 +2159,10 @@ export function CategoryContextMenu({ open, anchor, category, onClose, onAction 
       dragListener={false}
       dragMomentum={false}
       dragElastic={0}
+      dragConstraints={dragBounds}
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
-      style={{ position: 'fixed', top: anchor.y, left: anchor.x, zIndex: 200 }}
+      style={{ position: 'fixed', top: menuPos.y, left: menuPos.x, zIndex: 200 }}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
       onContextMenu={(e) => e.stopPropagation()}

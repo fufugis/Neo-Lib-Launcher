@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Archive, CalendarDays, ChevronLeft, ChevronRight, Clock3, Download, EyeOff, ExternalLink, Gamepad2, GripVertical, HardDrive, Newspaper, RefreshCw, ShieldCheck, Sparkles, Star, Trophy, X } from 'lucide-react';
+import { Archive, CalendarDays, ChevronLeft, ChevronRight, Clock3, Download, EyeOff, ExternalLink, FolderOpen, Gamepad2, GripVertical, HardDrive, Newspaper, RefreshCw, ShieldCheck, Sparkles, Star, Trophy, X } from 'lucide-react';
 import UpdateHistoryModal from './UpdateHistoryModal';
 
 const RANGES = { today: { label: 'Today', days: 1 }, week: { label: 'This week', days: 7 }, month: { label: 'This month', days: 31 } };
@@ -13,7 +13,7 @@ const FIXED_HOME_PANES = [['top-played', 'Top 5 played']];
 const homePaneLabel = (id) => [...FIXED_HOME_PANES, ...HOME_PANES].find(([known]) => known === id)?.[1] || 'pane';
 // Home can unmount while a game is previewed. Keep a completed, local session
 // scan so Storage Control does not look empty when the player comes back.
-let STORAGE_SESSION_CACHE = { loading: false, scannedAt: 0, results: [] };
+let STORAGE_SESSION_CACHE = { loading: false, scannedAt: 0, results: [], skipped: [] };
 
 function platformOf(game) {
   // Launcher ownership is deliberately separate from metadata provenance. A
@@ -28,13 +28,31 @@ function hours(minutes) { const value = Number(minutes || 0) / 60; return value 
 function relative(ms) { if (!ms) return 'Never'; const days = Math.floor((Date.now() - ms) / 86400000); return days === 0 ? 'Today' : days === 1 ? 'Yesterday' : days < 7 ? `${days}d ago` : days < 31 ? `${Math.floor(days / 7)}w ago` : `${Math.floor(days / 30)}mo ago`; }
 function added(ms) { return ms ? new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(ms)) : '—'; }
 
-export default function HomeHub({ games = [], onSelect, onOpenPlaytimeImport, onOpenTidyUp, resting = false, homeLayout = {}, onUpdateHomeLayout }) {
+const EMPTY_GAME_UPDATES = { loading: false, items: [], needsSetup: [], ledger: [], checked: 0, launcherManagedCount: 0, scannedAt: 0, error: '' };
+function normaliseGameUpdates(value) {
+  if (!value || typeof value !== 'object') return EMPTY_GAME_UPDATES;
+  return {
+    ...EMPTY_GAME_UPDATES,
+    items: Array.isArray(value.items) ? value.items : [],
+    needsSetup: Array.isArray(value.needsSetup) ? value.needsSetup : [],
+    ledger: Array.isArray(value.ledger) ? value.ledger : [],
+    checked: Number(value.checked || 0),
+    launcherManagedCount: Number(value.launcherManagedCount || 0),
+    scannedAt: Number(value.scannedAt || 0),
+    error: value.error || '',
+  };
+}
+
+export default function HomeHub({ games = [], onSelect, onOpenPlaytimeImport, onOpenTidyUp, resting = false, homeLayout = {}, onUpdateHomeLayout, updatesCache, onUpdateUpdatesCache }) {
   const [range, setRange] = React.useState('week');
   const [rankingScope, setRankingScope] = React.useState('period');
   const [news, setNews] = React.useState({ loading: false, items: [] });
   const [storage, setStorage] = React.useState(() => STORAGE_SESSION_CACHE);
   const [weeklyReleases, setWeeklyReleases] = React.useState({ loading: false, items: [], criteria: '', tier: 'major', fetchedAt: 0, error: '' });
-  const [gameUpdates, setGameUpdates] = React.useState({ loading: false, items: [], needsSetup: [], checked: 0, scannedAt: 0, error: '' });
+  // Home unmounts while the user opens a game. Start from App's local cache so
+  // the update pane does not look empty on return; only a completed scan may
+  // replace this list.
+  const [gameUpdates, setGameUpdates] = React.useState(() => normaliseGameUpdates(updatesCache));
   const [newsDetail, setNewsDetail] = React.useState(null);
   const [draggedPane, setDraggedPane] = React.useState(null);
   const [dragPreviewOrder, setDragPreviewOrder] = React.useState(null);
@@ -96,6 +114,11 @@ export default function HomeHub({ games = [], onSelect, onOpenPlaytimeImport, on
   const paneProps = { paneOrder: activePaneOrder, hiddenPanes, draggedPane, dragInsertion, startPaneDrag, togglePane };
 
   React.useEffect(() => {
+    const cached = normaliseGameUpdates(updatesCache);
+    setGameUpdates((current) => cached.scannedAt > current.scannedAt ? cached : current);
+  }, [updatesCache]);
+
+  React.useEffect(() => {
     if (resting || !window.api?.fetchAllNews) return undefined;
     const eligible = games.filter((game) => game && (game.appid || game.gogId || /itch\.io/.test(game.website || '') || game.source === 'itch'));
     if (!eligible.length) { setNews({ loading: false, items: [] }); return undefined; }
@@ -120,24 +143,33 @@ export default function HomeHub({ games = [], onSelect, onOpenPlaytimeImport, on
 
   React.useEffect(() => { refreshWeeklyReleases(false); }, [refreshWeeklyReleases]);
 
-  const refreshGameUpdates = React.useCallback(async () => {
+  const refreshGameUpdates = React.useCallback(async (gameIds = [], force = false) => {
     if (resting || !window.api?.scanGameUpdates) return;
     setGameUpdates((value) => ({ ...value, loading: true, error: '' }));
     try {
-      const result = await window.api.scanGameUpdates({ games: games.map(({ id, name, appid, launcher, source, installedVersion, updateWatchUrl, website, exePath }) => ({ id, name, appid, launcher, source, installedVersion, updateWatchUrl, website, exePath })) });
-      setGameUpdates({ loading: false, items: result?.items || [], needsSetup: result?.needsSetup || [], checked: result?.checked || 0, scannedAt: result?.scannedAt || 0, error: result?.ok === false ? (result.error || 'Update scan unavailable.') : '' });
+      const scopedGames = gameIds.length ? games.filter((game) => gameIds.includes(game.id)) : games;
+      const result = await window.api.scanGameUpdates({ games: scopedGames.map(({ id, name, appid, launcher, source, steamOwned, installedVersion, updateWatchUrl, website, exePath }) => ({ id, name, appid, launcher, source, steamOwned, installedVersion, updateWatchUrl, website, exePath })), force });
+      const next = { loading: false, items: result?.items || [], needsSetup: result?.needsSetup || [], ledger: result?.ledger || [], checked: result?.checked || 0, launcherManagedCount: result?.launcherManagedCount || 0, scannedAt: result?.scannedAt || Date.now(), error: result?.ok === false ? (result.error || 'Update scan unavailable.') : '' };
+      setGameUpdates(next);
+      onUpdateUpdatesCache?.(next);
     } catch {
       setGameUpdates((value) => ({ ...value, loading: false, error: 'Update scan unavailable.' }));
     }
-  }, [games, resting]);
-  React.useEffect(() => { refreshGameUpdates(); }, [refreshGameUpdates]);
+  }, [games, onUpdateUpdatesCache, resting]);
+  React.useEffect(() => {
+    if (resting) return undefined;
+    // Home is already mounted behind the CRT intro. Do not let that hidden
+    // mount start executable/version inspection while NEO-LIB is booting.
+    const timer = window.setTimeout(() => refreshGameUpdates(), 35_000);
+    return () => window.clearTimeout(timer);
+  }, [refreshGameUpdates, resting]);
 
   const scrollNews = (direction) => railRef.current?.scrollBy({ left: direction * 420, behavior: 'smooth' });
   const scanStorage = async () => {
     if (!window.api?.scanGameStorage) return;
     setStorage((value) => ({ ...value, loading: true }));
-    const result = await window.api.scanGameStorage({ games: games.map(({ id, exePath }) => ({ id, exePath })), force: Boolean(storage.scannedAt) });
-    const next = { loading: false, scannedAt: result?.scannedAt || 0, results: result?.results || [] };
+    const result = await window.api.scanGameStorage({ games: games.map(({ id, name, exePath, launcher }) => ({ id, name, exePath, launcher })), force: Boolean(storage.scannedAt) });
+    const next = { loading: false, scannedAt: result?.scannedAt || 0, results: result?.results || [], skipped: result?.skipped || [] };
     STORAGE_SESSION_CACHE = next;
     setStorage(next);
   };
@@ -159,7 +191,7 @@ export default function HomeHub({ games = [], onSelect, onOpenPlaytimeImport, on
     </section></HomePane>
 
     <HomePane id="play-next" {...paneProps}><PlayNext recommendations={recommendations} onSelect={onSelect} /></HomePane>
-    <HomePane id="updates" {...paneProps}><GameUpdates updates={gameUpdates} onRefresh={refreshGameUpdates} onSelect={onSelect} /></HomePane>
+    <HomePane id="updates" {...paneProps}><GameUpdates updates={gameUpdates} onRefresh={() => refreshGameUpdates([], true)} onResolve={(ids) => refreshGameUpdates(ids, true)} onSelect={onSelect} /></HomePane>
 
     <HomePane id="activity" {...paneProps}><section className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.34)] p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[rgb(var(--accent-2))]">{rangeMeta.label}</p><h2 className="mt-1 text-sm font-black">Your week in NEO-LIB</h2><div className="mt-3 flex flex-wrap gap-x-8 gap-y-3"><Stat label="Played" value={hours(totalMinutes)} /><Stat label="Games touched" value={played.length} /><Stat label="Today" value={games.filter((game) => Number(game.lastPlayedAt || 0) >= Date.now() - 86400000).length} /><Stat label="Library" value={games.length} /></div></div><button onClick={() => onOpenPlaytimeImport?.()} className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[rgb(var(--border))] px-2.5 py-2 text-[10.5px] font-bold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink" title="Import Steam playtime into your local library"><RefreshCw size={12} className="text-[rgb(var(--accent))]" />Sync hours</button></div></section></HomePane>
 
@@ -177,14 +209,36 @@ export default function HomeHub({ games = [], onSelect, onOpenPlaytimeImport, on
 }
 function RailButton({ children, onClick }) { return <button onClick={onClick} className="grid h-7 w-7 place-items-center rounded-md border border-[rgb(var(--border))] text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink">{children}</button>; }
 
-function GameUpdates({ updates, onRefresh, onSelect }) {
+function GameUpdates({ updates, onRefresh, onResolve, onSelect }) {
   const [historyItem, setHistoryItem] = React.useState(null);
-  const openUpdate = (item) => window.api?.openExternal?.(item.actionUrl || 'steam://downloads/');
+  const [downloadError, setDownloadError] = React.useState('');
+  const openUpdate = async (item) => {
+    setDownloadError('');
+    const result = await window.api?.openLauncherDownloads?.(item.platform);
+    if (!result?.ok) setDownloadError(result?.error || 'The launcher Downloads page could not be opened.');
+  };
   const size = (bytes) => bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3).toFixed(1)} GB` : `${Math.max(1, Math.round(bytes / 1024 ** 2))} MB`;
   return <><section className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.34)] p-4" data-testid="home-game-updates">
     <div className="flex items-start justify-between gap-3"><div className="flex items-center gap-2"><Download size={15} className="text-[rgb(var(--accent))]" /><div><h2 className="text-xs font-black uppercase tracking-[0.18em]">Game Updates</h2><p className="mt-1 text-[10px] text-muted">Launcher manifests plus safe local-version checks for independent games.</p></div></div><button onClick={onRefresh} disabled={updates.loading} className="inline-flex items-center gap-1.5 rounded-md border border-[rgb(var(--border))] px-2.5 py-1.5 text-[10px] font-bold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink disabled:opacity-50"><RefreshCw size={11} className={updates.loading ? 'animate-spin' : ''} />Refresh</button></div>
-    {updates.items.length ? <div className="mt-3 grid gap-2 md:grid-cols-2">{updates.items.map((item) => <div key={item.id} className="flex items-center gap-3 rounded-lg border border-emerald-400/30 bg-emerald-400/[0.055] p-3"><button onClick={() => onSelect?.(item.id)} className="min-w-0 flex-1 text-left"><span className="block truncate text-xs font-black text-ink">{item.name}</span><span className="mt-0.5 block text-[10px] font-bold uppercase tracking-wide text-emerald-300">{item.sourceKind === 'watch-page' ? `New update · ${item.currentVersion} → ${item.latestVersion}` : `New update · ${item.platform} · ${size(item.remainingBytes)} remaining`}</span><span className="mt-1 block text-[10px] text-muted">There is a new update for this game you might want to check out.</span></button><button onClick={() => item.sourceKind === 'watch-page' ? setHistoryItem(item) : openUpdate(item)} className="shrink-0 rounded-md border border-emerald-400/35 px-2.5 py-1.5 text-[10px] font-bold text-emerald-300 hover:bg-emerald-400/10">{item.sourceKind === 'watch-page' ? 'Patch history' : 'Open downloads'}</button></div>)}</div> : <div className="mt-3 flex items-center gap-2 rounded-lg border border-[rgb(var(--border)/0.65)] bg-[rgb(var(--surface)/0.25)] p-3 text-[11px] text-muted"><ShieldCheck size={14} className="text-emerald-400" />{updates.loading ? 'Checking update sources…' : updates.error || `No verified updates found across ${updates.checked} checked source${updates.checked === 1 ? '' : 's'}.`}</div>}
-    {!updates.loading && updates.needsSetup?.length > 0 && <div className="mt-3 rounded-lg border border-amber-300/25 bg-amber-300/[0.045] p-3 text-[10.5px] text-muted"><b className="text-amber-200">{updates.needsSetup.length} game{updates.needsSetup.length === 1 ? '' : 's'} need stronger update evidence.</b> NEO-LIB already tries the game folder, executable-adjacent version files, launcher clues, known official pages, and a small automatic web search. It will not pretend an unproven result is up to date. <span className="mt-1 block truncate">Examples: {updates.needsSetup.slice(0, 3).map((item) => `${item.name} (${item.missing})`).join(' · ')}</span></div>}
+    {updates.items.length ? <><div className="mt-3 grid gap-2 md:grid-cols-2">{updates.items.map((item) => {
+      const needsComparison = item.status === 'attention';
+      const tone = needsComparison ? 'amber' : 'emerald';
+      const detail = needsComparison
+        ? `${item.currentVersion && item.currentVersion !== 'Unknown' ? `Local clue ${item.currentVersion} · ` : ''}Latest public version · ${item.latestVersion}`
+        : item.sourceKind === 'watch-page'
+          ? `New update · ${item.currentVersion} → ${item.latestVersion}`
+          : `New update · ${item.platform} · ${size(item.remainingBytes)} remaining`;
+      return <div key={item.id} className={`flex items-center gap-3 rounded-lg border p-3 ${needsComparison ? 'border-amber-300/35 bg-amber-300/[0.065]' : 'border-emerald-400/30 bg-emerald-400/[0.055]'}`}>
+        <button onClick={() => onSelect?.(item.id)} className="min-w-0 flex-1 text-left">
+          <span className="block truncate text-xs font-black text-ink">{item.name}</span>
+          <span className={`mt-0.5 block text-[10px] font-bold uppercase tracking-wide ${tone === 'amber' ? 'text-amber-200' : 'text-emerald-300'}`}>{detail}</span>
+          <span className="mt-1 block text-[10px] text-muted">{needsComparison ? item.currentVersion && item.currentVersion !== 'Unknown' ? 'NEO-LIB found a Windows executable version clue, but needs stronger game-owned evidence before comparing it. Check the history.' : 'A newer public patch was found, but this installed build could not reveal its version yet. Check the history to compare.' : 'There is a new update for this game you might want to check out.'}</span>
+        </button>
+        <button onClick={() => item.sourceKind === 'watch-page' ? setHistoryItem(item) : openUpdate(item)} className={`shrink-0 rounded-md border px-2.5 py-1.5 text-[10px] font-bold ${tone === 'amber' ? 'border-amber-300/40 text-amber-200 hover:bg-amber-300/10' : 'border-emerald-400/35 text-emerald-300 hover:bg-emerald-400/10'}`}>{item.sourceKind === 'watch-page' ? 'Patch history' : 'Open downloads'}</button>
+      </div>;
+    })}</div>{downloadError && <p role="status" className="mt-2 rounded-lg border border-amber-300/30 bg-amber-300/[0.08] px-3 py-2 text-[10px] font-bold text-amber-200">{downloadError}</p>}</> : <div className="mt-3 flex items-center gap-2 rounded-lg border border-[rgb(var(--border)/0.65)] bg-[rgb(var(--surface)/0.25)] p-3 text-[11px] text-muted"><ShieldCheck size={14} className="text-emerald-400" />{updates.loading ? 'Checking update sources…' : updates.error || `No verified updates found across ${updates.checked} checked source${updates.checked === 1 ? '' : 's'}.`}</div>}
+    {!updates.loading && updates.needsSetup?.length > 0 && <div className="mt-3 rounded-lg border border-amber-300/25 bg-amber-300/[0.045] p-3 text-[10.5px] text-muted"><div className="flex flex-wrap items-center justify-between gap-2"><b className="text-amber-200">{updates.needsSetup.length} game{updates.needsSetup.length === 1 ? '' : 's'} need stronger update evidence.</b><button onClick={() => onResolve?.(updates.needsSetup.map((item) => item.id).filter(Boolean))} className="rounded-md border border-amber-300/35 px-2 py-1 text-[9.5px] font-black text-amber-200 hover:bg-amber-300/10">Resolve checks</button></div><p className="mt-1">NEO-LIB already tries game-owned files, nearby manifests, executable metadata, official pages, and a bounded web search. It will not pretend an unproven result is up to date.</p><div className="mt-2 space-y-1.5">{updates.needsSetup.slice(0, 5).map((item) => <button key={item.id} onClick={() => onResolve?.([item.id])} className="block max-w-full truncate text-left text-[10px] hover:text-ink"><span className="font-bold text-ink">{item.name}</span> · {item.missing} <span className="text-[rgb(var(--accent-2))]">Resolve</span></button>)}</div></div>}
+    {!updates.loading && updates.launcherManagedCount > 0 && <p className="mt-2 text-[9.5px] text-muted">{updates.launcherManagedCount} launcher game{updates.launcherManagedCount === 1 ? '' : 's'} kept in launcher-managed state until their client exposes a trustworthy update signal—never counted as an update.</p>}
   </section><UpdateHistoryModal item={historyItem} onClose={() => setHistoryItem(null)} /></>;
 }
 function TopPlayed({ games, scope, onScope, rangeLabel, onSelect, onHide }) {
@@ -270,10 +324,17 @@ function PlayNext({ recommendations, onSelect }) {
 function readableBytes(bytes) { const value = Number(bytes || 0); if (value < 1024 ** 2) return `${Math.round(value / 1024)} KB`; if (value < 1024 ** 3) return `${(value / 1024 ** 2).toFixed(1)} MB`; return `${(value / 1024 ** 3).toFixed(1)} GB`; }
 
 function StorageCentre({ games, storage, onScan, onSelect }) {
-  const results = storage.results.map((entry) => ({ ...entry, game: games.find((game) => game.id === entry.id) })).filter((entry) => entry.game).sort((a, b) => Number(b.bytes) - Number(a.bytes));
+  const [openError, setOpenError] = React.useState('');
+  const results = storage.results.map((entry) => ({ ...entry, game: games.find((game) => game.id === entry.id) || { id: entry.id, name: entry.name || 'Unknown game' } })).sort((a, b) => Number(b.bytes) - Number(a.bytes));
   const total = results.reduce((sum, entry) => sum + Number(entry.bytes || 0), 0);
   const mods = results.reduce((sum, entry) => sum + Number(entry.modBytes || 0), 0);
-  return <section className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.34)] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-2"><HardDrive size={15} className="text-[rgb(var(--accent))]" /><div><h2 className="text-xs font-black uppercase tracking-[0.18em]">Storage control centre</h2><p className="mt-1 text-[10px] text-muted">Only configured game folders and recognised mod folders—read-only.</p></div></div><button onClick={onScan} disabled={storage.loading} className="inline-flex items-center gap-1.5 rounded-md border border-[rgb(var(--border))] px-2.5 py-1.5 text-[10px] font-bold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink disabled:opacity-50"><RefreshCw size={11} className={storage.loading ? 'animate-spin text-[rgb(var(--accent))]' : ''} />{storage.loading ? 'Scanning…' : storage.scannedAt ? 'Rescan' : 'Scan sizes'}</button></div>{storage.scannedAt ? <><div className="mt-3 flex gap-5"><Stat label="Folders measured" value={results.length} /><Stat label="Total" value={readableBytes(total)} /><Stat label="Mod content" value={readableBytes(mods)} /></div><div className="mt-3 space-y-1.5">{results.slice(0, 5).map((entry) => <button key={entry.id} onClick={() => onSelect?.(entry.id)} className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left hover:bg-[rgb(var(--accent)/0.07)]"><Cover game={entry.game} className="h-6 w-10" /><span className="min-w-0 flex-1 truncate text-[11px] font-bold">{entry.game.name}</span>{entry.modBytes > 0 && <span className="text-[9px] text-[rgb(var(--accent-2))]">mods {readableBytes(entry.modBytes)}</span>}<span className="font-mono text-[10px] text-muted">{readableBytes(entry.bytes)}</span></button>)}</div></> : <p className="mt-4 text-xs leading-relaxed text-muted">Scan when you want a current view. NEO-LIB never crawls entire drives; it walks only configured library game folders.</p>}</section>;
+  const hasEstimate = results.some((entry) => entry.truncated);
+  const openFolder = async (entry) => {
+    setOpenError('');
+    const result = await window.api?.openPath?.(entry.root);
+    if (!result?.ok) setOpenError(result?.error || `Could not open ${entry.root || 'this measured folder'}.`);
+  };
+  return <section className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.34)] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-2"><HardDrive size={15} className="text-[rgb(var(--accent))]" /><div><h2 className="text-xs font-black uppercase tracking-[0.18em]">Storage control centre</h2><p className="mt-1 text-[10px] text-muted">Validated game folders and recognised mod folders only—read-only.</p></div></div><button onClick={onScan} disabled={storage.loading} className="inline-flex items-center gap-1.5 rounded-md border border-[rgb(var(--border))] px-2.5 py-1.5 text-[10px] font-bold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink disabled:opacity-50"><RefreshCw size={11} className={storage.loading ? 'animate-spin text-[rgb(var(--accent))]' : ''} />{storage.loading ? 'Scanning…' : storage.scannedAt ? 'Rescan' : 'Scan sizes'}</button></div>{storage.scannedAt ? <><div className="mt-3 flex flex-wrap gap-x-5 gap-y-2"><Stat label="Folders measured" value={results.length} /><Stat label="Total" value={`${hasEstimate ? '≥ ' : ''}${readableBytes(total)}`} /><Stat label="Mod content" value={readableBytes(mods)} /></div>{openError && <p className="mt-3 rounded-lg border border-red-400/30 bg-red-400/[0.07] px-3 py-2 text-[10px] text-red-200">{openError}</p>}{storage.skipped?.length > 0 && <div className="mt-3 rounded-lg border border-amber-300/25 bg-amber-300/[0.05] px-3 py-2"><p className="text-[10px] font-bold text-amber-200">{storage.skipped.length} launch target{storage.skipped.length === 1 ? '' : 's'} skipped instead of guessing.</p><p className="mt-0.5 truncate text-[9.5px] text-muted" title={storage.skipped.slice(0, 3).map((item) => `${item.name}: ${item.reason}`).join(' · ')}>{storage.skipped.slice(0, 3).map((item) => `${item.name}: ${item.reason}`).join(' · ')}</p></div>}<div className="mt-3 max-h-[430px] space-y-1.5 overflow-y-auto pr-1" data-testid="storage-results-list">{results.map((entry) => <div key={entry.id} className="flex items-center gap-2 rounded-lg border border-[rgb(var(--border)/0.68)] bg-[rgb(var(--surface)/0.23)] p-2 transition hover:border-[rgb(var(--accent)/0.45)]"><button onClick={() => onSelect?.(entry.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left"><Cover game={entry.game} className="h-8 w-14" /><span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-black text-ink">{entry.game.name}</span><span className="mt-0.5 block truncate font-mono text-[8.5px] text-muted" title={entry.root}>{entry.root}</span><span className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[8.5px] text-muted"><span>{Number(entry.files || 0).toLocaleString()} files</span>{entry.modBytes > 0 && <span className="text-[rgb(var(--accent-2))]">mods {readableBytes(entry.modBytes)}</span>}{entry.truncated && <span className="text-amber-200">partial scan</span>}</span></span></button><div className="flex shrink-0 items-center gap-2"><span className="font-mono text-[10px] font-bold text-ink">{entry.truncated ? '≥ ' : ''}{readableBytes(entry.bytes)}</span><button onClick={() => openFolder(entry)} className="inline-flex h-7 items-center gap-1 rounded-md border border-[rgb(var(--border))] px-2 text-[9px] font-bold text-[rgb(var(--accent-2))] hover:border-[rgb(var(--accent)/0.55)] hover:text-ink" title={`Open measured folder: ${entry.root}`}><FolderOpen size={11} />Open</button></div></div>)}{!results.length && <p className="rounded-lg border border-dashed border-[rgb(var(--border))] p-4 text-center text-xs text-muted">No valid game folders were measured. Review the skipped launch targets above, then use Customize to correct a game’s executable.</p>}</div><p className="mt-2 text-[9px] leading-relaxed text-muted/85">Every size is tied to the shown folder. “Partial scan” means NEO-LIB stopped at its safety limit, so the displayed total is at least that large.</p></> : <p className="mt-4 text-xs leading-relaxed text-muted">Scan when you want a current view. NEO-LIB never crawls entire drives; it walks only validated configured game folders.</p>}</section>;
 }
 
 function getChronicle(games, news) {

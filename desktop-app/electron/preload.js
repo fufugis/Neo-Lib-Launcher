@@ -1,5 +1,27 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+// A renderer timer must never be able to arm a game launch. Electron's
+// window-level before-input-event timestamp is not reliable on every Windows
+// compositor path, though, which could also reject a perfectly real click.
+// The isolated preload sees trusted DOM input directly and only arms while a
+// real pointer/key event began on the visible, explicitly marked Launch button.
+let launchIntentExpiresAt = 0;
+const markLaunchIntent = (event) => {
+  if (!event.isTrusted || !event.target?.closest?.('[data-neolib-launch]')) return;
+  launchIntentExpiresAt = Date.now() + 1800;
+};
+document.addEventListener('pointerdown', markLaunchIntent, true);
+document.addEventListener('keydown', markLaunchIntent, true);
+
+const armGameLaunch = () => {
+  if (Date.now() > launchIntentExpiresAt) {
+    return Promise.resolve({ ok: false, error: 'Press the visible Launch button to start a game.' });
+  }
+  // One trusted press can arm exactly one native request.
+  launchIntentExpiresAt = 0;
+  return ipcRenderer.invoke('game:armLaunch');
+};
+
 contextBridge.exposeInMainWorld('api', {
   // window
   minimize: () => ipcRenderer.invoke('window:minimize'),
@@ -26,6 +48,7 @@ contextBridge.exposeInMainWorld('api', {
 
   // exe
   extractIcon: (exePath) => ipcRenderer.invoke('exe:icon', exePath),
+  armGameLaunch,
   launchGame: (opts) => ipcRenderer.invoke('game:launch', opts),
   onGameExited: (cb) => ipcRenderer.on('game:exited', (_e, info) => cb(info)),
   watchExternalGames: (payload) => ipcRenderer.invoke('game:watchExternal', payload),
@@ -111,4 +134,5 @@ contextBridge.exposeInMainWorld('api', {
   inspectSocialClients: (manualPaths) => ipcRenderer.invoke('launcher:inspectSocialClients', manualPaths),
   pickSocialClient: (platform) => ipcRenderer.invoke('launcher:pickSocialClient', platform),
   openLauncherSocial: (platform, manualPath) => ipcRenderer.invoke('launcher:openSocial', platform, manualPath),
+  openLauncherDownloads: (platform) => ipcRenderer.invoke('launcher:openDownloads', platform),
 });

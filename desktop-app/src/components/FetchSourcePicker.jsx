@@ -30,6 +30,7 @@ const isElectron = typeof window !== 'undefined' && !!window.api;
  */
 export default function FetchSourcePicker({ open, game, geminiKey, aiModel = 'gemini-2.5-flash', progress, onPick, onStopQueue, onClose }) {
   const dragControls = useDragControls();
+  const dragBoundsRef = React.useRef(null);
   const [query, setQuery] = React.useState('');
   const [source, setSource] = React.useState('auto');
   const [candidates, setCandidates] = React.useState([]);
@@ -133,7 +134,7 @@ export default function FetchSourcePicker({ open, game, geminiKey, aiModel = 'ge
 
   return (
     <AnimatePresence>
-      <motion.div
+      <motion.div ref={dragBoundsRef}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -147,6 +148,7 @@ export default function FetchSourcePicker({ open, game, geminiKey, aiModel = 'ge
           dragListener={false}
           dragMomentum={false}
           dragElastic={0}
+          dragConstraints={dragBoundsRef}
           initial={{ y: 12, opacity: 0, scale: 0.97 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
           exit={{ y: 12, opacity: 0 }}

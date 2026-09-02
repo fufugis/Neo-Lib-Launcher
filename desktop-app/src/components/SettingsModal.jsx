@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { THEMES } from '../lib/utils';
-import { FUNGIST_SOUND_CUES, SOUND_PACKS, setSoundPack, playFungistCue, playLaunch, playHover } from '../lib/sound';
+import { SOUND_PACKS, setSoundPack, playLaunch, playHover } from '../lib/sound';
+import { FUNGIST_VOICE_LINES, playFungistVoice } from '../lib/mascotVoice';
 import { Check, Sparkles, Eye, EyeOff, Sliders, Power, Heart, DownloadCloud, MessageCircle } from 'lucide-react';
 import Modal from './Modal';
 import { DONATE_PAYPAL_URL } from './DonateModal';
@@ -10,6 +11,8 @@ import qrUrl from '../assets/donate-qr.png';
 const AI_MODELS = [
   { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', provider: 'Google Gemini', detail: 'Fast, capable, and the current connected model.' },
 ];
+
+const FUNGIST_MASCOT_ASSET = `${import.meta.env.BASE_URL}mascot/fungist-stand.png`;
 
 const FUNGIST_NOTIFICATIONS = [
   { id: 'pcHigh', label: 'High PC use', hint: 'Major red alert when CPU or RAM remains high.' },
@@ -21,7 +24,7 @@ const FUNGIST_NOTIFICATIONS = [
   { id: 'idleNap', label: 'Idle nap', hint: 'Lets Fungist show his sleep pose after a quiet period. Any click or alert wakes him.' },
 ];
 
-export default function SettingsModal({ open, onClose, settings, setSettings, onShowChangelog, currentVersion = '1.7.3' }) {
+export default function SettingsModal({ open, onClose, settings, setSettings, onShowChangelog, currentVersion = '1.7.4' }) {
   const setKey = (patch) => setSettings({ ...settings, ...patch });
   const [showKey, setShowKey] = React.useState(false);
   const [autoStart, setAutoStart] = React.useState(false);
@@ -39,6 +42,22 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
     const next = !autoStart;
     setAutoStart(next);
     if (window.api?.setAutoStart) await window.api.setAutoStart(next);
+  };
+  // Hiding the companion must be a complete quiet mode: its saved voice choice
+  // is remembered, but no Fungist sounds can escape while the mascot is off.
+  const setMascotVisible = (visible) => {
+    if (visible) {
+      setKey({
+        fungistEnabled: true,
+        fungistVoiceEnabled: settings.fungistVoiceEnabledBeforeDisable !== false,
+      });
+      return;
+    }
+    setKey({
+      fungistEnabled: false,
+      fungistVoiceEnabledBeforeDisable: settings.fungistVoiceEnabled !== false,
+      fungistVoiceEnabled: false,
+    });
   };
   const testAiKey = async () => {
     if (!settings.geminiKey?.trim()) {
@@ -67,7 +86,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
           {/* v1.6.5 — actually vertical this time. Categories are columns,
               left → right: Bright · Middle · Dark · Special. Themes stack
               vertically inside their column instead of wrapping horizontally. */}
-          <div className="grid grid-cols-4 gap-2" data-testid="theme-picker-columns">
+          <div className="grid max-w-full gap-2 overflow-x-auto pb-1" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 148px))' }} data-testid="theme-picker-columns">
           {[
             { tone: 'bright',  label: 'Bright' },
             { tone: 'middle',  label: 'Mid' },
@@ -97,15 +116,21 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
                   >
                     {/* Swatch ~20% shorter than before (28px → 22px); text size untouched. */}
                     <span
-                      className="h-[22px] w-full rounded-sm border border-white/10"
+                      className="theme-swatch-drift h-[22px] w-full rounded-sm border border-white/10"
                       style={{
                         background: t.gradient || t.swatch,
+                        // Theme samples should breathe, not race. The prior
+                        // animated treatment was visually louder than the
+                        // actual picker controls, so each bar now takes 48s
+                        // to make one restrained drift across its gradient.
+                        backgroundSize: '170% 100%',
+                        animationDuration: '48s',
                         boxShadow: active
                           ? `0 0 8px ${t.swatch}88, inset 0 0 4px rgba(255,255,255,0.15)`
                           : `0 0 2px ${t.swatch}33`,
                       }}
                     />
-                    <div className="w-full truncate text-[11.5px] font-semibold leading-tight opacity-95">
+                    <div className="w-full text-[11.5px] font-semibold leading-tight opacity-95">
                       {t.label}
                     </div>
                     {active && (
@@ -121,6 +146,10 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
               })}
             </div>
           ))}
+          </div>
+          <div className="mt-3 rounded-lg hairline bg-[rgb(var(--surface)/0.38)] px-3 py-2.5" data-testid="special-decoration-control">
+            <div className="flex items-center justify-between gap-3"><div><div className="text-[12px] font-medium">Special theme decoration</div><p className="mt-0.5 text-[10px] leading-relaxed text-muted">Controls the subtle Anime petals, Industrial machinery, and Magical sparkle accents. Set to 0% for clean colour-only themes.</p></div><span className="shrink-0 text-[11px] font-black text-[rgb(var(--accent-2))]">{Math.round(Number(settings.specialDecorationOpacity ?? 46))}%</span></div>
+            <input aria-label="Special theme decoration" type="range" min="0" max="100" step="1" value={Number(settings.specialDecorationOpacity ?? 46)} onChange={(event) => setKey({ specialDecorationOpacity: Number(event.target.value) })} className="mt-2 w-full accent-[rgb(var(--accent))]" />
           </div>
         </Section>
         </div>
@@ -166,15 +195,25 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
                 ))}
               </div>
             </div>
-            <div className="rounded-lg hairline bg-surface/40 px-3 py-2.5">
-              <div className="mb-1 text-[13px] font-medium">Fungist soundscape</div>
-              <p className="mb-2 text-[10px] leading-relaxed text-muted">Short synthesized cues for Fungist alerts. They obey the main UI-sounds switch and the No sound pack, and never play while NEO-LIB is resting.</p>
-              <div className="grid grid-cols-2 gap-1.5">
-                {FUNGIST_SOUND_CUES.map((cue) => {
-                  const canPreview = settings.soundsEnabled !== false && (settings.soundPack || 'synthwave') !== 'none';
-                  return <button key={cue.id} type="button" disabled={!canPreview} onClick={() => { if (canPreview) playFungistCue(cue.id); }} className="rounded-md hairline px-2 py-1.5 text-left text-[10px] text-muted hover:border-[rgb(var(--accent)/0.5)] hover:text-ink disabled:cursor-not-allowed disabled:opacity-45">{cue.label}</button>;
-                })}
-              </div>
+            <div className={`rounded-lg hairline bg-surface/40 px-3 py-2.5 transition-opacity ${settings.fungistEnabled === false ? 'opacity-55' : ''}`}>
+              <Toggle
+                label="Fungist voice lines"
+                hint={settings.fungistEnabled === false ? 'Turn on Show NEO-LIB mascot below to restore Fungist voice lines.' : 'Short voice reactions for welcome, alerts, game launches, and chat. They obey UI Sounds and Rest Mode; each line is event-limited so Fungist never talks constantly.'}
+                value={settings.fungistVoiceEnabled !== false}
+                onChange={(v) => { if (settings.fungistEnabled !== false) setKey({ fungistVoiceEnabled: v }); }}
+                testid="opt-fungist-voice"
+                disabled={settings.fungistEnabled === false}
+              />
+              <label className="mt-3 block">
+                <span className="flex items-center justify-between gap-3 text-[10px] font-bold text-ink"><span>Voice volume</span><span className="text-muted">{Math.round(Number(settings.fungistVoiceVolume ?? 72))}%</span></span>
+                <input aria-label="Fungist voice volume" disabled={settings.fungistEnabled === false} type="range" min="20" max="100" step="1" value={Number(settings.fungistVoiceVolume ?? 72)} onChange={(event) => setKey({ fungistVoiceVolume: Number(event.target.value) })} className="mt-1.5 w-full accent-[rgb(var(--accent))] disabled:cursor-not-allowed" />
+              </label>
+              <details className="mt-3 rounded-md border border-[rgb(var(--border)/0.62)] bg-[rgb(var(--surface)/0.24)] px-2.5 py-2">
+                <summary className="cursor-pointer text-[10px] font-bold text-[rgb(var(--accent-2))]">Preview voice map · {FUNGIST_VOICE_LINES.length} lines</summary>
+                <div className="mt-2 grid grid-cols-2 gap-1.5">
+                  {FUNGIST_VOICE_LINES.map((line) => <button key={line.id} type="button" disabled={settings.fungistEnabled === false || settings.soundsEnabled === false || (settings.soundPack || 'synthwave') === 'none' || settings.fungistVoiceEnabled === false} onClick={() => playFungistVoice(line.id, { volume: settings.fungistVoiceVolume ?? 72, cooldownMs: 0, priority: true })} title={line.use} className="rounded-md hairline px-2 py-1.5 text-left text-[10px] text-muted hover:border-[rgb(var(--accent)/0.5)] hover:text-ink disabled:cursor-not-allowed disabled:opacity-45"><span className="block font-bold text-ink">{line.label}</span><span className="mt-0.5 block leading-snug">{line.use}</span></button>)}
+                </div>
+              </details>
             </div>
           </div>
         </Section>
@@ -208,13 +247,6 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
               value={settings.gameRestMode !== false}
               onChange={(v) => setKey({ gameRestMode: v })}
               testid="opt-game-rest-mode"
-            />
-            <Toggle
-              label="Show Fungist companion"
-              hint="Lets Fungist show quiet library, favourite-news, update, and PC-attention messages. He stays completely hidden while NEO-LIB is resting for a game."
-              value={settings.fungistEnabled !== false}
-              onChange={(v) => setKey({ fungistEnabled: v })}
-              testid="opt-fungist-enabled"
             />
             <Toggle
               label="Start with Windows"
@@ -260,13 +292,38 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
           </div>
         </Section>
 
-        <Section title="Fungist reactions">
+        <Section title="NEO-LIB Mascot">
           <div className="space-y-3">
+            <div className="rounded-lg hairline bg-surface/40 px-3 py-2.5">
+              <div className="mb-2.5">
+                <div className="text-[13px] font-medium">Choose your mascot</div>
+                <p className="mt-0.5 text-[10px] leading-relaxed text-muted">Your active companion appears in the tutorial, gives optional attention notices, and can open the AI chat.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" aria-pressed={(settings.mascotId || 'fungist') === 'fungist'} onClick={() => setKey({ mascotId: 'fungist' })} data-testid="mascot-picker-fungist" className={`group overflow-hidden rounded-lg border p-2 text-left transition ${((settings.mascotId || 'fungist') === 'fungist') ? 'border-[rgb(var(--accent)/0.75)] bg-[rgb(var(--accent)/0.12)] shadow-[0_0_18px_-10px_rgb(var(--accent))]' : 'border-[rgb(var(--border)/0.75)] hover:border-[rgb(var(--accent)/0.45)]'}`}>
+                  <div className="flex items-center gap-2"><img src={FUNGIST_MASCOT_ASSET} alt="Fungist mascot" className="h-12 w-12 object-contain" /><span className="min-w-0"><span className="block text-[11px] font-black text-ink">Fungist</span><span className="mt-0.5 block text-[9px] text-muted">Original NEO-LIB companion</span></span></div>
+                  <span className="mt-2 inline-flex rounded-full border border-[rgb(var(--accent)/0.45)] bg-[rgb(var(--accent)/0.1)] px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-[rgb(var(--accent))]">{((settings.mascotId || 'fungist') === 'fungist') ? 'Selected' : 'Choose'}</span>
+                </button>
+                <div aria-label="More mascots coming soon" className="flex min-h-[92px] flex-col items-center justify-center rounded-lg border border-dashed border-[rgb(var(--border)/0.7)] bg-[rgb(var(--surface)/0.22)] px-2 text-center opacity-70">
+                  <span className="grid h-10 w-10 place-items-center rounded-full border border-[rgb(var(--border)/0.7)] text-lg text-muted">?</span><span className="mt-1.5 text-[10px] font-black text-muted">Coming soon</span><span className="mt-0.5 text-[8.5px] text-muted/80">More companions will appear here.</span>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-lg hairline bg-[rgb(var(--accent)/0.045)] px-3 py-2.5">
+              <Toggle
+                label="Show NEO-LIB mascot"
+                hint="Hiding Fungist also mutes every mascot voice line. You can always bring the mascot back here in Settings → NEO-LIB Mascot."
+                value={settings.fungistEnabled !== false}
+                onChange={setMascotVisible}
+                testid="opt-fungist-enabled"
+              />
+              {settings.fungistEnabled === false && <p role="status" className="mt-2 rounded-md border border-[rgb(var(--accent-2)/0.34)] bg-[rgb(var(--accent-2)/0.07)] px-2.5 py-2 text-[10px] leading-relaxed text-muted"><b className="text-ink">Mascot hidden and muted.</b> You can enable Fungist again anytime in Settings → NEO-LIB Mascot.</p>}
+            </div>
             <div className="rounded-lg hairline bg-surface/40 px-3 py-2.5">
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <div className="text-[13px] font-medium">Fungist AI model</div>
-                  <p className="mt-0.5 text-[10px] leading-relaxed text-muted">This controls Fungist chat. Only genuinely connected models are selectable.</p>
+                  <div className="text-[13px] font-medium">Mascot AI chat model</div>
+                  <p className="mt-0.5 text-[10px] leading-relaxed text-muted">This controls mascot chat. Only genuinely connected models are selectable.</p>
                 </div>
                 <span className="shrink-0 rounded-full border border-[rgb(var(--accent)/0.45)] bg-[rgb(var(--accent)/0.1)] px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-[rgb(var(--accent))]">Current</span>
               </div>
@@ -279,8 +336,8 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
               <p className="mt-2 text-[9.5px] text-muted">More models appear here only after their provider connection is implemented and tested.</p>
             </div>
             <div className="rounded-lg hairline bg-surface/40 px-3 py-2.5">
-              <div className="mb-1 text-[13px] font-medium">Notifications</div>
-              <p className="mb-2 text-[10px] leading-relaxed text-muted">Choose exactly what Fungist may interrupt you about. Rest Mode still pauses every reaction.</p>
+              <div className="mb-1 text-[13px] font-medium">Mascot notifications</div>
+              <p className="mb-2 text-[10px] leading-relaxed text-muted">Choose exactly what your mascot may interrupt you about. Rest Mode still pauses every reaction.</p>
               <div className="space-y-2">
                 {FUNGIST_NOTIFICATIONS.map((notification) => <Toggle key={notification.id} label={notification.label} hint={notification.hint} value={(settings.fungistNotifications || {})[notification.id] !== false} onChange={(value) => setKey({ fungistNotifications: { ...(settings.fungistNotifications || {}), [notification.id]: value } })} testid={`fungist-notification-${notification.id}`} />)}
               </div>
@@ -451,28 +508,30 @@ function Section({ title, hint, children }) {
   );
 }
 
-function Toggle({ label, hint, value, onChange, testid }) {
+function Toggle({ label, hint, value, onChange, testid, disabled = false }) {
   return (
-    <label className="neo-tooltip-trigger relative flex cursor-pointer items-center gap-3 rounded-lg hairline bg-surface/40 px-3 py-2 hover:border-[rgb(var(--accent)/0.4)] transition-colors">
+    <div className={`neo-tooltip-trigger relative flex min-h-[42px] items-center justify-between gap-3 rounded-lg hairline bg-surface/40 px-3 py-2 transition-colors ${disabled ? 'cursor-not-allowed opacity-55' : 'hover:border-[rgb(var(--accent)/0.4)]'}`}>
       <div className="min-w-0 flex-1">
         <div className="text-[12px] font-medium leading-tight">{label}</div>
       </div>
       <button
         type="button"
         data-testid={testid}
+        aria-pressed={value}
+        disabled={disabled}
         onClick={() => onChange(!value)}
         className={
-          'relative h-5 w-9 shrink-0 rounded-full transition-colors ' +
+          'relative h-5 w-10 shrink-0 self-center rounded-full transition-colors disabled:cursor-not-allowed ' +
           (value ? 'bg-[rgb(var(--accent))] shadow-[0_0_10px_-2px_rgb(var(--accent))]' : 'bg-[rgb(var(--border))]')
         }
       >
         <span
           className="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all"
-          style={{ left: value ? '18px' : '2px' }}
+          style={{ left: value ? '22px' : '2px' }}
         />
       </button>
       {hint && <span className="neo-tooltip" role="tooltip">{hint}</span>}
-    </label>
+    </div>
   );
 }
 
@@ -516,7 +575,7 @@ const EFFECTS_HINT = {
 };
 function EffectsLevelSlider({ value, onChange, theme = 'synthwave' }) {
   const v = Math.max(0, Math.min(4, value | 0));
-  const themeLabel = theme.charAt(0).toUpperCase() + theme.slice(1).replace('-', ' ');
+  const themeLabel = ({ colorful: 'Magical', pro: 'Industrial' }[theme] || theme.charAt(0).toUpperCase() + theme.slice(1).replace('-', ' '));
   return (
     <div data-testid="effects-level-wrapper">
       <div className="mb-1.5 flex items-center justify-between">

@@ -32,6 +32,10 @@ const STATUS = {
   resting: { title: 'NEO-LIB RESTING', color: '#60a5fa', Icon: CircleCheck },
 };
 
+// The status rail may sit over artwork, texture, or a bright Mid theme. Keep
+// green/amber/red health text crisp without changing the intended state colour.
+const HEALTH_TEXT_SHADOW = '0 1px 2px rgba(0, 0, 0, 0.82)';
+
 /** Full-width Library footer overlay. It intentionally sits above the game rows. */
 export default function SystemHealthBar({ resting = false, runningGameName = '', games = [], onStatusChange, openRequest = 0 }) {
   const [open, setOpen] = React.useState(false);
@@ -90,8 +94,9 @@ export default function SystemHealthBar({ resting = false, runningGameName = '',
   const tips = [];
   if (resting) tips.push(`NEO-LIB is resting while ${runningGameName || 'your game'} is running.`);
   if (resting) tips.push('Theme effects, animations, sounds, system polling, launcher scans, news checks, deal rotation, and social checks are paused.');
-  else if (cpuLevel === 'high') tips.push('CPU is very busy. Pause downloads, updates, or heavy background apps before launching.');
-  else if (cpuLevel === 'medium') tips.push('CPU use is elevated. Check browser tabs, updates, and launchers running in the background.');
+  if (!resting) tips.push('If NEO-LIB appears in Optimize while you are browsing, that is expected. Launching a tracked game automatically enables Rest Mode and pauses its non-essential background work.');
+  if (!resting && cpuLevel === 'high') tips.push('CPU is very busy. Pause downloads, updates, or heavy background apps before launching.');
+  else if (!resting && cpuLevel === 'medium') tips.push('CPU use is elevated. Check browser tabs, updates, and launchers running in the background.');
   if (ramLevel === 'high') tips.push('RAM is nearly full. Close memory-heavy apps to help avoid stutter.');
   else if (ramLevel === 'medium') tips.push('RAM use is elevated. Closing a few background apps will leave more room for your game.');
   if (!tips.length && state === 'ready') tips.push('Your current CPU and RAM use look comfortable for launching a game.');
@@ -123,7 +128,7 @@ export default function SystemHealthBar({ resting = false, runningGameName = '',
           type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}
           className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 text-left transition-colors hover:bg-[rgb(var(--surface)/0.68)]" title="Open Game Ready details"
         >
-          <span className={`flex shrink-0 items-center gap-2 text-[11px] font-black tracking-[0.13em] ${pulseClass}`} style={{ color: config.color }}><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: config.color, boxShadow: `0 0 10px ${config.color}` }} />{config.title}</span>
+          <span className={`flex shrink-0 items-center gap-2 text-[11px] font-black tracking-[0.13em] ${pulseClass}`} style={{ color: config.color, textShadow: HEALTH_TEXT_SHADOW }}><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: config.color, boxShadow: `0 0 10px ${config.color}` }} />{config.title}</span>
           <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 text-[10.5px] text-muted">{resting ? <span className="truncate">{runningGameName ? `${runningGameName} is running · background work paused` : 'Game running · background work paused'}</span> : <><span className="whitespace-nowrap">CPU <UsageText level={cpuLevel} value={health?.cpuPercent} /></span><span className="hidden text-muted/45 min-[260px]:inline">·</span><span className="whitespace-nowrap">RAM <UsageText level={ramLevel} value={health?.ramPercent} /></span></>}</span>
           <ChevronUp size={15} className={`shrink-0 text-muted transition-transform ${open ? '' : 'rotate-180'}`} />
         </button>
@@ -137,7 +142,7 @@ export default function SystemHealthBar({ resting = false, runningGameName = '',
 function UsageText({ level, value }) {
   const colors = { low: 'text-emerald-400', medium: 'text-amber-300', high: 'text-red-400', checking: 'text-muted' };
   const labels = { low: 'Low', medium: 'Medium', high: 'High', checking: 'Checking' };
-  return <span className={`font-bold ${colors[level]}`}>{labels[level]}{Number.isFinite(value) ? ` (${value}%)` : ''}</span>;
+  return <span className={`font-bold ${colors[level]}`} style={{ textShadow: HEALTH_TEXT_SHADOW }}>{labels[level]}{Number.isFinite(value) ? ` (${value}%)` : ''}</span>;
 }
 
 function Metric({ icon, label, value, level, detail = '' }) {

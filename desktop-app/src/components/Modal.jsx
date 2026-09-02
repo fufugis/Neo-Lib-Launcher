@@ -12,7 +12,6 @@ import { X, GripHorizontal } from 'lucide-react';
 export default function Modal({ open, onClose, title, children, wide, testid }) {
   const constraintsRef = React.useRef(null);
   const dragControls = useDragControls();
-
   React.useEffect(() => {
     if (!open) return undefined;
     const h = (e) => {

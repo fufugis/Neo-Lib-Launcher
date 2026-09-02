@@ -48,7 +48,7 @@ function PlatformBadge({ platform, size = 'md' }) {
  *
  * It stays present as a small, clearly labelled sponsored rail.
  */
-export default function DealsBar({ settings = {}, resting = false, friendsClientPaths = {}, onUpdateFriendsClientPaths }) {
+export default function DealsBar({ settings = {}, resting = false, launcherClientPaths = {}, onUpdateLauncherClientPaths }) {
   const [items, setItems] = React.useState([]);
   const [idx, setIdx] = React.useState(0);
   const [allOpen, setAllOpen] = React.useState(false);
@@ -71,7 +71,7 @@ export default function DealsBar({ settings = {}, resting = false, friendsClient
   }, [items.length, resting]);
 
   // Keep the rail in the layout even while the optional deal sources are
-  // offline. It owns the fixed Friends control and should never jump away.
+  // offline. It owns the fixed Launchers control and should never jump away.
   const d = items[idx] || {
     id: 'sponsor-placeholder', platform: '', title: 'Sponsored discoveries load here',
     subtitle: 'Deals and free games, kept intentionally subtle.', priceText: 'SOON', url: '',
@@ -179,12 +179,12 @@ export default function DealsBar({ settings = {}, resting = false, friendsClient
         <span>All {items.length}</span>
       </motion.button>
 
-      {/* Social lives at the far edge of the permanent sponsor rail, not in a
-          game detail page. It remains one click away from every library view. */}
+      {/* Launchers live at the far edge of the permanent sponsor rail, not in a
+          game detail page. They remain one click away from every library view. */}
       <div className="absolute right-3 top-1/2 -translate-y-1/2">
         <FriendsPanel
-          manualPaths={friendsClientPaths}
-          onUpdateManualPaths={onUpdateFriendsClientPaths}
+          manualPaths={launcherClientPaths}
+          onUpdateManualPaths={onUpdateLauncherClientPaths}
           resting={resting}
           variant="footer"
         />

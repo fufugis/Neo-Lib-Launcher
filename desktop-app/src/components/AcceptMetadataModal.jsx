@@ -33,6 +33,7 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
     developer: true, publisher: true, release: true, screenshots: true,
   });
   const dragControls = useDragControls();
+  const dragBoundsRef = React.useRef(null);
   /* eslint-disable react-hooks/set-state-in-effect */
   React.useEffect(() => {
     if (open) {
@@ -99,7 +100,7 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
 
   return (
     <AnimatePresence>
-      <motion.div
+      <motion.div ref={dragBoundsRef}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -113,6 +114,7 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
           dragListener={false}
           dragMomentum={false}
           dragElastic={0}
+          dragConstraints={dragBoundsRef}
           initial={{ y: 12, opacity: 0, scale: 0.97 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
           exit={{ y: 12, opacity: 0 }}

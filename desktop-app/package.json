@@ -1,7 +1,7 @@
 {
   "name": "neo-lib",
   "productName": "NEO-LIB",
-  "version": "1.7.3",
+  "version": "1.7.4",
   "description": "A synthwave-flavored, multi-source game library for Windows.",
   "main": "electron/main.js",
   "author": {
@@ -10,6 +10,7 @@
   },
   "scripts": {
     "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && cross-env NODE_ENV=development electron .\"",
+    "prebuild:renderer": "node scripts/verify-launch-safety.cjs",
     "build:renderer": "vite build",
     "build:win": "npm run build:renderer && electron-builder --win --x64",
     "build:portable": "npm run build:renderer && electron-builder --win portable --x64",

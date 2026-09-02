@@ -17,8 +17,8 @@ const LAUNCHER_LABELS = {
 
 /**
  * LauncherDetectModal — when a launcher is detected running for the first
- * time, prompt the user to import its installed games into a dedicated category.
- * The user can choose: Import, Skip, Remind me later, Don't ask again.
+ * time, offer the confirmation-first Wizard route for its installed games.
+ * The user can choose: open the Wizard, Skip, Remind me later, Don't ask again.
  */
 export default function LauncherDetectModal({ open, launcher, onImport, onSkip, onLater, onClose }) {
   if (!open || !launcher) return null;
@@ -36,8 +36,8 @@ export default function LauncherDetectModal({ open, launcher, onImport, onSkip, 
           <div>
             <div className="text-[14px] font-semibold text-ink">{meta.name} is running</div>
             <p className="mt-1 text-[12.5px] text-muted leading-relaxed">
-              Want to import your installed <span className="text-ink">{meta.name}</span> games into NEO-LIB?
-              They&apos;ll be added to a dedicated <em>{meta.name}</em> category — your existing categories stay untouched.
+              Want to review your installed <span className="text-ink">{meta.name}</span> games in NEO-LIB&apos;s import Wizard?
+              It confirms before scanning, checks what is already here, and only offers genuinely new games. Your existing categories stay untouched.
             </p>
           </div>
         </div>
@@ -69,7 +69,7 @@ export default function LauncherDetectModal({ open, launcher, onImport, onSkip, 
             className="rounded-md px-3 py-1.5 text-[11px] font-semibold text-[rgb(var(--surface))]"
             style={{ background: 'rgb(var(--accent))' }}
           >
-            Yes — import
+            Open import Wizard
           </button>
         </div>
       </div>

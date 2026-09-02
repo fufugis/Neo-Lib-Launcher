@@ -16,7 +16,22 @@ import { genreDisplayGroups, normalizeGenreProfile } from '../lib/genreTaxonomy'
  *     - Accept / Skip / Re-search (with custom query, skips current source)
  *  4. Done → option to add more manually
  */
-export default function WizardModal({ open, onClose, onImport, onAccept, onAddManual, geminiKey, aiModel = 'gemini-2.5-flash', existingExePaths = [], prefilledRoot = '', autoScan = false }) {
+function normalizedPath(value) {
+  return String(value || '').trim().replace(/\//g, '\\').replace(/\\+$/, '').toLowerCase();
+}
+
+function launcherImportKeys(item, kind = '') {
+  const launcher = String(kind || item?.launcher || '').trim().toLowerCase();
+  if (!launcher) return [];
+  const product = item?.launcherProductId || item?.appid || item?.steamAppId || item?.gogId;
+  const exePath = normalizedPath(item?.exe || item?.launchExe || item?.exePath || item?.installdir || item?.launchUrl);
+  return [
+    product ? `${launcher}:product:${String(product).toLowerCase()}` : '',
+    exePath ? `${launcher}:path:${exePath}` : '',
+  ].filter(Boolean);
+}
+
+export default function WizardModal({ open, onClose, onImport, onAccept, onAddManual, geminiKey, aiModel = 'gemini-2.5-flash', existingExePaths = [], existingGames = [], prefilledRoot = '', autoScan = false }) {
   const [step, setStep] = React.useState(1);
   const [root, setRoot] = React.useState('');
   const [candidates, setCandidates] = React.useState([]);
@@ -30,7 +45,10 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
   const [queryOverride, setQueryOverride] = React.useState('');
   const [skipSources, setSkipSources] = React.useState([]);
   const [launcherStatus, setLauncherStatus] = React.useState('');
+  const [launcherConfirm, setLauncherConfirm] = React.useState(null);
+  const [launcherImportBusy, setLauncherImportBusy] = React.useState(false);
   const [scanDepth, setScanDepth] = React.useState('fast'); // 'fast' | 'deep'
+  const knownLauncherImportKeys = React.useRef(new Set());
 
   // Exclude paths during scan — common launcher folders + custom
   const [skipLaunchers, setSkipLaunchers] = React.useState({
@@ -46,78 +64,103 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
   const notifyTodo = (name) =>
     setLauncherStatus(`${name} integration is on the roadmap — for now use "Choose folder" below and point it at your ${name} install directory.`);
 
-  const importLauncher = async (kind) => {
-    const launcherLabel = { steam: 'Steam', epic: 'Epic', gog: 'GOG', itch: 'itch.io' }[kind] || kind;
-    setLauncherStatus(`Scanning ${launcherLabel}…`);
-    const api = { steam: window.api?.scanSteam, epic: window.api?.scanEpic, gog: window.api?.scanGog, ea: window.api?.scanEa, ubisoft: window.api?.scanUbisoft, battlenet: window.api?.scanBattlenet, riot: window.api?.scanRiot, xbox: window.api?.scanXbox, rockstar: window.api?.scanRockstar, itch: window.api?.scanItch }[kind];
-    if (!api) { setLauncherStatus('Not available in browser preview.'); return; }
-    const r = await api();
-    if (!r?.ok || !r.items?.length) {
-      setLauncherStatus(r?.error || `No installed ${kind} games found.`);
+  React.useEffect(() => {
+    if (!open || launcherImportBusy) return;
+    knownLauncherImportKeys.current = new Set((existingGames || []).flatMap((game) => launcherImportKeys(game)));
+  }, [open, existingGames, launcherImportBusy]);
+
+  const isKnownLauncherItem = (item, kind) => launcherImportKeys(item, kind).some((key) => knownLauncherImportKeys.current.has(key));
+  const rememberLauncherItem = (item, kind) => launcherImportKeys(item, kind).forEach((key) => knownLauncherImportKeys.current.add(key));
+  const launcherLabelFor = (kind) => ({ steam: 'Steam', epic: 'Epic Games', gog: 'GOG Galaxy', ea: 'EA app', ubisoft: 'Ubisoft Connect', battlenet: 'Battle.net', riot: 'Riot Client', xbox: 'Xbox / Game Pass', rockstar: 'Rockstar Games', itch: 'itch.io' }[kind] || kind);
+  const launcherApiFor = (kind) => ({ steam: window.api?.scanSteam, epic: window.api?.scanEpic, gog: window.api?.scanGog, ea: window.api?.scanEa, ubisoft: window.api?.scanUbisoft, battlenet: window.api?.scanBattlenet, riot: window.api?.scanRiot, xbox: window.api?.scanXbox, rockstar: window.api?.scanRockstar, itch: window.api?.scanItch }[kind]);
+
+  const requestLauncherImport = (kind) => {
+    if (busy || launcherImportBusy || launcherConfirm) return;
+    knownLauncherImportKeys.current = new Set((existingGames || []).flatMap((game) => launcherImportKeys(game)));
+    const existingCount = (existingGames || []).filter((game) => String(game?.launcher || '').toLowerCase() === kind).length;
+    setLauncherConfirm({ stage: 'start', kind, existingCount });
+  };
+
+  const importLauncherItems = async (kind, sourceItems) => {
+    const launcherLabel = launcherLabelFor(kind);
+    const items = (sourceItems || []).filter((item) => !isKnownLauncherItem(item, kind));
+    if (!items.length) {
+      setLauncherStatus(`${launcherLabel} is already imported — no new games were added.`);
+      setLauncherConfirm(null);
       return;
     }
-    setLauncherStatus(`Importing ${r.items.length} ${kind} games…`);
+    setLauncherConfirm(null);
+    setLauncherImportBusy(true);
+    setLauncherStatus(`Importing ${items.length} new ${launcherLabel} game${items.length === 1 ? '' : 's'}…`);
     let imported = 0;
-    for (const it of r.items) {
+    for (const it of items) {
       // A Steam manifest supplies the exact app ID and title from the user's
-      // local Steam library.  Keep that identity locked: store search omits
-      // delisted games, and falling back to a fuzzy title search can attach an
-      // unrelated game (for example a similarly named result) to the import.
-      // Other launchers still use the regular multi-source matcher.
+      // local Steam library. Keep that identity locked so a delisted title can
+      // never drift into a fuzzy, unrelated metadata match.
       let result = null;
       if (kind === 'steam' && it.appid) {
         try {
-          result = await window.api?.fetchMetadata({
-            query: it.name,
-            skipSources: [],
-            geminiKey,
-            aiModel,
-            lockedAppid: it.appid,
-            launcher: kind,
-          });
+          result = await window.api?.fetchMetadata({ query: it.name, skipSources: [], geminiKey, aiModel, lockedAppid: it.appid, launcher: kind });
         } catch { /* retain the authoritative manifest title below */ }
       } else {
-        try { result = await window.api?.fetchMetadata({ query: it.name, skipSources: [], geminiKey, aiModel, launcher: kind }); } catch { /* ignore */ }
+        try { result = await window.api?.fetchMetadata({ query: it.name, skipSources: [], geminiKey, aiModel, launcher: kind }); } catch { /* retain local launcher identity */ }
       }
       let coverUrl = result?.capsuleImage || result?.headerImage || null;
-      if (coverUrl && coverUrl.startsWith('http')) {
-        coverUrl = (await window.api?.cacheImage(coverUrl, result?.name || it.name)) || coverUrl;
-      }
+      if (coverUrl && coverUrl.startsWith('http')) coverUrl = (await window.api?.cacheImage(coverUrl, result?.name || it.name)) || coverUrl;
       const entry = {
         name: result?.name || it.name,
         exePath: it.exe || it.launchExe || it.installdir || it.launchUrl,
-        launchArgs: '',
-        launchUrl: it.launchUrl,
-        source: `${kind}-import`,
-        launcher: kind,
-        appid: result?.appid || it.appid,
-        gogId: result?.gogId || it.gogId,
-        launcherProductId: it.launcherProductId,
-        installedVersion: it.installedVersion || '',
-        steamAppId: kind === 'steam' ? it.appid : undefined,
-        steamBuildId: it.buildid || undefined,
-        coverUrl: coverUrl || result?.headerImage,
-        headerImage: result?.headerImage,
-        background: result?.background,
-        shortDescription: result?.shortDescription,
-        about: result?.about,
-        genres: result?.genres || [],
-        genreTags: result?.genreTags || [],
-        developers: result?.developers || [],
-        publishers: result?.publishers || [],
-        releaseDate: result?.releaseDate || '',
-        metacritic: result?.metacritic,
-        screenshots: result?.screenshots || [],
-        website: result?.website || '',
-        // Pre-tag with the launcher category so App can group them
+        launchArgs: '', launchUrl: it.launchUrl, source: `${kind}-import`, launcher: kind,
+        appid: result?.appid || it.appid, gogId: result?.gogId || it.gogId,
+        launcherProductId: it.launcherProductId, installedVersion: it.installedVersion || '',
+        steamAppId: kind === 'steam' ? it.appid : undefined, steamBuildId: it.buildid || undefined,
+        coverUrl: coverUrl || result?.headerImage, headerImage: result?.headerImage, background: result?.background,
+        shortDescription: result?.shortDescription, about: result?.about, genres: result?.genres || [], genreTags: result?.genreTags || [],
+        developers: result?.developers || [], publishers: result?.publishers || [], releaseDate: result?.releaseDate || '',
+        metacritic: result?.metacritic, screenshots: result?.screenshots || [], website: result?.website || '',
         categoryIds: [`__launcher_${kind}__`],
       };
-      if (onAccept) onAccept(entry);
-      imported++;
-      setLauncherStatus(`Imported ${imported}/${r.items.length}…`);
+      // Keep a per-run identity ledger as well as the app's persisted library
+      // guard. A double click or a second prompt cannot add this game twice.
+      if (!isKnownLauncherItem(it, kind)) {
+        rememberLauncherItem(it, kind);
+        rememberLauncherItem(entry, kind);
+        onAccept?.(entry);
+        imported += 1;
+      }
+      setLauncherStatus(`Imported ${imported}/${items.length} new ${launcherLabel} game${items.length === 1 ? '' : 's'}…`);
     }
-    setLauncherStatus(`Done — added ${imported} games from ${kind}.`);
-    setTimeout(() => onClose(), 800);
+    setLauncherImportBusy(false);
+    setLauncherStatus(`Done — added ${imported} new ${launcherLabel} game${imported === 1 ? '' : 's'}. Existing entries were left untouched.`);
+    window.setTimeout(() => onClose(), 900);
+  };
+
+  const scanLauncherForImport = async (kind) => {
+    const launcherLabel = { steam: 'Steam', epic: 'Epic', gog: 'GOG', itch: 'itch.io' }[kind] || kind;
+    setLauncherConfirm(null);
+    setLauncherImportBusy(true);
+    setLauncherStatus(`Scanning ${launcherLabel}…`);
+    const api = launcherApiFor(kind);
+    if (!api) { setLauncherStatus('Not available in browser preview.'); setLauncherImportBusy(false); return; }
+    let r;
+    try { r = await api(); } catch {
+      setLauncherStatus(`Could not scan ${launcherLabel}. Try again when the launcher is available.`);
+      setLauncherImportBusy(false);
+      return;
+    }
+    if (!r?.ok || !r.items?.length) {
+      setLauncherStatus(r?.error || `No installed ${kind} games found.`);
+      setLauncherImportBusy(false);
+      return;
+    }
+    const existing = r.items.filter((item) => isKnownLauncherItem(item, kind));
+    const newItems = r.items.filter((item) => !isKnownLauncherItem(item, kind));
+    setLauncherImportBusy(false);
+    if (existing.length) {
+      setLauncherConfirm({ stage: 'repeat', kind, total: r.items.length, existing: existing.length, newItems });
+      return;
+    }
+    importLauncherItems(kind, newItems);
   };
 
   /* eslint-disable react-hooks/set-state-in-effect, react-hooks/immutability */
@@ -125,7 +168,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
     if (!open) {
       setStep(1); setRoot(''); setCandidates([]); setCursor(0);
       setCurrent(null); setResult(null); setIcon(null); setBusy(false);
-      setAccepted([]); setQueryOverride(''); setSkipSources([]); setLauncherStatus('');
+      setAccepted([]); setQueryOverride(''); setSkipSources([]); setLauncherStatus(''); setLauncherConfirm(null); setLauncherImportBusy(false);
       setSkippedExisting(0);
     } else if (prefilledRoot) {
       // Drag-drop opened the Wizard with a specific folder — skip the picker step
@@ -294,6 +337,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
   const detectedGenreGroups = genreDisplayGroups(detectedGenreProfile);
 
   return (
+    <>
     <Modal open={open} onClose={onClose} title="Auto-import Wizard" wide testid="wizard-modal">
       {step === 1 && (
         <div className="space-y-4 p-6">
@@ -309,16 +353,16 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
           <div className="rounded-lg hairline bg-surface/50 p-4">
             <div className="mb-2 text-[10px] uppercase tracking-wider text-muted">Import from a launcher (installed games only)</div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              <LauncherBtn label="Steam"       onClick={() => importLauncher('steam')}        testid="launcher-steam" />
-              <LauncherBtn label="Epic Games"  onClick={() => importLauncher('epic')}         testid="launcher-epic" />
-              <LauncherBtn label="GOG Galaxy"  onClick={() => importLauncher('gog')}          testid="launcher-gog" />
-              <LauncherBtn label="EA App"      onClick={() => importLauncher('ea')}           testid="launcher-ea" />
-              <LauncherBtn label="Ubisoft"     onClick={() => importLauncher('ubisoft')}      testid="launcher-ubi" />
-              <LauncherBtn label="Battle.net"  onClick={() => importLauncher('battlenet')}    testid="launcher-bnet" />
-              <LauncherBtn label="Riot Client" onClick={() => importLauncher('riot')}         testid="launcher-riot" />
-              <LauncherBtn label="Xbox / GP"   onClick={() => importLauncher('xbox')}         testid="launcher-xbox" />
-              <LauncherBtn label="Rockstar"    onClick={() => importLauncher('rockstar')}     testid="launcher-rockstar" />
-              <LauncherBtn label="itch.io"     onClick={() => importLauncher('itch')}         testid="launcher-itch" />
+              <LauncherBtn label="Steam"       onClick={() => requestLauncherImport('steam')}     disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-steam" />
+              <LauncherBtn label="Epic Games"  onClick={() => requestLauncherImport('epic')}      disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-epic" />
+              <LauncherBtn label="GOG Galaxy"  onClick={() => requestLauncherImport('gog')}       disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-gog" />
+              <LauncherBtn label="EA App"      onClick={() => requestLauncherImport('ea')}        disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-ea" />
+              <LauncherBtn label="Ubisoft"     onClick={() => requestLauncherImport('ubisoft')}   disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-ubi" />
+              <LauncherBtn label="Battle.net"  onClick={() => requestLauncherImport('battlenet')} disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-bnet" />
+              <LauncherBtn label="Riot Client" onClick={() => requestLauncherImport('riot')}      disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-riot" />
+              <LauncherBtn label="Xbox / GP"   onClick={() => requestLauncherImport('xbox')}      disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-xbox" />
+              <LauncherBtn label="Rockstar"    onClick={() => requestLauncherImport('rockstar')}  disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-rockstar" />
+              <LauncherBtn label="itch.io"     onClick={() => requestLauncherImport('itch')}      disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-itch" />
             </div>
             {launcherStatus && <div className="mt-3 text-[11px] text-muted">{launcherStatus}</div>}
           </div>
@@ -668,15 +712,29 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
         </div>
       )}
     </Modal>
+    <AnimatePresence>
+      {launcherConfirm && <motion.div className="fixed inset-0 z-[140] grid place-items-center bg-black/70 p-4 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={() => setLauncherConfirm(null)} data-testid="launcher-import-confirm">
+        <motion.div className="w-full max-w-md rounded-2xl border border-[rgb(var(--accent)/0.42)] bg-[rgb(var(--panel))] p-5 shadow-2xl" initial={{ scale: 0.96, y: 8 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.97, y: 4 }} onMouseDown={(event) => event.stopPropagation()}>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">Launcher import check</p>
+          <h3 className="mt-2 text-lg font-black text-ink">{launcherConfirm.stage === 'start' ? `Import from ${launcherLabelFor(launcherConfirm.kind)}?` : `${launcherLabelFor(launcherConfirm.kind)} was imported before`}</h3>
+          {launcherConfirm.stage === 'start' ? <p className="mt-2 text-sm leading-relaxed text-muted">NEO-LIB will scan this launcher&apos;s installed games first, then import only new entries. Nothing starts until you confirm.</p> : <p className="mt-2 text-sm leading-relaxed text-muted">{launcherConfirm.existing} of {launcherConfirm.total} detected game{launcherConfirm.total === 1 ? '' : 's'} are already in NEO-LIB. They will stay untouched.</p>}
+          {launcherConfirm.stage === 'start' && launcherConfirm.existingCount > 0 && <p className="mt-3 rounded-lg border border-amber-300/30 bg-amber-300/[0.06] p-2.5 text-[11px] leading-relaxed text-amber-100">This launcher already has {launcherConfirm.existingCount} game{launcherConfirm.existingCount === 1 ? '' : 's'} in your library. You will get a second confirmation after the scan before any new games are added.</p>}
+          {launcherConfirm.stage === 'repeat' && launcherConfirm.newItems.length === 0 && <p className="mt-3 rounded-lg border border-[rgb(var(--accent)/0.28)] bg-[rgb(var(--accent)/0.08)] p-2.5 text-[11px] text-ink">Everything found is already imported. There is nothing new to add.</p>}
+          <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setLauncherConfirm(null)} className="rounded-lg border border-[rgb(var(--border))] px-3 py-2 text-xs font-bold text-muted hover:text-ink">{launcherConfirm.stage === 'repeat' && launcherConfirm.newItems.length === 0 ? 'Done' : 'Cancel'}</button>{(launcherConfirm.stage === 'start' || launcherConfirm.newItems.length > 0) && <button type="button" onClick={() => launcherConfirm.stage === 'start' ? scanLauncherForImport(launcherConfirm.kind) : importLauncherItems(launcherConfirm.kind, launcherConfirm.newItems)} className="rounded-lg bg-[rgb(var(--accent))] px-3 py-2 text-xs font-black text-[rgb(var(--surface))]">{launcherConfirm.stage === 'start' ? 'Scan launcher' : `Import ${launcherConfirm.newItems.length} new`}</button>}</div>
+        </motion.div>
+      </motion.div>}
+    </AnimatePresence>
+    </>
   );
 }
 
-function LauncherBtn({ label, onClick, testid }) {
+function LauncherBtn({ label, onClick, disabled = false, testid }) {
   return (
     <button
       data-testid={testid}
       onClick={onClick}
-      className="inline-flex items-center gap-2 rounded-md hairline px-3 py-2 text-[11.5px] text-ink hover:text-[rgb(var(--accent))] hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)] transition-colors"
+      disabled={disabled}
+      className="inline-flex items-center gap-2 rounded-md hairline px-3 py-2 text-[11.5px] text-ink transition-colors hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)] hover:text-[rgb(var(--accent))] disabled:cursor-wait disabled:opacity-45"
     >
       <Gamepad2 size={12} />
       {label}

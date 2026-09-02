@@ -10,7 +10,7 @@
  * a Shooter, and "RPG elements" must not silently become the game's identity.
  */
 
-export const GENRE_TAXONOMY_VERSION = 1;
+export const GENRE_TAXONOMY_VERSION = 3;
 
 export const CORE_GENRES = [
   ['action', 'Action'], ['adventure', 'Adventure'], ['rpg', 'RPG'],
@@ -36,7 +36,8 @@ export const SUBGENRES = [
   definition('crpg', 'CRPG', ['rpg'], ['computer rpg']),
   definition('tactical-rpg', 'Tactical RPG', ['rpg', 'strategy'], ['strategy rpg']),
   definition('mmorpg', 'MMORPG', ['rpg'], ['massively multiplayer rpg']),
-  definition('dungeon-crawler', 'Dungeon Crawler', ['rpg'], []),
+  definition('dungeon-crawler', 'Dungeon Crawler', ['rpg'], ['dungeon crawling', 'dungeon-crawling']),
+  definition('roguelike-dungeon-crawler', 'Roguelike Dungeon Crawler', ['roguelike', 'rpg'], ['rogue-like dungeon crawler', 'roguelite dungeon crawler']),
   definition('looter-shooter', 'Looter Shooter', ['shooter', 'rpg'], ['loot shooter']),
   definition('hero-shooter', 'Hero Shooter', ['shooter'], []),
   definition('tactical-shooter', 'Tactical Shooter', ['shooter'], []),
@@ -68,7 +69,8 @@ export const SUBGENRES = [
   definition('tower-defense', 'Tower Defense', ['strategy'], []),
   definition('moba', 'MOBA', ['strategy'], []),
   definition('city-builder', 'City Builder', ['management-building', 'simulation'], ['city building']),
-  definition('base-building', 'Base Building', ['management-building', 'simulation'], ['base builder']),
+  definition('base-building', 'Base Building', ['management-building', 'simulation'], ['base builder', 'builder', 'building', 'construction', 'construction game']),
+  definition('sandbox-builder', 'Sandbox Builder', ['sandbox-exploration', 'management-building'], ['sandbox building', 'sandbox builder', 'vehicle building']),
   definition('colony-sim', 'Colony Sim', ['management-building', 'simulation'], ['colony simulation']),
   definition('farming-sim', 'Farming Sim', ['simulation'], ['farm sim', 'farming simulation']),
   definition('life-sim', 'Life Sim', ['simulation'], ['life simulation']),
@@ -92,6 +94,8 @@ export const SUBGENRES = [
   definition('match-3', 'Match 3', ['puzzle'], ['match-three']),
   definition('sokoban', 'Sokoban', ['puzzle'], []),
   definition('psychological-horror', 'Psychological Horror', ['horror'], []),
+  definition('survivors-like', 'Survivors-like', ['roguelike', 'action'], ['survivor-like', 'survivor like', 'bullet heaven', 'horde survival']),
+  definition('roguelike-shooter', 'Roguelike Shooter', ['roguelike', 'shooter'], ['rogue-lite shooter', 'roguelite shooter']),
 ];
 
 const trait = (id, label, group, aliases = []) => ({ id, label, group, aliases: [label, ...aliases] });
@@ -111,6 +115,9 @@ export const TRAITS = [
   trait('open-world', 'Open world', 'mechanics', ['open-world']),
   trait('procedural-generation', 'Procedural generation', 'mechanics', ['procedural']),
   trait('crafting', 'Crafting', 'mechanics'), trait('resource-management', 'Resource management', 'mechanics'),
+  trait('exploration', 'Exploration', 'mechanics'), trait('building', 'Building', 'mechanics', ['base building', 'construction']),
+  trait('vehicle-building', 'Vehicle building', 'mechanics', ['vehicle construction']), trait('loot', 'Loot', 'mechanics'),
+  trait('permadeath', 'Permadeath', 'mechanics'), trait('horde', 'Horde survival', 'mechanics', ['horde']),
   trait('turn-based-combat', 'Turn-based combat', 'mechanics'), trait('choices-matter', 'Choices matter', 'mechanics'),
   trait('sci-fi', 'Sci-fi', 'themes', ['science fiction']), trait('fantasy', 'Fantasy', 'themes'),
   trait('space', 'Space', 'themes'), trait('zombies', 'Zombies', 'themes'), trait('medieval', 'Medieval', 'themes'),
@@ -151,6 +158,62 @@ const sourceWeight = { steam: 0.98, gog: 0.94, vndb: 0.94, itch: 0.84, dlsite: 0
 
 const addUnique = (list, item) => list.some((entry) => entry.id === item.id) ? list : [...list, item];
 
+// Storefronts—Steam especially—often append client features rather than
+// gameplay identity. They are useful on the store page but make a library
+// preview noisy and unfairly richer than other sources. Keep a compact,
+// gameplay-first set while retaining the underlying genre profile separately.
+const LOW_SIGNAL_SOURCE_TAGS = new Set([
+  'steam achievements', 'steam cloud', 'steam trading cards', 'steam workshop',
+  'steam leaderboards', 'steam turn notifications', 'steamvr collectables',
+  'full controller support', 'partial controller support', 'remote play on phone',
+  'remote play on tablet', 'remote play on tv', 'remote play together',
+  'family sharing', 'in app purchases', 'captions available',
+].map(canonicalKey));
+
+function compactSourceTags(tags, max = 8) {
+  const seen = new Set();
+  const candidates = [];
+  (tags || []).forEach((raw, index) => {
+    const label = String(raw || '').trim();
+    const key = canonicalKey(label);
+    if (!key || seen.has(key) || LOW_SIGNAL_SOURCE_TAGS.has(key)) return;
+    seen.add(key);
+    const priority = subgenreIndex.has(key) ? 4
+      : traitIndex.has(key) ? 3
+        : coreIndex.has(key) ? 2
+          : 1;
+    candidates.push({ label, index, priority });
+  });
+  return candidates
+    .sort((a, b) => b.priority - a.priority || a.index - b.index)
+    .slice(0, max)
+    .map(({ label }) => label);
+}
+
+// Some highly specific identities are only exposed by providers as two direct
+// tags. These combinations are deterministic evidence, not loose description
+// mining: every part must be an exact provider tag already present in rawTags.
+function addDerivedCombinations({ core, subgenres, rawKeys }) {
+  const hasCore = (id) => core.some((entry) => entry.id === id);
+  const hasSubgenre = (id) => subgenres.some((entry) => entry.id === id);
+  const has = (...labels) => labels.some((label) => rawKeys.has(canonicalKey(label)));
+  const add = (id) => {
+    const item = SUBGENRES.find((entry) => entry.id === id);
+    if (!item || hasSubgenre(id)) return { core, subgenres };
+    let nextCore = core;
+    item.core.forEach((coreId) => {
+      const coreItem = CORE_GENRES.find((entry) => entry.id === coreId);
+      if (coreItem) nextCore = addUnique(nextCore, coreItem);
+    });
+    return { core: nextCore, subgenres: addUnique(subgenres, item) };
+  };
+  let next = { core, subgenres };
+  if (hasCore('sandbox-exploration') && has('Building', 'Builder', 'Base Building')) next = add('sandbox-builder');
+  if (hasCore('roguelike') && (hasSubgenre('dungeon-crawler') || has('Dungeon Crawler'))) next = add('roguelike-dungeon-crawler');
+  if (hasCore('roguelike') && hasCore('shooter')) next = add('roguelike-shooter');
+  return next;
+}
+
 /**
  * Converts provider tags into a stable profile. `rawTags` must be direct
  * source evidence—not words extracted from a description. User-supplied
@@ -175,14 +238,15 @@ export function normalizeGenreProfile({ rawTags = [], source = 'web', existing =
     if (traitMatch) { traits = { ...traits, [traitMatch.group]: addUnique(traits[traitMatch.group], traitMatch) }; continue; }
     unresolved.push(label);
   }
+  ({ core, subgenres } = addDerivedCombinations({ core, subgenres, rawKeys: seenRaw }));
   const inherited = existing?.source === 'manual' ? existing : null;
-  if (inherited) return { ...inherited, rawTags: Array.from(new Set([...(inherited.rawTags || []), ...rawTags])), source: 'manual', taxonomyVersion: GENRE_TAXONOMY_VERSION };
+  if (inherited) return { ...inherited, rawTags: compactSourceTags([...(inherited.rawTags || []), ...rawTags]), source: 'manual', taxonomyVersion: GENRE_TAXONOMY_VERSION };
   const matched = core.length + subgenres.length + Object.values(traits).flat().length;
   return {
     taxonomyVersion: GENRE_TAXONOMY_VERSION,
     source: profileSource,
     confidence: matched ? Number((sourceWeight[profileSource] || 0.5).toFixed(2)) : 0,
-    rawTags: sourceTags,
+    rawTags: compactSourceTags(sourceTags),
     core: core.map(({ id, label }) => ({ id, label })),
     subgenres: subgenres.map(({ id, label }) => ({ id, label })),
     traits: Object.fromEntries(
@@ -195,18 +259,40 @@ export function normalizeGenreProfile({ rawTags = [], source = 'web', existing =
   };
 }
 
+// A broad store genre such as "Action" is useful, but it is not a finished
+// identity. This deliberately flags sparse/old profiles for a fresh source
+// lookup while leaving rich provider evidence alone.
+export function genreProfileNeedsEnrichment(profile) {
+  if (!profile || profile.taxonomyVersion !== GENRE_TAXONOMY_VERSION) return true;
+  const rawCount = Array.isArray(profile.rawTags) ? profile.rawTags.length : 0;
+  const subgenreCount = Array.isArray(profile.subgenres) ? profile.subgenres.length : 0;
+  const traitCount = Object.values(profile.traits || {}).flat().length;
+  return rawCount < 3 || (subgenreCount === 0 && traitCount === 0);
+}
+
 export function genreDisplayGroups(profile) {
   if (!profile) return [];
-  // Keep the provider's direct tags visible as a separate, compact layer.
+  // Keep direct provider tags visible as a compact layer. Sparse providers
+  // receive a small, clearly useful fill from their already-confirmed profile,
+  // so non-Steam imports do not look abandoned beside a Steam import.
   // Core genre answers “what is it?”; tags answer “what kind of Action game?”
   // (for example Third-Person Shooter, Action Roguelike, Online Co-op). They
   // are not used to create Library categories and remain capped so the preview
   // stays readable even when a provider supplies a very long tag list.
-  const sourceTags = Array.from(new Set(profile.rawTags || [])).slice(0, 12)
+  const directTags = Array.from(new Set(profile.rawTags || []));
+  const profileFill = [
+    ...(profile.subgenres || []),
+    ...(profile.traits?.mechanics || []),
+    ...(profile.traits?.modes || []),
+    ...(profile.traits?.perspectives || []),
+    ...(profile.traits?.themes || []),
+  ].map((entry) => entry.label);
+  const sourceTags = Array.from(new Map([...directTags, ...profileFill].map((label) => [canonicalKey(label), label])).values())
+    .slice(0, 8)
     .map((label) => ({ id: `source-${canonicalKey(label)}`, label }));
   const groups = [
     ['Core genre', profile.core], ['Subgenres', profile.subgenres],
-    ['Source tags', sourceTags],
+    ['Tags', sourceTags],
     ['Playstyle', [...(profile.traits?.mechanics || []), ...(profile.traits?.modes || [])]],
     ['Perspective', profile.traits?.perspectives || []], ['Themes', profile.traits?.themes || []],
   ];

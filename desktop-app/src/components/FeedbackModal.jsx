@@ -26,6 +26,7 @@ const RELAY_URL = import.meta.env.VITE_FEEDBACK_RELAY_URL || '';
 const RELAY_KEY = import.meta.env.VITE_FEEDBACK_RELAY_KEY || '';
 const WEBHOOK_URL = import.meta.env.VITE_FEEDBACK_WEBHOOK_URL || '';
 const RELAY_CONFIGURED = !!(RELAY_URL && RELAY_KEY);
+const GITHUB_ISSUES_URL = 'https://github.com/fufugis/Neo-Lib-Launcher/issues/new';
 
 /** HMAC-SHA256 sign `${timestamp}.${rawBody}` with the shared relay key. */
 async function signRelayBody(rawBody) {
@@ -102,7 +103,7 @@ export default function FeedbackModal({ open, initialMode = 'feedback', appVersi
   const [mode, setMode] = React.useState(initialMode);
   const [text, setText] = React.useState('');
   const [name, setName] = React.useState('');
-  const [status, setStatus] = React.useState('idle'); // idle | sending | ok | error
+  const [status, setStatus] = React.useState('idle'); // idle | sending | ok | opened | error
   const [errorMsg, setErrorMsg] = React.useState('');
 
   React.useEffect(() => {
@@ -117,10 +118,34 @@ export default function FeedbackModal({ open, initialMode = 'feedback', appVersi
 
   if (!open) return null;
   const cfg = MODES[mode] || MODES.feedback;
-  const disabled = !FEEDBACK_ENABLED || status === 'sending' || text.trim().length < 3;
+  const disabled = status === 'sending' || text.trim().length < 3;
+
+  const openGitHubIssue = () => {
+    const platform = (typeof navigator !== 'undefined' && navigator.platform) || 'unknown';
+    const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+    const title = `[${cfg.label}] ${text.trim().split(/\n/)[0].slice(0, 78) || 'NEO-LIB feedback'}`;
+    const body = [
+      text.trim(),
+      '',
+      '---',
+      `NEO-LIB version: ${appVersion || 'unknown'}`,
+      `Theme: ${theme || 'unknown'}`,
+      `Platform: ${platform}`,
+      `App: ${ua.slice(0, 120)}`,
+    ].join('\n');
+    const url = `${GITHUB_ISSUES_URL}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+    if (window.api?.openExternal) window.api.openExternal(url);
+    else window.open(url, '_blank', 'noopener,noreferrer');
+    setStatus('opened');
+    setTimeout(() => { onClose?.(); }, 1_200);
+  };
 
   const submit = async () => {
     if (disabled) return;
+    if (!FEEDBACK_ENABLED) {
+      openGitHubIssue();
+      return;
+    }
     setStatus('sending');
     setErrorMsg('');
     try {
@@ -227,13 +252,11 @@ export default function FeedbackModal({ open, initialMode = 'feedback', appVersi
             {!FEEDBACK_ENABLED && (
               <div
                 className="flex items-start gap-2 rounded-md border px-3 py-2 text-[11.5px]"
-                style={{ background: 'rgba(255,90,110,0.12)', borderColor: 'rgba(255,90,110,0.4)' }}
+                style={{ background: 'rgb(var(--accent)/0.10)', borderColor: 'rgb(var(--accent)/0.42)' }}
               >
-                <AlertTriangle size={14} className="mt-0.5 text-[#ff5a6e]" />
+                <MessageCircle size={14} className="mt-0.5 text-[rgb(var(--accent-2))]" />
                 <span className="text-ink/90">
-                  Feedback endpoint not configured. Set <code className="text-[rgb(var(--accent))]">VITE_FEEDBACK_RELAY_URL</code> +
-                  {' '}<code className="text-[rgb(var(--accent))]">VITE_FEEDBACK_RELAY_KEY</code> (see <code className="text-[rgb(var(--accent))]">cloudflare-relay/README.md</code>)
-                  {' '}in <code className="text-[rgb(var(--accent))]">desktop-app/.env</code> and rebuild.
+                  This build sends feedback through GitHub instead. Your report opens as a prefilled issue in your browser, including only version, theme, platform, and the text you choose to send.
                 </span>
               </div>
             )}
@@ -278,6 +301,11 @@ export default function FeedbackModal({ open, initialMode = 'feedback', appVersi
                   <Check size={12} /> Sent — thank you!
                 </span>
               )}
+              {status === 'opened' && (
+                <span className="inline-flex items-center gap-1 text-[#4ade80]">
+                  <Check size={12} /> GitHub report opened — thank you!
+                </span>
+              )}
               {status === 'error' && (
                 <span className="inline-flex items-center gap-1 text-[#ff5a6e]">
                   <AlertTriangle size={12} /> {errorMsg}
@@ -304,7 +332,7 @@ export default function FeedbackModal({ open, initialMode = 'feedback', appVersi
               }
             >
               <Send size={12} />
-              {status === 'sending' ? 'Sending…' : 'Send to Discord'}
+              {status === 'sending' ? 'Sending…' : FEEDBACK_ENABLED ? 'Send to Discord' : 'Open GitHub report'}
             </button>
           </div>
         </motion.div>

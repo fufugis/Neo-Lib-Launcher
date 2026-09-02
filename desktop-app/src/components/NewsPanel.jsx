@@ -108,6 +108,7 @@ export default function NewsPanel({ games = [], onClose, anchorSelector }) {
   }, [state.items]);
 
   const dragControls = useDragControls();
+  const dragBoundsRef = useRef(null);
 
   // Anchor the panel to a target element (default: News tab). Portal positioning
   // uses fixed coords so no parent stacking context can hide it.
@@ -128,7 +129,7 @@ export default function NewsPanel({ games = [], onClose, anchorSelector }) {
 
   const body = (
     <AnimatePresence>
-      <motion.div
+      <motion.div ref={dragBoundsRef}
         key="news-backdrop"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -148,6 +149,7 @@ export default function NewsPanel({ games = [], onClose, anchorSelector }) {
           dragListener={false}
           dragMomentum={false}
           dragElastic={0}
+          dragConstraints={dragBoundsRef}
           initial={{ opacity: 0, x: -8, scale: 0.98 }}
           animate={{ opacity: 1, x: 0, scale: 1 }}
           exit={{ opacity: 0, x: -8, scale: 0.98 }}

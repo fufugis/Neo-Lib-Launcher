@@ -22,6 +22,7 @@ const isElectron = typeof window !== 'undefined' && !!window.api;
 export default function EditMetadataModal({ open, game, onClose, onSave }) {
   const [form, setForm] = React.useState(() => emptyForm(game));
   const dragControls = useDragControls();
+  const dragBoundsRef = React.useRef(null);
 
   React.useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -81,7 +82,7 @@ export default function EditMetadataModal({ open, game, onClose, onSave }) {
 
   return (
     <AnimatePresence>
-      <motion.div
+      <motion.div ref={dragBoundsRef}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -95,6 +96,7 @@ export default function EditMetadataModal({ open, game, onClose, onSave }) {
           dragListener={false}
           dragMomentum={false}
           dragElastic={0}
+          dragConstraints={dragBoundsRef}
           initial={{ y: 12, opacity: 0, scale: 0.97 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
           exit={{ y: 12, opacity: 0 }}

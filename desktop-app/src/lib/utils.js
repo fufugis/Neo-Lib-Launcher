@@ -19,10 +19,12 @@ export const uid = () => Math.random().toString(36).slice(2) + Date.now().toStri
 
 export const THEMES = [
   // Special themes — extra eye-candy (sparkles, shooting stars, textured surfaces)
-  { id: 'colorful',      label: 'Colorful',       swatch: '#ff5abe', tone: 'special',
+  { id: 'colorful',      label: 'Magical',        swatch: '#ff5abe', tone: 'special',
     gradient: 'linear-gradient(135deg, #0c0a16 0%, #ff5abe 45%, #5aa0ff 100%)' },
   { id: 'pro',           label: 'Industrial',     swatch: '#f0a31a', tone: 'special',
     gradient: 'linear-gradient(135deg, #101114 0%, #f0a31a 55%, #4a4d54 100%)' },
+  { id: 'anime',         label: 'Anime',          swatch: '#ff63b8', tone: 'special',
+    gradient: 'linear-gradient(135deg, #28162b 0%, #ff63b8 50%, #b268ff 100%)' },
   { id: 'generic-gray',  label: 'Generic Gray',   swatch: '#b7bbc2', tone: 'middle',
     gradient: 'linear-gradient(135deg, #202226 0%, #b7bbc2 55%, #f4f5f6 100%)' },
   { id: 'generic-blue',  label: 'Generic Blue',   swatch: '#6ba5ff', tone: 'middle',
@@ -30,8 +32,6 @@ export const THEMES = [
   // Dark themes
   { id: 'synthwave',     label: 'Synthwave',      swatch: '#ff2a8a', tone: 'dark',
     gradient: 'linear-gradient(135deg, #0a0416 0%, #ff2a8a 55%, #00e5ff 100%)' },
-  { id: 'anime',         label: 'Anime',          swatch: '#ff63b8', tone: 'dark',
-    gradient: 'linear-gradient(135deg, #1d081d 0%, #ff63b8 50%, #b268ff 100%)' },
   { id: 'midnight',      label: 'Midnight',       swatch: '#ffe587', tone: 'dark',
     gradient: 'linear-gradient(135deg, #060916 0%, #16295b 52%, #ffe587 100%)' },
   { id: 'ocean',         label: 'Ocean',          swatch: '#4ea8f0', tone: 'dark',
@@ -43,8 +43,8 @@ export const THEMES = [
     gradient: 'linear-gradient(135deg, #141630 0%, #b889ff 55%, #72d6ff 100%)' },
   { id: 'modern',        label: 'Modern',         swatch: '#b83a45', tone: 'middle',
     gradient: 'linear-gradient(135deg, #121722 0%, #3c4658 55%, #b83a45 100%)' },
-  { id: 'home',          label: 'Home',           swatch: '#7cc7f4', tone: 'middle',
-    gradient: 'linear-gradient(135deg, #b8bec4 0%, #91b9cf 52%, #e3b84f 100%)' },
+  { id: 'home',          label: 'Home',           swatch: '#5eaed9', tone: 'middle',
+    gradient: 'linear-gradient(135deg, #8f989f 0%, #7198ae 52%, #c39637 100%)' },
   // Bright themes
   { id: 'synthwave-day', label: 'Vaporwave Day',  swatch: '#8a4fff', tone: 'bright',
     gradient: 'linear-gradient(135deg, #f0e8ff 0%, #8a4fff 55%, #16b0b0 100%)' },
