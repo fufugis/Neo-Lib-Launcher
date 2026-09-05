@@ -1,16 +1,26 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Archive, CalendarDays, ChevronLeft, ChevronRight, Clock3, Download, EyeOff, ExternalLink, FolderOpen, Gamepad2, GripVertical, HardDrive, Newspaper, RefreshCw, ShieldCheck, Sparkles, Star, Trophy, X } from 'lucide-react';
+import { Archive, CalendarDays, ChevronLeft, ChevronRight, Clock3, Download, EyeOff, ExternalLink, FolderOpen, Gamepad2, GripVertical, HardDrive, LockKeyhole, Newspaper, RefreshCw, ShieldCheck, Sparkles, Star, Trophy, X } from 'lucide-react';
 import UpdateHistoryModal from './UpdateHistoryModal';
 
 const RANGES = { today: { label: 'Today', days: 1 }, week: { label: 'This week', days: 7 }, month: { label: 'This month', days: 31 } };
-const PLATFORM = { steam: 'Steam', epic: 'Epic', gog: 'GOG', ea: 'EA app', ubisoft: 'Ubisoft', battlenet: 'Battle.net', riot: 'Riot', xbox: 'Xbox / Game Pass', rockstar: 'Rockstar', itch: 'itch.io', local: 'Local' };
+const PLATFORM = { steam: 'Steam', epic: 'Epic', gog: 'GOG', ea: 'EA app', ubisoft: 'Ubisoft', battlenet: 'Battle.net', riot: 'Riot', xbox: 'Xbox / Game Pass', rockstar: 'Rockstar', itch: 'itch.io', private: 'Protected', local: 'Local' };
+const HOME_SEGMENTS = [
+  { id: 'play', label: 'Play & history', hint: 'Your sessions, favourites, ratings, and next adventure.', icon: Gamepad2, panes: ['play-next', 'recent', 'best-games', 'chronicle'] },
+  { id: 'updates', label: 'News & updates', hint: 'Available game updates and what just released.', icon: Download, panes: ['updates', 'released-week'] },
+  { id: 'system', label: 'Library & PC care', hint: 'Library health, storage, and the things worth checking.', icon: HardDrive, panes: ['health', 'storage'] },
+];
 const HOME_PANES = [
-  ['news', 'News'], ['play-next', 'What should I play?'], ['updates', 'Game Updates'], ['activity', 'Your week'],
-  ['health', 'Library Health'], ['best-games', 'My Best Games'], ['released-week', 'Released This Week'], ['library-tools', 'Storage & Chronicle'], ['recent', 'Recently active'],
+  ['news', 'News'], ['play-next', 'What should I play?'], ['updates', 'Game Updates'],
+  ['health', 'Library Health'], ['best-games', 'My Best Games'], ['released-week', 'Released This Week'], ['storage', 'Storage Control'], ['chronicle', 'Gaming Chronicle'], ['recent', 'Recently active'],
 ];
 const FIXED_HOME_PANES = [['top-played', 'Top 5 played']];
 const homePaneLabel = (id) => [...FIXED_HOME_PANES, ...HOME_PANES].find(([known]) => known === id)?.[1] || 'pane';
+// These pairs deliberately save vertical space while keeping their contents
+// readable: the dashboard becomes one column again automatically on compact
+// windows. All items remain individual panes, so they keep the existing
+// drag/reorder and hide/show behavior instead of becoming inseparable cards.
+const HALF_WIDTH_HOME_PANES = new Set(['play-next', 'recent', 'best-games', 'chronicle', 'health', 'storage']);
 // Home can unmount while a game is previewed. Keep a completed, local session
 // scan so Storage Control does not look empty when the player comes back.
 let STORAGE_SESSION_CACHE = { loading: false, scannedAt: 0, results: [], skipped: [] };
@@ -43,7 +53,24 @@ function normaliseGameUpdates(value) {
   };
 }
 
-export default function HomeHub({ games = [], onSelect, onOpenPlaytimeImport, onOpenTidyUp, resting = false, homeLayout = {}, onUpdateHomeLayout, updatesCache, onUpdateUpdatesCache }) {
+function maskHomeNews(item, lockedGameCategories) {
+  const category = lockedGameCategories?.[item?.gameId];
+  return category ? { ...item, gameName: 'Locked game', title: 'Update from protected game', snippet: 'Unlock its category in Library to view the details.', appid: null, url: '', homeLocked: true, lockedCategoryName: category } : item;
+}
+function maskHomeUpdate(item, lockedGameCategories) {
+  const category = lockedGameCategories?.[item?.id];
+  return category ? { ...item, name: 'Locked game', platform: 'private', currentVersion: 'Protected', latestVersion: 'Protected', missing: 'Protected until unlock', sourceKind: 'private', homeLocked: true, lockedCategoryName: category } : item;
+}
+function maskHomeUpdates(value, lockedGameCategories) {
+  const updates = normaliseGameUpdates(value);
+  return {
+    ...updates,
+    items: updates.items.map((item) => maskHomeUpdate(item, lockedGameCategories)),
+    needsSetup: updates.needsSetup.map((item) => maskHomeUpdate(item, lockedGameCategories)),
+  };
+}
+
+export default function HomeHub({ games = [], lockedGameCategories = {}, hasPrivateCategories = false, hasLockedPrivateCategories = false, onPanicLock, onSelect, onOpenPlaytimeImport, onOpenTidyUp, resting = false, homeLayout = {}, onUpdateHomeLayout, updatesCache, onUpdateUpdatesCache }) {
   const [range, setRange] = React.useState('week');
   const [rankingScope, setRankingScope] = React.useState('period');
   const [news, setNews] = React.useState({ loading: false, items: [] });
@@ -55,24 +82,54 @@ export default function HomeHub({ games = [], onSelect, onOpenPlaytimeImport, on
   const [gameUpdates, setGameUpdates] = React.useState(() => normaliseGameUpdates(updatesCache));
   const [newsDetail, setNewsDetail] = React.useState(null);
   const [draggedPane, setDraggedPane] = React.useState(null);
-  const [dragPreviewOrder, setDragPreviewOrder] = React.useState(null);
+  const [draggedPaneSegment, setDraggedPaneSegment] = React.useState(null);
+  const [dragPreviewOrders, setDragPreviewOrders] = React.useState(null);
   const [dragInsertion, setDragInsertion] = React.useState(null);
+  const [draggedSegment, setDraggedSegment] = React.useState(null);
+  const [dragSegmentPreviewOrder, setDragSegmentPreviewOrder] = React.useState(null);
+  const [segmentDragInsertion, setSegmentDragInsertion] = React.useState(null);
   const railRef = React.useRef(null);
   const rangeMeta = RANGES[range];
+  const visibleTrackableGames = React.useMemo(() => games.filter((game) => !game.homeLocked), [games]);
+  const visibleNews = React.useMemo(() => ({ ...news, items: news.items.map((item) => maskHomeNews(item, lockedGameCategories)) }), [news, lockedGameCategories]);
+  const visibleGameUpdates = React.useMemo(() => maskHomeUpdates(gameUpdates, lockedGameCategories), [gameUpdates, lockedGameCategories]);
+  const visibleStorage = React.useMemo(() => ({
+    ...storage,
+    skipped: (storage.skipped || []).map((item) => lockedGameCategories?.[item?.id] ? { ...item, name: 'Locked game', reason: 'Protected until unlock' } : item),
+  }), [lockedGameCategories, storage]);
   const cutoff = Date.now() - rangeMeta.days * 86400000;
   const played = React.useMemo(() => games.filter((game) => Number(game.lastPlayedAt || 0) >= cutoff).sort((a, b) => Number(b.lastPlayedAt || 0) - Number(a.lastPlayedAt || 0)), [games, cutoff]);
   const topFive = React.useMemo(() => [...(rankingScope === 'all' ? games : played)].filter((game) => Number(game.playtime || 0) > 0).sort((a, b) => Number(b.playtime || 0) - Number(a.playtime || 0)).slice(0, 5), [games, played, rankingScope]);
   const totalMinutes = played.reduce((sum, game) => sum + Number(game.playtime || 0), 0);
   const health = React.useMemo(() => getLibraryHealth(games), [games]);
-  const recommendations = React.useMemo(() => getRecommendations(games, news.items), [games, news.items]);
-  const chronicle = React.useMemo(() => getChronicle(games, news.items), [games, news.items]);
+  const recommendations = React.useMemo(() => getRecommendations(games, visibleNews.items), [games, visibleNews.items]);
+  const chronicle = React.useMemo(() => getChronicle(games, visibleNews.items), [games, visibleNews.items]);
   const bestGames = React.useMemo(() => [...games].filter((game) => Number(game.rating || 0) > 0).sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0) || Number(b.playtime || 0) - Number(a.playtime || 0)).slice(0, 5), [games]);
-  const paneOrder = React.useMemo(() => {
-    const saved = Array.isArray(homeLayout.order) ? homeLayout.order : [];
-    return [...saved.filter((id) => HOME_PANES.some(([known]) => known === id)), ...HOME_PANES.map(([id]) => id).filter((id) => !saved.includes(id))];
-  }, [homeLayout.order]);
-  const activePaneOrder = dragPreviewOrder || paneOrder;
-  const hiddenPanes = Array.isArray(homeLayout.hidden) ? homeLayout.hidden : [];
+  const segmentOrder = React.useMemo(() => {
+    const saved = Array.isArray(homeLayout.segmentOrder) ? homeLayout.segmentOrder : [];
+    const known = HOME_SEGMENTS.map((segment) => segment.id);
+    return [...saved.filter((id) => known.includes(id)), ...known.filter((id) => !saved.includes(id))];
+  }, [homeLayout.segmentOrder]);
+  const paneOrders = React.useMemo(() => {
+    const savedBySegment = homeLayout.paneOrderBySegment && typeof homeLayout.paneOrderBySegment === 'object' ? homeLayout.paneOrderBySegment : {};
+    const legacyOrder = Array.isArray(homeLayout.order) ? homeLayout.order : [];
+    return Object.fromEntries(HOME_SEGMENTS.map((segment) => {
+      const saved = Array.isArray(savedBySegment[segment.id]) ? savedBySegment[segment.id] : legacyOrder.filter((id) => segment.panes.includes(id));
+      return [segment.id, [...saved.filter((id) => segment.panes.includes(id)), ...segment.panes.filter((id) => !saved.includes(id))]];
+    }));
+  }, [homeLayout.order, homeLayout.paneOrderBySegment]);
+  const activePaneOrders = dragPreviewOrders || paneOrders;
+  const activeSegmentOrder = dragSegmentPreviewOrder || segmentOrder;
+  const hiddenPanes = React.useMemo(() => {
+    const saved = Array.isArray(homeLayout.hidden) ? homeLayout.hidden : [];
+    // Older Home stored Storage and Chronicle as one combined pane. Preserve a
+    // player's old hide choice when that pane becomes two properly grouped
+    // cards, rather than unexpectedly restoring both pieces.
+    return [...new Set([
+      ...saved.filter((id) => HOME_PANES.some(([known]) => known === id)),
+      ...(saved.includes('library-tools') ? ['storage', 'chronicle'] : []),
+    ])];
+  }, [homeLayout.hidden]);
   const updateLayout = (patch) => onUpdateHomeLayout?.({ ...homeLayout, ...patch });
   const reorderPane = React.useCallback((order, source, target, after = false) => {
     if (!source || !target || source === target) return order;
@@ -83,35 +140,73 @@ export default function HomeHub({ games = [], onSelect, onOpenPlaytimeImport, on
     return next;
   }, []);
   const finishPaneDrag = React.useCallback(() => {
-    if (draggedPane && dragPreviewOrder) updateLayout({ order: dragPreviewOrder });
+    if (draggedPane && draggedPaneSegment && dragPreviewOrders) updateLayout({ paneOrderBySegment: dragPreviewOrders });
     setDraggedPane(null);
-    setDragPreviewOrder(null);
+    setDraggedPaneSegment(null);
+    setDragPreviewOrders(null);
     setDragInsertion(null);
-  }, [draggedPane, dragPreviewOrder]);
+  }, [draggedPane, draggedPaneSegment, dragPreviewOrders]);
   React.useEffect(() => {
-    if (!draggedPane) return undefined;
+    if (!draggedPane || !draggedPaneSegment) return undefined;
     const onMove = (event) => {
       const target = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('[data-home-pane-id]');
       const targetId = target?.dataset?.homePaneId || '';
-      if (!targetId || targetId === draggedPane) return;
+      const targetSegment = target?.dataset?.homePaneSegment || '';
+      // A pane is deliberately trapped inside its own conceptual Home group.
+      // This prevents a System card from drifting into Play just because the
+      // player scrolls through a long dashboard while holding the handle.
+      if (!targetId || targetId === draggedPane || targetSegment !== draggedPaneSegment) return;
       const rect = target.getBoundingClientRect();
-      const after = event.clientY > rect.top + rect.height / 2;
-      setDragInsertion({ id: targetId, after });
-      setDragPreviewOrder((order) => reorderPane(order || paneOrder, draggedPane, targetId, after));
+      const horizontal = HALF_WIDTH_HOME_PANES.has(draggedPane) && HALF_WIDTH_HOME_PANES.has(targetId);
+      const after = horizontal ? event.clientX > rect.left + rect.width / 2 : event.clientY > rect.top + rect.height / 2;
+      setDragInsertion({ id: targetId, after, horizontal });
+      setDragPreviewOrders((orders) => ({
+        ...(orders || paneOrders),
+        [draggedPaneSegment]: reorderPane((orders || paneOrders)[draggedPaneSegment], draggedPane, targetId, after),
+      }));
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', finishPaneDrag, { once: true });
     return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', finishPaneDrag); };
-  }, [draggedPane, finishPaneDrag, paneOrder, reorderPane]);
-  const startPaneDrag = (id, event) => {
+  }, [draggedPane, draggedPaneSegment, finishPaneDrag, paneOrders, reorderPane]);
+  const startPaneDrag = (segmentId, id, event) => {
     event.preventDefault();
     event.currentTarget.setPointerCapture?.(event.pointerId);
     setDraggedPane(id);
-    setDragPreviewOrder(activePaneOrder);
+    setDraggedPaneSegment(segmentId);
+    setDragPreviewOrders(activePaneOrders);
     setDragInsertion(null);
   };
+  const finishSegmentDrag = React.useCallback(() => {
+    if (draggedSegment && dragSegmentPreviewOrder) updateLayout({ segmentOrder: dragSegmentPreviewOrder });
+    setDraggedSegment(null);
+    setDragSegmentPreviewOrder(null);
+    setSegmentDragInsertion(null);
+  }, [draggedSegment, dragSegmentPreviewOrder]);
+  React.useEffect(() => {
+    if (!draggedSegment) return undefined;
+    const onMove = (event) => {
+      const target = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('[data-home-segment-id]');
+      const targetId = target?.dataset?.homeSegmentId || '';
+      if (!targetId || targetId === draggedSegment) return;
+      const rect = target.getBoundingClientRect();
+      const after = event.clientY > rect.top + rect.height / 2;
+      setSegmentDragInsertion({ id: targetId, after });
+      setDragSegmentPreviewOrder((order) => reorderPane(order || segmentOrder, draggedSegment, targetId, after));
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', finishSegmentDrag, { once: true });
+    return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', finishSegmentDrag); };
+  }, [draggedSegment, finishSegmentDrag, reorderPane, segmentOrder]);
+  const startSegmentDrag = (id, event) => {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    setDraggedSegment(id);
+    setDragSegmentPreviewOrder(activeSegmentOrder);
+    setSegmentDragInsertion(null);
+  };
   const togglePane = (id, hidden) => updateLayout({ hidden: hidden ? [...new Set([...hiddenPanes, id])] : hiddenPanes.filter((item) => item !== id) });
-  const paneProps = { paneOrder: activePaneOrder, hiddenPanes, draggedPane, dragInsertion, startPaneDrag, togglePane };
+  const paneProps = (segmentId) => ({ paneOrder: activePaneOrders[segmentId], hiddenPanes, draggedPane, draggedPaneSegment, dragInsertion, startPaneDrag, togglePane, segmentId });
 
   React.useEffect(() => {
     const cached = normaliseGameUpdates(updatesCache);
@@ -120,15 +215,17 @@ export default function HomeHub({ games = [], onSelect, onOpenPlaytimeImport, on
 
   React.useEffect(() => {
     if (resting || !window.api?.fetchAllNews) return undefined;
-    const eligible = games.filter((game) => game && (game.appid || game.gogId || /itch\.io/.test(game.website || '') || game.source === 'itch'));
+    // Named games without Steam/GOG/itch identities are intentionally included:
+    // the main process gives their official site and web-discovery path a turn.
+    const eligible = visibleTrackableGames.filter((game) => game && String(game.name || '').trim());
     if (!eligible.length) { setNews({ loading: false, items: [] }); return undefined; }
     let cancelled = false;
     setNews((value) => ({ ...value, loading: true }));
-    window.api.fetchAllNews({ games: eligible.map(({ id, appid, name, website, source, gogId }) => ({ id, appid, name, website, source, gogId })), days: rangeMeta.days, force: false })
+    window.api.fetchAllNews({ games: eligible.map(({ id, appid, name, website, source, launcher, gogId }) => ({ id, appid, name, website, source, launcher, gogId })), days: rangeMeta.days, force: false })
       .then((result) => { if (!cancelled) setNews({ loading: false, items: (result?.items || []).sort((a, b) => Number(b.date || 0) - Number(a.date || 0)) }); })
       .catch(() => { if (!cancelled) setNews({ loading: false, items: [] }); });
     return () => { cancelled = true; };
-  }, [games, rangeMeta.days, resting]);
+  }, [rangeMeta.days, resting, visibleTrackableGames]);
 
   const refreshWeeklyReleases = React.useCallback(async (force = false) => {
     if (resting || !window.api?.fetchWeeklyReleases) return;
@@ -147,7 +244,7 @@ export default function HomeHub({ games = [], onSelect, onOpenPlaytimeImport, on
     if (resting || !window.api?.scanGameUpdates) return;
     setGameUpdates((value) => ({ ...value, loading: true, error: '' }));
     try {
-      const scopedGames = gameIds.length ? games.filter((game) => gameIds.includes(game.id)) : games;
+      const scopedGames = (gameIds.length ? visibleTrackableGames.filter((game) => gameIds.includes(game.id)) : visibleTrackableGames);
       const result = await window.api.scanGameUpdates({ games: scopedGames.map(({ id, name, appid, launcher, source, steamOwned, installedVersion, updateWatchUrl, website, exePath }) => ({ id, name, appid, launcher, source, steamOwned, installedVersion, updateWatchUrl, website, exePath })), force });
       const next = { loading: false, items: result?.items || [], needsSetup: result?.needsSetup || [], ledger: result?.ledger || [], checked: result?.checked || 0, launcherManagedCount: result?.launcherManagedCount || 0, scannedAt: result?.scannedAt || Date.now(), error: result?.ok === false ? (result.error || 'Update scan unavailable.') : '' };
       setGameUpdates(next);
@@ -155,7 +252,7 @@ export default function HomeHub({ games = [], onSelect, onOpenPlaytimeImport, on
     } catch {
       setGameUpdates((value) => ({ ...value, loading: false, error: 'Update scan unavailable.' }));
     }
-  }, [games, onUpdateUpdatesCache, resting]);
+  }, [onUpdateUpdatesCache, resting, visibleTrackableGames]);
   React.useEffect(() => {
     if (resting) return undefined;
     // Home is already mounted behind the CRT intro. Do not let that hidden
@@ -168,50 +265,65 @@ export default function HomeHub({ games = [], onSelect, onOpenPlaytimeImport, on
   const scanStorage = async () => {
     if (!window.api?.scanGameStorage) return;
     setStorage((value) => ({ ...value, loading: true }));
-    const result = await window.api.scanGameStorage({ games: games.map(({ id, name, exePath, launcher }) => ({ id, name, exePath, launcher })), force: Boolean(storage.scannedAt) });
+    const result = await window.api.scanGameStorage({ games: visibleTrackableGames.map(({ id, name, exePath, launcher }) => ({ id, name, exePath, launcher })), force: Boolean(storage.scannedAt) });
     const next = { loading: false, scannedAt: result?.scannedAt || 0, results: result?.results || [], skipped: result?.skipped || [] };
     STORAGE_SESSION_CACHE = next;
     setStorage(next);
   };
+  const paneContent = {
+    'play-next': <PlayNext recommendations={recommendations} onSelect={onSelect} />,
+    updates: <GameUpdates updates={visibleGameUpdates} onRefresh={() => refreshGameUpdates([], true)} onResolve={(ids) => refreshGameUpdates(ids, true)} onSelect={onSelect} />,
+    health: <LibraryHealth health={health} onOpenTidyUp={onOpenTidyUp} gameCount={games.length} />,
+    'best-games': <MyBestGames games={bestGames} onSelect={onSelect} />,
+    'released-week': <ReleasedThisWeek releases={weeklyReleases} onRefresh={() => refreshWeeklyReleases(true)} />,
+    storage: <StorageCentre games={games} storage={visibleStorage} onScan={scanStorage} onSelect={onSelect} />,
+    chronicle: <GamingChronicle entries={chronicle} onSelect={onSelect} />,
+    recent: <section className="pb-1"><div className="mb-2 flex items-center gap-2"><Clock3 size={14} className="text-[rgb(var(--accent))]" /><h2 className="text-xs font-black uppercase tracking-[0.18em]">Recent sessions</h2><span className="text-[10px] text-muted">Latest plays · chronological</span></div><div className="overflow-hidden rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.3)]">{played.length ? played.slice(0, 5).map((game) => <button key={game.id} onClick={() => onSelect?.(game.id)} className="flex w-full items-center gap-3 border-b border-[rgb(var(--border)/0.55)] px-3 py-2.5 text-left last:border-b-0 hover:bg-[rgb(var(--accent)/0.07)]"><Cover game={game} /><span className="min-w-0 flex-1"><span className="block truncate text-xs font-bold">{game.name}</span><span className="mt-0.5 flex items-center gap-1 text-[10px] text-muted"><Gamepad2 size={10} />{PLATFORM[platformOf(game)]}</span></span><span className="hidden text-right text-[10px] text-muted sm:block">Played<br /><b className="text-ink">{relative(game.lastPlayedAt)}</b></span><span className="font-mono text-xs font-bold text-[rgb(var(--accent-2))]">{hours(game.playtime)}</span></button>) : <p className="p-5 text-center text-xs text-muted">Your latest sessions will appear here.</p>}</div></section>,
+  };
   return <section className="flex h-full flex-col overflow-y-auto px-6 py-6 lg:px-9" data-testid="home-hub">
     <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div><p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[rgb(var(--accent-2))]">Your NEO-LIB</p><h1 className="font-display text-4xl font-black tracking-tight">Home</h1><p className="mt-1.5 text-[13px] text-muted">Your games, your time, and the updates that matter.</p></div>
-      <div className="flex flex-wrap justify-end gap-2"><div className="flex rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] p-1">{Object.entries(RANGES).map(([key, meta]) => <button key={key} onClick={() => setRange(key)} className={`rounded-md px-3 py-1.5 text-[11px] font-bold transition ${range === key ? 'bg-[rgb(var(--accent)/0.22)] text-ink shadow-[0_0_12px_-4px_rgb(var(--accent))]' : 'text-muted hover:text-ink'}`}>{meta.label}</button>)}</div>{hiddenPanes.length > 0 && <div className="flex items-center gap-1 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] p-1">{hiddenPanes.map((id) => <button key={id} onClick={() => togglePane(id, false)} className="rounded px-2 py-1.5 text-[10px] font-bold text-muted hover:bg-[rgb(var(--accent)/0.14)] hover:text-ink">Show {homePaneLabel(id)}</button>)}</div>}</div>
+      <div className="flex flex-wrap justify-end gap-2">{hasPrivateCategories && <button type="button" onClick={onPanicLock} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-400/60 bg-red-400/[0.09] px-3 text-xs font-bold text-red-200 shadow-[0_0_16px_-7px_rgba(248,113,113,.95)] transition hover:bg-red-400/[0.18] hover:text-red-100" title="Lock every private category and return to a safe Library view" aria-label="Lock private categories"><ShieldCheck size={15} />Lock private</button>}<div className="flex rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] p-1">{Object.entries(RANGES).map(([key, meta]) => <button key={key} onClick={() => setRange(key)} className={`rounded-md px-3 py-1.5 text-[11px] font-bold transition ${range === key ? 'bg-[rgb(var(--accent)/0.22)] text-ink shadow-[0_0_12px_-4px_rgb(var(--accent))]' : 'text-muted hover:text-ink'}`}>{meta.label}</button>)}</div>{hiddenPanes.length > 0 && <div className="flex items-center gap-1 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] p-1">{hiddenPanes.map((id) => <button key={id} onClick={() => togglePane(id, false)} className="rounded px-2 py-1.5 text-[10px] font-bold text-muted hover:bg-[rgb(var(--accent)/0.14)] hover:text-ink">Show {homePaneLabel(id)}</button>)}</div>}</div>
     </header>
 
-    {!hiddenPanes.includes('top-played') && <TopPlayed games={topFive} scope={rankingScope} onScope={setRankingScope} rangeLabel={rangeMeta.label} onSelect={onSelect} onHide={() => togglePane('top-played', true)} />}
+    {hasLockedPrivateCategories && <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-400/35 bg-red-400/[0.065] px-4 py-3 shadow-[0_12px_28px_-22px_rgba(248,113,113,.9)]" data-testid="home-private-categories-locked-notice"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-red-400/40 bg-red-400/[0.10] text-red-200"><LockKeyhole size={15} /></span><span className="min-w-0"><span className="block text-[11px] font-black uppercase tracking-[0.16em] text-red-200">Private categories are locked</span><span className="mt-1 block text-[11px] leading-relaxed text-ink/90">Please unlock them in Library to view stats and news from these games.</span></span></div>}
 
-    <HomePane id="news" {...paneProps}><section className="rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.34)] p-5">
-      <div className="mb-3 flex items-center justify-between gap-2"><div className="flex items-center gap-2.5"><Newspaper size={17} className="text-[rgb(var(--accent-2))]" /><h2 className="text-sm font-black uppercase tracking-[0.18em]">News · {rangeMeta.label}</h2></div><div className="flex gap-1"><RailButton onClick={() => scrollNews(-1)}><ChevronLeft size={14} /></RailButton><RailButton onClick={() => scrollNews(1)}><ChevronRight size={14} /></RailButton></div></div>
-      <div ref={railRef} onWheel={(event) => { if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) { event.currentTarget.scrollLeft += event.deltaY; event.preventDefault(); } }} className="flex gap-3 overflow-x-auto pb-2 [scrollbar-color:rgb(var(--accent))_transparent] [scrollbar-width:thin]">
-        {news.loading && <p className="px-1 py-5 text-[13px] text-muted">Loading your game news…</p>}
-        {!news.loading && !news.items.length && <p className="px-1 py-5 text-[13px] text-muted">No updates in this period yet. News from Steam, GOG, and itch.io will appear here.</p>}
-        {news.items.map((item) => <button key={item.id} onClick={() => setNewsDetail(item)} className="group flex w-[min(460px,86vw)] shrink-0 gap-4 rounded-2xl border border-[rgb(var(--border)/0.8)] bg-[rgb(var(--surface)/0.35)] p-4 text-left transition hover:border-[rgb(var(--accent)/0.55)] hover:bg-[rgb(var(--accent)/0.07)]"><NewsCover item={item} /><span className="min-w-0 flex-1"><p className="text-[11.5px] font-bold text-[rgb(var(--accent-2))]">{item.gameName || 'Game update'} · {relative(item.date)}</p><h3 className="mt-1.5 line-clamp-2 text-[16px] font-bold leading-snug group-hover:text-[rgb(var(--accent))]">{item.title}</h3>{item.snippet && <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-muted">{item.snippet}</p>}</span></button>)}
-      </div>
-    </section></HomePane>
-
-    <HomePane id="play-next" {...paneProps}><PlayNext recommendations={recommendations} onSelect={onSelect} /></HomePane>
-    <HomePane id="updates" {...paneProps}><GameUpdates updates={gameUpdates} onRefresh={() => refreshGameUpdates([], true)} onResolve={(ids) => refreshGameUpdates(ids, true)} onSelect={onSelect} /></HomePane>
-
-    <HomePane id="activity" {...paneProps}><section className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.34)] p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[rgb(var(--accent-2))]">{rangeMeta.label}</p><h2 className="mt-1 text-sm font-black">Your week in NEO-LIB</h2><div className="mt-3 flex flex-wrap gap-x-8 gap-y-3"><Stat label="Played" value={hours(totalMinutes)} /><Stat label="Games touched" value={played.length} /><Stat label="Today" value={games.filter((game) => Number(game.lastPlayedAt || 0) >= Date.now() - 86400000).length} /><Stat label="Library" value={games.length} /></div></div><button onClick={() => onOpenPlaytimeImport?.()} className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[rgb(var(--border))] px-2.5 py-2 text-[10.5px] font-bold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink" title="Import Steam playtime into your local library"><RefreshCw size={12} className="text-[rgb(var(--accent))]" />Sync hours</button></div></section></HomePane>
-
-    <HomePane id="health" {...paneProps}><LibraryHealth health={health} onOpenTidyUp={onOpenTidyUp} gameCount={games.length} /></HomePane>
-
-    <HomePane id="best-games" {...paneProps}><MyBestGames games={bestGames} onSelect={onSelect} /></HomePane>
-    <HomePane id="released-week" {...paneProps}><ReleasedThisWeek releases={weeklyReleases} onRefresh={() => refreshWeeklyReleases(true)} /></HomePane>
-    <HomePane id="library-tools" {...paneProps}><section className="grid gap-3 lg:grid-cols-[1.15fr_1fr]">
-      <StorageCentre games={games} storage={storage} onScan={scanStorage} onSelect={onSelect} />
-      <GamingChronicle entries={chronicle} onSelect={onSelect} />
-    </section></HomePane>
-    <HomePane id="recent" {...paneProps}><section className="pb-6"><div className="mb-2 flex items-center gap-2"><Clock3 size={14} className="text-[rgb(var(--accent))]" /><h2 className="text-xs font-black uppercase tracking-[0.18em]">Recent sessions</h2><span className="text-[10px] text-muted">Latest plays · chronological</span></div><div className="overflow-hidden rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.3)]">{played.length ? played.slice(0, 8).map((game) => <button key={game.id} onClick={() => onSelect?.(game.id)} className="flex w-full items-center gap-3 border-b border-[rgb(var(--border)/0.55)] px-3 py-2.5 text-left last:border-b-0 hover:bg-[rgb(var(--accent)/0.07)]"><Cover game={game} /><span className="min-w-0 flex-1"><span className="block truncate text-xs font-bold">{game.name}</span><span className="mt-0.5 flex items-center gap-1 text-[10px] text-muted"><Gamepad2 size={10} />{PLATFORM[platformOf(game)]}</span></span><span className="hidden text-right text-[10px] text-muted sm:block">Played<br /><b className="text-ink">{relative(game.lastPlayedAt)}</b></span><span className="hidden text-right text-[10px] text-muted md:block">Added<br /><b className="text-ink">{added(game.addedAt)}</b></span><span className="font-mono text-xs font-bold text-[rgb(var(--accent-2))]">{hours(game.playtime)}</span></button>) : <p className="p-5 text-center text-xs text-muted">Your latest sessions will appear here.</p>}</div></section></HomePane>
+    {!hiddenPanes.includes('top-played') && <TopPlayed games={topFive} scope={rankingScope} onScope={setRankingScope} rangeLabel={rangeMeta.label} summary={{ totalMinutes, gamesTouched: played.length, today: games.filter((game) => Number(game.lastPlayedAt || 0) >= Date.now() - 86400000).length, library: games.length }} onSelect={onSelect} onHide={() => togglePane('top-played', true)} />}
+    {!hiddenPanes.includes('news') && <PinnedNews news={visibleNews} railRef={railRef} onScroll={scrollNews} onOpen={setNewsDetail} onHide={() => togglePane('news', true)} rangeLabel={rangeMeta.label} />}
+    <div className="home-segment-list flex flex-col">
+      {activeSegmentOrder.map((segmentId) => {
+        const segment = HOME_SEGMENTS.find((item) => item.id === segmentId);
+        if (!segment) return null;
+        const Icon = segment.icon;
+        const visible = activePaneOrders[segmentId].filter((id) => !hiddenPanes.includes(id));
+        return <HomeSegment key={segmentId} id={segmentId} title={segment.label} hint={segment.hint} icon={<Icon size={15} />} segmentOrder={activeSegmentOrder} draggedSegment={draggedSegment} dragInsertion={segmentDragInsertion} startSegmentDrag={startSegmentDrag}>
+          {visible.length ? <div className="grid grid-cols-1 gap-x-5 xl:grid-cols-2">{activePaneOrders[segmentId].map((id) => <HomePane key={id} id={id} {...paneProps(segmentId)}>{paneContent[id]}</HomePane>)}</div> : <p className="px-9 py-4 text-xs text-muted">Every pane in this section is hidden. Use the Show controls above to bring one back.</p>}
+        </HomeSegment>;
+      })}
+    </div>
     {newsDetail && <NewsDetail item={newsDetail} onClose={() => setNewsDetail(null)} />}
   </section>;
 }
 function RailButton({ children, onClick }) { return <button onClick={onClick} className="grid h-7 w-7 place-items-center rounded-md border border-[rgb(var(--border))] text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink">{children}</button>; }
 
+// News is intentionally a compact fixed rail. It belongs directly below the
+// player's Top 5 rather than competing with the full-size movable dashboard
+// cards, and it remains separate from the Updates section beneath it.
+function PinnedNews({ news, railRef, onScroll, onOpen, onHide, rangeLabel }) {
+  return <section className="mb-10 rounded-2xl border border-t-2 border-[rgb(var(--accent)/0.76)] bg-[linear-gradient(112deg,rgb(var(--accent)/0.18),rgb(var(--panel)/0.40)_46%,rgb(var(--accent-2)/0.12))] px-5 py-4 shadow-[0_0_40px_-24px_rgb(var(--accent)),0_18px_46px_-38px_rgb(var(--accent-2))]" data-testid="home-pinned-news">
+    <div className="mb-3.5 flex items-center justify-between gap-2"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl border border-[rgb(var(--accent-2)/0.46)] bg-[rgb(var(--accent-2)/0.14)] shadow-[0_0_18px_-4px_rgb(var(--accent-2))]"><Newspaper size={18} className="text-[rgb(var(--accent-2))]" /></span><div><p className="text-[10px] font-black uppercase tracking-[0.25em] text-[rgb(var(--accent-2))]">Weekly game news</p><h2 className="mt-0.5 text-base font-black tracking-wide">What changed in your library</h2><p className="mt-0.5 text-[10.5px] text-muted">Fresh patch notes, updates, and stories · {rangeLabel.toLowerCase()}</p></div></div><div className="flex items-center gap-1"><RailButton onClick={() => onScroll(-1)}><ChevronLeft size={13} /></RailButton><RailButton onClick={() => onScroll(1)}><ChevronRight size={13} /></RailButton><button onClick={onHide} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink" title="Hide This Week's News"><EyeOff size={13} /></button></div></div>
+    <div ref={railRef} onWheel={(event) => { if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) { event.currentTarget.scrollLeft += event.deltaY; event.preventDefault(); } }} className="flex gap-3 overflow-x-auto pb-1 [scrollbar-color:rgb(var(--accent))_transparent] [scrollbar-width:thin]">
+      {news.loading && <p className="px-1 py-3 text-xs text-muted">Loading this week’s game news…</p>}
+      {!news.loading && !news.items.length && <p className="px-1 py-3 text-xs text-muted">No game news in {rangeLabel.toLowerCase()} yet.</p>}
+      {news.items.map((item) => <button key={item.id} onClick={() => !item.homeLocked && onOpen?.(item)} disabled={item.homeLocked} className={`group flex w-[min(430px,84vw)] shrink-0 gap-3.5 rounded-xl border border-[rgb(var(--border)/0.75)] bg-[rgb(var(--surface)/0.34)] p-3 text-left transition ${item.homeLocked ? 'cursor-default' : 'hover:-translate-y-0.5 hover:border-[rgb(var(--accent)/0.72)] hover:bg-[rgb(var(--surface)/0.58)]'}`}><NewsCover item={item} /><span className="min-w-0 flex-1"><p className="text-[10.5px] font-bold text-[rgb(var(--accent-2))]">{item.gameName || 'Game update'} · {relative(item.date)}</p><h3 className="mt-1 line-clamp-2 text-[14px] font-black leading-snug group-hover:text-[rgb(var(--accent))]">{item.title}</h3>{item.snippet && <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted">{item.snippet}</p>}</span></button>)}
+    </div>
+  </section>;
+}
+
 function GameUpdates({ updates, onRefresh, onResolve, onSelect }) {
   const [historyItem, setHistoryItem] = React.useState(null);
   const [downloadError, setDownloadError] = React.useState('');
+  const resolvableNeedsSetup = (updates.needsSetup || []).filter((item) => !item.homeLocked);
   const openUpdate = async (item) => {
     setDownloadError('');
     const result = await window.api?.openLauncherDownloads?.(item.platform);
@@ -223,37 +335,68 @@ function GameUpdates({ updates, onRefresh, onResolve, onSelect }) {
     {updates.items.length ? <><div className="mt-3 grid gap-2 md:grid-cols-2">{updates.items.map((item) => {
       const needsComparison = item.status === 'attention';
       const tone = needsComparison ? 'amber' : 'emerald';
-      const detail = needsComparison
+      const detail = item.homeLocked
+        ? 'Update details are protected until this category is unlocked.'
+        : needsComparison
         ? `${item.currentVersion && item.currentVersion !== 'Unknown' ? `Local clue ${item.currentVersion} · ` : ''}Latest public version · ${item.latestVersion}`
         : item.sourceKind === 'watch-page'
           ? `New update · ${item.currentVersion} → ${item.latestVersion}`
           : `New update · ${item.platform} · ${size(item.remainingBytes)} remaining`;
       return <div key={item.id} className={`flex items-center gap-3 rounded-lg border p-3 ${needsComparison ? 'border-amber-300/35 bg-amber-300/[0.065]' : 'border-emerald-400/30 bg-emerald-400/[0.055]'}`}>
-        <button onClick={() => onSelect?.(item.id)} className="min-w-0 flex-1 text-left">
+        <button onClick={() => !item.homeLocked && onSelect?.(item.id)} disabled={item.homeLocked} className={`min-w-0 flex-1 text-left ${item.homeLocked ? 'cursor-default' : ''}`}>
           <span className="block truncate text-xs font-black text-ink">{item.name}</span>
           <span className={`mt-0.5 block text-[10px] font-bold uppercase tracking-wide ${tone === 'amber' ? 'text-amber-200' : 'text-emerald-300'}`}>{detail}</span>
-          <span className="mt-1 block text-[10px] text-muted">{needsComparison ? item.currentVersion && item.currentVersion !== 'Unknown' ? 'NEO-LIB found a Windows executable version clue, but needs stronger game-owned evidence before comparing it. Check the history.' : 'A newer public patch was found, but this installed build could not reveal its version yet. Check the history to compare.' : 'There is a new update for this game you might want to check out.'}</span>
+          <span className="mt-1 block text-[10px] text-muted">{item.homeLocked ? 'Unlock its category in Library to reveal this update.' : needsComparison ? item.currentVersion && item.currentVersion !== 'Unknown' ? 'NEO-LIB found a Windows executable version clue, but needs stronger game-owned evidence before comparing it. Check the history.' : 'A newer public patch was found, but this installed build could not reveal its version yet. Check the history to compare.' : 'There is a new update for this game you might want to check out.'}</span>
         </button>
-        <button onClick={() => item.sourceKind === 'watch-page' ? setHistoryItem(item) : openUpdate(item)} className={`shrink-0 rounded-md border px-2.5 py-1.5 text-[10px] font-bold ${tone === 'amber' ? 'border-amber-300/40 text-amber-200 hover:bg-amber-300/10' : 'border-emerald-400/35 text-emerald-300 hover:bg-emerald-400/10'}`}>{item.sourceKind === 'watch-page' ? 'Patch history' : 'Open downloads'}</button>
+        {item.homeLocked ? <span className="shrink-0 rounded-md border border-[rgb(var(--accent)/0.35)] px-2.5 py-1.5 text-[10px] font-bold text-[rgb(var(--accent-2))]">Locked</span> : <button onClick={() => item.sourceKind === 'watch-page' ? setHistoryItem(item) : openUpdate(item)} className={`shrink-0 rounded-md border px-2.5 py-1.5 text-[10px] font-bold ${tone === 'amber' ? 'border-amber-300/40 text-amber-200 hover:bg-amber-300/10' : 'border-emerald-400/35 text-emerald-300 hover:bg-emerald-400/10'}`}>{item.sourceKind === 'watch-page' ? 'Patch history' : 'Open downloads'}</button>}
       </div>;
     })}</div>{downloadError && <p role="status" className="mt-2 rounded-lg border border-amber-300/30 bg-amber-300/[0.08] px-3 py-2 text-[10px] font-bold text-amber-200">{downloadError}</p>}</> : <div className="mt-3 flex items-center gap-2 rounded-lg border border-[rgb(var(--border)/0.65)] bg-[rgb(var(--surface)/0.25)] p-3 text-[11px] text-muted"><ShieldCheck size={14} className="text-emerald-400" />{updates.loading ? 'Checking update sources…' : updates.error || `No verified updates found across ${updates.checked} checked source${updates.checked === 1 ? '' : 's'}.`}</div>}
-    {!updates.loading && updates.needsSetup?.length > 0 && <div className="mt-3 rounded-lg border border-amber-300/25 bg-amber-300/[0.045] p-3 text-[10.5px] text-muted"><div className="flex flex-wrap items-center justify-between gap-2"><b className="text-amber-200">{updates.needsSetup.length} game{updates.needsSetup.length === 1 ? '' : 's'} need stronger update evidence.</b><button onClick={() => onResolve?.(updates.needsSetup.map((item) => item.id).filter(Boolean))} className="rounded-md border border-amber-300/35 px-2 py-1 text-[9.5px] font-black text-amber-200 hover:bg-amber-300/10">Resolve checks</button></div><p className="mt-1">NEO-LIB already tries game-owned files, nearby manifests, executable metadata, official pages, and a bounded web search. It will not pretend an unproven result is up to date.</p><div className="mt-2 space-y-1.5">{updates.needsSetup.slice(0, 5).map((item) => <button key={item.id} onClick={() => onResolve?.([item.id])} className="block max-w-full truncate text-left text-[10px] hover:text-ink"><span className="font-bold text-ink">{item.name}</span> · {item.missing} <span className="text-[rgb(var(--accent-2))]">Resolve</span></button>)}</div></div>}
+    {!updates.loading && updates.needsSetup?.length > 0 && <div className="mt-3 rounded-lg border border-amber-300/25 bg-amber-300/[0.045] p-3 text-[10.5px] text-muted"><div className="flex flex-wrap items-center justify-between gap-2"><b className="text-amber-200">{updates.needsSetup.length} game{updates.needsSetup.length === 1 ? '' : 's'} need stronger update evidence.</b>{resolvableNeedsSetup.length > 0 && <button onClick={() => onResolve?.(resolvableNeedsSetup.map((item) => item.id).filter(Boolean))} className="rounded-md border border-amber-300/35 px-2 py-1 text-[9.5px] font-black text-amber-200 hover:bg-amber-300/10">Resolve checks</button>}</div><p className="mt-1">NEO-LIB already tries game-owned files, nearby manifests, executable metadata, official pages, and a bounded web search. It will not pretend an unproven result is up to date.</p><div className="mt-2 space-y-1.5">{updates.needsSetup.slice(0, 5).map((item) => item.homeLocked ? <p key={item.id} className="block max-w-full truncate text-[10px]"><span className="font-bold text-ink">Locked game</span> · Protected until unlock</p> : <button key={item.id} onClick={() => onResolve?.([item.id])} className="block max-w-full truncate text-left text-[10px] hover:text-ink"><span className="font-bold text-ink">{item.name}</span> · {item.missing} <span className="text-[rgb(var(--accent-2))]">Resolve</span></button>)}</div></div>}
     {!updates.loading && updates.launcherManagedCount > 0 && <p className="mt-2 text-[9.5px] text-muted">{updates.launcherManagedCount} launcher game{updates.launcherManagedCount === 1 ? '' : 's'} kept in launcher-managed state until their client exposes a trustworthy update signal—never counted as an update.</p>}
   </section><UpdateHistoryModal item={historyItem} onClose={() => setHistoryItem(null)} /></>;
 }
-function TopPlayed({ games, scope, onScope, rangeLabel, onSelect, onHide }) {
-  return <section className="mx-auto mb-6 w-full max-w-5xl rounded-2xl border border-[rgb(var(--accent)/0.34)] bg-[linear-gradient(110deg,rgb(var(--accent)/0.13),rgb(var(--panel)/0.44)_44%,rgb(var(--accent-2)/0.09))] p-4 shadow-[0_0_34px_-22px_rgb(var(--accent))]" data-testid="home-top-played"><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-2.5"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[rgb(var(--accent)/0.16)]"><Trophy size={17} className="text-[rgb(var(--accent))]" /></span><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">Your favorites in motion</p><h2 className="text-sm font-black">Top 5 played</h2></div></div><div className="flex items-center gap-2"><div className="flex rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.38)] p-0.5 text-[10px] font-bold"><button onClick={() => onScope('period')} className={`rounded-md px-2.5 py-1.5 ${scope === 'period' ? 'bg-[rgb(var(--accent)/0.20)] text-ink' : 'text-muted'}`}>{rangeLabel}</button><button onClick={() => onScope('all')} className={`rounded-md px-2.5 py-1.5 ${scope === 'all' ? 'bg-[rgb(var(--accent)/0.20)] text-ink' : 'text-muted'}`}>All time</button></div><button onClick={onHide} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink" title="Hide Top 5 played"><EyeOff size={13} /></button></div></div>{games.length ? <ol className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{games.map((game, index) => <li key={game.id}><button onClick={() => onSelect?.(game.id)} className="group flex w-full items-center gap-2.5 rounded-xl border border-[rgb(var(--border)/0.8)] bg-[rgb(var(--surface)/0.34)] p-2.5 text-left transition hover:-translate-y-0.5 hover:border-[rgb(var(--accent)/0.6)] hover:bg-[rgb(var(--surface)/0.58)]"><span className="w-4 font-mono text-[10px] font-black text-[rgb(var(--accent-2))]">{index + 1}</span><Cover game={game} className="h-10 w-[68px]" /><span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-black group-hover:text-[rgb(var(--accent))]">{game.name}</span><span className="mt-0.5 block text-[9.5px] text-muted">{PLATFORM[platformOf(game)]}</span><span className="mt-1 block text-[11px] font-bold text-[rgb(var(--accent-2))]">{hours(game.playtime)}</span></span></button></li>)}</ol> : <p className="mt-4 text-center text-xs text-muted">Import or track playtime to begin your ranking.</p>}</section>;
+function TopPlayed({ games, scope, onScope, rangeLabel, summary, onSelect, onHide }) {
+  return <section className="mx-auto mb-6 w-full max-w-5xl rounded-2xl border border-[rgb(var(--accent)/0.34)] bg-[linear-gradient(110deg,rgb(var(--accent)/0.13),rgb(var(--panel)/0.44)_44%,rgb(var(--accent-2)/0.09))] p-4 shadow-[0_0_34px_-22px_rgb(var(--accent))]" data-testid="home-top-played"><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-2.5"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[rgb(var(--accent)/0.16)]"><Trophy size={17} className="text-[rgb(var(--accent))]" /></span><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">Your favorites in motion</p><h2 className="text-sm font-black">Top 5 played</h2></div></div><div className="flex items-center gap-2"><div className="flex rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.38)] p-0.5 text-[10px] font-bold"><button onClick={() => onScope('period')} className={`rounded-md px-2.5 py-1.5 ${scope === 'period' ? 'bg-[rgb(var(--accent)/0.20)] text-ink' : 'text-muted'}`}>{rangeLabel}</button><button onClick={() => onScope('all')} className={`rounded-md px-2.5 py-1.5 ${scope === 'all' ? 'bg-[rgb(var(--accent)/0.20)] text-ink' : 'text-muted'}`}>All time</button></div><button onClick={onHide} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink" title="Hide Top 5 played"><EyeOff size={13} /></button></div></div><div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-y border-[rgb(var(--border)/0.46)] py-2 text-[10px] text-muted"><span className="font-bold uppercase tracking-[0.14em] text-[rgb(var(--accent-2))]">{rangeLabel} at a glance</span><span><b className="text-ink">{hours(summary?.totalMinutes)}</b> played</span><span><b className="text-ink">{summary?.gamesTouched || 0}</b> games touched</span><span><b className="text-ink">{summary?.today || 0}</b> today</span><span><b className="text-ink">{summary?.library || 0}</b> in Library</span></div>{games.length ? <ol className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{games.map((game, index) => <li key={game.id}><button onClick={() => onSelect?.(game.id)} className="group flex w-full items-center gap-2.5 rounded-xl border border-[rgb(var(--border)/0.8)] bg-[rgb(var(--surface)/0.34)] p-2.5 text-left transition hover:-translate-y-0.5 hover:border-[rgb(var(--accent)/0.6)] hover:bg-[rgb(var(--surface)/0.58)]"><span className="w-4 font-mono text-[10px] font-black text-[rgb(var(--accent-2))]">{index + 1}</span><Cover game={game} className="h-10 w-[68px]" /><span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-black group-hover:text-[rgb(var(--accent))]">{game.name}</span><span className="mt-0.5 block text-[9.5px] text-muted">{PLATFORM[platformOf(game)]}</span><span className="mt-1 block text-[11px] font-bold text-[rgb(var(--accent-2))]">{hours(game.playtime)}</span></span></button></li>)}</ol> : <p className="mt-4 text-center text-xs text-muted">Import or track playtime to begin your ranking.</p>}</section>;
 }
-function HomePane({ id, children, paneOrder, hiddenPanes, draggedPane, dragInsertion, startPaneDrag, togglePane }) {
+function HomeSegment({ id, title, hint, icon, children, segmentOrder, draggedSegment, dragInsertion, startSegmentDrag }) {
+  const isDragging = draggedSegment === id;
+  const isPeer = !!draggedSegment && !isDragging;
+  const insertionHere = dragInsertion?.id === id;
+  return <motion.section layout transition={{ layout: { duration: 0.26, ease: 'easeOut' } }} style={{ order: segmentOrder.indexOf(id) }} className={`group/homesegment relative mb-12 rounded-[1.35rem] border border-[rgb(var(--border)/0.72)] bg-[linear-gradient(128deg,rgb(var(--panel)/0.31),rgb(var(--surface)/0.16))] px-3 pb-2 pt-3 shadow-[0_20px_52px_-42px_rgb(var(--accent)/0.72)] ${isDragging ? 'z-20 scale-[0.992] ring-1 ring-[rgb(var(--accent)/0.45)]' : isPeer ? 'opacity-60' : ''}`} data-home-segment-id={id} data-testid={`home-segment-${id}`}>
+    <div className="mb-4 flex items-center gap-3 border-b border-[rgb(var(--border)/0.58)] px-2 pb-3">
+      <button onPointerDown={(event) => startSegmentDrag(id, event)} className={`grid h-8 w-7 shrink-0 cursor-grab place-items-center rounded-lg transition active:cursor-grabbing ${isDragging ? 'bg-[rgb(var(--accent)/0.22)] text-[rgb(var(--accent))] shadow-[0_0_15px_rgb(var(--accent)/0.38)]' : 'text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink'}`} title={`Hold and drag to move the ${title} section`}><GripVertical size={15} /></button>
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[rgb(var(--accent)/0.12)] text-[rgb(var(--accent))]">{icon}</span>
+      <div className="min-w-0 flex-1"><h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-ink">{title}</h2><p className="mt-0.5 text-[10px] text-muted">{hint}</p></div>
+      <span className="hidden rounded-full border border-[rgb(var(--border)/0.72)] px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-muted sm:inline">Reorder section</span>
+    </div>
+    {insertionHere && <span className={`pointer-events-none absolute -left-2 -right-2 z-30 h-0.5 rounded-full bg-[rgb(var(--accent))] shadow-[0_0_14px_rgb(var(--accent))] ${dragInsertion.after ? '-bottom-6' : '-top-6'}`} />}
+    {children}
+  </motion.section>;
+}
+
+function HomePane({ id, children, paneOrder, hiddenPanes, draggedPane, draggedPaneSegment, dragInsertion, startPaneDrag, togglePane, segmentId }) {
   if (hiddenPanes.includes(id)) return null;
   const isDragging = draggedPane === id;
-  const isPeer = !!draggedPane && !isDragging;
+  const isPeer = !!draggedPane && draggedPaneSegment === segmentId && !isDragging;
   const insertionHere = dragInsertion?.id === id;
-  return <motion.div layout transition={{ layout: { duration: 0.22, ease: 'easeOut' } }} style={{ order: paneOrder.indexOf(id) }} className={`group/homepane relative mb-7 pl-9 ${isDragging ? 'z-20 scale-[0.985] opacity-95' : isPeer ? 'opacity-60' : ''}`} data-home-pane-id={id} data-testid={`home-pane-${id}`}><div className={`absolute left-0 top-2 z-30 flex items-center gap-0.5 transition-opacity ${isDragging ? 'opacity-100' : 'opacity-0 group-hover/homepane:opacity-100'}`}><button onPointerDown={(event) => startPaneDrag(id, event)} className={`grid h-7 w-6 cursor-grab place-items-center rounded-md transition active:cursor-grabbing ${isDragging ? 'bg-[rgb(var(--accent)/0.22)] text-[rgb(var(--accent))] shadow-[0_0_14px_rgb(var(--accent)/0.45)]' : 'text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink'}`} title="Hold and drag to reorder this Home pane"><GripVertical size={14} /></button><button onClick={() => togglePane(id, true)} className="grid h-7 w-6 place-items-center rounded-md text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink" title="Hide this Home pane"><EyeOff size={12} /></button></div>{insertionHere && <span className={`pointer-events-none absolute -left-2 -right-2 z-30 h-0.5 rounded-full bg-[rgb(var(--accent))] shadow-[0_0_12px_rgb(var(--accent))] ${dragInsertion.after ? '-bottom-3' : '-top-3'}`} />}{children}</motion.div>;
+  const halfWidth = HALF_WIDTH_HOME_PANES.has(id);
+  const insertionClass = dragInsertion?.horizontal
+    ? `-bottom-1 -top-1 h-auto w-0.5 ${dragInsertion.after ? '-right-3' : '-left-3'}`
+    : `-left-2 -right-2 h-0.5 ${dragInsertion?.after ? '-bottom-3' : '-top-3'}`;
+  return <motion.div layout transition={{ layout: { duration: 0.22, ease: 'easeOut' } }} style={{ order: paneOrder.indexOf(id) }} className={`group/homepane relative mb-5 pl-9 ${halfWidth ? 'xl:col-span-1' : 'xl:col-span-2'} ${isDragging ? 'z-20 scale-[0.985] opacity-95' : isPeer ? 'opacity-60' : ''}`} data-home-pane-id={id} data-home-pane-segment={segmentId} data-testid={`home-pane-${id}`}><div className={`absolute left-0 top-2 z-30 flex items-center gap-0.5 transition-opacity ${isDragging ? 'opacity-100' : 'opacity-0 group-hover/homepane:opacity-100'}`}><button onPointerDown={(event) => startPaneDrag(segmentId, id, event)} className={`grid h-7 w-6 cursor-grab place-items-center rounded-md transition active:cursor-grabbing ${isDragging ? 'bg-[rgb(var(--accent)/0.22)] text-[rgb(var(--accent))] shadow-[0_0_14px_rgb(var(--accent)/0.45)]' : 'text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink'}`} title={`Hold and drag to reorder within ${HOME_SEGMENTS.find((segment) => segment.id === segmentId)?.label || 'this section'}`}><GripVertical size={14} /></button><button onClick={() => togglePane(id, true)} className="grid h-7 w-6 place-items-center rounded-md text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink" title="Hide this Home pane"><EyeOff size={12} /></button></div>{insertionHere && <span className={`pointer-events-none absolute z-30 rounded-full bg-[rgb(var(--accent))] shadow-[0_0_12px_rgb(var(--accent))] ${insertionClass}`} />}{children}</motion.div>;
 }
 function Stat({ label, value }) { return <div><p className="text-2xl font-black text-ink">{value}</p><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted">{label}</p></div>; }
-function Cover({ game, className = 'h-11 w-20' }) { const src = game.headerImage || game.coverUrl; return src ? <img src={src} alt="" className={`${className} shrink-0 rounded object-cover`} /> : <span className={`grid ${className} shrink-0 place-items-center rounded bg-[rgb(var(--surface)/0.8)] text-[10px] font-bold text-muted`}>{game.name?.slice(0, 2)}</span>; }
-function NewsCover({ item }) { const src = item.platform === 'steam' && item.appid ? `https://cdn.akamai.steamstatic.com/steam/apps/${item.appid}/capsule_184x69.jpg` : ''; return src ? <img src={src} alt="" className="h-16 w-[112px] shrink-0 rounded-lg object-cover" onError={(event) => { event.currentTarget.style.display = 'none'; }} /> : <span className="grid h-16 w-[112px] shrink-0 place-items-center rounded-lg bg-[rgb(var(--accent)/0.10)] text-[10px] font-bold uppercase tracking-wider text-[rgb(var(--accent-2))]">News</span>; }
+function Cover({ game, className = 'h-11 w-20' }) {
+  if (game?.homeLocked) return <span className={`grid ${className} shrink-0 place-items-center rounded border border-[rgb(var(--accent)/0.38)] bg-[rgb(var(--surface)/0.62)] px-1 text-center text-[rgb(var(--accent-2))]`} title={`Protected category: ${game.homeLockedCategory || 'Private category'}`}><LockKeyhole size={16} /><span className="mt-0.5 line-clamp-2 text-[7px] font-black uppercase leading-tight tracking-wide">{game.homeLockedCategory || 'Private category'}</span></span>;
+  const src = game.headerImage || game.coverUrl;
+  return src ? <img src={src} alt="" className={`${className} shrink-0 rounded object-cover`} /> : <span className={`grid ${className} shrink-0 place-items-center rounded bg-[rgb(var(--surface)/0.8)] text-[10px] font-bold text-muted`}>{game.name?.slice(0, 2)}</span>;
+}
+function NewsCover({ item, compact = false }) {
+  const size = compact ? 'h-12 w-[84px] rounded-md text-[9px]' : 'h-16 w-[112px] rounded-lg text-[10px]';
+  if (item?.homeLocked) return <span className={`grid ${size} shrink-0 place-items-center border border-[rgb(var(--accent)/0.38)] bg-[rgb(var(--surface)/0.62)] px-1 text-center text-[rgb(var(--accent-2))]`}><LockKeyhole size={16} /><span className="mt-0.5 line-clamp-2 text-[7px] font-black uppercase leading-tight tracking-wide">{item.lockedCategoryName || 'Private category'}</span></span>;
+  const src = item.platform === 'steam' && item.appid ? `https://cdn.akamai.steamstatic.com/steam/apps/${item.appid}/capsule_184x69.jpg` : '';
+  return src ? <img src={src} alt="" className={`${size} shrink-0 object-cover`} onError={(event) => { event.currentTarget.style.display = 'none'; }} /> : <span className={`grid ${size} shrink-0 place-items-center bg-[rgb(var(--accent)/0.10)] font-bold uppercase tracking-wider text-[rgb(var(--accent-2))]`}>News</span>;
+}
 
 function NewsDetail({ item, onClose }) {
   const openFull = () => { if (window.api?.openExternal) window.api.openExternal(item.url); else window.open(item.url, '_blank'); };
@@ -261,28 +404,37 @@ function NewsDetail({ item, onClose }) {
 }
 
 function MyBestGames({ games, onSelect }) {
-  return <section className="mb-6 rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.34)] p-4"><div className="flex items-center gap-2"><Star size={15} className="fill-[rgb(var(--accent))] text-[rgb(var(--accent))]" /><div><h2 className="text-xs font-black uppercase tracking-[0.18em]">My Best Games</h2><p className="mt-1 text-[10px] text-muted">Your five highest personal ratings. Critic score is only context.</p></div></div>{games.length ? <ol className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-5">{games.map((game, index) => <li key={game.id}><button onClick={() => onSelect?.(game.id)} className="flex w-full items-center gap-2 rounded-lg border border-[rgb(var(--border)/0.75)] bg-[rgb(var(--surface)/0.28)] p-2 text-left hover:border-[rgb(var(--accent)/0.55)] hover:bg-[rgb(var(--accent)/0.07)]"><span className="w-4 font-mono text-[10px] text-[rgb(var(--accent-2))]">{index + 1}</span><Cover game={game} className="h-8 w-14" /><span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-bold">{game.name}</span><span className="mt-0.5 flex items-center gap-1.5 text-[10px]"><span className="text-[rgb(var(--accent))]">★ {Number(game.rating).toFixed(1)}/5</span>{game.metacritic ? <span className="text-muted">Metacritic {game.metacritic}</span> : null}</span></span></button></li>)}</ol> : <p className="mt-3 text-xs text-muted">Rate games from their preview page and your top five will appear here.</p>}</section>;
+  return <section className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.34)] p-4"><div className="flex items-center gap-2"><Star size={15} className="fill-[rgb(var(--accent))] text-[rgb(var(--accent))]" /><div><h2 className="text-xs font-black uppercase tracking-[0.18em]">My Best Games</h2><p className="mt-1 text-[10px] text-muted">Your five highest personal ratings. Critic score is only context.</p></div></div>{games.length ? <ol className="mt-3 space-y-1.5">{games.map((game, index) => <li key={game.id}><button onClick={() => onSelect?.(game.id)} className="flex w-full items-center gap-2 rounded-lg border border-[rgb(var(--border)/0.75)] bg-[rgb(var(--surface)/0.28)] p-2 text-left hover:border-[rgb(var(--accent)/0.55)] hover:bg-[rgb(var(--accent)/0.07)]"><span className="w-4 font-mono text-[10px] text-[rgb(var(--accent-2))]">{index + 1}</span><Cover game={game} className="h-8 w-14" /><span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-bold">{game.name}</span><span className="mt-0.5 flex items-center gap-1.5 text-[10px]"><span className="text-[rgb(var(--accent))]">★ {Number(game.rating).toFixed(1)}/5</span>{game.metacritic ? <span className="text-muted">Metacritic {game.metacritic}</span> : null}</span></span></button></li>)}</ol> : <p className="mt-3 text-xs text-muted">Rate games from their preview page and your top five will appear here.</p>}</section>;
 }
 
 function ReleasedThisWeek({ releases, onRefresh }) {
   const open = (release) => { if (window.api?.openExternal) window.api.openExternal(release.url); else window.open(release.url, '_blank'); };
   const usingFallback = releases.tier === 'semi-major';
-  return <section className="rounded-xl border border-[rgb(var(--border))] bg-[linear-gradient(130deg,rgb(var(--accent)/0.10),rgb(var(--panel)/0.35)_46%,rgb(var(--accent-2)/0.07))] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-2"><CalendarDays size={15} className="text-[rgb(var(--accent-2))]" /><div><h2 className="text-xs font-black uppercase tracking-[0.18em]">Released This Week</h2><p className="mt-1 text-[10px] text-muted">{usingFallback ? 'A quieter week — showing semi-major releases with real early momentum.' : 'Not a release dump — only major games with real early momentum.'}</p></div></div><button onClick={onRefresh} disabled={releases.loading} className="inline-flex items-center gap-1.5 rounded-md border border-[rgb(var(--border))] px-2.5 py-1.5 text-[10px] font-bold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink disabled:opacity-50" title="Refresh this week's discovery feed"><RefreshCw size={11} className={releases.loading ? 'animate-spin text-[rgb(var(--accent))]' : ''} />{releases.loading ? 'Checking…' : 'Refresh'}</button></div>{usingFallback && releases.items.length > 0 && <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-[rgb(var(--accent-2)/0.35)] bg-[rgb(var(--accent-2)/0.10)] px-2.5 py-1 text-[9px] font-bold uppercase tracking-wide text-[rgb(var(--accent-2))]">Semi-major picks · no major releases found</div>}{releases.loading && !releases.items.length ? <p className="mt-4 text-xs text-muted">Verifying notable new releases…</p> : releases.items.length ? <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{releases.items.map((release) => <button key={release.id} onClick={() => open(release)} className="group flex min-w-0 gap-3 rounded-lg border border-[rgb(var(--border)/0.75)] bg-[rgb(var(--surface)/0.34)] p-2.5 text-left hover:border-[rgb(var(--accent)/0.55)] hover:bg-[rgb(var(--surface)/0.60)]"><img src={release.image} alt="" className="h-14 w-24 shrink-0 rounded-md object-cover" onError={(event) => { event.currentTarget.style.opacity = '0.18'; }} /><span className="min-w-0 flex-1"><span className="flex items-start gap-1"><span className="line-clamp-2 flex-1 text-xs font-black leading-snug group-hover:text-[rgb(var(--accent))]">{release.title}</span><ExternalLink size={11} className="mt-0.5 shrink-0 text-muted" /></span><span className="mt-1 flex flex-wrap gap-x-2 text-[10px] text-muted"><span>{release.platform}</span><span>{release.releaseDate}</span></span><span className="mt-1 block truncate text-[10px] font-bold text-[rgb(var(--accent-2))]">{release.why}</span></span></button>)}</div> : <p className="mt-4 text-xs leading-relaxed text-muted">{releases.error || 'No noteworthy releases surfaced through the current quality filter this week.'}</p>}<p className="mt-3 text-[9.5px] leading-relaxed text-muted/80">{releases.criteria || 'Discovery criteria appear after the first successful refresh.'}</p></section>;
+  const usingPopularFallback = releases.tier === 'popular';
+  const subtitle = usingFallback
+    ? 'A quieter week — showing noteworthy releases with real early momentum.'
+    : usingPopularFallback
+      ? 'No major launch this week — showing popular new releases instead.'
+      : 'Not a release dump — only major games with real early momentum.';
+  return <section className="rounded-xl border border-[rgb(var(--border))] bg-[linear-gradient(130deg,rgb(var(--accent)/0.10),rgb(var(--panel)/0.35)_46%,rgb(var(--accent-2)/0.07))] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-2"><CalendarDays size={15} className="text-[rgb(var(--accent-2))]" /><div><h2 className="text-xs font-black uppercase tracking-[0.18em]">Released This Week</h2><p className="mt-1 text-[10px] text-muted">{subtitle}</p></div></div><button onClick={onRefresh} disabled={releases.loading} className="inline-flex items-center gap-1.5 rounded-md border border-[rgb(var(--border))] px-2.5 py-1.5 text-[10px] font-bold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink disabled:opacity-50" title="Refresh this week's discovery feed"><RefreshCw size={11} className={releases.loading ? 'animate-spin text-[rgb(var(--accent))]' : ''} />{releases.loading ? 'Checking…' : 'Refresh'}</button></div>{(usingFallback || usingPopularFallback) && releases.items.length > 0 && <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-[rgb(var(--accent-2)/0.35)] bg-[rgb(var(--accent-2)/0.10)] px-2.5 py-1 text-[9px] font-bold uppercase tracking-wide text-[rgb(var(--accent-2))]">{usingFallback ? 'Noteworthy picks · no major releases found' : 'Popular new releases · no major picks found'}</div>}{releases.loading && !releases.items.length ? <p className="mt-4 text-xs text-muted">Verifying notable new releases…</p> : releases.items.length ? <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{releases.items.map((release) => <button key={release.id} onClick={() => open(release)} className="group flex min-w-0 gap-3 rounded-lg border border-[rgb(var(--border)/0.75)] bg-[rgb(var(--surface)/0.34)] p-2.5 text-left hover:border-[rgb(var(--accent)/0.55)] hover:bg-[rgb(var(--surface)/0.60)]"><img src={release.image} alt="" className="h-14 w-24 shrink-0 rounded-md object-cover" onError={(event) => { event.currentTarget.style.opacity = '0.18'; }} /><span className="min-w-0 flex-1"><span className="flex items-start gap-1"><span className="line-clamp-2 flex-1 text-xs font-black leading-snug group-hover:text-[rgb(var(--accent))]">{release.title}</span><ExternalLink size={11} className="mt-0.5 shrink-0 text-muted" /></span><span className="mt-1 flex flex-wrap gap-x-2 text-[10px] text-muted"><span>{release.platform}</span><span>{release.releaseDate}</span></span><span className="mt-1 block truncate text-[10px] font-bold text-[rgb(var(--accent-2))]">{release.why}</span></span></button>)}</div> : <p className="mt-4 text-xs leading-relaxed text-muted">{releases.error || 'No recent popular releases surfaced through the current verified sources.'}</p>}<p className="mt-3 text-[9.5px] leading-relaxed text-muted/80">{releases.criteria || 'Discovery criteria appear after the first successful refresh.'}</p></section>;
 }
 
 function getLibraryHealth(games) {
-  const missingArt = games.filter((g) => !(g.coverUrl || g.headerImage || g.background)).length;
+  // A protected placeholder deliberately has no art, description, or launch
+  // path. Do not turn privacy into a false Library Health problem.
+  const inspectableGames = games.filter((game) => !game.homeLocked);
+  const missingArt = inspectableGames.filter((g) => !(g.coverUrl || g.headerImage || g.background)).length;
   // Metadata arrives from different sources under different fields. Treat a
   // game as detailed when any user-facing description is present, otherwise a
   // large imported library is incorrectly reported as entirely incomplete.
-  const missingDetails = games.filter((g) => ![g.description, g.about, g.shortDescription].some((value) => String(value || '').trim())).length;
-  const noLaunchTarget = games.filter((g) => !(g.exePath || g.launchUrl)).length;
+  const missingDetails = inspectableGames.filter((g) => ![g.description, g.about, g.shortDescription].some((value) => String(value || '').trim())).length;
+  const noLaunchTarget = inspectableGames.filter((g) => !(g.exePath || g.launchUrl)).length;
   const names = new Map();
-  for (const game of games) { const key = String(game.name || '').toLowerCase().replace(/[^a-z0-9]/g, ''); if (key) names.set(key, (names.get(key) || 0) + 1); }
+  for (const game of inspectableGames) { const key = String(game.name || '').toLowerCase().replace(/[^a-z0-9]/g, ''); if (key) names.set(key, (names.get(key) || 0) + 1); }
   const duplicates = [...names.values()].reduce((total, count) => total + (count > 1 ? count - 1 : 0), 0);
   const issues = missingArt + missingDetails + noLaunchTarget + duplicates;
-  const genreProfile = games.filter((g) => Array.isArray(g.genreProfile?.rawTags) && g.genreProfile.rawTags.length > 0).length;
-  return { missingArt, missingDetails, noLaunchTarget, duplicates, genreProfile, score: Math.max(0, Math.round(100 - ((issues / Math.max(games.length, 1)) * 35))) };
+  const genreProfile = inspectableGames.filter((g) => Array.isArray(g.genreProfile?.rawTags) && g.genreProfile.rawTags.length > 0).length;
+  return { missingArt, missingDetails, noLaunchTarget, duplicates, genreProfile, score: Math.max(0, Math.round(100 - ((issues / Math.max(inspectableGames.length, 1)) * 35))) };
 }
 
 function LibraryHealth({ health, onOpenTidyUp, gameCount = 0 }) {
@@ -318,7 +470,7 @@ function getRecommendations(games, news) {
 }
 
 function PlayNext({ recommendations, onSelect }) {
-  return <section className="mb-6 rounded-xl border border-[rgb(var(--accent)/0.35)] bg-[linear-gradient(120deg,rgb(var(--accent)/0.12),rgb(var(--panel)/0.35)_48%,rgb(var(--accent-2)/0.08))] p-5 shadow-[0_0_32px_-20px_rgb(var(--accent))]"><div className="flex items-center gap-2.5"><Sparkles size={18} className="text-[rgb(var(--accent-2))]" /><div><p className="text-[10.5px] font-bold uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">What should I play?</p><h2 className="text-base font-black">A useful nudge from your own library</h2></div></div>{recommendations.length ? <div className="mt-4 grid gap-3 md:grid-cols-3">{recommendations.map(({ game, label, reason, action, update }) => <button key={game.id} onClick={() => onSelect?.(game.id)} className="group flex min-w-0 items-center gap-3 rounded-xl border border-[rgb(var(--border)/0.85)] bg-[rgb(var(--surface)/0.36)] p-3 text-left hover:border-[rgb(var(--accent)/0.55)] hover:bg-[rgb(var(--surface)/0.6)]"><Cover game={game} className="h-14 w-24" /><span className="min-w-0"><span className={`block text-[10px] font-bold uppercase tracking-wider ${update ? 'new-update-reactive text-emerald-300' : 'text-[rgb(var(--accent-2))]'}`}>{label}</span><span className="block truncate text-[13px] font-black group-hover:text-[rgb(var(--accent))]">{game.name}</span><span className="mt-1 block line-clamp-3 text-[11px] leading-relaxed text-muted">{reason}</span><span className="mt-1.5 block text-[10.5px] font-bold text-[rgb(var(--accent))]">{action} ›</span></span></button>)}</div> : <p className="mt-3 text-xs text-muted">Add or import a few games and NEO-LIB will begin surfacing timely reasons to play them.</p>}</section>;
+  return <section className="rounded-xl border border-[rgb(var(--accent)/0.35)] bg-[linear-gradient(120deg,rgb(var(--accent)/0.12),rgb(var(--panel)/0.35)_48%,rgb(var(--accent-2)/0.08))] p-4 shadow-[0_0_32px_-20px_rgb(var(--accent))]"><div className="flex items-center gap-2.5"><Sparkles size={17} className="text-[rgb(var(--accent-2))]" /><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">What should I play?</p><h2 className="text-sm font-black">A useful nudge from your own library</h2></div></div>{recommendations.length ? <div className="mt-3 space-y-2">{recommendations.map(({ game, label, reason, action, update }) => <button key={game.id} onClick={() => onSelect?.(game.id)} className="group flex min-w-0 items-center gap-3 rounded-xl border border-[rgb(var(--border)/0.85)] bg-[rgb(var(--surface)/0.36)] p-2.5 text-left hover:border-[rgb(var(--accent)/0.55)] hover:bg-[rgb(var(--surface)/0.6)]"><Cover game={game} className="h-12 w-20" /><span className="min-w-0 flex-1"><span className={`block text-[9.5px] font-bold uppercase tracking-wider ${update ? 'new-update-reactive text-emerald-300' : 'text-[rgb(var(--accent-2))]'}`}>{label}</span><span className="block truncate text-[12px] font-black group-hover:text-[rgb(var(--accent))]">{game.name}</span><span className="mt-0.5 block line-clamp-2 text-[10.5px] leading-relaxed text-muted">{reason}</span></span><span className="shrink-0 text-[10px] font-bold text-[rgb(var(--accent))]">{action} ›</span></button>)}</div> : <p className="mt-3 text-xs text-muted">Add or import a few games and NEO-LIB will begin surfacing timely reasons to play them.</p>}</section>;
 }
 
 function readableBytes(bytes) { const value = Number(bytes || 0); if (value < 1024 ** 2) return `${Math.round(value / 1024)} KB`; if (value < 1024 ** 3) return `${(value / 1024 ** 2).toFixed(1)} MB`; return `${(value / 1024 ** 3).toFixed(1)} GB`; }
@@ -330,11 +482,12 @@ function StorageCentre({ games, storage, onScan, onSelect }) {
   const mods = results.reduce((sum, entry) => sum + Number(entry.modBytes || 0), 0);
   const hasEstimate = results.some((entry) => entry.truncated);
   const openFolder = async (entry) => {
+    if (entry.game?.homeLocked) return;
     setOpenError('');
     const result = await window.api?.openPath?.(entry.root);
     if (!result?.ok) setOpenError(result?.error || `Could not open ${entry.root || 'this measured folder'}.`);
   };
-  return <section className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.34)] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-2"><HardDrive size={15} className="text-[rgb(var(--accent))]" /><div><h2 className="text-xs font-black uppercase tracking-[0.18em]">Storage control centre</h2><p className="mt-1 text-[10px] text-muted">Validated game folders and recognised mod folders only—read-only.</p></div></div><button onClick={onScan} disabled={storage.loading} className="inline-flex items-center gap-1.5 rounded-md border border-[rgb(var(--border))] px-2.5 py-1.5 text-[10px] font-bold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink disabled:opacity-50"><RefreshCw size={11} className={storage.loading ? 'animate-spin text-[rgb(var(--accent))]' : ''} />{storage.loading ? 'Scanning…' : storage.scannedAt ? 'Rescan' : 'Scan sizes'}</button></div>{storage.scannedAt ? <><div className="mt-3 flex flex-wrap gap-x-5 gap-y-2"><Stat label="Folders measured" value={results.length} /><Stat label="Total" value={`${hasEstimate ? '≥ ' : ''}${readableBytes(total)}`} /><Stat label="Mod content" value={readableBytes(mods)} /></div>{openError && <p className="mt-3 rounded-lg border border-red-400/30 bg-red-400/[0.07] px-3 py-2 text-[10px] text-red-200">{openError}</p>}{storage.skipped?.length > 0 && <div className="mt-3 rounded-lg border border-amber-300/25 bg-amber-300/[0.05] px-3 py-2"><p className="text-[10px] font-bold text-amber-200">{storage.skipped.length} launch target{storage.skipped.length === 1 ? '' : 's'} skipped instead of guessing.</p><p className="mt-0.5 truncate text-[9.5px] text-muted" title={storage.skipped.slice(0, 3).map((item) => `${item.name}: ${item.reason}`).join(' · ')}>{storage.skipped.slice(0, 3).map((item) => `${item.name}: ${item.reason}`).join(' · ')}</p></div>}<div className="mt-3 max-h-[430px] space-y-1.5 overflow-y-auto pr-1" data-testid="storage-results-list">{results.map((entry) => <div key={entry.id} className="flex items-center gap-2 rounded-lg border border-[rgb(var(--border)/0.68)] bg-[rgb(var(--surface)/0.23)] p-2 transition hover:border-[rgb(var(--accent)/0.45)]"><button onClick={() => onSelect?.(entry.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left"><Cover game={entry.game} className="h-8 w-14" /><span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-black text-ink">{entry.game.name}</span><span className="mt-0.5 block truncate font-mono text-[8.5px] text-muted" title={entry.root}>{entry.root}</span><span className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[8.5px] text-muted"><span>{Number(entry.files || 0).toLocaleString()} files</span>{entry.modBytes > 0 && <span className="text-[rgb(var(--accent-2))]">mods {readableBytes(entry.modBytes)}</span>}{entry.truncated && <span className="text-amber-200">partial scan</span>}</span></span></button><div className="flex shrink-0 items-center gap-2"><span className="font-mono text-[10px] font-bold text-ink">{entry.truncated ? '≥ ' : ''}{readableBytes(entry.bytes)}</span><button onClick={() => openFolder(entry)} className="inline-flex h-7 items-center gap-1 rounded-md border border-[rgb(var(--border))] px-2 text-[9px] font-bold text-[rgb(var(--accent-2))] hover:border-[rgb(var(--accent)/0.55)] hover:text-ink" title={`Open measured folder: ${entry.root}`}><FolderOpen size={11} />Open</button></div></div>)}{!results.length && <p className="rounded-lg border border-dashed border-[rgb(var(--border))] p-4 text-center text-xs text-muted">No valid game folders were measured. Review the skipped launch targets above, then use Customize to correct a game’s executable.</p>}</div><p className="mt-2 text-[9px] leading-relaxed text-muted/85">Every size is tied to the shown folder. “Partial scan” means NEO-LIB stopped at its safety limit, so the displayed total is at least that large.</p></> : <p className="mt-4 text-xs leading-relaxed text-muted">Scan when you want a current view. NEO-LIB never crawls entire drives; it walks only validated configured game folders.</p>}</section>;
+  return <section className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.34)] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-2"><HardDrive size={15} className="text-[rgb(var(--accent))]" /><div><h2 className="text-xs font-black uppercase tracking-[0.18em]">Storage control centre</h2><p className="mt-1 text-[10px] text-muted">Validated game folders and recognised mod folders only—read-only.</p></div></div><button onClick={onScan} disabled={storage.loading} className="inline-flex items-center gap-1.5 rounded-md border border-[rgb(var(--border))] px-2.5 py-1.5 text-[10px] font-bold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink disabled:opacity-50"><RefreshCw size={11} className={storage.loading ? 'animate-spin text-[rgb(var(--accent))]' : ''} />{storage.loading ? 'Scanning…' : storage.scannedAt ? 'Rescan' : 'Scan sizes'}</button></div>{storage.scannedAt ? <><div className="mt-3 flex flex-wrap gap-x-5 gap-y-2"><Stat label="Folders measured" value={results.length} /><Stat label="Total" value={`${hasEstimate ? '≥ ' : ''}${readableBytes(total)}`} /><Stat label="Mod content" value={readableBytes(mods)} /></div>{openError && <p className="mt-3 rounded-lg border border-red-400/30 bg-red-400/[0.07] px-3 py-2 text-[10px] text-red-200">{openError}</p>}{storage.skipped?.length > 0 && <div className="mt-3 rounded-lg border border-amber-300/25 bg-amber-300/[0.05] px-3 py-2"><p className="text-[10px] font-bold text-amber-200">{storage.skipped.length} launch target{storage.skipped.length === 1 ? '' : 's'} skipped instead of guessing.</p><p className="mt-0.5 truncate text-[9.5px] text-muted" title={storage.skipped.slice(0, 3).map((item) => `${item.name}: ${item.reason}`).join(' · ')}>{storage.skipped.slice(0, 3).map((item) => `${item.name}: ${item.reason}`).join(' · ')}</p></div>}<div className="mt-3 max-h-[430px] space-y-1.5 overflow-y-auto pr-1" data-testid="storage-results-list">{results.map((entry) => <div key={entry.id} className="flex items-center gap-2 rounded-lg border border-[rgb(var(--border)/0.68)] bg-[rgb(var(--surface)/0.23)] p-2 transition hover:border-[rgb(var(--accent)/0.45)]"><button onClick={() => onSelect?.(entry.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left"><Cover game={entry.game} className="h-8 w-14" /><span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-black text-ink">{entry.game.name}</span><span className="mt-0.5 block truncate font-mono text-[8.5px] text-muted" title={entry.game.homeLocked ? 'Protected folder' : entry.root}>{entry.game.homeLocked ? 'Protected folder' : entry.root}</span><span className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[8.5px] text-muted"><span>{Number(entry.files || 0).toLocaleString()} files</span>{entry.modBytes > 0 && <span className="text-[rgb(var(--accent-2))]">mods {readableBytes(entry.modBytes)}</span>}{entry.truncated && <span className="text-amber-200">partial scan</span>}</span></span></button><div className="flex shrink-0 items-center gap-2"><span className="font-mono text-[10px] font-bold text-ink">{entry.truncated ? '≥ ' : ''}{readableBytes(entry.bytes)}</span>{entry.game.homeLocked ? <span className="inline-flex h-7 items-center rounded-md border border-[rgb(var(--accent)/0.35)] px-2 text-[9px] font-bold text-[rgb(var(--accent-2))]">Locked</span> : <button onClick={() => openFolder(entry)} className="inline-flex h-7 items-center gap-1 rounded-md border border-[rgb(var(--border))] px-2 text-[9px] font-bold text-[rgb(var(--accent-2))] hover:border-[rgb(var(--accent)/0.55)] hover:text-ink" title={`Open measured folder: ${entry.root}`}><FolderOpen size={11} />Open</button>}</div></div>)}{!results.length && <p className="rounded-lg border border-dashed border-[rgb(var(--border))] p-4 text-center text-xs text-muted">No valid game folders were measured. Review the skipped launch targets above, then use Customize to correct a game’s executable.</p>}</div><p className="mt-2 text-[9px] leading-relaxed text-muted/85">Every size is tied to the shown folder. “Partial scan” means NEO-LIB stopped at its safety limit, so the displayed total is at least that large.</p></> : <p className="mt-4 text-xs leading-relaxed text-muted">Scan when you want a current view. NEO-LIB never crawls entire drives; it walks only validated configured game folders.</p>}</section>;
 }
 
 function getChronicle(games, news) {

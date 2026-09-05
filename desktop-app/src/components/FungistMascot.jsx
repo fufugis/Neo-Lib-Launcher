@@ -1,6 +1,6 @@
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Archive, BellRing, Bot, ChevronRight, Send, Settings2, X } from 'lucide-react';
+import { Activity, Archive, BellRing, Bot, ChevronRight, Send, Settings2, X } from 'lucide-react';
 import { playFungistCue } from '../lib/sound';
 import { fungistChatVoiceFor, playFungistVoice, stopFungistVoice } from '../lib/mascotVoice';
 
@@ -56,6 +56,22 @@ function whyFor(notice) {
 
 function shortTime(value) {
   try { return new Date(value).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch { return ''; }
+}
+
+function shortMemory(bytes) {
+  const value = Number(bytes || 0);
+  if (value >= 1024 ** 3) return `${(value / 1024 ** 3).toFixed(value >= 10 * 1024 ** 3 ? 0 : 1)} GB`;
+  if (value >= 1024 ** 2) return `${Math.round(value / 1024 ** 2)} MB`;
+  return '0 MB';
+}
+
+// This deliberately recognises only clear game/client process names. The
+// snapshot is still useful when there is no match: the player sees the actual
+// top CPU/RAM apps rather than NEO-LIB inventing a game name.
+const GAME_PROCESS_HINTS = /(?:overwatch|warcraft|worldofwarcraft|diablo|hearthstone|starcraft|valorant|leagueoflegends|leagueclient|fortnite|apex|minecraft|eldenring|cyberpunk|forza|game-win64-shipping)/i;
+
+function isLikelyGameProcess(process) {
+  return GAME_PROCESS_HINTS.test(`${process?.name || ''} ${process?.path || ''}`);
 }
 
 function commandKey(value = '') {
@@ -139,7 +155,10 @@ function messageFor({ healthState, newsAlert, favouriteUpdate, appUpdate, notifi
 }
 
 function voiceForNotice(notice) {
-  if (notice?.kind === 'welcome') return 'welcome';
+  // Welcome is never a general notice voice. It is reserved for the one
+  // post-intro greeting below, otherwise a harmless re-render or re-shown
+  // notice can make it sound as if NEO-LIB has just started again.
+  if (notice?.kind === 'welcome') return '';
   if (notice?.kind === 'news') return 'news';
   if (notice?.kind === 'game-update') return 'check-this';
   if (notice?.kind === 'app-update') return 'neolib-update';
@@ -162,6 +181,9 @@ export default function FungistMascot({
   appUpdate = null,
   notificationSettings = {},
   onOpenHealth,
+  externalRunningGame = null,
+  onScanRunningGame,
+  onEnableExternalRest,
   onOpenNews,
   onOpenGame,
   onOpenAppUpdate,
@@ -183,6 +205,7 @@ export default function FungistMascot({
   completion = null,
   launchCelebration = null,
   welcomeKey = 0,
+  dockPosition = null,
   onOpenHome,
   libraryGames = [],
   onLaunchRequested,
@@ -206,12 +229,78 @@ export default function FungistMascot({
   const [contextOpen, setContextOpen] = React.useState(false);
   const [contextTab, setContextTab] = React.useState('inbox');
   const [completionMessage, setCompletionMessage] = React.useState('');
+  const [runningGameScan, setRunningGameScan] = React.useState({ state: 'idle', message: '' });
+  const [backgroundCheck, setBackgroundCheck] = React.useState({ state: 'idle', message: '', cpu: [], memory: [], likelyGame: null });
   const [viewport, setViewport] = React.useState(() => ({ width: typeof window === 'undefined' ? 1280 : window.innerWidth, height: typeof window === 'undefined' ? 800 : window.innerHeight }));
+  // Fungist has one user-owned "home perch" within the lower-right dock. All
+  // dramatic flight targets are temporary offsets from this saved position.
+  const clampDockPosition = React.useCallback((value) => {
+    // Keep Fungist—and his hover text—inside even a compact resized window.
+    // The ordinary dock sits 18px from the right and 116px from the bottom;
+    // reserve his own footprint plus a little speech-bubble breathing room.
+    const maxLeft = Math.min(360, Math.max(0, viewport.width - 194));
+    const maxUp = Math.min(360, Math.max(0, viewport.height - 332));
+    return {
+      x: Math.max(-maxLeft, Math.min(0, Math.round(Number(value?.x) || 0))),
+      y: Math.max(-maxUp, Math.min(0, Math.round(Number(value?.y) || 0))),
+    };
+  }, [viewport.height, viewport.width]);
+  const [dock, setDock] = React.useState(() => clampDockPosition(dockPosition));
   const lastNoticeAt = React.useRef(new Map());
   const smileTimer = React.useRef(null);
   const chatScrollRef = React.useRef(null);
   const chatThinkingTimer = React.useRef(null);
   const spokenLineTimer = React.useRef(null);
+  const startupWelcomePlayed = React.useRef(false);
+  const dockDrag = React.useRef(null);
+  const dockDragCleanup = React.useRef(null);
+  const suppressDockClick = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!dockDrag.current) setDock(clampDockPosition(dockPosition));
+  }, [dockPosition?.x, dockPosition?.y, clampDockPosition]);
+
+  React.useEffect(() => () => dockDragCleanup.current?.(), []);
+
+  const beginDockDrag = React.useCallback((event) => {
+    // Dragging is a quiet docking adjustment, not an alternative interaction
+    // while Fungist is deliberately flying to an alert/chat/launch target.
+    if (event.button !== 0 || launchCelebration?.key || chatOpen || notice?.level === 'major') return;
+    dockDragCleanup.current?.();
+    dockDrag.current = { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY, start: dock, moved: false };
+    const move = (moveEvent) => {
+      const drag = dockDrag.current;
+      if (!drag || moveEvent.pointerId !== drag.pointerId) return;
+      const next = clampDockPosition({ x: drag.start.x + moveEvent.clientX - drag.clientX, y: drag.start.y + moveEvent.clientY - drag.clientY });
+      if (Math.abs(next.x - drag.start.x) > 4 || Math.abs(next.y - drag.start.y) > 4) drag.moved = true;
+      setDock(next);
+    };
+    let cleanup = () => {};
+    const finish = (upEvent) => {
+      const drag = dockDrag.current;
+      if (!drag || upEvent.pointerId !== drag.pointerId) return;
+      dockDrag.current = null;
+      cleanup();
+      if (drag.moved) {
+        suppressDockClick.current = true;
+        setDock((current) => {
+          const saved = clampDockPosition(current);
+          onUpdatePreferences?.({ fungistDockPosition: saved });
+          return saved;
+        });
+      }
+    };
+    cleanup = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+      if (dockDragCleanup.current === cleanup) dockDragCleanup.current = null;
+    };
+    dockDragCleanup.current = cleanup;
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', finish);
+  }, [chatOpen, clampDockPosition, dock, launchCelebration?.key, notice?.level, onUpdatePreferences]);
 
   React.useEffect(() => {
     const resize = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
@@ -246,6 +335,26 @@ export default function FungistMascot({
     }, 6_000);
     return () => window.clearTimeout(timer);
   }, [welcomeKey, enabled, resting, candidate?.key]);
+
+  // The actual greeting has a stricter lifetime than a normal notice: once
+  // per application window. sessionStorage survives a renderer repaint or
+  // hot reload but is cleared when the desktop window is closed.
+  React.useEffect(() => {
+    if (!welcomeKey || !enabled || resting || startupWelcomePlayed.current || !soundsEnabled || !voiceEnabled) return;
+    const storageKey = 'neolib-fungist-startup-welcome-played';
+    try {
+      if (window.sessionStorage.getItem(storageKey) === '1') {
+        startupWelcomePlayed.current = true;
+        return;
+      }
+      window.sessionStorage.setItem(storageKey, '1');
+    } catch {
+      // The in-memory guard still protects environments where session storage
+      // is unavailable.
+    }
+    startupWelcomePlayed.current = true;
+    playFungistVoice('welcome', { volume: voiceVolume, cooldownMs: 0, priority: true });
+  }, [welcomeKey, enabled, resting, soundsEnabled, voiceEnabled, voiceVolume]);
 
   React.useEffect(() => {
     if (!contextOpen) return undefined;
@@ -360,6 +469,9 @@ export default function FungistMascot({
   React.useEffect(() => {
     if (!notice || !soundsEnabled || soundedNotice.current === notice.key) return;
     soundedNotice.current = notice.key;
+    // The post-intro greeting above owns welcome audio. Do not replace it
+    // with another voice or a generic cue through the alert pipeline.
+    if (notice.kind === 'welcome') return;
     const voice = voiceForNotice(notice);
     if (voice && voiceEnabled) playFungistVoice(voice, { volume: voiceVolume, priority: notice.level === 'major' || notice.kind === 'app-update' });
     else playFungistCue(notice.level === 'major' ? 'warning' : notice.kind === 'health' ? 'attention' : 'hey');
@@ -376,15 +488,15 @@ export default function FungistMascot({
   // The dock is 18px from the right and 116px from the bottom. Moving by this
   // exact viewport-relative delta gives a genuine fly-to-centre / fly-home
   // motion without a video, timer, or continuously running animation.
-  const flyX = Math.round(71 - viewport.width / 2);
-  const flyY = Math.round(44 - viewport.height / 2);
+  const flyX = Math.round(71 - viewport.width / 2 - dock.x);
+  const flyY = Math.round(44 - viewport.height / 2 - dock.y);
   // The mascot is normally docked at (right: 18, bottom: 108). These deltas
   // put him just above the chat header rather than behind the chat panel.
-  const chatFlyX = Math.round(18 - Math.min(150, Math.max(82, viewport.width * 0.105)));
-  const chatFlyY = Math.round(-Math.min(430, Math.max(330, viewport.height * 0.48)));
+  const chatFlyX = Math.round(18 - Math.min(150, Math.max(82, viewport.width * 0.105)) - dock.x);
+  const chatFlyY = Math.round(-Math.min(430, Math.max(330, viewport.height * 0.48)) - dock.y);
   const launchOrigin = launchCelebration?.origin;
-  const launchFlyX = Number.isFinite(launchOrigin?.x) ? Math.round(launchOrigin.x - (viewport.width - 77)) : -190;
-  const launchFlyY = Number.isFinite(launchOrigin?.y) ? Math.round(launchOrigin.y - (viewport.height - 175)) : -210;
+  const launchFlyX = Number.isFinite(launchOrigin?.x) ? Math.round(launchOrigin.x - (viewport.width - 77) - dock.x) : -190;
+  const launchFlyY = Number.isFinite(launchOrigin?.y) ? Math.round(launchOrigin.y - (viewport.height - 175) - dock.y) : -210;
   const speaking = Boolean(spokenLine);
   const displayPose = major ? (!arrived ? 'fly' : 'shocked') : launching || spokenLine?.mood === 'celebrate' ? 'complete' : spokenLine?.mood === 'urgent' || spokenLine?.mood === 'concerned' ? 'shocked' : completing ? 'complete' : chatOpen || speaking ? 'smile' : smiling || idlePulse ? 'smile' : sleeping ? 'sleep' : blinking ? 'blink' : 'stand';
   const displayAsset = ASSETS[displayPose];
@@ -421,6 +533,43 @@ export default function FungistMascot({
     });
   };
   const updateQuickNotifications = (patch) => onUpdatePreferences?.({ fungistNotifications: { ...notificationSettings, ...patch } });
+  const scanRunningGame = async () => {
+    if (!onScanRunningGame || runningGameScan.state === 'checking') return;
+    setRunningGameScan({ state: 'checking', message: 'Checking your local library games…' });
+    const result = await onScanRunningGame();
+    if (result?.active && result?.game) {
+      setRunningGameScan({ state: 'found', message: `${result.game.name} is running from another launcher. I can put NEO-LIB into low-usage Rest Mode until it closes.`, game: result.game });
+      return;
+    }
+    setRunningGameScan({ state: result?.ok ? 'empty' : 'error', message: result?.message || 'I could not check running games right now.' });
+  };
+  const enableLowUsage = () => {
+    const game = runningGameScan.game || externalRunningGame;
+    const result = onEnableExternalRest?.(game);
+    if (!result?.ok) setRunningGameScan({ state: 'error', message: result?.message || 'I could not enable Rest Mode for that game.' });
+  };
+  const inspectBackgroundApps = async () => {
+    if (backgroundCheck.state === 'checking') return;
+    if (!window.api?.inspectGamingPerformance) {
+      setBackgroundCheck({ state: 'error', message: 'This Windows performance check is only available in the NEO-LIB desktop app.', cpu: [], memory: [], likelyGame: null });
+      return;
+    }
+    setBackgroundCheck({ state: 'checking', message: 'Reading the heaviest Windows apps…', cpu: [], memory: [], likelyGame: null });
+    try {
+      const result = await window.api.inspectGamingPerformance();
+      if (!result?.ok) throw new Error(result?.error || 'Windows performance details are unavailable.');
+      const usable = (Array.isArray(result.processes) ? result.processes : []).filter((item) => !item?.protected && String(item?.name || '').toLowerCase() !== 'neolib');
+      const cpu = [...usable].sort((a, b) => Number(b.cpuPercent || 0) - Number(a.cpuPercent || 0)).slice(0, 3);
+      const memory = [...usable].sort((a, b) => Number(b.memoryBytes || 0) - Number(a.memoryBytes || 0)).slice(0, 3);
+      const likelyGame = [...usable].filter(isLikelyGameProcess).sort((a, b) => (Number(b.memoryBytes || 0) + Number(b.cpuPercent || 0) * 1024 ** 3) - (Number(a.memoryBytes || 0) + Number(a.cpuPercent || 0) * 1024 ** 3))[0] || null;
+      setBackgroundCheck({
+        state: 'done', cpu, memory, likelyGame,
+        message: likelyGame ? `${likelyGame.name} looks like the active game or game client.` : 'Here are the heaviest apps Windows can see right now.',
+      });
+    } catch (error) {
+      setBackgroundCheck({ state: 'error', message: error?.message || 'I could not read Windows performance details right now.', cpu: [], memory: [], likelyGame: null });
+    }
+  };
   const submit = async (event) => {
     event.preventDefault();
     const text = question.trim();
@@ -487,7 +636,7 @@ export default function FungistMascot({
       <motion.div
         className={`pointer-events-none fixed ${chatOpen || launching ? 'z-[88]' : 'z-[85]'}`}
         initial={false}
-        animate={major ? { x: flyX, y: flyY, scale: 1.24 } : launching ? { x: launchFlyX, y: launchFlyY, scale: 1.18, rotate: [0, -8, 7, 0] } : chatOpen ? { x: chatFlyX, y: chatFlyY, scale: 1.08 } : { x: 0, y: 0, scale: 1 }}
+        animate={major ? { x: dock.x + flyX, y: dock.y + flyY, scale: 1.24 } : launching ? { x: dock.x + launchFlyX, y: dock.y + launchFlyY, scale: 1.18, rotate: [0, -8, 7, 0] } : chatOpen ? { x: dock.x + chatFlyX, y: dock.y + chatFlyY, scale: 1.08 } : { x: dock.x, y: dock.y, scale: 1 }}
         transition={{ type: 'spring', stiffness: 210, damping: 22, mass: 0.72 }}
         data-testid="fungist-mascot"
         // Keep the companion clear of the permanent Friends / sponsored rail.
@@ -503,11 +652,55 @@ export default function FungistMascot({
                 style={{ borderColor: major ? 'rgb(251 75 92 / 0.85)' : 'rgb(var(--accent) / 0.62)', boxShadow: major ? '0 25px 90px -18px rgba(0,0,0,.9), 0 0 48px -14px rgba(251,75,92,.85)' : '0 18px 55px -20px rgba(0,0,0,.85), 0 0 26px -10px rgb(var(--accent)/.8)' }}
               >
                 <div className="flex items-start gap-2 px-3.5 pb-2 pt-3">
-                  <div className="min-w-0 flex-1"><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">{major ? 'Fungist needs you' : 'Fungist says hey'}</p><h2 className="mt-1 text-[13px] font-black leading-snug text-ink">{notice.title}</h2><p className="mt-1 text-[11px] leading-relaxed text-muted">{notice.body}</p>{spokenLine?.speech && <p className="mt-2 rounded-lg border border-[rgb(var(--accent)/0.28)] bg-[rgb(var(--accent)/0.10)] px-2 py-1.5 text-[10px] font-bold leading-relaxed text-ink">“{spokenLine.speech}”</p>}{showWhy && <p className="mt-2 rounded-lg border border-[rgb(var(--accent)/0.2)] bg-[rgb(var(--accent)/0.06)] px-2 py-1.5 text-[9.5px] leading-relaxed text-muted">{whyFor(notice)}</p>}</div>
+                  <div className="min-w-0 flex-1"><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">{major ? 'Fungist needs you' : 'Fungist says hey'}</p><h2 className="mt-1 text-[13px] font-black leading-snug text-ink">{notice.title}</h2><p className="mt-1 text-[11px] leading-relaxed text-muted">{notice.body}</p>{showWhy && <p className="mt-2 rounded-lg border border-[rgb(var(--accent)/0.2)] bg-[rgb(var(--accent)/0.06)] px-2 py-1.5 text-[9.5px] leading-relaxed text-muted">{whyFor(notice)}</p>}</div>
                   <button type="button" onClick={dismiss} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted hover:bg-white/10 hover:text-ink" aria-label="Dismiss Fungist"><X size={14} /></button>
                 </div>
+                {notice.kind === 'health' && (
+                  <div className="border-t border-[rgb(var(--border)/0.56)] px-3.5 py-2.5">
+                    {runningGameScan.state === 'found' || externalRunningGame ? (
+                      <div className="rounded-xl border border-emerald-300/35 bg-emerald-300/[0.08] px-2.5 py-2">
+                        <p className="text-[10px] font-bold leading-relaxed text-ink">{runningGameScan.state === 'found' ? runningGameScan.message : `${externalRunningGame.name} is running from another launcher.`}</p>
+                        <button type="button" onClick={enableLowUsage} className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-emerald-400 px-2.5 py-1.5 text-[9.5px] font-black text-emerald-950 shadow-lg">Enable low usage until it closes <ChevronRight size={12} /></button>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={scanRunningGame} disabled={runningGameScan.state === 'checking'} className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.42)] bg-[rgb(var(--accent)/0.09)] px-2.5 py-1.5 text-[9.5px] font-black text-[rgb(var(--accent-2))] disabled:opacity-55"><Bot size={12} className={runningGameScan.state === 'checking' ? 'animate-pulse' : ''} />{runningGameScan.state === 'checking' ? 'Scanning local games…' : 'Is a game running?'}</button>
+                    )}
+                    {(runningGameScan.state === 'empty' || runningGameScan.state === 'error') && <p className="mt-1.5 text-[9px] leading-relaxed text-muted">{runningGameScan.message}</p>}
+                    <div className="mt-2 border-t border-[rgb(var(--border)/0.45)] pt-2">
+                      <button type="button" onClick={inspectBackgroundApps} disabled={backgroundCheck.state === 'checking'} className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.42)] bg-[rgb(var(--accent)/0.09)] px-2.5 py-1.5 text-[9.5px] font-black text-[rgb(var(--accent-2))] disabled:opacity-55"><Activity size={12} className={backgroundCheck.state === 'checking' ? 'animate-pulse' : ''} />{backgroundCheck.state === 'checking' ? 'Checking background apps…' : 'Check background apps'}</button>
+                      {backgroundCheck.state === 'done' && (
+                        <div className="mt-2 rounded-xl border border-[rgb(var(--border)/0.66)] bg-[rgb(var(--surface)/0.42)] px-2.5 py-2">
+                          <p className="text-[9.5px] font-bold leading-relaxed text-ink">{backgroundCheck.message}</p>
+                          {backgroundCheck.likelyGame && <p className="mt-1 text-[9px] text-emerald-300"><span className="font-black">Likely game/client:</span> {backgroundCheck.likelyGame.name} · {shortMemory(backgroundCheck.likelyGame.memoryBytes)} RAM · {Math.round(Number(backgroundCheck.likelyGame.cpuPercent || 0))}% CPU</p>}
+                          <div className="mt-1.5 grid grid-cols-2 gap-1.5 text-[8.5px] leading-relaxed text-muted">
+                            <div><span className="font-black uppercase tracking-wide text-[rgb(var(--accent-2))]">CPU</span><p className="truncate" title={backgroundCheck.cpu[0]?.name}>{backgroundCheck.cpu[0] ? `${backgroundCheck.cpu[0].name} · ${Math.round(Number(backgroundCheck.cpu[0].cpuPercent || 0))}%` : 'Nothing notable'}</p></div>
+                            <div><span className="font-black uppercase tracking-wide text-[rgb(var(--accent-2))]">RAM</span><p className="truncate" title={backgroundCheck.memory[0]?.name}>{backgroundCheck.memory[0] ? `${backgroundCheck.memory[0].name} · ${shortMemory(backgroundCheck.memory[0].memoryBytes)}` : 'Nothing notable'}</p></div>
+                          </div>
+                          <p className="mt-1.5 text-[8.5px] leading-relaxed text-muted/85">Read-only Windows process snapshot. It works even when a game was never added to NEO-LIB.</p>
+                        </div>
+                      )}
+                      {backgroundCheck.state === 'error' && <p className="mt-1.5 text-[9px] leading-relaxed text-rose-300">{backgroundCheck.message}</p>}
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-center justify-between gap-2 border-t border-[rgb(var(--border)/0.7)] px-3.5 py-2.5"><div className="flex items-center gap-2"><button type="button" onClick={() => { setChatOpen(true); dismiss(); }} className="text-[10px] font-bold text-muted hover:text-ink">Talk to Fungist</button><button type="button" onClick={toggleWhy} className="text-[9px] font-bold text-[rgb(var(--accent-2))] hover:underline">{showWhy ? 'Hide reason' : 'Why am I seeing this?'}</button></div><button type="button" onClick={act} className="inline-flex items-center gap-1.5 rounded-lg bg-[rgb(var(--accent))] px-3 py-1.5 text-[10px] font-black text-[rgb(var(--surface))] shadow-lg"><span>{notice.action}</span><ChevronRight size={13} /></button></div>
               </motion.section>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {hovering && !notice && !spokenLine && !chatOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 4, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 3, scale: 0.98 }}
+                transition={{ duration: 0.14, ease: 'easeOut' }}
+                className="relative mb-1 max-w-[min(190px,calc(100vw-28px))] rounded-lg border border-[rgb(var(--accent)/0.35)] bg-[rgb(var(--panel)/0.92)] px-2.5 py-1.5 text-right text-[10px] font-medium text-ink shadow-md backdrop-blur-md"
+                data-testid="fungist-hover-tip"
+              >
+                Talk to Fungist
+                <span aria-hidden="true" className="absolute -bottom-1 right-6 h-2 w-2 rotate-45 border-b border-r border-[rgb(var(--accent)/0.35)] bg-[rgb(var(--panel))]" />
+              </motion.div>
             )}
           </AnimatePresence>
 
@@ -516,13 +709,12 @@ export default function FungistMascot({
               <motion.div
                 initial={{ opacity: 0, y: 8, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 4, scale: 0.97 }}
                 transition={{ duration: 0.18, ease: 'easeOut' }}
-                className="mb-2 max-w-[290px] rounded-2xl border border-[rgb(var(--accent)/0.58)] bg-[rgb(var(--panel)/0.95)] px-3.5 py-2.5 text-right shadow-2xl backdrop-blur-xl"
-                style={{ boxShadow: '0 18px 55px -20px rgba(0,0,0,.85), 0 0 26px -10px rgb(var(--accent)/.8)' }}
+                className="relative mb-1 w-fit max-w-[230px] rounded-xl border border-[rgb(var(--accent)/0.42)] bg-[rgb(var(--panel)/0.90)] px-3 py-1.5 text-right shadow-md backdrop-blur-md"
+                style={{ boxShadow: '0 8px 20px -14px rgba(0,0,0,.82)' }}
                 data-testid="fungist-speech"
               >
-                <p className="text-[8.5px] font-black uppercase tracking-[0.18em] text-[rgb(var(--accent-2))]">Fungist says</p>
-                <p className="mt-1 text-[12px] font-black leading-snug text-ink">“{spokenLine.speech}”</p>
-                <span aria-hidden="true" className="absolute -bottom-1.5 right-8 h-3 w-3 rotate-45 border-b border-r border-[rgb(var(--accent)/0.58)] bg-[rgb(var(--panel))]" />
+                <p className="text-[11px] font-medium leading-snug text-ink">{spokenLine.speech}</p>
+                <span aria-hidden="true" className="absolute -bottom-1 right-6 h-2 w-2 rotate-45 border-b border-r border-[rgb(var(--accent)/0.42)] bg-[rgb(var(--panel))]" />
               </motion.div>
             )}
           </AnimatePresence>
@@ -537,12 +729,16 @@ export default function FungistMascot({
 
           <motion.button
             type="button"
-            onClick={() => { setSleeping(false); setChatOpen((open) => !open); }}
+            onPointerDown={beginDockDrag}
+            onClick={(event) => {
+              if (suppressDockClick.current) { suppressDockClick.current = false; event.preventDefault(); return; }
+              setSleeping(false);
+              setChatOpen((open) => !open);
+            }}
             onMouseEnter={() => { setSleeping(false); setHovering(true); }}
             onMouseLeave={() => setHovering(false)}
             onContextMenu={(event) => { event.preventDefault(); setSleeping(false); setChatOpen(false); setContextTab('inbox'); setContextOpen(true); }}
             aria-label="Talk to Fungist"
-            title={notice ? 'Fungist has something to tell you · right-click for Inbox and quick settings' : 'Talk to Fungist · right-click for Inbox and quick settings'}
             animate={launching || spokenLine?.mood === 'celebrate' ? { scale: [1, 1.14, 1.02, 1.12, 1], y: [0, -12, -3, -11, 0], rotate: [0, -6, 5, -4, 0] }
               : spokenLine?.mood === 'urgent' || spokenLine?.mood === 'concerned' ? { scale: [1, 1.08, 0.98, 1.06, 1], x: [0, -2, 2, -1, 0], rotate: [0, -2, 2, -1, 0] }
               : speaking ? { scale: [1, 1.065, 1.02, 1.06, 1], y: [0, -4, -1, -4, 0], rotate: [0, -1.2, 1.1, -0.8, 0] }
@@ -565,7 +761,7 @@ export default function FungistMascot({
               : major ? { duration: 0.18 }
                 : sleeping ? { duration: 3.8, repeat: Infinity, ease: 'easeInOut' }
                   : { duration: idlePulse ? 1.25 : 2.55, repeat: idlePulse ? 0 : Infinity, ease: 'easeInOut' }}
-            className="relative grid h-[172px] w-[160px] place-items-end bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--accent-2))]"
+            className="relative grid h-[172px] w-[160px] cursor-grab place-items-end bg-transparent p-0 focus:outline-none active:cursor-grabbing focus-visible:ring-2 focus-visible:ring-[rgb(var(--accent-2))]"
             style={{ filter: `drop-shadow(0 14px 20px rgba(0,0,0,.36)) drop-shadow(0 0 18px ${healthGlow})` }}
           >
             {!major && <span aria-hidden="true" className="pointer-events-none absolute bottom-0 left-1/2 h-5 w-28 -translate-x-1/2"><motion.span className="absolute inset-0 rounded-[50%] border border-[rgb(var(--accent)/0.42)] bg-[rgb(var(--accent)/0.08)]" style={{ boxShadow: `0 0 18px 2px ${healthGlow}, inset 0 0 12px rgb(var(--accent)/.28)` }} animate={sleeping ? { opacity: [0.2, 0.45, 0.2], scaleX: [0.88, 1.04, 0.88] } : { opacity: [0.34, 0.82, 0.34], scaleX: [0.86, 1.12, 0.86] }} transition={{ duration: sleeping ? 3.8 : 2.55, repeat: Infinity, ease: 'easeInOut' }} /></span>}

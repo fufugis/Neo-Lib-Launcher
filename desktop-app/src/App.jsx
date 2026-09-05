@@ -9,11 +9,14 @@ import LauncherDetectModal from './components/LauncherDetectModal';
 import SettingsModal from './components/SettingsModal';
 import SettingsRecoveryBoundary from './components/SettingsRecoveryBoundary';
 import AddGameModal from './components/AddGameModal';
+import ToolMetadataModal from './components/ToolMetadataModal';
+import ToolDetail from './components/ToolDetail';
 import WizardModal from './components/WizardModal';
 import AutoSortModal from './components/AutoSortModal';
 import PromptModal from './components/PromptModal';
 import ConfirmModal from './components/ConfirmModal';
 import TroubleshootModal from './components/TroubleshootModal';
+import RefreshCandidatesModal from './components/RefreshCandidatesModal';
 import TutorialModal from './components/TutorialModal';
 import HoverTips from './components/HoverTips';
 import PostPlayRatingModal from './components/PostPlayRatingModal';
@@ -36,7 +39,7 @@ import LaunchDoctorModal from './components/LaunchDoctorModal';
 import { checkForUpdates } from './lib/updateChecker';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.7.4';
+const APP_VERSION = '1.7.5';
 import PinModal from './components/PinModal';
 import { uid, guessNameFromPath, hashPin, formatPlaytime } from './lib/utils';
 import { normalizeGenreProfile, GENRE_TAXONOMY_VERSION } from './lib/genreTaxonomy';
@@ -222,13 +225,22 @@ export default function App() {
   // A game launched by NEO-LIB is still tracked while the window stays open.
   // Rest Mode uses this to pause every non-essential bit of background work.
   const [runningGame, setRunningGame] = React.useState(null);
+  // A game started through Steam, Battle.net, or another client is discovered
+  // separately. Fungist can offer the player a clear one-click Rest Mode
+  // choice instead of silently hiding the launcher at an awkward moment.
+  const [externalRunningGame, setExternalRunningGame] = React.useState(null);
+  const [externalRestOverride, setExternalRestOverride] = React.useState(false);
   const [ratingPromptGame, setRatingPromptGame] = React.useState(null);
   const [managedToolInstallId, setManagedToolInstallId] = React.useState('');
-  const gameRestActive = !!runningGame && settings.gameRestMode !== false;
+  const gameRestActive = !!runningGame && (
+    settings.gameRestMode !== false
+    || (runningGame.source === 'external' && externalRestOverride)
+  );
   const [unlockedCategories, setUnlockedCategories] = React.useState([]);
   const [search, setSearch] = React.useState('');
 
   const [showAdd, setShowAdd] = React.useState(false);
+  const [toolMetadataTarget, setToolMetadataTarget] = React.useState(null);
   const [showWizard, setShowWizard] = React.useState(false);
   const [showSettings, setShowSettings] = React.useState(false);
 
@@ -318,6 +330,7 @@ export default function App() {
 
   /* --- Troubleshoot state (smart refetch) --- */
   const [troubleshoot, setTroubleshoot] = React.useState({ open: false, game: null });
+  const [refreshReview, setRefreshReview] = React.useState(null);
 
   /* --- Auto-sort state --- */
   const [autoSortOpen, setAutoSortOpen] = React.useState(false);
@@ -378,6 +391,53 @@ export default function App() {
   // library mutation (which would flicker the popup).
   const libraryRef = React.useRef(library);
   React.useEffect(() => { libraryRef.current = library; }, [library]);
+  // Existing Tools collections deserve the same first-class identity as a
+  // newly added program. On the first Tools visit, fill only missing fields
+  // for a small bounded batch. Custom names, descriptions, images, categories
+  // and paths always win; this never launches, installs, or uploads a tool.
+  const toolMetadataBackfillRef = React.useRef(new Set());
+  React.useEffect(() => {
+    if (!isElectron || settings.mode !== 'tools' || !window.api?.fetchToolMetadata) return undefined;
+    const candidates = (library.tools || [])
+      .filter((tool) => tool?.exePath && (!tool.icon || !tool.shortDescription || !tool.about || !tool.publisher))
+      .filter((tool) => !toolMetadataBackfillRef.current.has(tool.id))
+      .slice(0, 8);
+    if (!candidates.length) return undefined;
+    let cancelled = false;
+    (async () => {
+      for (const tool of candidates) {
+        toolMetadataBackfillRef.current.add(tool.id);
+        try {
+          const [localIcon, details] = await Promise.all([
+            tool.icon ? Promise.resolve(tool.icon) : window.api.extractIcon?.(tool.exePath),
+            window.api.fetchToolMetadata({ exePath: tool.exePath, query: tool.name }),
+          ]);
+          if (cancelled) return;
+          setLibrary((current) => ({
+            ...current,
+            tools: (current.tools || []).map((item) => item.id !== tool.id ? item : {
+              ...item,
+              icon: item.icon || localIcon || '',
+              coverUrl: item.coverUrl || localIcon || '',
+              shortDescription: item.shortDescription || details?.shortDescription || '',
+              about: item.about || details?.about || '',
+              publisher: item.publisher || details?.publisher || '',
+              developers: item.developers?.length ? item.developers : (details?.developers || []),
+              version: item.version || details?.version || '',
+              toolCategory: item.toolCategory || details?.category || '',
+              genres: item.genres?.length ? item.genres : (details?.genres || []),
+              website: item.website || details?.website || '',
+              metadataSource: item.metadataSource || details?.source || 'Windows executable',
+              metadataEvidence: item.metadataEvidence?.length ? item.metadataEvidence : (details?.evidence || []),
+              metadataFetchedAt: item.metadataFetchedAt || details?.metadataFetchedAt || Date.now(),
+              toolKind: 'software',
+            }),
+          }));
+        } catch { /* a missing/unreadable tool remains usable and can be refreshed manually */ }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [library.tools, settings.mode]);
   React.useEffect(() => {
     if (!isElectron || !window.api?.detectLaunchers) return undefined;
     if (settings.launcherDetectEnabled === false || gameRestActive) return undefined;
@@ -683,14 +743,13 @@ export default function App() {
           if (Number(seconds) > 0 && Number(seconds) < 8) recordLaunchProblem(gameId, 'closed immediately');
         });
         window.api.onExternalGameState?.(({ active, gameId, name }) => {
-          setRunningGame((current) => {
-            if (active) {
-              if (current?.id === gameId && current?.source === 'external') return current;
-              notify(`${name || 'A library game'} is running from another launcher. NEO-LIB is resting.`);
-              return { id: gameId, name: name || 'External game', source: 'external' };
-            }
-            return current?.source === 'external' ? null : current;
-          });
+          if (active) {
+            setExternalRunningGame({ id: gameId, name: name || 'External game', source: 'external' });
+            return;
+          }
+          setExternalRunningGame(null);
+          setExternalRestOverride(false);
+          setRunningGame((current) => current?.source === 'external' ? null : current);
         });
       } else {
         setLibrary({
@@ -810,15 +869,15 @@ export default function App() {
     if (isElectron) window.api.saveLibrary(library);
   }, [library]);
 
-  // Rest Mode also covers a known library game started from Steam, Battle.net,
-  // Epic, or another client. The main process does a path-only process check;
-  // an idle launcher alone never activates it.
+  // Known library games started through Steam, Battle.net, Epic, or another
+  // client are watched via an ordinary path-only Windows process check. The
+  // check provides an explicit low-usage offer; an idle launcher never counts.
   React.useEffect(() => {
     if (!isElectron || !window.api?.watchExternalGames) return undefined;
-    const games = settings.gameRestMode === false ? [] : (library.games || []).map(({ id, name, exePath }) => ({ id, name, exePath }));
+    const games = (library.games || []).map(({ id, name, exePath }) => ({ id, name, exePath }));
     window.api.watchExternalGames({ games }).catch(() => {});
     return undefined;
-  }, [library.games, settings.gameRestMode]);
+  }, [library.games]);
 
   const persistSettings = (next) => {
     setSettings(next);
@@ -893,13 +952,14 @@ export default function App() {
     if (gameRestActive || typeof window === 'undefined' || !window.api?.fetchAllNews) return undefined;
     let cancelled = false;
     const check = async () => {
-      const games = (library.games || []).filter(
-        (g) => g && (g.appid || g.gogId || /itch\.io/.test(g.website || '') || g.source === 'itch')
-      );
+      // Every named library game is news-eligible. Steam/GOG/itch keep their
+      // direct feeds, while other launchers and local titles use the bounded
+      // public-source fallback in the desktop process.
+      const games = (library.games || []).filter((g) => g && String(g.name || '').trim());
       if (!games.length) { setUnseenNewsCount(0); return; }
       try {
         const res = await window.api.fetchAllNews({
-          games: games.map((g) => ({ id: g.id, appid: g.appid, name: g.name, website: g.website, source: g.source, gogId: g.gogId })),
+          games: games.map((g) => ({ id: g.id, appid: g.appid, name: g.name, website: g.website, source: g.source, launcher: g.launcher, gogId: g.gogId })),
           days: 14,
           force: false,
         });
@@ -971,14 +1031,13 @@ export default function App() {
     let cancelled = false;
     const pinnedSet = new Set(settings.pinnedGameIds || []);
     const watched = (library.games || []).filter((g) =>
-      g && (pinnedSet.has(g.id) || Number(g.rating) === 5) &&
-      (g.appid || g.gogId || /itch\.io/.test(g.website || '') || g.source === 'itch')
+      g && String(g.name || '').trim() && (pinnedSet.has(g.id) || Number(g.rating) === 5)
     );
     const check = async () => {
       if (!watched.length) return;
       try {
         const res = await window.api.fetchAllNews({
-          games: watched.map((g) => ({ id: g.id, appid: g.appid, name: g.name, website: g.website, source: g.source, gogId: g.gogId })),
+          games: watched.map((g) => ({ id: g.id, appid: g.appid, name: g.name, website: g.website, source: g.source, launcher: g.launcher, gogId: g.gogId })),
           days: 3,
           force: false,
         });
@@ -1031,6 +1090,27 @@ export default function App() {
     ));
   }, []);
   const openMascotHealth = React.useCallback(() => setMascotHealthOpenRequest((value) => value + 1), []);
+  const scanForExternalRunningGame = React.useCallback(async () => {
+    if (!isElectron || !window.api?.scanExternalGamesNow) {
+      return { ok: false, message: 'Running-game checks are available in the installed Windows app.' };
+    }
+    const result = await window.api.scanExternalGamesNow().catch(() => null);
+    if (!result?.ok) return { ok: false, message: result?.busy ? 'The game scan is already running. Try again in a moment.' : 'I could not check running games right now.' };
+    if (!result.active) return { ok: true, active: false, message: 'I could not match a running game to a NEO-LIB library entry.' };
+    const game = { id: result.gameId, name: result.name || 'A library game', source: 'external' };
+    setExternalRunningGame(game);
+    return { ok: true, active: true, game };
+  }, []);
+  const enableExternalRestMode = React.useCallback((game) => {
+    const active = game || externalRunningGame;
+    if (!active?.id) return { ok: false, message: 'I need to identify the running game first.' };
+    // This is a one-game opt-in even when the player keeps the global default
+    // off. The override clears automatically when the exact process exits.
+    setExternalRestOverride(true);
+    setRunningGame({ ...active, source: 'external' });
+    notify(`${active.name} is running from another launcher. NEO-LIB is now resting.`);
+    return { ok: true, active: true, game: active };
+  }, [externalRunningGame]);
   const askFungist = React.useCallback(async (message, history = [], visibleLibraryGames = []) => {
     if (!window.api?.askFungist) return { ok: false, error: 'Fungist chat is available in the NEO-LIB desktop app.' };
     return window.api.askFungist({ apiKey: settings.geminiKey || '', message, history, libraryContext: fungistLibrarySnapshot(visibleLibraryGames), model: settings.aiModel || 'gemini-2.5-flash' });
@@ -1140,6 +1220,21 @@ export default function App() {
         return next;
       }),
     }));
+  };
+  const addTool = (data) => {
+    const tool = {
+      id: uid(),
+      categoryIds: [],
+      addedAt: Date.now(),
+      availability: data?.exePath ? 'installed' : 'missing',
+      toolKind: 'software',
+      ...data,
+    };
+    setLibrary((prev) => ({ ...prev, tools: [tool, ...(prev.tools || [])] }));
+    setSelectedToolId(tool.id);
+    setShowAdd(false);
+    setToolMetadataTarget(null);
+    notify(`Added tool · ${tool.name}`);
   };
   // NEW means the player has not deliberately opened this title from the
   // Library yet. It is intentionally separate from automatic selections made
@@ -1265,6 +1360,10 @@ export default function App() {
   const refetchGameRef = React.useRef(null);
   const refetchGame = async (g, opts = {}) => {
     if (!isElectron) { notify('Re-fetch only works in the installed app.'); return null; }
+    if (!opts.silent && !opts.autoApply && !opts.forceSearch) {
+      setRefreshReview({ games: [g], index: 0, field: 'all-locked', options: opts });
+      return null;
+    }
     setFetching(true);
     const query = opts.query || g.name || guessNameFromPath(g.exePath);
     const skip = [];
@@ -1272,7 +1371,9 @@ export default function App() {
     // SAFETY: if game already has a Steam appid, lock to that appid so refetch can NEVER
     // accidentally replace this game's data with another game's. User must explicitly
     // request a "Re-search" (different query) to escape the lock.
-    const lockedAppid = (!opts.forceSearch && g.appid) ? g.appid : null;
+    // Battle.net owns its own product identity. An old/cross-store appid must
+    // never bypass Blizzard's exact catalogue route during Re-fetch info.
+    const lockedAppid = (!opts.forceSearch && g.appid && String(g.launcher || '').toLowerCase() !== 'battlenet') ? g.appid : null;
 
     // An imported launcher record can have a technical or shortened display
     // name. If the first automatic lookup comes up empty, quietly retry with
@@ -1301,6 +1402,8 @@ export default function App() {
         aiModel: settings.aiModel || 'gemini-2.5-flash',
         lockedAppid,
         launcher: g.launcher || '',
+        launcherProductId: g.launcherProductId || '',
+        force: !opts.silent,
       });
       if (result) {
         resolvedQuery = candidate;
@@ -1311,7 +1414,15 @@ export default function App() {
     // modal so the user can compare current vs proposed metadata before it's
     // applied. The modal will call onAccept(patch) to commit, or onTryAgain()
     // to re-search with a different name.
-    if (!opts.silent && !opts.autoApply) {
+    // Battle.net's maintained product catalogue is an exact local-product
+    // match, not a fuzzy store candidate.  Re-fetch should therefore do what
+    // the button promises for existing WoW/Warcraft III imports: apply the
+    // known Blizzard record directly instead of opening a generic accept
+    // screen that makes the refresh appear to have done nothing.
+    const authoritativeBattleNet = String(g.launcher || '').toLowerCase() === 'battlenet'
+      && result?.source === 'battlenet'
+      && !opts.forceSearch;
+    if (!opts.silent && !opts.autoApply && !authoritativeBattleNet) {
       setFetching(false);
       setAcceptPreview({ open: true, game: g, proposed: result, busy: false });
       return result;
@@ -1456,19 +1567,9 @@ export default function App() {
       notify(mode === 'full' ? 'No non-manual games are available for a full refresh.' : 'No incomplete or stale non-manual metadata needs a refresh.');
       return;
     }
-    setUpdatingAll(true);
-    setMetadataRefreshProgress({ done: 0, total: targets.length, mode });
-    let refreshed = 0;
-    for (const g of targets) {
-      try { await refetchGame(g, { autoApply: true, quiet: true }); } catch { /* keep the remaining maintenance queue alive */ }
-      refreshed += 1;
-      setMetadataRefreshProgress({ done: refreshed, total: targets.length, mode });
-    }
-    setUpdatingAll(false);
-    setMetadataRefreshProgress({ done: 0, total: 0, mode: '' });
-    notify(skipped > 0
-      ? `Metadata maintenance complete · ${targets.length} refreshed · ${skipped} left untouched`
-      : `Metadata maintenance complete · ${targets.length} refreshed.`);
+    if (!isElectron) { notify('Re-fetch only works in the installed app.'); return; }
+    setRefreshReview({ games: targets, index: 0, field: 'all-locked' });
+    notify(`Review ${targets.length} games individually. Nothing is replaced without your selection.${skipped ? ` ${skipped} entries left untouched.` : ''}`);
   };
   // Keep ref in sync so background callers always invoke the latest refetchGame
   React.useEffect(() => { refetchGameRef.current = refetchGame; });
@@ -1719,8 +1820,10 @@ export default function App() {
       skipSources: [],
       geminiKey: settings.geminiKey || '',
       aiModel: settings.aiModel || 'gemini-2.5-flash',
-      lockedAppid: g.appid || null,
+      lockedAppid: String(g.launcher || '').toLowerCase() === 'battlenet' ? null : (g.appid || null),
       launcher: g.launcher || '',
+      launcherProductId: g.launcherProductId || '',
+      force: true,
     });
     if (result?.genres?.length) updateGame(g.id, { genres: result.genres, genreTags: result.genreTags?.length ? result.genreTags : result.genres });
   };
@@ -1874,47 +1977,9 @@ export default function App() {
       }
       return;
     }
-    if (type === 'all-locked') {
-      setTroubleshoot({ open: false, game: null });
-      await refetchGame(g, { skipCurrentSource: true });
-      return;
-    }
-    // Surgical field refetch — fetch full metadata locked to current appid, then apply only the requested field
     if (!isElectron) { notify('Re-fetch only works in the installed app.'); return; }
-    setFetching(true);
-    const result = await window.api.fetchMetadata({
-      query: g.name,
-      skipSources: [],
-      geminiKey: settings.geminiKey || '',
-      aiModel: settings.aiModel || 'gemini-2.5-flash',
-      lockedAppid: g.appid || null,
-      launcher: g.launcher || '',
-    });
-    if (!result) {
-      setFetching(false);
-      notify('No metadata found.');
-      return;
-    }
-    const patch = {};
-    if (type === 'icon') {
-      let coverUrl = result.capsuleImage || result.headerImage || null;
-      if (coverUrl && coverUrl.startsWith('http')) {
-        coverUrl = (await window.api.cacheImage(coverUrl, result.name)) || coverUrl;
-      }
-      patch.icon = coverUrl || g.icon;
-      patch.coverUrl = coverUrl || g.coverUrl;
-    } else if (type === 'description') {
-      patch.about = result.about || g.about;
-      patch.shortDescription = result.shortDescription || g.shortDescription;
-    } else if (type === 'screenshots') {
-      patch.screenshots = result.screenshots?.length ? result.screenshots : g.screenshots;
-    } else if (type === 'banner') {
-      patch.headerImage = result.headerImage || g.headerImage;
-      patch.background = result.background || g.background;
-    }
-    updateGame(g.id, patch);
-    setFetching(false);
-    notify(`Updated ${type}.`);
+    setTroubleshoot({ open: false, game: null });
+    setRefreshReview({ games: [g], index: 0, field: type });
   };
 
   /* --- Collapsed state --- */
@@ -1964,6 +2029,53 @@ export default function App() {
     const lockedPrivateIds = new Set(currentCats.filter((category) => category.private && !unlockedCategories.includes(category.id)).map((category) => category.id));
     return visibleGames.filter((game) => !(game.categoryIds || []).some((categoryId) => lockedPrivateIds.has(categoryId)));
   }, [visibleGames, currentCats, unlockedCategories]);
+  // Home must remain useful without accidentally exposing a protected game.
+  // Keep time/rating/activity numbers so dashboard totals still make sense,
+  // but replace every identifying field (name, art, platform, metadata, path,
+  // and online lookup key) with one category-aware protected placeholder.
+  const lockedHomeCategoryByGameId = React.useMemo(() => {
+    const lockedCategories = (library.categories || []).filter((category) => category.private && !unlockedCategories.includes(category.id));
+    const categoryById = new Map(lockedCategories.map((category) => [category.id, category]));
+    return Object.fromEntries((library.games || []).flatMap((game) => {
+      const category = (game.categoryIds || []).map((id) => categoryById.get(id)).find(Boolean);
+      return category ? [[game.id, category.name || 'Private category']] : [];
+    }));
+  }, [library.categories, library.games, unlockedCategories]);
+  const homeGames = React.useMemo(() => (library.games || []).map((game) => {
+    const categoryName = lockedHomeCategoryByGameId[game.id];
+    if (!categoryName) return game;
+    return {
+      id: game.id,
+      name: 'Locked game',
+      launcher: 'private',
+      homeLocked: true,
+      homeLockedCategory: categoryName,
+      playtime: game.playtime,
+      lastPlayed: game.lastPlayed,
+      lastPlayedAt: game.lastPlayedAt,
+      addedAt: game.addedAt,
+      rating: game.rating,
+      myRating: game.myRating,
+      ratedAt: game.ratedAt,
+    };
+  }), [library.games, lockedHomeCategoryByGameId]);
+  const panicLockPrivateLibrary = React.useCallback(() => {
+    const privateCategoryIds = new Set((library.categories || []).filter((category) => category.private).map((category) => category.id));
+    if (!privateCategoryIds.size) return;
+    const safeGames = (library.games || []).filter((game) => !(game.categoryIds || []).some((categoryId) => privateCategoryIds.has(categoryId)));
+    const safeGame = safeGames.length ? safeGames[Math.floor(Math.random() * safeGames.length)] : null;
+    // React batches these state changes: an exposed private Preview is replaced
+    // by a safe game in the same render that re-locks every PIN category.
+    setUnlockedCategories([]);
+    setSelectedToolId(null);
+    setSelectedId(safeGame?.id || null);
+    updateSetting({ mode: 'library', libraryViewMode: 'preview' });
+    notify(safeGame ? 'Private categories veiled. Safe Preview selected.' : 'Private categories veiled. No non-private game is available for Preview.');
+  }, [library.categories, library.games, updateSetting]);
+  const lockedWallCategories = React.useMemo(
+    () => currentCats.filter((category) => category.private && !unlockedCategories.includes(category.id)),
+    [currentCats, unlockedCategories],
+  );
   const favouriteUpdate = React.useMemo(() => {
     const ledger = settings.updateStatusLedger || {};
     const pinned = new Set(settings.pinnedGameIds || []);
@@ -1974,28 +2086,45 @@ export default function App() {
   const activeEffectsLevel = Math.max(0, Math.min(4, Number.isFinite(storedEffectsLevel) ? storedEffectsLevel : (Number.isFinite(settings.effectsLevel) ? settings.effectsLevel : 2)));
   const specialUiOpacity = gameRestActive || !specialUiTheme
     ? 0
-    : (Math.max(0, Math.min(100, Number(settings.specialDecorationOpacity ?? 46))) / 100) * [0, 0.46, 0.66, 0.84, 1][activeEffectsLevel];
+    : (Math.max(0, Math.min(100, Number(settings.specialDecorationOpacity ?? 46))) / 100) * [0, 0.65, 0.85, 1, 1][activeEffectsLevel];
+  // Button borders are static, tiny artwork—not a particle system. They keep
+  // following the Special-decoration slider and Rest Mode, but must not
+  // disappear merely because the player lowers global FX for performance.
+  const specialNavDecorationOpacity = gameRestActive || !specialUiTheme
+    ? 0
+    : Math.max(0, Math.min(100, Number(settings.specialDecorationOpacity ?? 46))) / 100;
 
   return (
-    <div className="relative flex h-screen w-screen flex-col bg-surface text-ink" data-neolib-resting={gameRestActive ? 'true' : 'false'} data-special-theme={specialUiTheme || undefined} style={{ '--special-ui-decoration-opacity': specialUiOpacity }}>
+    <div className="neolib-app-shell relative flex h-screen w-screen flex-col bg-surface text-ink" data-neolib-resting={gameRestActive ? 'true' : 'false'} data-special-theme={specialUiTheme || undefined} style={{
+      '--special-ui-decoration-opacity': specialUiOpacity,
+      '--special-nav-decoration-opacity': specialNavDecorationOpacity,
+      '--special-anime-art': `url(${import.meta.env.BASE_URL}theme-art/anime-control-vine-v1.png)`,
+      '--special-industrial-art': `url(${import.meta.env.BASE_URL}theme-art/industrial-control-machinery-v1.png)`,
+      '--special-magical-art': `url(${import.meta.env.BASE_URL}theme-art/magical-control-runes-v1.png)`,
+      '--special-anime-button-frame': `url(${import.meta.env.BASE_URL}theme-art/anime-button-frame-v2.png)`,
+      '--special-industrial-button-frame': `url(${import.meta.env.BASE_URL}theme-art/industrial-button-frame-v2.png)`,
+      '--special-magical-button-frame': `url(${import.meta.env.BASE_URL}theme-art/magical-button-frame-v2.png)`,
+    }}>
       <HoverTips />
       {/* Window edge glow — soft inner halo around the frameless window (Riot/Discord style) */}
       <div className="window-edge-glow" aria-hidden="true" />
       <BgAmbience theme={settings.theme} settings={settings} game={selected} resting={gameRestActive} />
       {/* v1.6.4 — BgTexture no longer renders as full-viewport overlay.
           Sidebar renders the texture inside its own body via bgTextureStyle. */}
-      <TitleBar
-        search={search}
-        setSearch={setSearch}
-        currentVersion={APP_VERSION}
-        updateAvailable={updateInfo?.available || false}
-        latestVersion={updateInfo?.latestVersion || ''}
-        onClickUpdate={openReleasesPage}
-        onOpenFeedback={openFeedback}
-        onDonate={() => { if (settings.fungistEnabled !== false && settings.soundsEnabled !== false && (settings.soundPack || 'synthwave') !== 'none' && settings.fungistVoiceEnabled !== false) playFungistVoice('donate', { volume: settings.fungistVoiceVolume ?? 72, cooldownMs: 18_000 }); setDonateOpen(true); }}
-      />
+      <div className="neolib-ui-foreground relative z-20">
+        <TitleBar
+          search={search}
+          setSearch={setSearch}
+          currentVersion={APP_VERSION}
+          updateAvailable={updateInfo?.available || false}
+          latestVersion={updateInfo?.latestVersion || ''}
+          onClickUpdate={openReleasesPage}
+          onOpenFeedback={openFeedback}
+          onDonate={() => { if (settings.fungistEnabled !== false && settings.soundsEnabled !== false && (settings.soundPack || 'synthwave') !== 'none' && settings.fungistVoiceEnabled !== false) playFungistVoice('donate', { volume: settings.fungistVoiceVolume ?? 72, cooldownMs: 18_000 }); setDonateOpen(true); }}
+        />
+      </div>
 
-      <div className="relative z-10 flex min-h-0 flex-1">
+      <div className="neolib-ui-foreground relative z-20 flex min-h-0 flex-1">
         <Sidebar
           games={visibleGames}
           categories={currentCats}
@@ -2027,6 +2156,12 @@ export default function App() {
           onToggleSubcatStrip={(v) => updateSetting({ showSubcatStrip: v })}
           nameTextSize={Number.isFinite(settings.nameTextSize) ? settings.nameTextSize : null}
           onChangeNameTextSize={(v) => updateSetting({ nameTextSize: v })}
+          libraryFont={settings.libraryFont || 'system'}
+          libraryFontWeight={settings.libraryFontWeight || 'regular'}
+          libraryFontCursive={settings.libraryFontCursive === true}
+          onChangeLibraryFont={(v) => updateSetting({ libraryFont: v })}
+          onChangeLibraryFontWeight={(v) => updateSetting({ libraryFontWeight: v })}
+          onChangeLibraryFontCursive={(v) => updateSetting({ libraryFontCursive: v })}
           unseenNewsCount={unseenNewsCount}
           effectsLevel={(() => {
             const map = settings.effectsLevelByTheme || {};
@@ -2035,6 +2170,7 @@ export default function App() {
             return Number.isFinite(settings.effectsLevel) ? settings.effectsLevel : 2;
           })()}
           currentTheme={settings.theme || 'synthwave'}
+          navDecorationOpacity={specialNavDecorationOpacity}
           onChangeEffectsLevel={(v) => {
             const map = { ...(settings.effectsLevelByTheme || {}) };
             map[settings.theme || 'synthwave'] = v;
@@ -2069,7 +2205,7 @@ export default function App() {
           onStartResize={startResize}
           onGameViewed={markGameSeenInLibrary}
           onSelect={(id) => { setCurrentSelectedId(id); if (id && settings.mode === 'home') setMode('library'); }}
-          onAddManual={() => setShowAdd(true)}
+          onAddManual={() => { setToolMetadataTarget(null); setShowAdd(true); }}
           onOpenWizard={() => setShowWizard(true)}
           onOpenFeedback={openFeedback}
           onUpdateAll={requestMetadataRefresh}
@@ -2097,27 +2233,27 @@ export default function App() {
         <main className="relative flex min-w-0 flex-1 flex-col">
           <div className="flex-1 min-h-0 overflow-hidden">
             {!isTools && settings.mode === 'home' ? (
-              <HomeHub games={library.games || []} resting={gameRestActive} homeLayout={settings.homeLayout || {}} onUpdateHomeLayout={(homeLayout) => updateSetting({ homeLayout })} updatesCache={settings.homeGameUpdatesCache} onUpdateUpdatesCache={(homeGameUpdatesCache) => updateSetting({ homeGameUpdatesCache })} onSelect={(id) => { setSelectedId(id); setMode('library'); }} onOpenPlaytimeImport={() => openPlaytimeImport({ force: true })} onOpenTidyUp={() => setTidyOpen(true)} />
+              <HomeHub games={homeGames} lockedGameCategories={lockedHomeCategoryByGameId} hasPrivateCategories={(library.categories || []).some((category) => category.private)} hasLockedPrivateCategories={(library.categories || []).some((category) => category.private && !unlockedCategories.includes(category.id))} onPanicLock={panicLockPrivateLibrary} resting={gameRestActive} homeLayout={settings.homeLayout || {}} onUpdateHomeLayout={(homeLayout) => updateSetting({ homeLayout })} updatesCache={settings.homeGameUpdatesCache} onUpdateUpdatesCache={(homeGameUpdatesCache) => updateSetting({ homeGameUpdatesCache })} onSelect={(id) => { if (lockedHomeCategoryByGameId[id]) { notify(`Unlock ${lockedHomeCategoryByGameId[id]} in Library to reveal this game.`); return; } setSelectedId(id); setMode('library'); }} onOpenPlaytimeImport={() => openPlaytimeImport({ force: true })} onOpenTidyUp={() => setTidyOpen(true)} />
             ) : !isTools && libraryViewMode === 'wall' ? (
-              <CoverWall games={coverWallGames} density={settings.coverWallDensity || 5} onDensityChange={(coverWallDensity) => updateSetting({ coverWallDensity })} onSelect={(id) => { setSelectedId(id); updateSetting({ mode: 'library', libraryViewMode: 'preview' }); }} search={search} />
+              <CoverWall games={coverWallGames} density={settings.coverWallDensity || 5} onDensityChange={(coverWallDensity) => updateSetting({ coverWallDensity })} onSelect={(id) => { setSelectedId(id); updateSetting({ mode: 'library', libraryViewMode: 'preview' }); }} search={search} lockedCategories={lockedWallCategories} onUnlockCategory={requestUnlock} />
             ) : !selected ? (
               <WorkspaceEmpty kind={isTools ? 'tools' : 'library'} />
             ) : (
-              <AnimatePresence mode="wait"><GameDetail key={selected?.id || 'empty'} game={selected} categories={currentCats.filter((c) => !c.private || unlockedCategories.includes(c.id))} fetching={fetching} settings={settings} onLaunch={(game, token, origin) => { launchOriginRef.current = origin || null; return launchGame(game, token); }} onLaunchError={(error) => notify(`Launch blocked: ${error}`)} onRefetch={(g) => setFetchPickerGame(g)} onRevealFolder={async (g) => { if (!isElectron) return notify('Open: ' + g.exePath); const result = await window.api.revealInFolder(g.exePath); if (!result?.ok) notify(result?.error || 'Could not open this game folder.'); else if (result?.missingTarget) notify('The configured game file is missing, so NEO-LIB opened its containing folder instead.'); }} onToggleCategory={toggleGameInCategory} onCustomize={(g) => setEditMetaGame(g)} onOpenSaveManager={(g) => setSaveManagerGame(g)} onUpdateGame={updateGame} onLocateManagedTool={locateManagedTool} onInstallManagedTool={installManagedTool} managedToolInstalling={managedToolInstallId === selected?.id} /></AnimatePresence>
+              <AnimatePresence mode="wait">{isTools ? <ToolDetail key={selected?.id || 'empty'} tool={selected} onLaunch={(tool, token) => launchGame(tool, token)} onRefetch={(tool) => { setToolMetadataTarget(tool); setShowAdd(true); }} onRevealFolder={async (tool) => { if (!isElectron) return notify('Open: ' + tool.exePath); const result = await window.api.revealInFolder(tool.exePath); if (!result?.ok) notify(result?.error || 'Could not open this tool folder.'); }} onLocateManagedTool={locateManagedTool} onInstallManagedTool={installManagedTool} installing={managedToolInstallId === selected?.id} /> : <GameDetail key={selected?.id || 'empty'} game={selected} categories={currentCats.filter((c) => !c.private || unlockedCategories.includes(c.id))} fetching={fetching} settings={settings} onLaunch={(game, token, origin) => { launchOriginRef.current = origin || null; return launchGame(game, token); }} onLaunchError={(error) => notify(`Launch blocked: ${error}`)} onRefetch={(g) => setFetchPickerGame(g)} onRevealFolder={async (g) => { if (!isElectron) return notify('Open: ' + g.exePath); const result = await window.api.revealInFolder(g.exePath); if (!result?.ok) notify(result?.error || 'Could not open this game folder.'); else if (result?.missingTarget) notify('The configured game file is missing, so NEO-LIB opened its containing folder instead.'); }} onToggleCategory={toggleGameInCategory} onCustomize={(g) => setEditMetaGame(g)} onOpenSaveManager={(g) => setSaveManagerGame(g)} onUpdateGame={updateGame} onLocateManagedTool={locateManagedTool} onInstallManagedTool={installManagedTool} managedToolInstalling={managedToolInstallId === selected?.id} />}</AnimatePresence>
             )}
           </div>
         </main>
       </div>
 
       {/* One subtle sponsored rail — all deals remain available from its popover. */}
-      {(
+      <div className="neolib-ui-foreground relative z-20">
         <DealsBar
           settings={settings}
           resting={gameRestActive}
           launcherClientPaths={settings.launcherClientPaths || settings.friendsClientPaths || {}}
           onUpdateLauncherClientPaths={(launcherClientPaths) => updateSetting({ launcherClientPaths })}
         />
-      )}
+      </div>
 
       <FungistMascot
         enabled={settings.fungistEnabled !== false}
@@ -2128,6 +2264,9 @@ export default function App() {
         favouriteUpdate={favouriteUpdate}
         appUpdate={updateInfo?.available ? updateInfo : null}
         onOpenHealth={openMascotHealth}
+        externalRunningGame={externalRunningGame}
+        onScanRunningGame={scanForExternalRunningGame}
+        onEnableExternalRest={enableExternalRestMode}
         onOpenNews={(alert) => {
           if (!alert?.url) return;
           if (isElectron && window.api?.openExternal) window.api.openExternal(alert.url);
@@ -2153,6 +2292,7 @@ export default function App() {
         completion={fungistCompletion}
         launchCelebration={fungistLaunchCelebration}
         welcomeKey={fungistWelcomeKey}
+        dockPosition={settings.fungistDockPosition || null}
         onOpenHome={() => { setCurrentSelectedId(null); setMode('home'); }}
         libraryGames={coverWallGames}
         onLaunchRequested={(game, token, origin) => { launchOriginRef.current = origin || null; return launchGame(game, token); }}
@@ -2160,7 +2300,15 @@ export default function App() {
       />
 
       {/* Modals */}
-      <AddGameModal open={showAdd} onClose={() => setShowAdd(false)} onCreate={addGame} />
+      <AddGameModal open={showAdd && !isTools} onClose={() => setShowAdd(false)} onCreate={addGame} />
+      <ToolMetadataModal
+        open={showAdd && isTools}
+        tool={toolMetadataTarget}
+        onClose={() => { setShowAdd(false); setToolMetadataTarget(null); }}
+        onCreate={addTool}
+        onUpdate={updateTool}
+        onNotice={notify}
+      />
       <WizardModal
         open={showWizard}
         onClose={() => { setShowWizard(false); setWizardPrefillRoot(''); setWizardAutoScan(false); }}
@@ -2452,6 +2600,21 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {refreshReview && <RefreshCandidatesModal
+        key={`${refreshReview.games[refreshReview.index].id}:${refreshReview.field}`}
+        game={refreshReview.games[refreshReview.index]}
+        field={refreshReview.field}
+        options={{ geminiKey: settings.geminiKey || '', aiModel: settings.aiModel || 'gemini-2.5-flash', ...refreshReview.options }}
+        progress={refreshReview.games.length > 1 ? `${refreshReview.index + 1} of ${refreshReview.games.length}` : null}
+        onClose={() => setRefreshReview(null)}
+        onSkip={refreshReview.games.length > 1 ? () => setRefreshReview(review => review.index + 1 < review.games.length ? { ...review, index: review.index + 1 } : null) : null}
+        onApply={async patch => {
+          const game = refreshReview.games[refreshReview.index];
+          updateGame(game.id, refreshReview.field === 'all-locked' ? { ...patch, metadataFetchedAt: Date.now() } : patch);
+          notify(`Saved selected ${refreshReview.field === 'all-locked' ? 'metadata' : refreshReview.field} · ${game.name}`);
+          setRefreshReview(review => review.index + 1 < review.games.length ? { ...review, index: review.index + 1 } : null);
+        }}
+      />}
       <TroubleshootModal
         open={troubleshoot.open}
         game={troubleshoot.game}
@@ -2771,19 +2934,17 @@ function ThemeArtwork({ theme, level = 2, cadence = 'full' }) {
 // They are decorative background actors only: no event listeners, no polling,
 // and Rest Mode removes the whole ambient layer before they can render.
 function SpecialThemeDecoration({ theme, opacity = 0.46 }) {
-  const style = { opacity: Math.min(0.94, Math.max(0, opacity) * 0.94) };
-  if (theme === 'anime') {
-    const petals = [
-      ['8%', '18%', -18, 0.7], ['15%', '72%', 34, 1], ['29%', '9%', 12, 0.55], ['76%', '16%', -35, 0.9],
-      ['87%', '37%', 23, 0.62], ['92%', '76%', -12, 1], ['63%', '86%', 45, 0.52], ['43%', '6%', -42, 0.48],
-      ['5%', '44%', 48, 0.54], ['24%', '92%', -24, 0.64], ['53%', '15%', 28, 0.45], ['72%', '70%', -48, 0.72],
-      ['84%', '90%', 11, 0.51], ['96%', '12%', -20, 0.46],
-    ];
-    return <div aria-hidden className="special-theme-decoration special-decoration--anime" style={style}>{petals.map(([left, top, rotate, scale], index) => <span key={index} className="anime-decor-petal" style={{ left, top, '--petal-rotate': `${rotate}deg`, '--petal-scale': scale, '--petal-delay': `${index * -1.7}s` }} />)}</div>;
-  }
-  if (theme === 'pro') return <div aria-hidden className="special-theme-decoration special-decoration--industrial" style={style}><span className="industrial-cog industrial-cog--one" /><span className="industrial-cog industrial-cog--two" /><span className="industrial-cog industrial-cog--three" /><span className="industrial-rivet industrial-rivet--one" /><span className="industrial-rivet industrial-rivet--two" /></div>;
-  if (theme === 'colorful') return <div aria-hidden className="special-theme-decoration special-decoration--magical" style={style}><span className="magical-arc magical-arc--one" /><span className="magical-arc magical-arc--two" />{Array.from({ length: 8 }).map((_, index) => <span key={index} className={`magical-spark magical-spark--${index + 1}`} />)}</div>;
-  return null;
+  const asset = {
+    anime: 'anime-control-vine-v1.png',
+    pro: 'industrial-control-machinery-v1.png',
+    colorful: 'magical-control-runes-v1.png',
+  }[theme];
+  if (!asset) return null;
+  // The atmosphere layer already respects FX level. Give the showpiece art a
+  // slightly stronger presence than a normal particle so an ordinary 46%
+  // player setting still reads as deliberate illustration rather than a faint
+  // colour wash. At 0% the component is not mounted at all.
+  return <div aria-hidden className={`special-theme-decoration special-decoration--${theme}`} style={{ opacity: Math.min(0.92, Math.max(0, opacity * 1.35)) }}><img src={`${import.meta.env.BASE_URL}theme-art/${asset}`} alt="" className="special-theme-decoration-art" /></div>;
 }
 
 function WorkspaceEmpty({ kind }) {

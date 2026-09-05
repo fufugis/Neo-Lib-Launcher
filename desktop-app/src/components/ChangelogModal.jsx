@@ -16,12 +16,156 @@ import { sendChangelogReaction } from './FeedbackModal';
 
 export const CHANGELOG = [
   {
-    version: '1.7.4',
-    title: 'Startup Safety Recovery',
-    major: [
+    version: '1.7.5',
+    title: 'Library Refinement, Safety & Fungist',
+      major: [
+        {
+          title: 'No repeated launcher names in category headers',
+          body: 'Launcher badges no longer repeat their name in white text beside the badge. Custom category names, counts and private unlock controls remain visible.',
+        },
+        {
+          title: 'Launcher wizard no longer waits for metadata before adding games',
+          body: 'Launcher confirmations use a top-level dialog. Installed games and their category are added from local records; choose artwork/descriptions afterwards through Refresh info. Scans have a 30-second timeout and Cancel control, and non-Steam product IDs are no longer stored as Steam IDs.',
+        },
+        {
+          title: 'A little more theme behind Preview',
+          body: 'The outer Preview backdrop is slightly less opaque, from 62% to 56%. Inner reading-card surfaces, text and blur remain unchanged.',
+        },
+        {
+          title: 'Finer magic in all four corners',
+          body: 'Magical navigation buttons retain their existing illuminated border lines and replace chunky cropped ornaments with four mirrored wisp/star accents.',
+        },
+        {
+          title: 'Larger welding sparks on responsive chain buttons',
+          body: 'Industrial now has three larger welding spark clusters. Its illustrated chain stretches horizontally with each navigation button as the Library pane is resized.',
+        },
+        {
+          title: 'Industrial chains and aligned Magical corners',
+          body: 'Industrial buttons now use a continuous illustrated chain with small dark cogs and welding sparks instead of cropped machinery panels. Magical flourishes align with their intended upper-right and lower-left corners.',
+        },
+        {
+          title: 'More expressive Special-theme buttons',
+          body: 'Anime blossoms extend farther beyond the button edges, Industrial gains warmer cog details, and Magical gains stronger rune/crystal flourishes. The decoration slider still controls the artwork while labels remain in front.',
+        },
+        {
+          title: 'Review game refresh results before replacing anything',
+          body: 'Icon, banner, screenshot and description refreshes now open a candidate picker with up to five results initially and Show more for additional choices. Sources and candidate titles are visible; nothing changes until Apply. Bulk game refresh steps through each game with Skip and Stop controls.',
+        },
+        {
+          title: 'Library dropdowns now stay above the game tree',
+          body: 'Launcher, Sort, Categories, and Refresh menus now use one forced foreground plane above Library content. Their near-solid theme-aware surface prevents category names, game rows, and artwork from bleeding through menu choices.',
+        },
+        {
+          title: 'Battle.net Re-fetch now visibly completes',
+          body: 'When Warcraft III or World of Warcraft resolves through its exact local Blizzard identity, Re-fetch info now saves the maintained Blizzard result immediately. Manual Re-search remains a separate reviewable choice, but the normal refresh no longer appears to do nothing behind a generic approval screen.',
+        },
+        {
+          title: 'Fungist now welcomes you only once per app window',
+          body: '“Welcome to NEO-LIB” is now reserved for the completed intro. Normal companion notices cannot route through that voice or a fallback cue, so Fungist will not unexpectedly greet you again while NEO-LIB is already running.',
+        },
+        {
+          title: 'Battle.net metadata now has a reliable Blizzard-first recovery path',
+          body: 'Re-fetch info carries the local Battle.net product identity into NEO-LIB’s Blizzard catalogue before any Steam/store match can run. Warcraft III: Reforged and World of Warcraft recover their correct Blizzard title, publisher, description, website, genres, and tags even during a temporary product-page failure. A deliberate Refresh retries Blizzard’s live page for art and wording, but never falls into an unrelated Steam result.',
+        },
+        {
+          title: 'News now checks every launcher and named library game',
+          body: 'Steam, GOG, and itch.io retain their own public feeds. EA App, Epic, Ubisoft Connect, Battle.net, Riot, Xbox, Rockstar, and standalone/F95-style entries now receive an official-site-first public news check, with clearly-labelled web discovery only when a direct feed is quiet. The work is cached and rotated across larger libraries to stay light; web discovery is never described as a verified launcher update.',
+        },
+        {
+          title: 'Library popups now always stay in front',
+          body: 'Sort, launcher filter, Categories, Add, and Refresh menus now use a dedicated foreground layer. Category rows, game art, textures, and theme effects cannot paint through or cover an open menu.',
+        },
+        {
+          title: 'Home now tells you when private categories are locked',
+          body: 'A compact status notice appears whenever a PIN category remains locked. It reminds you that stats and news from those games stay hidden until you unlock them in Library, and disappears as soon as all private categories are open.',
+        },
+        {
+          title: 'Preview actions now let the theme breathe',
+          body: 'The dark strip behind Launch and the game actions is slightly more transparent with lighter blur. Buttons retain their readable surface, while more background animation and Special-theme art can show through the surrounding strip.',
+        },
+        {
+          title: 'Private PIN setup now explains Lock private',
+          body: 'When you protect a category for the first time, NEO-LIB now introduces the readable red-outline Lock private button at the top-right of Home. It immediately re-locks every PIN category, redacts protected content, and returns to a safe Library view. Your PIN remains intact; simply enter it again to reveal that category later.',
+        },
+        {
+          title: 'Library toolbar remains readable above theme art',
+          body: 'Add, Wizard, Visuals, launcher filter, Sort, Categories, Auto-sort, and Refresh now use denser themed control surfaces. Their opened menus are near-solid, so animated artwork and texture cannot wash out labels or choices.',
+        },
+        {
+          title: 'Private games now stay private across Home',
+          body: 'Games in a locked PIN category are now protected across Home’s rankings, activity, news, updates, Chronicle, and storage surfaces. Their title, art, client details, paths, and links become a category-only lock tile until you unlock that category. The readable red-outlined Lock private button on Home re-locks every PIN category and moves straight to a safe Library Preview.',
+        },
+        {
+          title: 'Fungist hover text stays on-screen',
+          body: 'Fungist now uses a compact in-app hover bubble rather than an uncontrolled browser tooltip. His remembered dock position automatically clamps in smaller windows so both mascot and bubble remain visible.',
+        },
+        {
+          title: 'Library titles now stay inside the Library',
+          body: 'The resizable Library and its game rows now enforce clear content boundaries. A game title can use two natural lines, but it cannot paint into the next row or Preview area; hover still reveals an unusually long full title.',
+        },
+        {
+          title: 'Private categories keep their visual identity',
+          body: 'A locked PIN category now follows your selected Dot or Backdrop marker style just like the rest of the Library. Its games, count, and launcher/client badge still stay private until you unlock it.',
+        },
+        {
+          title: 'Category headers now scale as one',
+          body: 'The Category text size slider now resizes the category name, launcher/client badge, count, dot, arrow, drag grip, and options control together. Their old independent vertical nudges are gone, keeping each header centred and balanced.',
+        },
+        {
+          title: 'Private categories stay protected in Wall',
+          body: 'Cover Wall now lists every still-locked PIN category as its own padlock button at the top. Enter the PIN for the category you want to show; only then do its games populate the Wall.',
+        },
+        {
+          title: 'Fungist now speaks more simply',
+        body: 'Routine companion voice lines now use one compact, text-sized bubble with a small tail. The large caption, quote treatment, heavy glow, and duplicate speech line inside attention notices are gone. Full notice cards remain only when Fungist needs you to make a decision.',
+      },
+      {
+        title: 'Private shelves are cleaner',
+        body: 'A locked category now uses one clear lock control and a simple Unlock label instead of repeating lock icons across the row. Its protected game count stays hidden until you enter the PIN.',
+      },
+      {
+        title: 'Home now puts the week where it matters',
+        body: 'The separate Your Week card has been folded into one compact summary strip inside the fixed Top 5 Played panel: hours played, games touched, today, and Library total stay visible without spending a full Home card. What Should I Play takes the freed half-width slot, with tighter artwork and concise reasons. This Week’s News is now a stronger pinned destination directly below Top 5, with a brighter accent top edge, larger icon/headline, clearer date context, and bigger readable story cards.',
+      },
+      {
+        title: 'Tools now identify themselves like first-class entries',
+        body: 'Tools no longer use the game/Steam importer. Add Tool and Re-fetch info now start with the selected program’s normal Windows icon and file identity, then use recognised vendor profiles and one bounded public official-software lookup when needed. GPU-Z, CPU-Z, OBS, driver panels, editors, and unfamiliar utilities can receive a name, icon, publisher, version, category, description, official page, and evidence trail. Existing incomplete Tools fill only missing fields the first time you open Tools; your custom details are never overwritten, and NEO-LIB never launches, installs, or uploads a program while identifying it.',
+      },
+      {
+        title: 'Fungist can identify heavy apps outside your Library',
+        body: 'A PC-use warning now offers Check background apps. It takes one on-demand, read-only Windows process snapshot and names the heaviest CPU and RAM users even when the game was never imported into NEO-LIB. Clear game/client names—such as Overwatch—are highlighted when Windows exposes them. It never reads game memory, injects, opens an overlay, touches accounts, or changes a process.',
+      },
+      {
+        title: 'Home is now organised into real sections',
+        body: 'Top 5 Played stays fixed at the top, with a compact This Week’s News rail immediately beneath it. Everything below is grouped into Play & history, News & updates, and Library & PC care, with deliberate breathing room between sections. Drag a card only within its own section; use the section handle to move an entire section. Your existing Home order and hidden-pane choices are safely carried forward.',
+      },
+      {
+        title: 'Home’s smaller cards now share space intelligently',
+        body: 'Recent Sessions sits beside My Best Games, Your Week beside Gaming Chronicle, and Library Health beside Storage Control on wide windows. Each remains its own movable/hideable card: hold its handle and the grid shows a live drop line while cards move aside before release. Smaller windows automatically return to a comfortable single column.',
+      },
+      {
+        title: 'Released This Week no longer gives up on a quiet AAA week',
+        body: 'The discovery feed now combines SteamSpy momentum with Steam’s actual New Releases shelf. It still prefers Major releases, then falls back to Noteworthy releases with real early momentum, then to clearly-labelled Popular new releases from Steam’s current shelf. Home stays selective and transparent about which fallback was used instead of looking empty.',
+      },
+      {
+        title: 'External games now get a clear low-usage offer',
+        body: 'When Fungist reports elevated or high PC use, he can now check whether a known NEO-LIB game is running from Steam, Battle.net, Epic, or another client. A match names the game and offers “Enable low usage until it closes.” The check compares only ordinary local executable paths—never accounts, game memory, injection, overlays, or network data. Once you enable it, NEO-LIB resumes automatically shortly after that game exits.',
+      },
+      {
+        title: 'Library-only font choice',
+        body: 'Visuals now gives your Library five clean system font choices, plus separate Fat and Cursive toggles. They affect only Library game/category names; Home, Preview, Tools, and Settings keep their established typography.',
+      },
+      {
+        title: 'Proper Special-theme illustration assets',
+        body: 'Anime, Industrial, and Magical now use real transparent decorative artwork instead of procedural pixel fragments: a blossom vine, graphite machinery/hazard detail, and a rune-light flourish. The existing Special decoration slider still controls them, they never block controls, and Rest Mode removes them completely.',
+      },
       {
         title: 'Special themes now decorate the interface',
-        body: 'Special theme decoration is no longer only a faint distant backdrop. Anime now brings delicate blossom-vine curls and leaves to navigation and game controls; Industrial adds bolted rails, rivets, and hazard seams; Magical adds rune arcs and star dust. The controls remain fully clickable, labels stay clear, and one Special decoration slider still governs every flourish. FX 0 and Rest Mode remove them completely.',
+        body: 'Special theme decoration is no longer only a faint distant backdrop. The four main navigation buttons are now visibly framed by real transparent theme art, and Preview’s action strip gets a softer matching edge treatment: Anime has a blossom-vine surround, Industrial has graphite machinery and hazard detail, and Magical has a rune-light flourish. Controls remain fully clickable, labels stay clear, and one Special decoration slider still governs every flourish. FX 0 and Rest Mode remove them completely.',
+      },
+      {
+        title: 'Proper graphical button frames for Special themes',
+        body: 'The lightweight placeholder accents have been replaced with full illustrated transparent frames designed around the actual UI: Anime gets a complete blossom-vine surround, Industrial gets graphite gear machinery and orange hazard light, and Magical gets a pink/cyan rune-and-crystal frame. They now visibly wrap both the Home/Library/Wall/Tools bank and the game Preview action strip while controls stay above the art and retain full click targets.',
       },
       {
         title: 'Settings gray-screen recovery',
@@ -29,7 +173,23 @@ export const CHANGELOG = [
       },
       {
         title: 'Cleaner Library names, bigger Preview media',
-        body: 'Library game names are now clean text again, without the dark bordered plate behind them. Preview is anchored back toward the Library instead of centered in a narrow page: game details remain on the left, while a substantially larger dedicated right-side gallery shows up to eight verified headers, backgrounds, covers, and screenshots without interrupting the description.',
+        body: 'Library game names are now clean text again, without the dark bordered plate behind them. Preview is anchored back toward the Library instead of centered in a narrow page: game details remain on the left, while a substantially larger dedicated right-side gallery shows up to eight verified headers, backgrounds, covers, and screenshots without interrupting the description. Preview glass is also deliberately lighter now, letting more of your theme’s real animation and artwork show through without sacrificing readable text.',
+      },
+      {
+        title: 'Category dots now stay visible beside launcher labels',
+        body: 'Choosing Dot now gives every normal category—including Steam, Battle.net, Epic, and other launcher-labelled groups—its own coloured marker after the collapse arrow. The launcher badge no longer replaces or hides that marker. Backdrop and None keep their intended behavior.',
+      },
+      {
+        title: 'Visuals is now a shorter, structured control board',
+        body: 'The long Visuals popover is now a three-column board: Object sizes and Layout, Text & category, and FX. Each family has a solid themed header tab, so it is immediately clear which controls you are changing. Smaller windows automatically use two columns or one, without controls spilling outside the app.',
+      },
+      {
+        title: 'Effects now stay behind the interface everywhere',
+        body: 'NEO-LIB now has an explicit foreground layer for the title bar, Library, Home, Preview, Tools, deals, text, buttons, inputs, and menus. Theme art, particles, textures, edge glow, and Special decorations remain visual atmosphere behind that layer—they cannot cover a label, action, or click target.',
+      },
+      {
+        title: 'Fungist now remembers where you dock him',
+        body: 'Click-hold and drag Fungist within his safe lower-right dock area to move him away from a control. NEO-LIB saves that perch locally. Whenever he flies to chat, an alert, or the Launch button, he returns to the exact spot you chose instead of making you reposition him.',
       },
       {
         title: 'Game Identity returns to the story card',
@@ -197,6 +357,19 @@ export const CHANGELOG = [
       },
     ],
     fixes: [
+      'Special-theme navigation artwork rebuilt using direct images on each Home, Library, Wall and Tools button: cherry branches for Anime, machinery for Industrial, magic for Magical. The decoration slider controls the artwork; opaque centres protect text. Visual acceptance of this testing build remains pending.',
+      {
+        title: 'FX no longer fog over controls',
+        body: 'The permanent window-edge glow was incorrectly layered above the entire launcher. It did not steal clicks, but it could visually wash over buttons, labels, and controls. It now sits on the background FX plane behind NEO-LIB’s foreground interface.',
+      },
+      {
+        title: 'Library regular type is genuinely lighter',
+        body: 'The normal Library font setting now uses a true regular 400 weight instead of a semi-bold 500. Game names and category labels remain clean and readable; Fat remains the intentional heavy option.',
+      },
+      {
+        title: 'Special illustrations now sit on a real visible layer',
+        body: 'Anime, Industrial, and Magical decoration artwork now has an explicit full-screen, UI-safe composition layer instead of relying on an unpositioned ambient wrapper. The images are larger and more visible at normal FX levels, while the existing Special-decoration slider, FX 0, and Rest Mode still remove them cleanly.',
+      },
       {
         title: 'Cleaner release source',
         body: 'Generated build logs and one unreferenced duplicate mascot sleep asset no longer appear in release source. Required active mascot artwork, voice clips, theme art, and launch-safety scripts remain packaged with NEO-LIB.',

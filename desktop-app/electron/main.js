@@ -1440,19 +1440,33 @@ function runningWindowsExePaths() {
     });
   });
 }
+function scheduleExternalGameWatch(delayMs) {
+  if (externalGameWatch.timer) clearTimeout(externalGameWatch.timer);
+  externalGameWatch.timer = null;
+  if (!externalGameWatch.games.length) return;
+  externalGameWatch.timer = setTimeout(() => {
+    externalGameWatch.timer = null;
+    checkExternalGameWatch();
+  }, delayMs);
+}
 async function checkExternalGameWatch() {
-  if (externalGameWatch.checking || !externalGameWatch.games.length) return;
+  if (externalGameWatch.checking || !externalGameWatch.games.length) return { ok: false, busy: true };
   externalGameWatch.checking = true;
   try {
     const paths = new Set(await runningWindowsExePaths());
     const launchedHere = new Set([...runningGames.keys()].map(String));
     const active = externalGameWatch.games.find((game) => paths.has(game.exePath) && !launchedHere.has(String(game.id))) || null;
     const nextId = active?.id || null;
-    if (nextId === externalGameWatch.activeId) return;
-    externalGameWatch.activeId = nextId;
-    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('game:externalState', { active: !!active, gameId: active?.id || null, name: active?.name || '' });
+    if (nextId !== externalGameWatch.activeId) {
+      externalGameWatch.activeId = nextId;
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('game:externalState', { active: !!active, gameId: active?.id || null, name: active?.name || '' });
+    }
+    return { ok: true, active: !!active, gameId: active?.id || null, name: active?.name || '' };
   } finally {
     externalGameWatch.checking = false;
+    // An active game gets a quicker exit check so NEO-LIB resumes shortly
+    // after it closes. Idle checks stay deliberately light.
+    scheduleExternalGameWatch(externalGameWatch.activeId ? 8_000 : 30_000);
   }
 }
 ipcMain.handle('game:watchExternal', async (_e, { games = [] } = {}) => {
@@ -1464,15 +1478,20 @@ ipcMain.handle('game:watchExternal', async (_e, { games = [] } = {}) => {
   const ignored = candidates.length - externalGameWatch.games.length;
   if (!externalGameWatch.games.length) {
     externalGameWatch.activeId = null;
-    if (externalGameWatch.timer) { clearInterval(externalGameWatch.timer); externalGameWatch.timer = null; }
+    if (externalGameWatch.timer) { clearTimeout(externalGameWatch.timer); externalGameWatch.timer = null; }
     return { ok: true, watching: 0, ignored };
   }
-  // Full executable-path enumeration needs a Windows management query. Keep
-  // the safety feature light in normal use; NEO-LIB does not need to wake
-  // PowerShell six times a minute merely to notice a game launched elsewhere.
-  if (!externalGameWatch.timer) externalGameWatch.timer = setInterval(checkExternalGameWatch, 30_000);
-  checkExternalGameWatch();
+  // Full executable-path enumeration needs a Windows management query. Stay
+  // light while idle, then check more quickly only long enough to notice a
+  // detected game's exit and restore normal NEO-LIB behavior.
+  if (!externalGameWatch.timer) checkExternalGameWatch();
   return { ok: true, watching: externalGameWatch.games.length, ignored };
+});
+ipcMain.handle('game:scanExternalNow', async () => {
+  // Player-requested scan used from a high-usage warning. It remains the same
+  // path-only local check as the passive watcher—no launcher account, game
+  // memory, overlay, injection, or network access is involved.
+  return checkExternalGameWatch();
 });
 
 function queryRegistry(root, view) {
@@ -2362,9 +2381,11 @@ ipcMain.handle('gog:search', async (_e, query) => {
 });
 
 // ---------------- Web fallback (DuckDuckGo + Google) ---------------- //
-// Returns lightweight game-like metadata extracted from search result snippets.
-async function ddgSearch(term) {
-  const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(term + ' video game wiki')}`;
+// A small generic search primitive. Game metadata deliberately supplies its
+// own game-specific query below; Tools uses this unchanged so GPU-Z, OBS,
+// Windows utilities, editors and other software never get game-store results.
+async function ddgSearchRaw(term) {
+  const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(term)}`;
   try {
     const html = await httpGetText(url);
     // crude: parse anchor titles + snippets
@@ -2382,18 +2403,19 @@ async function ddgSearch(term) {
   }
 }
 
-async function googleScrape(term) {
+async function googleScrapeRaw(term) {
   // Best-effort, Google may rate-limit / show captcha. Used as last resort.
-  const url = `https://www.google.com/search?q=${encodeURIComponent(term + ' video game')}&hl=en`;
+  const url = `https://www.google.com/search?q=${encodeURIComponent(term)}&hl=en`;
   try {
     const html = await httpGetText(url);
     const results = [];
-    const re = /<h3[^>]*>([^<]+)<\/h3>[\s\S]{0,2200}?<div[^>]+VwiC3b[^>]*>([\s\S]{0,400}?)<\/div>/g;
+    const re = /<a[^>]+href="([^"]+)"[^>]*>[\s\S]{0,600}?<h3[^>]*>([\s\S]*?)<\/h3>[\s\S]{0,2200}?<div[^>]+VwiC3b[^>]*>([\s\S]{0,400}?)<\/div>/g;
     let m;
     while ((m = re.exec(html)) && results.length < 8) {
       results.push({
-        title: m[1].replace(/<[^>]+>/g, '').trim(),
-        snippet: m[2].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(),
+        url: publicSearchUrl(m[1]),
+        title: m[2].replace(/<[^>]+>/g, '').trim(),
+        snippet: m[3].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(),
       });
     }
     return results;
@@ -2618,6 +2640,159 @@ function cleanTitle(t) {
     .trim();
 }
 
+// ---------------- Tool / software metadata ---------------- //
+// Tools have a different identity problem from games. Their best source is
+// normally the selected Windows executable, then its vendor—not a game store.
+// This resolver is always player-triggered (add or re-fetch), reads only the
+// chosen file and ordinary uninstall metadata, and makes at most one public
+// software search plus one public-page artwork request.
+const SOFTWARE_KNOWLEDGE = [
+  { match: /(?:gpu[-_ ]?z|techpowerup)/i, name: 'GPU-Z', publisher: 'TechPowerUp', category: 'Hardware monitor', website: 'https://www.techpowerup.com/gpuz/', description: 'A lightweight graphics-card utility with live GPU, sensor, driver, and PCIe details.' },
+  { match: /(?:cpu[-_ ]?z|cpuid)/i, name: 'CPU-Z', publisher: 'CPUID', category: 'Hardware monitor', website: 'https://www.cpuid.com/softwares/cpu-z.html', description: 'A system-information utility for processor, mainboard, memory, and live clock details.' },
+  { match: /(?:obs(?:64)?|obs studio)/i, name: 'OBS Studio', publisher: 'OBS Project', category: 'Capture & streaming', website: 'https://obsproject.com/', description: 'Free and open-source software for video recording and live streaming.' },
+  { match: /(?:msiafterburner|afterburner)/i, name: 'MSI Afterburner', publisher: 'MSI', category: 'Hardware tuning', website: 'https://www.msi.com/Landing/afterburner/graphics-cards', description: 'A graphics-card monitoring and tuning utility with an on-screen display.' },
+  { match: /(?:hwinfo)/i, name: 'HWiNFO', publisher: 'HWiNFO', category: 'Hardware monitor', website: 'https://www.hwinfo.com/', description: 'Detailed hardware analysis, monitoring, and reporting for Windows PCs.' },
+  { match: /(?:rtss|rivatuner)/i, name: 'RivaTuner Statistics Server', publisher: 'Guru3D', category: 'Overlay & monitoring', website: 'https://www.guru3d.com/download/rtss-rivatuner-statistics-server-download/', description: 'A frame-rate limiter and on-screen display companion for compatible monitoring tools.' },
+  { match: /(?:nvcplui|nvidia.*control)/i, name: 'NVIDIA Control Panel', publisher: 'NVIDIA', category: 'Graphics settings', website: 'https://www.nvidia.com/', description: 'NVIDIA’s local graphics-driver settings and display configuration utility.' },
+  { match: /(?:amd.*software|radeonsoftware|radeonsettings)/i, name: 'AMD Software: Adrenalin Edition', publisher: 'AMD', category: 'Graphics settings', website: 'https://www.amd.com/en/products/software/adrenalin.html', description: 'AMD’s graphics-driver, display, game, and performance settings software.' },
+  { match: /(?:discord)/i, name: 'Discord', publisher: 'Discord Inc.', category: 'Communication', website: 'https://discord.com/', description: 'Voice, text, and community communication software for games and groups.' },
+  { match: /(?:steam)/i, name: 'Steam', publisher: 'Valve', category: 'Game launcher', website: 'https://store.steampowered.com/about/', description: 'Valve’s PC game launcher, store, and community client.' },
+];
+
+function cleanSoftwareTerm(value) {
+  return String(value || '')
+    .replace(/\.(?:exe|lnk|bat|cmd)$/i, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b(?:x64|x86|win64|win32|portable|setup|installer|launcher|client|app|release|beta|final)\b/gi, ' ')
+    .replace(/\bv?\d+(?:\.\d+){1,4}\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function knownSoftware(term) {
+  const haystack = String(term || '');
+  return SOFTWARE_KNOWLEDGE.find((entry) => entry.match.test(haystack)) || null;
+}
+
+function readWindowsToolFileInfo(exePath) {
+  if (process.platform !== 'win32' || !exePath || !path.isAbsolute(exePath)) return Promise.resolve({});
+  // The selected path is process-only data, never PowerShell command text.
+  const script = [
+    "$target=[Environment]::GetEnvironmentVariable('NEOLIB_TOOL_TARGET','Process')",
+    'if([string]::IsNullOrWhiteSpace($target)){exit 2}',
+    '$v=(Get-Item -LiteralPath $target -ErrorAction Stop).VersionInfo',
+    "[pscustomobject]@{ProductName=$v.ProductName;FileDescription=$v.FileDescription;CompanyName=$v.CompanyName;ProductVersion=$v.ProductVersion;FileVersion=$v.FileVersion}|ConvertTo-Json -Compress",
+  ].join(';');
+  const encodedScript = Buffer.from(script, 'utf16le').toString('base64');
+  return new Promise((resolve) => {
+    execFile('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', encodedScript], {
+      windowsHide: true,
+      timeout: 4_500,
+      maxBuffer: 32 * 1024,
+      env: { ...process.env, NEOLIB_TOOL_TARGET: exePath },
+    }, (error, stdout) => {
+      if (error) return resolve({});
+      try {
+        const raw = JSON.parse(String(stdout || '{}')) || {};
+        return resolve(Object.fromEntries(Object.entries(raw).map(([key, value]) => [key, String(value || '').trim()])));
+      } catch { return resolve({}); }
+    });
+  });
+}
+
+function readRegisteredWindowsTool(query) {
+  if (process.platform !== 'win32' || !query) return Promise.resolve(null);
+  const script = [
+    "$q=[Environment]::GetEnvironmentVariable('NEOLIB_TOOL_QUERY','Process')",
+    "$roots=@('HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*','HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*','HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*')",
+    '$items=Get-ItemProperty $roots -ErrorAction SilentlyContinue|Where-Object {$_.DisplayName}',
+    '$hit=$items|Where-Object {$_.DisplayName -like "*$q*"}|Select-Object -First 1 DisplayName,Publisher,DisplayVersion,URLInfoAbout,InstallLocation,DisplayIcon',
+    'if($hit){$hit|ConvertTo-Json -Compress}',
+  ].join(';');
+  const encodedScript = Buffer.from(script, 'utf16le').toString('base64');
+  return new Promise((resolve) => {
+    execFile('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', encodedScript], {
+      windowsHide: true,
+      timeout: 5_500,
+      maxBuffer: 64 * 1024,
+      env: { ...process.env, NEOLIB_TOOL_QUERY: String(query).slice(0, 120) },
+    }, (error, stdout) => {
+      if (error || !String(stdout || '').trim()) return resolve(null);
+      try { return resolve(JSON.parse(String(stdout))); } catch { return resolve(null); }
+    });
+  });
+}
+
+async function toolOpenGraph(url) {
+  if (!/^https:\/\//i.test(String(url || ''))) return {};
+  try {
+    const html = await httpGetText(url, 9_000);
+    return {
+      image: metaTag(html, 'og:image') || metaTag(html, 'twitter:image') || '',
+      description: metaTag(html, 'og:description') || metaTag(html, 'description') || '',
+      title: metaTag(html, 'og:title') || '',
+    };
+  } catch { return {}; }
+}
+
+ipcMain.handle('tools:fetchMetadata', async (_event, { query, exePath } = {}) => {
+  const file = await readWindowsToolFileInfo(exePath);
+  const fileTerms = [query, file.ProductName, file.FileDescription, path.basename(String(exePath || ''), path.extname(String(exePath || '')))]
+    .map(cleanSoftwareTerm).filter(Boolean);
+  const term = fileTerms[0] || cleanSoftwareTerm(query) || 'Windows tool';
+  const known = knownSoftware(fileTerms.join(' '));
+  const registered = await readRegisteredWindowsTool(file.ProductName || term);
+  const baseName = known?.name || file.ProductName || registered?.DisplayName || term;
+  const publisher = known?.publisher || file.CompanyName || registered?.Publisher || '';
+  const localDescription = known?.description || file.FileDescription || '';
+  const website = known?.website || registered?.URLInfoAbout || '';
+  const evidence = [
+    file.ProductName && 'Windows executable',
+    registered?.DisplayName && 'Windows installed-app record',
+    known && 'Recognised software profile',
+  ].filter(Boolean);
+
+  let publicResult = null;
+  // Public lookup is bounded and software-specific. It is a fallback for
+  // unfamiliar EXEs, not a download/install route and never sends file data.
+  const webTerms = [baseName, ...fileTerms].filter((value, index, list) => list.indexOf(value) === index).slice(0, 3);
+  for (const candidate of webTerms) {
+    const results = await ddgSearchRaw(`${candidate} official software`);
+    const fallback = results.length ? results : await googleScrapeRaw(`${candidate} official software`);
+    const match = pickConfidentMatch(candidate, fallback, 'title', 0.42) || fallback[0];
+    if (match) { publicResult = match; break; }
+  }
+  const publicUrl = website || publicResult?.url || '';
+  const page = await toolOpenGraph(publicUrl);
+  const description = localDescription || page.description || publicResult?.snippet || `${baseName} is a Windows utility saved in your NEO-LIB Tools collection.`;
+  const category = known?.category || inferToolCategory(`${baseName} ${description} ${publisher}`);
+  return {
+    source: known ? 'recognised software + Windows' : (publicResult ? 'Windows + public software search' : 'Windows executable'),
+    name: baseName,
+    shortDescription: description.slice(0, 300),
+    about: description.slice(0, 1600),
+    publisher,
+    developers: publisher ? [publisher] : [],
+    version: file.ProductVersion || file.FileVersion || registered?.DisplayVersion || '',
+    category,
+    genres: category ? [category] : [],
+    website: publicUrl,
+    image: page.image || '',
+    evidence,
+    metadataFetchedAt: Date.now(),
+  };
+});
+
+function inferToolCategory(value) {
+  const text = String(value || '').toLowerCase();
+  if (/(gpu|cpu|hardware|sensor|driver|radeon|nvidia|monitor|overclock|afterburner)/.test(text)) return 'Hardware & graphics';
+  if (/(stream|record|capture|broadcast|overlay)/.test(text)) return 'Capture & streaming';
+  if (/(map|editor|mod|workshop|sdk|engine)/.test(text)) return 'Game tools';
+  if (/(chat|voice|discord|messag)/.test(text)) return 'Communication';
+  if (/(browser|web)/.test(text)) return 'Web & browser';
+  return 'Windows utility';
+}
+
 // ---------------- Gemini fallback (optional) ---------------- //
 // Keep every AI route on an explicit, small allow-list. The renderer can show
 // future models before they ship, but the desktop process will only ever call
@@ -2629,6 +2804,17 @@ const DEFAULT_AI_MODEL = AI_MODELS[0].id;
 function resolveAiModel(model) {
   const id = String(model || '').trim();
   return AI_MODELS.some((entry) => entry.id === id) ? id : DEFAULT_AI_MODEL;
+}
+
+// Game callers retain their carefully tuned game vocabulary. Keeping this
+// wrapper separate is important: a generic software request must never be
+// silently rewritten into a video-game search.
+async function ddgSearch(term) {
+  return ddgSearchRaw(`${term} video game wiki`);
+}
+
+async function googleScrape(term) {
+  return googleScrapeRaw(`${term} video game`);
 }
 function geminiTextList(value) {
   return Array.isArray(value) ? value.map((entry) => String(entry || '').trim()).filter(Boolean).slice(0, 12) : [];
@@ -2841,12 +3027,12 @@ function curatedMatch(query) {
 // web scrape is involved. Unmapped names still continue through the normal
 // multi-source pipeline below.
 const BATTLENET_PRODUCTS = [
-  { match: /diablo\s*iv|diablo4/i, name: 'Diablo IV', url: 'https://eu.shop.battle.net/en-us/product/diablo-iv', genres: ['Action RPG'], tags: ['Action RPG', 'Open World', 'Co-op', 'Multiplayer'] },
-  { match: /diablo\s*ii.*resurrected|d2r/i, name: 'Diablo II: Resurrected', url: 'https://eu.shop.battle.net/en-us/product/diablo-ii-resurrected', genres: ['Action RPG'], tags: ['Action RPG', 'Loot', 'Co-op', 'Multiplayer'] },
-  { match: /diablo\s*iii|diablo3/i, name: 'Diablo III', url: 'https://eu.shop.battle.net/en-us/product/diablo-iii', genres: ['Action RPG'], tags: ['Action RPG', 'Loot', 'Co-op', 'Multiplayer'] },
-  { match: /diablo\s*immortal/i, name: 'Diablo Immortal', url: 'https://diabloimmortal.blizzard.com/', genres: ['Action RPG'], tags: ['Action RPG', 'MMORPG', 'Free to Play', 'Multiplayer'] },
-  { match: /warcraft\s*(iii|3).*reforged|warcraft3reforged/i, name: 'Warcraft III: Reforged', url: 'https://eu.shop.battle.net/en-us/product/warcraft-3-reforged', genres: ['Real-Time Strategy'], tags: ['Real-Time Strategy', 'Fantasy', 'Campaign', 'Multiplayer'] },
-  { match: /world\s*of\s*warcraft|\bwow\b/i, name: 'World of Warcraft', url: 'https://worldofwarcraft.blizzard.com/', genres: ['MMORPG'], tags: ['MMORPG', 'Open World', 'Fantasy', 'Multiplayer'] },
+  { match: /diablo\s*iv|diablo4/i, ids: ['diablo4', 'diabloiv'], name: 'Diablo IV', url: 'https://eu.shop.battle.net/en-us/product/diablo-iv', genres: ['Action RPG'], tags: ['Action RPG', 'Open World', 'Co-op', 'Multiplayer'], description: 'A dark action RPG from Blizzard where you explore Sanctuary, build a class, and face demons alone or with others.' },
+  { match: /diablo\s*ii.*resurrected|d2r/i, ids: ['d2r', 'diablo2resurrected'], name: 'Diablo II: Resurrected', url: 'https://eu.shop.battle.net/en-us/product/diablo-ii-resurrected', genres: ['Action RPG'], tags: ['Action RPG', 'Loot', 'Co-op', 'Multiplayer'], description: 'Blizzard’s remastered action RPG with loot hunting, character builds, and cooperative demon slaying.' },
+  { match: /diablo\s*iii|diablo3/i, ids: ['diablo3', 'd3'], name: 'Diablo III', url: 'https://eu.shop.battle.net/en-us/product/diablo-iii', genres: ['Action RPG'], tags: ['Action RPG', 'Loot', 'Co-op', 'Multiplayer'], description: 'A fast-paced Blizzard action RPG focused on seasonal progression, loot, and cooperative adventure.' },
+  { match: /diablo\s*immortal/i, ids: ['diabloimmortal'], name: 'Diablo Immortal', url: 'https://diabloimmortal.blizzard.com/', genres: ['Action RPG'], tags: ['Action RPG', 'MMORPG', 'Free to Play', 'Multiplayer'], description: 'A free-to-play online action RPG set in Blizzard’s Diablo universe.' },
+  { match: /warcraft\s*(?:iii|3)(?:\s*reforged)?|warcraft3|\bw3\b/i, ids: ['w3', 'warcraft3', 'warcraft3reforged'], name: 'Warcraft III: Reforged', url: 'https://warcraft3.blizzard.com/en-us/', genres: ['Real-Time Strategy'], tags: ['Real-Time Strategy', 'Fantasy', 'Campaign', 'Multiplayer'], description: 'Blizzard’s remastered fantasy real-time strategy game: command one of four races through campaign, custom games, and competitive multiplayer.' },
+  { match: /world\s*of\s*warcraft|\bwow\b/i, ids: ['wow', 'wowt', 'wowclassic', 'wow_classic'], name: 'World of Warcraft', url: 'https://worldofwarcraft.blizzard.com/', genres: ['MMORPG'], tags: ['MMORPG', 'Open World', 'Fantasy', 'Multiplayer'], description: 'Blizzard’s long-running online role-playing adventure in Azeroth, with quests, dungeons, raids, and competitive play.' },
   { match: /starcraft\s*ii|starcraft2/i, name: 'StarCraft II', url: 'https://starcraft2.blizzard.com/', genres: ['Real-Time Strategy'], tags: ['Real-Time Strategy', 'Sci-Fi', 'Competitive', 'Multiplayer'] },
   { match: /starcraft.*remastered/i, name: 'StarCraft: Remastered', url: 'https://eu.shop.battle.net/en-us/product/starcraft-remastered', genres: ['Real-Time Strategy'], tags: ['Real-Time Strategy', 'Sci-Fi', 'Competitive', 'Multiplayer'] },
   { match: /overwatch(?:\s*2)?|overwatch2/i, name: 'Overwatch 2', url: 'https://overwatch.blizzard.com/', genres: ['Shooter'], tags: ['Hero Shooter', 'First-Person Shooter', 'Team-Based', 'Multiplayer'] },
@@ -2860,7 +3046,8 @@ const BATTLENET_METADATA_CACHE = new Map();
 
 function battleNetProductFor(...values) {
   const evidence = values.filter(Boolean).map((value) => String(value)).join(' · ');
-  return BATTLENET_PRODUCTS.find((entry) => entry.match.test(evidence)) || null;
+  const compact = evidence.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  return BATTLENET_PRODUCTS.find((entry) => entry.match.test(evidence) || (entry.ids || []).some((id) => compact.includes(String(id).toLowerCase().replace(/[^a-z0-9]+/g, '')))) || null;
 }
 
 function metaTag(html, key) {
@@ -2873,34 +3060,53 @@ function metaTag(html, key) {
   return stripHtml(value.replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"'));
 }
 
-async function battleNetMetadata(query) {
-  const product = battleNetProductFor(query);
+async function battleNetMetadata(query, productIdentity = '', force = false) {
+  const product = battleNetProductFor(query, productIdentity);
   if (!product) return null;
   const cached = BATTLENET_METADATA_CACHE.get(product.name);
-  if (cached && Date.now() - cached.at < 12 * 60 * 60 * 1000) return cached.value;
+  if (!force && cached && Date.now() - cached.at < 12 * 60 * 60 * 1000) return cached.value;
+  // The maintained Blizzard product identity is already enough to recover a
+  // correct, useful library record. The public product page enriches art and
+  // current wording when reachable, but a transient CDN/locale failure must
+  // never send Refresh into a fuzzy Steam/GOG match for WoW or Warcraft III.
+  // A few Blizzard games have maintained local artwork as well.  Use it only
+  // when it belongs to this exact canonical product; it is a safe fallback for
+  // Blizzard's anti-bot/login pages, not a cross-store search result.
+  const curated = curatedMatch(product.name) || {};
+  const fallback = {
+    source: 'battlenet',
+    name: product.name,
+    shortDescription: product.description || `Official Blizzard metadata for ${product.name}.`,
+    about: product.description || `Official Blizzard metadata for ${product.name}.`,
+    headerImage: curated.headerImage || '',
+    capsuleImage: curated.capsuleImage || curated.headerImage || '',
+    background: curated.background || curated.headerImage || '',
+    screenshots: curated.screenshots || [],
+    genres: product.genres,
+    genreTags: product.tags,
+    developers: ['Blizzard Entertainment'],
+    publishers: ['Blizzard Entertainment'],
+    website: product.url,
+    metadataEvidence: ['Battle.net local product identity', 'Blizzard public product catalogue', ...(curated.headerImage ? ['Maintained Blizzard artwork fallback'] : [])],
+  };
   try {
     const html = await httpGetText(product.url, 10_000);
     const image = metaTag(html, 'og:image');
     const description = metaTag(html, 'og:description') || metaTag(html, 'description');
     const value = {
-      source: 'battlenet',
-      name: product.name,
-      shortDescription: description,
-      about: description,
-      headerImage: image,
-      capsuleImage: image,
-      background: image,
-      screenshots: [],
-      genres: product.genres,
-      genreTags: product.tags,
-      developers: ['Blizzard Entertainment'],
-      publishers: ['Blizzard Entertainment'],
-      website: product.url,
+      ...fallback,
+      shortDescription: description || fallback.shortDescription,
+      about: description || fallback.about,
+      headerImage: image || fallback.headerImage,
+      capsuleImage: image || fallback.capsuleImage,
+      background: image || fallback.background,
+      metadataEvidence: [...fallback.metadataEvidence, 'Blizzard public product page'],
     };
     BATTLENET_METADATA_CACHE.set(product.name, { at: Date.now(), value });
     return value;
   } catch {
-    return null;
+    BATTLENET_METADATA_CACHE.set(product.name, { at: Date.now(), value: fallback });
+    return fallback;
   }
 }
 
@@ -3371,7 +3577,15 @@ async function listAiCandidates(term, geminiKey, aiModel) {
   }];
 }
 
-ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey, aiModel, lockedAppid, launcher }) => {
+ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey, aiModel, lockedAppid, launcher, launcherProductId, force = false }) => {
+  const launcherKey = String(launcher || '').toLowerCase();
+  // A Battle.net product identity is authoritative for its own import. Check
+  // it before an inherited/old Steam app ID so a cross-store metadata field
+  // can never pull Warcraft III or World of Warcraft into the Steam-only path.
+  if (launcherKey === 'battlenet') {
+    const battleNet = await battleNetMetadata(query, launcherProductId, force);
+    if (battleNet) return enrichMetadataArtwork(battleNet);
+  }
   // If a lockedAppid is provided, skip search entirely and just refresh that exact entry.
   // Delisted Steam products can remain in a customer's library and manifest while
   // disappearing from public store search (and sometimes appdetails).  Never let a
@@ -3429,11 +3643,6 @@ ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey,
 
   // 0b. Battle.net first: a Blizzard title has stronger local identity than
   // a generic cross-store search and its official page can provide its art.
-  if (String(launcher || '').toLowerCase() === 'battlenet') {
-    const battleNet = await battleNetMetadata(term);
-    if (battleNet) return enrichMetadataArtwork(battleNet);
-  }
-
   // 0c. Curated launcher-exclusives (LoL, Fortnite, Valorant, Minecraft, etc.) — instant, no network
   const curated = curatedMatch(term);
   if (curated) return curated;
@@ -3993,14 +4202,45 @@ ipcMain.handle('releases:weekly', async (_event, { force = false } = {}) => {
   }
 
   try {
-    const trend = await httpGetJson('https://steamspy.com/api.php?request=top100in2weeks', 10_000);
-    // Inspect a wider recent-interest pool. We still prefer major releases,
-    // but this gives the fallback enough verified candidates when a quiet week
-    // has no blockbuster at all.
-    const candidates = Object.values(trend || {})
-      .filter((item) => item && Number(item.appid))
-      .sort((a, b) => Number(b.ccu || 0) - Number(a.ccu || 0))
-      .slice(0, 100);
+    // SteamSpy tells us about current player/review momentum, while Steam's
+    // own New Releases shelf supplies the names that a purely interest-led
+    // list can miss during a quiet launch week. Neither source alone is good
+    // enough: SteamSpy often contains older live-service games, and the store
+    // shelf alone should not overrule genuine player interest.
+    const [trendResult, featuredResult] = await Promise.allSettled([
+      httpGetJson('https://steamspy.com/api.php?request=top100in2weeks', 10_000),
+      httpGetJson('https://store.steampowered.com/api/featuredcategories?cc=us&l=en', 10_000),
+    ]);
+    if (trendResult.status !== 'fulfilled' && featuredResult.status !== 'fulfilled') {
+      throw new Error('The current release sources could not be reached.');
+    }
+    const candidateByApp = new Map();
+    for (const item of Object.values(trendResult.status === 'fulfilled' ? (trendResult.value || {}) : {})) {
+      if (!item || !Number(item.appid)) continue;
+      candidateByApp.set(Number(item.appid), { ...item, appid: Number(item.appid), featured: false });
+    }
+    const featuredItems = featuredResult.status === 'fulfilled'
+      ? (featuredResult.value?.new_releases?.items || [])
+      : [];
+    for (const item of featuredItems) {
+      const appid = Number(item?.id || item?.appid || 0);
+      if (!appid) continue;
+      const existing = candidateByApp.get(appid) || {};
+      candidateByApp.set(appid, {
+        ...existing,
+        appid,
+        name: existing.name || item.name || '',
+        featured: true,
+        featuredImage: item.large_capsule_image || item.small_capsule_image || existing.featuredImage || '',
+      });
+    }
+    // Keep a bounded pool: all of the small official shelf plus the strongest
+    // SteamSpy signals. Store-recommended games are deliberately retained even
+    // with no early review count, but only become a fallback after stronger
+    // Major and Noteworthy candidates have been exhausted.
+    const candidates = [...candidateByApp.values()]
+      .sort((a, b) => Number(b.featured) - Number(a.featured) || Number(b.ccu || 0) - Number(a.ccu || 0) || Number(b.positive || 0) - Number(a.positive || 0))
+      .slice(0, 150);
     const now = Date.now();
     const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
     const verified = await mapWithConcurrency(candidates, 4, async (signal) => {
@@ -4011,19 +4251,28 @@ ipcMain.handle('releases:weekly', async (_event, { force = false } = {}) => {
       const ccu = Number(signal.ccu || 0);
       const positives = Number(signal.positive || 0);
       const owners = ownerFloor(signal.owners);
-      // Two intentionally conservative tiers. Major is the normal Home feed;
-      // noteworthy is used only when the major tier is empty, never mixed in
-      // merely to pad a good week with smaller releases.
-      const tier = (ccu >= 150 || positives >= 250 || owners >= 20_000)
+      const recommendations = Number(data.recommendations?.total || 0);
+      // Major is the normal Home feed. Noteworthy is the stronger quiet-week
+      // fallback. The final Popular tier is deliberately limited to titles
+      // present in Steam's actual New Releases shelf, so a brand-new game does
+      // not need hours of review accumulation before Home can show anything.
+      const tier = (ccu >= 150 || positives >= 250 || owners >= 20_000 || recommendations >= 1_000)
         ? 'major'
-        : (ccu >= 45 || positives >= 75 || owners >= 5_000) ? 'noteworthy' : null;
+        : (ccu >= 45 || positives >= 75 || owners >= 5_000 || recommendations >= 250)
+          ? 'noteworthy'
+          : signal.featured ? 'popular' : null;
       if (!tier) return null;
-      const why = ccu >= 500 ? 'High current player interest' : positives >= 1_000 ? 'Strong early review interest' : owners >= 100_000 ? 'Major launch reach' : tier === 'major' ? 'Notable early player interest' : 'Worth watching: early player interest';
+      const why = ccu >= 500 ? 'High current player interest'
+        : positives >= 1_000 || recommendations >= 1_000 ? 'Strong early review interest'
+          : owners >= 100_000 ? 'Major launch reach'
+            : tier === 'major' ? 'Notable early player interest'
+              : tier === 'noteworthy' ? 'Worth watching: early player interest'
+                : 'Popular new Steam release';
       return {
         id: `steam-${signal.appid}`,
         appid: Number(signal.appid),
         title: data.name || signal.name || 'Untitled game',
-        image: data.header_image || `https://cdn.akamai.steamstatic.com/steam/apps/${signal.appid}/header.jpg`,
+        image: data.header_image || signal.featuredImage || `https://cdn.akamai.steamstatic.com/steam/apps/${signal.appid}/header.jpg`,
         platform: 'Steam',
         releaseAt,
         releaseDate: data.release_date?.date || '',
@@ -4031,20 +4280,27 @@ ipcMain.handle('releases:weekly', async (_event, { force = false } = {}) => {
         why,
         ccu,
         reviewCount: positives,
+        recommendations,
         tier,
         genres: (data.genres || []).map((genre) => genre.description).slice(0, 3),
       };
     });
     const released = verified.filter(Boolean).sort((a, b) => b.releaseAt - a.releaseAt || b.ccu - a.ccu);
     const major = released.filter((item) => item.tier === 'major');
-    const usingFallback = major.length === 0;
-    const items = (usingFallback ? released.filter((item) => item.tier === 'noteworthy') : major).slice(0, 12);
+    const noteworthy = released.filter((item) => item.tier === 'noteworthy');
+    const popular = released.filter((item) => item.tier === 'popular');
+    const tier = major.length ? 'major' : noteworthy.length ? 'semi-major' : popular.length ? 'popular' : 'none';
+    const items = (tier === 'major' ? major : tier === 'semi-major' ? noteworthy : popular).slice(0, 12);
     const payload = {
       items,
-      tier: usingFallback ? 'semi-major' : 'major',
-      criteria: usingFallback
-        ? 'No major launch cleared the strict threshold this week, so this view is showing only semi-major games with verified early momentum. Steam is the current discovery source.'
-        : 'Released within seven days, verified as a full game, and showing major recent player, review, or launch-reach signals. Steam is the current discovery source.',
+      tier,
+      criteria: tier === 'major'
+        ? 'Released within seven days, verified as a full game, and showing major recent player, review, or launch-reach signals. SteamSpy and Steam’s New Releases shelf provide the candidates.'
+        : tier === 'semi-major'
+          ? 'No major launch cleared the strict threshold this week, so this view is showing noteworthy games with verified early player or review momentum.'
+          : tier === 'popular'
+            ? 'No major or noteworthy launch cleared the evidence threshold this week, so this view is showing verified games from Steam’s current New Releases shelf. It is a popular-release fallback, not an exhaustive store dump.'
+            : 'No qualifying new releases were returned by the current verified sources. Try Refresh later.',
     };
     WEEKLY_RELEASES_CACHE = { ts: Date.now(), payload };
     return { ok: true, ...payload, fetchedAt: WEEKLY_RELEASES_CACHE.ts, cached: false };
@@ -4753,8 +5009,132 @@ async function fetchGogChangelog(game, cutoffMs) {
   }
 }
 
+// ---------------- Public web news fallback ---------------- //
+// Steam, GOG and itch expose useful public feeds. Most other launchers do
+// not offer a comparable unauthenticated per-owned-game news API, so treat the
+// game itself as the source of truth: search for its public official news
+// first, then expose a clearly-labelled search result only when no owned-feed
+// item was found. This never signs into a launcher, reads account data, or
+// treats a search hit as proof of an update.
+const WEB_NEWS_CACHE = new Map();
+let webNewsCursor = 0;
+const WEB_NEWS_CACHE_MS = 6 * 60 * 60 * 1000;
+const WEB_NEWS_MAX_FRESH_PER_PASS = 14;
+
+function newsTokens(name = '') {
+  return String(name).toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/)
+    .filter((token) => token.length >= 3 && !['game', 'the', 'for', 'and', 'edition'].includes(token));
+}
+
+function publicSearchUrl(value = '') {
+  const raw = String(value || '').replace(/&amp;/g, '&').trim();
+  if (!raw) return '';
+  try {
+    const parsed = new URL(raw, 'https://www.google.com');
+    const redirected = parsed.searchParams.get('uddg') || parsed.searchParams.get('q') || parsed.searchParams.get('url');
+    const candidate = redirected && /^https?:\/\//i.test(redirected) ? redirected : parsed.toString();
+    const target = new URL(candidate);
+    if (!/^https?:$/.test(target.protocol) || /(^|\.)google\./i.test(target.hostname)) return '';
+    return target.toString();
+  } catch { return ''; }
+}
+
+function searchNewsDate(value = '') {
+  const text = String(value || '');
+  const relative = text.match(/\b(\d{1,3})\s*(minute|hour|day|week|month)s?\s+ago\b/i);
+  if (relative) {
+    const amount = Number(relative[1]);
+    const unit = relative[2].toLowerCase();
+    const multiplier = unit === 'minute' ? 60_000 : unit === 'hour' ? 3_600_000 : unit === 'day' ? 86_400_000 : unit === 'week' ? 7 * 86_400_000 : 30 * 86_400_000;
+    return Date.now() - amount * multiplier;
+  }
+  const iso = text.match(/\b(?:20\d{2}|19\d{2})[-/.](?:0?[1-9]|1[0-2])[-/.](?:0?[1-9]|[12]\d|3[01])\b/);
+  const long = text.match(/\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s+(?:20\d{2}|19\d{2})\b/i)
+    || text.match(/\b\d{1,2}\s+(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(?:20\d{2}|19\d{2})\b/i);
+  const parsed = Date.parse(iso?.[0] || long?.[0] || '');
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function gameSiteHost(game = {}) {
+  try { return new URL(game.website || '').hostname.replace(/^www\./i, '').toLowerCase(); } catch { return ''; }
+}
+
+function publicNewsCacheKey(game = {}, cutoffMs = 0) {
+  const windowDays = Math.max(1, Math.round((Date.now() - Number(cutoffMs || Date.now())) / 86_400_000));
+  return `${game.id || game.name}|${game.name}|${game.website || ''}|${game.launcher || game.source || ''}|${windowDays}`;
+}
+
+function isGameNewsResult(game, result, cutoffMs) {
+  const title = String(result?.title || '');
+  const snippet = String(result?.snippet || '');
+  const tokens = newsTokens(game.name);
+  const combined = `${title} ${snippet}`.toLowerCase();
+  const titleMatches = tokens.filter((token) => combined.includes(token)).length;
+  if (!tokens.length || titleMatches < Math.min(2, tokens.length)) return null;
+  if (!/(?:news|update|patch|hotfix|devlog|changelog|roadmap|season|announcement)/i.test(combined)) return null;
+  const date = searchNewsDate(combined);
+  if (!date || date < cutoffMs || date > Date.now() + 86_400_000) return null;
+  const url = publicSearchUrl(result?.url);
+  const siteHost = gameSiteHost(game);
+  let sourceKind = 'web search';
+  if (siteHost && url) {
+    try {
+      const resultHost = new URL(url).hostname.replace(/^www\./i, '').toLowerCase();
+      if (resultHost === siteHost || resultHost.endsWith(`.${siteHost}`)) sourceKind = 'official website';
+    } catch { /* retain the explicitly labelled web-search source */ }
+  }
+  return {
+    id: `web-${game.id || game.name}-${date}-${title}`,
+    platform: sourceKind === 'official website' ? 'official-web' : 'web',
+    gameId: game.id || null,
+    gameName: game.name || '',
+    title: title || 'Recent game news',
+    url: url || `https://www.google.com/search?q=${encodeURIComponent(`${game.name} game news update`)}`,
+    author: '',
+    date,
+    snippet: snippet.slice(0, 320),
+    sourceKind,
+  };
+}
+
+async function fetchPublicWebNews(game, cutoffMs, force = false) {
+  const key = publicNewsCacheKey(game, cutoffMs);
+  const cached = WEB_NEWS_CACHE.get(key);
+  if (!force && cached && Date.now() - cached.ts < WEB_NEWS_CACHE_MS) return cached.items;
+  const siteHost = gameSiteHost(game);
+  const queries = [
+    siteHost ? `site:${siteHost} ${game.name} news update patch` : '',
+    `${game.name} game latest news update patch notes`,
+  ].filter(Boolean);
+  let candidates = [];
+  for (const query of queries) {
+    try {
+      // DuckDuckGo provides direct outbound URLs. Google is a deliberately
+      // secondary fallback because it can rate-limit automated requests.
+      let results = await ddgSearchRaw(query);
+      if (!results.length) results = await googleScrapeRaw(query);
+      candidates = candidates.concat(results || []);
+      const official = candidates.map((result) => isGameNewsResult(game, result, cutoffMs)).filter(Boolean).filter((item) => item.platform === 'official-web');
+      if (official.length) break;
+    } catch { /* one source being unavailable never blocks the library */ }
+  }
+  const unique = new Map();
+  for (const result of candidates) {
+    const item = isGameNewsResult(game, result, cutoffMs);
+    if (!item) continue;
+    const keyPart = `${item.title.toLowerCase()}|${item.date}`;
+    if (!unique.has(keyPart) || item.platform === 'official-web') unique.set(keyPart, item);
+  }
+  const items = [...unique.values()]
+    .sort((left, right) => Number(right.date) - Number(left.date) || (left.platform === 'official-web' ? -1 : 1))
+    .slice(0, 2);
+  WEB_NEWS_CACHE.set(key, { ts: Date.now(), items });
+  return items;
+}
+
 // ---------------- Unified news fetch ---------------- //
-// Wraps Steam + itch + GOG into one call. Cached 30 min by input signature.
+// Wraps owned feeds first, then carefully bounded public-web discovery for
+// every remaining named library game. Cached 30 min by input signature.
 let NEWS_ALL_CACHE = { ts: 0, keyHash: '', payload: null };
 ipcMain.handle('news:fetchAll', async (_e, { games = [], days = 14, force = false } = {}) => {
   const arr = Array.isArray(games) ? games : [];
@@ -4766,6 +5146,7 @@ ipcMain.handle('news:fetchAll', async (_e, { games = [], days = 14, force = fals
     s: steamList.map((g) => g.appid).sort(),
     i: itchList.map((g) => g.website).sort(),
     g: gogList.map((g) => g.gogId).sort(),
+    w: arr.map((g) => [g.id, g.name, g.website, g.launcher, g.source].join('~')).sort(),
     days,
   });
   const THIRTY_MIN = 30 * 60 * 1000;
@@ -4774,7 +5155,7 @@ ipcMain.handle('news:fetchAll', async (_e, { games = [], days = 14, force = fals
   }
   const cutoffMs = Date.now() - days * 24 * 60 * 60 * 1000;
 
-  const counts = { steam: 0, itch: 0, gog: 0 };
+  const counts = { steam: 0, itch: 0, gog: 0, officialWeb: 0, web: 0 };
   const out = [];
 
   // --- Steam (parallel batched) ---
@@ -4833,6 +5214,41 @@ ipcMain.handle('news:fetchAll', async (_e, { games = [], days = 14, force = fals
     for (const it of items) { out.push(it); counts.gog += 1; }
   }));
 
+  // Every game can now be considered for news. A game with a fresh owned
+  // feed item needs no search fallback. For the rest, favour entries owned by
+  // non-Steam launchers and saved official sites, then rotate through the
+  // wider library on later polls. This prevents a 200-game library from
+  // hammering search engines while still giving Epic, EA, Ubisoft, Battle.net,
+  // Riot, Xbox, Rockstar, local, F95-style and other entries a regular turn.
+  const gamesWithFreshOwnedFeed = new Set(out.map((item) => String(item.gameId || '')));
+  const fallbackCandidates = arr.filter((game) => game && String(game.name || '').trim() && !gamesWithFreshOwnedFeed.has(String(game.id || '')))
+    .sort((left, right) => {
+      const leftPriority = (left.launcher && String(left.launcher).toLowerCase() !== 'steam' ? 2 : 0) + (left.website ? 1 : 0);
+      const rightPriority = (right.launcher && String(right.launcher).toLowerCase() !== 'steam' ? 2 : 0) + (right.website ? 1 : 0);
+      return rightPriority - leftPriority || String(left.name).localeCompare(String(right.name));
+    });
+  const cachedFallbacks = [];
+  const freshFallbacks = [];
+  for (const game of fallbackCandidates) {
+    const cacheKey = publicNewsCacheKey(game, cutoffMs);
+    const cached = WEB_NEWS_CACHE.get(cacheKey);
+    if (!force && cached && Date.now() - cached.ts < WEB_NEWS_CACHE_MS) cachedFallbacks.push(game);
+    else freshFallbacks.push(game);
+  }
+  const rotatingFresh = freshFallbacks.length
+    ? [...freshFallbacks.slice(webNewsCursor % freshFallbacks.length), ...freshFallbacks.slice(0, webNewsCursor % freshFallbacks.length)].slice(0, WEB_NEWS_MAX_FRESH_PER_PASS)
+    : [];
+  webNewsCursor += rotatingFresh.length;
+  const publicNewsGames = [...cachedFallbacks, ...rotatingFresh];
+  await Promise.all(publicNewsGames.map(async (game) => {
+    const items = await fetchPublicWebNews(game, cutoffMs, force);
+    for (const item of items) {
+      out.push(item);
+      if (item.platform === 'official-web') counts.officialWeb += 1;
+      else counts.web += 1;
+    }
+  }));
+
   out.sort((a, b) => b.date - a.date);
   const payload = {
     items: out,
@@ -4841,6 +5257,7 @@ ipcMain.handle('news:fetchAll', async (_e, { games = [], days = 14, force = fals
       steam: steamList.length,
       itch: itchList.length,
       gog: gogList.length,
+      publicWeb: publicNewsGames.length,
     },
   };
   NEWS_ALL_CACHE = { ts: Date.now(), keyHash, payload };
@@ -4910,6 +5327,19 @@ ipcMain.handle('news:latestForGame', async (_e, game) => {
         results.push({ platform: 'gog', title: it.title, url: it.url, date: it.date, snippet: it.snippet });
       }
     } catch { /* ignore */ }
+  }
+
+  // EA, Epic, Ubisoft, Battle.net, Riot, Xbox, Rockstar, local and F95-style
+  // games often have no public launcher feed. If the owned feeds above were
+  // quiet, show the newest well-matched official-site/search discovery instead
+  // of making Preview act as if only Steam games can have news.
+  if (!results.length && String(game.name || '').trim()) {
+    try {
+      const items = await fetchPublicWebNews(game, cutoffMs);
+      for (const entry of items) {
+        results.push({ platform: entry.platform, title: entry.title, url: entry.url, date: entry.date, snippet: entry.snippet, sourceKind: entry.sourceKind });
+      }
+    } catch { /* best-effort discovery never blocks Preview */ }
   }
 
   results.sort((a, b) => b.date - a.date);

@@ -2,7 +2,7 @@
 
 > A synthwave-flavored, **fully portable Windows game library** that unifies every game on your PC — Steam, Epic, EA App, GOG, standalone — into one neon-lit interface. No accounts. No cloud. No telemetry.
 
-![status](https://img.shields.io/badge/status-testing-f59e0b) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.7.4-8a4fff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![status](https://img.shields.io/badge/status-testing-f59e0b) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.7.5-8a4fff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
 ---
 
@@ -26,11 +26,14 @@ Games launch via their **original executable**, so Steam overlays, Epic achievem
 
 ## 🎨 Features
 
+- **Outside-Library PC check** — a player-requested, read-only Windows snapshot can name top CPU/RAM apps during a Fungist alert, even when the game was never imported. Clear game/client names are highlighted without touching game memory, accounts, overlays, or processes.
 - **5 dynamic themes** — Synthwave · Midnight · Ocean · Crimson · Anime — each with its own animated particle background
 - **Smart Wizard** — pick folders, drives, or whole launcher install roots; exclusion paths supported; back-button at every step
 - **Auto-detect launchers** — Steam · Epic · EA App · GOG · Ubisoft · Battle.net · Riot · Xbox/MS Store. Inactive launchers dim out automatically
 - **Launcher filter tabs** — switch the sidebar between All / Steam / Epic / EA / GOG / Other in one click
 - **Two-Row library layout** — dense double-column view; categories never split between columns
+- **Responsive Home pairs** — related compact Home cards share a row on wide windows, remain independently movable, and fall back to a readable single-column flow when space is tight.
+- **Illustrated Special-theme button frames** — Anime blossom vines, Industrial gear/hazard machinery, and Magical rune/crystal art visibly frame the navigation and Preview actions without covering controls.
 - **Smart Auto-Sort** — one click and your library is bucketed into Recently Played, Long Games, Quick Sessions, AAA, Indie, Hidden Gems
 - **Granular Troubleshoot panel** — when a Steam/Epic/GOG fetch picks the wrong game, pick a different match in seconds without rerunning the Wizard
 - **Resizable sidebar** with thick drag handle + dynamic sliders for row size, category text size, glow intensity, spacing
@@ -55,10 +58,58 @@ Library + settings live at `%APPDATA%\NEO-LIB\`. Delete that folder to factory-r
 
 ## 📜 Patch notes
 
-### v1.7.4 — Startup Safety Recovery *(testing candidate — not published)*
+### v1.7.5 — Library Refinement, Safety & Fungist *(testing candidate — not published)*
 
 #### Major changes & new features
 
+- **Cleaner category headers** — launcher badges no longer repeat the same name beside them; custom category names remain visible.
+
+- **Launcher wizard recovery (testing)** — launcher confirmation appears on its own top-level layer; local installed games and their category no longer wait for online metadata downloads. Scans offer Cancel and a timeout message. Refresh info fills artwork/descriptions after import; non-Steam product IDs are kept separate from Steam IDs.
+
+- **Subtler Preview glass** — a small reduction in the outer Preview backdrop opacity lets more theme FX show, while retaining inner reading-card surfaces and blur.
+
+- **Finer Magical corners** — four mirrored wisp/star accents replace chunky cropped ornaments while retaining the existing illuminated border lines.
+
+- **Industrial spark polish** — three larger welding spark clusters decorate the chain border, which stretches with each navigation button as the Library pane changes width.
+
+- **Industrial chain trim** — navigation buttons use a continuous illustrated chain with small dark cogs and welding sparks. Magical ornaments now align with the upper-right and lower-left corners.
+
+- **More expressive Special buttons** — larger outward cherry blossoms, warm machinery/cog corners and magical rune/crystal flourishes surround each navigation button, with clear centres and adjustable decoration strength.
+
+- **Choose what refresh replaces (testing)** — game refresh now offers candidate artwork/descriptions before saving: up to five results initially, then **Show more**. Select one icon/banner or multiple screenshots; review complete metadata, cancel unchanged, or step through bulk refresh with Skip/Stop.
+
+- **Fungist’s welcome is now truly startup-only** — the “Welcome to NEO-LIB” voice line plays only after a completed intro, once per desktop window. Normal mascot notices cannot accidentally reuse it as a background reaction.
+- **Library dropdowns now stay in front and readable** — launcher, Sort, Categories, and Refresh menus use a forced foreground plane above scrolling games, with a near-solid themed surface so category names and game art cannot bleed through options.
+- **Battle.net Re-fetch now applies exact Blizzard results immediately** — when Warcraft III or World of Warcraft resolves through its maintained Battle.net identity, Re-fetch info saves the result directly instead of leaving it behind the generic metadata-approval screen. Manual re-search remains a separate reviewable action.
+- **Battle.net metadata now has a true Blizzard-first recovery path** — Re-fetch info carries the local Battle.net product identity into NEO-LIB’s Blizzard catalogue before any Steam/store match is considered. Warcraft III: Reforged and World of Warcraft recover their correct canonical title, Blizzard publisher, description, website, genres, and tags even if an official product page is temporarily unavailable. A manual refresh deliberately retries Blizzard’s current page for art and wording, but never falls through into an unrelated Steam match.
+- **News now reaches every launcher and local game** — Steam, GOG, and itch.io retain their own public feeds. EA App, Epic, Ubisoft Connect, Battle.net, Riot, Xbox, Rockstar, and standalone/F95-style library entries now receive an official-site-first public news check, with clearly-labelled web discovery only when no direct feed has fresh news. Searches are bounded, cached, and rotated across larger libraries so Home stays responsive; an unverified search result is never presented as a launcher update.
+- **Library popups always stay in front** — Sort, launcher filter, Categories, Add, and Refresh menus now sit on a dedicated foreground layer. Category rows, game art, textures, and theme FX cannot show through or cover an open menu.
+- **Home now tells you when private categories are locked** — a compact Home notice appears whenever a PIN category remains locked. It reminds you that stats and news from those games stay hidden until you unlock them in Library, then disappears automatically once all private categories are open.
+- **Preview actions now let the theme breathe** — the dark strip behind Launch and the game action menu is slightly more transparent with lighter blur. The controls remain clear, while more background animation and Special-theme art stays visible behind the bar.
+- **Private PIN setup now explains Lock private** — when you protect a category for the first time, NEO-LIB shows where the readable red-outline **Lock private** button lives: top-right of Home. It explains that the button immediately re-locks every PIN category, redacts protected content, and returns to a safe Library view. Your PIN is retained; enter it again later to reveal that category.
+- **Library toolbar stays readable over theme art** — Add, Wizard, Visuals, launcher filter, Sort, Categories, Auto-sort, and Refresh now sit on denser themed control surfaces. Their dropdown panels are near-solid, so texture and animation cannot wash out labels or choices.
+- **Fungist now speaks more simply** — ordinary voice lines use one compact text bubble with a small tail, without a large caption, quote treatment, or heavy glow. Full notice cards remain reserved for something that genuinely needs your action.
+- **Private categories work in Cover Wall too** — each still-locked PIN category now appears only as its own protected padlock button at the top of Wall. Enter its PIN to show that category’s games; switching to Wall alone never exposes them.
+- **Category headers scale as one** — the Visuals category-text slider now resizes the category name, launcher/client badge, count, marker, arrows, and header controls together, keeping the row centred and balanced.
+- **Private categories keep their visual identity** — locked PIN categories follow your selected Dot or Backdrop category-marker style without revealing protected game counts or titles.
+- **Library titles stay contained** — game names can use two natural lines inside the resizable Library but cannot bleed into neighbouring rows or the Preview pane; the full title remains available on hover.
+- **Fungist hover text stays on-screen** — the mascot now uses a compact in-app hover bubble, and its remembered dock position is clamped so the companion and bubble remain visible in smaller windows.
+- **Private games stay private across Home** — locked-category games become category-only lock tiles across Home’s rankings, activity, news, updates, Chronicle, and storage surfaces; their title, art, platform, path, and links are hidden until that category is unlocked. Home’s readable red-outline **Lock private** button instantly re-locks every PIN category and jumps to a safe Preview.
+- **Private shelves are cleaner** — a locked category now has one clear lock control and a simple Unlock label instead of repeated lock icons. Its protected game count stays hidden until you enter the PIN.
+- **Home now puts the week where it matters** — Top 5 Played now includes one compact weekly summary for hours played, games touched, today, and your Library total, replacing the separate Your Week card. **What Should I Play** takes the freed half-width slot with smaller art and concise reasons. The pinned weekly-news rail is larger and easier to spot at a glance, with a stronger accent edge, clearer headline, and bigger readable story cards.
+- **Tools now identify themselves like first-class library entries** — Add Tool and Re-fetch info use a dedicated Windows-software resolver: the selected executable's native icon and file identity come first, followed by recognised vendor profiles and one bounded public official-software lookup. GPU-Z, CPU-Z, OBS, driver panels, editors, and unfamiliar utilities can receive a name, icon, publisher, version, category, description, official page, and evidence trail without being searched as a Steam game. Existing incomplete Tools are filled only when Tools opens; manual information is never overwritten.
+- **A cleaner, grouped Home** — Top 5 Played remains fixed at the top, with a smaller **This Week’s News** rail directly beneath it. The rest of Home is now arranged into three clear sections: **Play & history** for sessions, ratings, recommendations, and Chronicle; **News & updates** for available updates and new releases; and **Library & PC care** for Library Health and Storage Control. There is intentional space between sections while scrolling. Reorder individual cards only within their own section, or drag a section itself to rearrange the dashboard without mixing unrelated content.
+- **Special navigation now has real artwork around it** — Anime, Industrial, and Magical frame the main Home, Library, Wall, and Tools buttons with their actual transparent blossom, machinery, or rune illustration. The decoration slider controls these frames, while the controls stay completely usable.
+- **Preview actions join the Special-theme world** — the game Launch/action strip now gets a deliberately subtler outer-edge frame using the same artwork. Actions and labels sit above it, remain clear and clickable, and never lose their contrast.
+- **Preview glass now leaves room for the theme** — the main Preview, story, identity, detail, media, and action surfaces are about 20% lighter. Theme animation and artwork can show through the page again, while the text contrast remains protected.
+- **Category dots are reliable again** — Dot mode now keeps a coloured marker visible for launcher-labelled categories such as Steam, Battle.net, and Epic, positioned beside the collapse control instead of being replaced by the launcher badge.
+- **Visuals is now a real control board** — the tall Visuals menu is reorganised into three clear lanes: **Object sizes & Layout**, **Text & category**, and **FX**. Solid themed section tabs make each control family obvious, while smaller windows automatically reflow to two or one columns.
+- **FX now respects the interface** — title bar, Library, Home, Preview, Tools, deals, text, menus, and every interactive control sit in one foreground plane. Particles, theme art, textures, glows, and Special decoration remain behind them, never over wording or buttons.
+- **Fungist has a remembered dock** — click-hold and drag him within his safe lower-right area to avoid overlapping a control. His perch is saved locally, and all launch/chat/alert flights return to that exact chosen position.
+- **Released This Week now has a useful quiet-week fallback** — NEO-LIB still prefers major launches, then noteworthy titles with early player/review momentum. If neither appears, it uses Steam’s current New Releases shelf to show clearly-labelled popular new releases rather than leaving the Home panel empty. The feed remains selective and says which fallback was used.
+- **External-game Rest Mode asks clearly** — if Fungist notices elevated/high PC use, he can check whether a known NEO-LIB game is already running from Steam, Battle.net, Epic, or another client. A positive match names the game and offers **Enable low usage until it closes**. This is a local executable-path check only—no launcher accounts, game memory, injection, overlays, or network access. Once enabled, NEO-LIB automatically resumes shortly after that exact game process closes.
+- **Choose a Library font** — Visuals now has five clean system-font choices for the Library tree, plus separate **Fat** and **Cursive** controls. These change only game and category text in the Library; Home, Preview, Tools, and Settings keep their established type.
+- **Real Special-theme artwork** — Anime, Industrial, and Magical now use proper transparent decorative artwork instead of procedural pixel fragments: a cherry-blossom vine, graphite machinery/hazard detail, and a rune-light flourish. Each now occupies a deliberate UI-safe composition layer and is visibly present at normal FX levels; the Special decoration slider still controls visibility, and Rest Mode removes it completely.
 - **Special themes now decorate controls** — Anime adds delicate blossom-vine curls and leaves around navigation/game controls; Industrial adds bolted rails, rivets, and hazard seams; Magical adds rune arcs and star dust. These never block clicks or labels, remain controlled by the one Special decoration slider, and disappear at FX 0 or in Rest Mode.
 - **Recovered Settings panel** — Settings returns to the established shared modal layout after a Settings-specific sizing route could leave a blank gray shell in the packaged app. A dedicated recovery layer now catches any future Settings-only rendering error, keeping NEO-LIB usable and giving you a direct bug-report route.
 - **Cleaner Library and bigger Preview media** — Library game names no longer sit on dark bordered backplates. Preview now hugs the Library side again: readable game information stays left while a substantially larger 460–560px right-side gallery displays up to eight verified headers, backgrounds, covers, and screenshots.
@@ -106,6 +157,9 @@ Library + settings live at `%APPDATA%\NEO-LIB\`. Delete that folder to factory-r
 
 #### Fixes, adjustments & polish
 
+- **Individual illustrated button frames (verification pending)** — rebuilt Special navigation with direct image elements per button: Anime cherry branches, Industrial machinery and Magical sparkle art. Explicit theme/opacity settings replace the old CSS image/mask route; opaque centres protect labels. Component and asset checks pass; rendered visual acceptance remains pending.
+
+- **Lighter default Library type** — normal Library typography now uses a true regular weight rather than a semi-bold baseline. Turn on **Fat** only when you want stronger, heavier game and category names.
 - **Cleaner source tree** — generated build logs and one unreferenced duplicate mascot sleep asset are removed, while active mascot artwork, voice clips, theme art, and safety scripts required by the app remain versioned with the release source.
 - **Cleaner Mascot sound settings** — removed the redundant Fungist synthesized-soundscape preview. Global UI sounds remain in **Sounds**, while Fungist’s voice toggle, volume, and line preview stay together as the companion’s single audio control.
 - **Launcher update trust restored** — a current Steam manifest is now final for that launcher-owned install, rather than being reinterpreted by loose public-page matches. Other supported launcher imports remain honestly **launcher-managed** until NEO-LIB can read a launcher-specific pending-download signal; that state is recorded for diagnostics but never shown as a possible update. Independent/repack games retain their separate local-versus-public comparison path, even when they use Steam-sourced metadata.
@@ -167,7 +221,7 @@ Library + settings live at `%APPDATA%\NEO-LIB\`. Delete that folder to factory-r
 - **Current development pass** — Rating System v2 resets legacy personal ratings once and shows true fractional star fills; Battle.net titles get official-page metadata; provider tags such as Third-Person Shooter and Action Roguelike stay visible alongside core genres; and independent games can derive a local version from bounded nearby version/readme/changelog files before comparison with a public official/watch page.
 - **Background update scan** — version evidence now warms shortly after startup and after launching a game, using local launcher manifests, saved version data, executable/folder clues, and bounded nearby Version/Changelog/Readme/Config files. Verified updates blink in Preview above game news; checks use a polite small queue and short cache.
 - **Update checklist + Library precision** — conclusive results are saved locally as current, pending, available, or needs-evidence, so updated games leave Home/Preview alerts automatically. The first-game gap can now become cleanly compact, category Backdrops scale with label size, and a first window starts at 75% width by 90% usable height before restoring user bounds later.
-- **External-launch Rest Mode** — NEO-LIB now rests when an ordinary Windows process path exactly matches a game already in the local library, even if that game was launched through Steam, Battle.net, Epic, or another client. Idle launchers do not count; there is no injection, overlay, memory inspection, or credential access.
+- **External-launch Rest Mode detection** — NEO-LIB can identify a known local game launched through Steam, Battle.net, Epic, or another client by its ordinary Windows process path. Idle launchers do not count; there is no injection, overlay, memory inspection, or credential access. The current high-use flow offers a clear one-game Rest Mode choice before NEO-LIB pauses.
 - **Storage Control fix** — scans ignore launcher URLs, measure shared install folders once, remain visible when returning to Home, and walk up to three configured game folders in parallel. NEO-LIB never scans entire drives.
 - **New Mid theme: Home** — a welcoming light-gray workspace with crisp black/white structure, light-blue edge lighting and FX, plus a warm yellow/gray comfort blend pattern.
 - **New quick-start tutorial + hover help** — a concise current first-run guide now covers importing, Hidden privacy, Home, game controls, customization, and Rest Mode. Hold over described controls for one second to see a theme-aware explanation.

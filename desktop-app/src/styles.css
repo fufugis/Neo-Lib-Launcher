@@ -375,7 +375,24 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
   color: rgb(var(--ink));
   font-weight: 700;
   line-height: 1.22;
-  overflow-wrap: anywhere;
+  /* Library rows are a hard visual boundary: titles may use a second line,
+     but never paint into the next row or outside the resizable Library pane.
+     The native title tooltip still exposes an unusually long full name. */
+  overflow: hidden;
+  overflow-wrap: break-word;
+  word-break: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+/* A deliberately contained Library-only typography choice. System font stacks
+   stay fast, predictable, and do not bleed into Home, Preview, or Settings. */
+.library-font-scope .game-row-nameplate,
+.library-font-scope .library-font-ui {
+  font-family: var(--library-font-family, system-ui, sans-serif) !important;
+  font-weight: var(--library-font-weight, 400) !important;
+  font-style: var(--library-font-style, normal);
 }
 
 /* ===== Utility classes ===== */
@@ -405,6 +422,38 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 6px 24px -12px rgb(0 0 0 / 0.5);
 }
 
+/* Library controls can sit over bright textures and animated theme artwork.
+   Keep these compact action/filter surfaces more solid than general glass so
+   their labels and their dropdown choices are reliably readable. */
+.library-toolbar-control {
+  background: rgb(var(--panel) / 0.88);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.10), 0 4px 14px -9px rgb(0 0 0 / 0.72);
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+}
+.library-toolbar-control:hover,
+.library-toolbar-control:focus-visible {
+  background: rgb(var(--panel) / 0.96);
+}
+.library-toolbar-popover {
+  position: absolute;
+  /* Component utility classes used to lower this back to z-30 after this
+     shared rule.  Toolbar menus must sit above the entire Library tree. */
+  z-index: 10000 !important;
+  /* Menus are decision surfaces, not decorative glass: keep just a trace of
+     the active theme while preventing game/category text from bleeding in. */
+  background: rgb(var(--surface) / 0.985) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14), 0 18px 38px -14px rgb(0 0 0 / 0.94);
+  backdrop-filter: blur(34px) saturate(135%);
+  -webkit-backdrop-filter: blur(34px) saturate(135%);
+}
+.library-toolbar-popover > * { position: relative; z-index: 1; }
+/* Keep the toolbar and its absolute menus above the scrollable tree's own
+   stacking context. This applies equally to launcher, Sort, Categories, and
+   Refresh rather than treating the currently reported menu as a one-off. */
+[data-testid='launcher-pane-row'] { z-index: 500 !important; isolation: isolate; }
+[data-testid='sidebar-tree'] { position: relative; z-index: 0; }
+
 /* Settings modal — 2-column masonry via CSS columns so each <Section> stays
    intact but the overall list shrinks vertically. Sections use inline-block
    + break-inside:avoid to prevent orphaning across the gutter. */
@@ -420,6 +469,43 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
   display: block;
   margin-bottom: 1.25rem;
 }
+
+/* Visuals is intentionally its own three-lane control board. It should not
+   inherit Settings' masonry behavior: each family has a fixed home and a
+   strong tab so the panel gets shorter without becoming harder to navigate. */
+.visuals-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 0.75rem;
+}
+@media (max-width: 860px) {
+  .visuals-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .visuals-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* GLOBAL FOREGROUND CONTRACT
+   Ambient art, particles, edge glows, textures, and Special decorations are
+   background-only. The app's actual interface lives in an explicit foreground
+   plane, so visual FX cannot wash across wording or controls simply because a
+   theme animation has a positioned z-index. Interactive controls receive one
+   local level above their card decoration as an additional safety net. */
+.neolib-app-shell { isolation: isolate; }
+.neolib-ui-foreground { isolation: isolate; }
+.neolib-ui-foreground :is(button, a, input, select, textarea, summary, [role='button'], [role='menuitem'], [role='option']) {
+  position: relative;
+  z-index: 1;
+}
+/* Sidebar's art lives inside the same glass pane. Raise all ordinary sidebar
+   content above those local background spans, while keeping the resize handle
+   at its intentional high priority. */
+.library-font-scope > :not(.sidebar-tint):not(.sidebar-theme-art):not([data-testid='sidebar-bg-texture']):not([data-testid='sidebar-resize-handle']) {
+  position: relative;
+  z-index: 1;
+}
+.library-font-scope > [data-testid='sidebar-resize-handle'] { z-index: 30; }
 
 .kbd {
   display: inline-flex; align-items: center;
@@ -997,6 +1083,122 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
   box-shadow: 0 -4px 12px rgb(255 92 195 / .24);
 }
 
+/* Proper transparent illustration assets replace the earlier procedural
+   fragments. They are still pointer-safe, one static composited image each,
+   and inherit the player-controlled Special-decoration opacity. */
+.special-theme-decoration {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  mix-blend-mode: normal;
+}
+.special-theme-decoration-art {
+  position: absolute;
+  display: block;
+  max-width: none;
+  pointer-events: none;
+  object-fit: contain;
+  filter: saturate(1.13) contrast(1.04) drop-shadow(0 0 13px rgb(var(--accent) / .18));
+}
+.special-decoration--anime .special-theme-decoration-art { left: -1.5vw; top: 0; width: min(62vw, 920px); transform: rotate(-2deg); }
+.special-decoration--pro .special-theme-decoration-art { right: -3vw; bottom: -3vh; width: min(56vw, 860px); transform: rotate(2deg); }
+.special-decoration--colorful .special-theme-decoration-art { right: -2vw; top: -2vh; width: min(58vw, 880px); transform: rotate(2deg); }
+
+[data-special-theme] .neolib-nav-tab::after,
+[data-special-theme] .special-control-surface::after { display: none; }
+[data-special-theme] .neolib-nav-tab::before,
+[data-special-theme] .special-control-surface::before {
+  border: 0 !important;
+  box-shadow: none !important;
+  background-repeat: no-repeat !important;
+  background-color: transparent !important;
+  background-size: auto 100% !important;
+  filter: none !important;
+}
+[data-special-theme='anime'] .neolib-nav-tab::before { inset: 2px auto 2px 0; width: 64px; height: auto; background-image: var(--special-anime-art) !important; background-position: left center !important; }
+[data-special-theme='anime'] .special-control-surface::before { inset: auto auto -6px 5px; width: 270px; height: 94px; background-image: var(--special-anime-art) !important; background-position: left bottom !important; }
+[data-special-theme='pro'] .neolib-nav-tab::before { inset: 2px 0 2px auto; width: 64px; height: auto; background-image: var(--special-industrial-art) !important; background-position: right center !important; }
+[data-special-theme='pro'] .special-control-surface::before { inset: auto 3px -7px auto; width: 270px; height: 96px; background-image: var(--special-industrial-art) !important; background-position: right bottom !important; }
+[data-special-theme='colorful'] .neolib-nav-tab::before { inset: 2px 0 2px auto; width: 66px; height: auto; background-image: var(--special-magical-art) !important; background-position: right center !important; }
+[data-special-theme='colorful'] .special-control-surface::before { inset: -9px 3px auto auto; width: 278px; height: 96px; background-image: var(--special-magical-art) !important; background-position: right top !important; }
+
+/* Navigation frames belong to each individual button. The old broad > *
+   position rule put the ornament in the flex layout and squeezed the labels.
+   Only label content participates in layout; trim and indicators are absolute. */
+[data-testid='top-toolbar'] {
+  isolation: isolate;
+  z-index: 40 !important;
+  gap: 8px;
+  padding: 10px 10px 12px;
+}
+[data-special-theme] [data-testid='top-toolbar'] {
+  gap: 14px;
+  padding: 16px 14px 18px;
+}
+.neolib-nav-tab {
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+}
+.neolib-nav-content {
+  position: relative;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+}
+[data-special-theme] .neolib-special-nav-art::before,
+[data-special-theme] .neolib-special-nav-art::after,
+[data-special-theme] .neolib-special-nav-art .neolib-nav-tab::before,
+[data-special-theme] .neolib-special-nav-art .neolib-nav-tab::after {
+  display: none !important;
+}
+/* Per-button artwork is rendered by NavButtonArtwork with explicit image
+   URLs and absolute inline geometry. No mask or inherited visibility rule. */
+
+/* The Preview action strip receives the same treatment, but gentler: artwork
+   lives at an outer edge of the whole strip, never inside a label or button.
+   Actual action controls are deliberately layered above it. */
+[data-special-theme] .neolib-special-action-art {
+  isolation: isolate;
+  overflow: visible;
+}
+[data-special-theme] .neolib-special-action-art > * {
+  position: relative;
+  z-index: 2;
+}
+[data-special-theme] .neolib-special-action-art::before {
+  z-index: 1;
+  display: block;
+  opacity: var(--special-ui-decoration-opacity, 0);
+  width: calc(100% + 42px);
+  height: 132px;
+  background-size: 100% 100% !important;
+  background-repeat: no-repeat !important;
+  filter: saturate(1.1) contrast(1.04) drop-shadow(0 0 11px rgb(var(--accent) / .34)) !important;
+}
+[data-special-theme='anime'] .neolib-special-action-art::before {
+  left: -21px;
+  bottom: -43px;
+  background-image: var(--special-anime-button-frame) !important;
+  background-position: center bottom !important;
+}
+[data-special-theme='pro'] .neolib-special-action-art::before {
+  left: -21px;
+  bottom: -43px;
+  background-image: var(--special-industrial-button-frame) !important;
+  background-position: center bottom !important;
+}
+[data-special-theme='colorful'] .neolib-special-action-art::before {
+  left: -21px;
+  bottom: -43px;
+  background-image: var(--special-magical-button-frame) !important;
+  background-position: center bottom !important;
+}
+
 .neolib-hover-tip {
   position: fixed;
   z-index: 99999;
@@ -1472,7 +1674,9 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
   pointer-events: none;
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  /* This was accidentally above the entire app. It never captured a click,
+     but its screen blend put a pale FX fog over controls and text. */
+  z-index: 10;
   box-shadow:
     inset 0 0 80px -20px rgb(var(--accent) / 0.32),
     inset 0 1px 0 0 rgb(var(--accent) / 0.45),

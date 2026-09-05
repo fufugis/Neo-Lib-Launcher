@@ -8,9 +8,11 @@ import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 
 const isElectron = typeof window !== 'undefined' && !!window.api;
 
-// Feed classifier (Steam items only). For itch/gog, we bypass this.
+// Feed classifier (Steam items only). Other public routes declare their own
+// source label so EA/Epic/Ubisoft/local discoveries are never disguised as
+// Steam announcements.
 function classifyFeed(item) {
-  if (item.platform !== 'steam') return item.platform; // 'itch' | 'gog'
+  if (item.platform !== 'steam') return item.platform; // itch | gog | official-web | web
   const fn = (item.feedname || '').toLowerCase();
   const fl = (item.feedlabel || '').toLowerCase();
   if (fn === 'steam_community_announcements' || fl.includes('community announcement')) return 'community';
@@ -24,6 +26,8 @@ const FEED_META = {
   thirdparty: { label: 'Third-party', icon: Globe2,    color: 'rgb(251, 191, 141)' },
   itch:       { label: 'itch devlog', icon: Gamepad2,  color: 'rgb(255, 100, 149)' },
   gog:        { label: 'GOG patch',   icon: Megaphone, color: 'rgb(140, 179, 255)' },
+  'official-web': { label: 'Official site', icon: Megaphone, color: 'rgb(94, 234, 212)' },
+  web:        { label: 'Web discovery', icon: Globe2, color: 'rgb(251, 191, 141)' },
 };
 
 function timeAgo(ms) {
@@ -38,25 +42,23 @@ function timeAgo(ms) {
 }
 
 export default function NewsPanel({ games = [], onClose, anchorSelector }) {
-  const eligibleGames = useMemo(
-    () => (games || []).filter((g) => g && (g.appid || g.gogId || /itch\.io/.test(g.website || '') || g.source === 'itch')),
-    [games]
-  );
+  const eligibleGames = useMemo(() => (games || []).filter((g) => g && String(g.name || '').trim()), [games]);
   const sourceCounts = useMemo(() => {
-    const c = { steam: 0, itch: 0, gog: 0 };
+    const c = { steam: 0, itch: 0, gog: 0, publicWeb: 0 };
     for (const g of games || []) {
       if (g?.appid) c.steam += 1;
       else if (g?.gogId) c.gog += 1;
       else if (/itch\.io/.test(g?.website || '') || g?.source === 'itch') c.itch += 1;
+      else if (String(g?.name || '').trim()) c.publicWeb += 1;
     }
     return c;
   }, [games]);
-  const coveredCount = sourceCounts.steam + sourceCounts.itch + sourceCounts.gog;
+  const coveredCount = sourceCounts.steam + sourceCounts.itch + sourceCounts.gog + sourceCounts.publicWeb;
   const uncoveredCount = (games || []).length - coveredCount;
 
   const [state, setState] = useState({ loading: false, error: '', items: [], fetchedAt: 0 });
   const [enabledFeeds, setEnabledFeeds] = useState({
-    official: true, community: true, thirdparty: true, itch: true, gog: true,
+    official: true, community: true, thirdparty: true, itch: true, gog: true, 'official-web': true, web: true,
   });
   const fetchedOnce = useRef(false);
 
@@ -71,7 +73,7 @@ export default function NewsPanel({ games = [], onClose, anchorSelector }) {
     try {
       const payloadGames = eligibleGames.map((g) => ({
         id: g.id, appid: g.appid, name: g.name,
-        website: g.website, source: g.source, gogId: g.gogId,
+        website: g.website, source: g.source, launcher: g.launcher, gogId: g.gogId,
       }));
       const res = await window.api.fetchAllNews({ games: payloadGames, days: 14, force });
       if (!res?.ok) throw new Error(res?.error || 'Failed to load news');
@@ -102,7 +104,7 @@ export default function NewsPanel({ games = [], onClose, anchorSelector }) {
   );
 
   const feedCounts = useMemo(() => {
-    const c = { official: 0, community: 0, thirdparty: 0, itch: 0, gog: 0 };
+    const c = { official: 0, community: 0, thirdparty: 0, itch: 0, gog: 0, 'official-web': 0, web: 0 };
     for (const it of state.items) c[classifyFeed(it)] = (c[classifyFeed(it)] || 0) + 1;
     return c;
   }, [state.items]);
@@ -191,17 +193,19 @@ export default function NewsPanel({ games = [], onClose, anchorSelector }) {
               <p className="text-[12px] text-muted">
                 {coveredCount ? (
                   <>
-                    Covering <span className="font-mono text-ink">{coveredCount}</span>{' '}
+                    Monitoring <span className="font-mono text-ink">{coveredCount}</span>{' '}
                     {coveredCount === 1 ? 'game' : 'games'}
                     {sourceCounts.steam > 0 && <> · <span className="text-ink/80">{sourceCounts.steam} Steam</span></>}
                     {sourceCounts.itch > 0 && <> · <span className="text-ink/80">{sourceCounts.itch} itch</span></>}
                     {sourceCounts.gog > 0 && <> · <span className="text-ink/80">{sourceCounts.gog} GOG</span></>}
+                    {sourceCounts.publicWeb > 0 && <> · <span className="text-ink/80">{sourceCounts.publicWeb} public-source checks</span></>}
                   </>
                 ) : (
-                  <>Add Steam, itch.io or GOG games to see updates.</>
+                  <>Add games to your Library to monitor their news.</>
                 )}
                 {state.fetchedAt ? <span className="ml-1 opacity-60">· Updated {timeAgo(state.fetchedAt)}</span> : null}
               </p>
+              <p className="mt-1 text-[10px] leading-relaxed text-muted/80">Direct launcher/store feeds come first. Public-site and web discovery are shown with their own source label, never as a verified launcher update.</p>
             </div>
             <button
               onClick={() => load(true)}
@@ -236,7 +240,7 @@ export default function NewsPanel({ games = [], onClose, anchorSelector }) {
                 <div className="flex items-center gap-1 px-2 text-[10px] uppercase tracking-[0.2em] text-muted">
                   <Filter size={11} /> Feeds
                 </div>
-                {(['official', 'community', 'thirdparty', 'itch', 'gog']).map((key) => {
+                {(['official', 'community', 'thirdparty', 'itch', 'gog', 'official-web', 'web']).map((key) => {
                   if ((feedCounts[key] || 0) === 0) return null;
                   const meta = FEED_META[key];
                   const Icon = meta.icon;
@@ -292,8 +296,8 @@ export default function NewsPanel({ games = [], onClose, anchorSelector }) {
               <div className="mt-6 rounded-lg hairline bg-panel/30 p-3 text-[12px] text-muted flex items-center gap-2">
                 <Sparkles size={12} className="text-[rgb(var(--accent-2))]" />
                 <span>
-                  <span className="font-mono text-ink">{uncoveredCount}</span> {uncoveredCount === 1 ? 'game has' : 'games have'} no
-                  Steam / itch / GOG source and won&apos;t appear here.
+                  <span className="font-mono text-ink">{uncoveredCount}</span> {uncoveredCount === 1 ? 'game has' : 'games have'} no usable title yet,
+                  so NEO-LIB cannot safely search for its news.
                 </span>
               </div>
             )}

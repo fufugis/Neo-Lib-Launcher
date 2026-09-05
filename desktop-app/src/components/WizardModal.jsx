@@ -1,4 +1,6 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
+import { launcherEntry, boundedLauncherScan } from '../lib/launcherImport.mjs';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FolderSearch, Loader2, Check, X as XIcon, RefreshCw, ChevronRight, Sparkles,
@@ -49,6 +51,8 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
   const [launcherImportBusy, setLauncherImportBusy] = React.useState(false);
   const [scanDepth, setScanDepth] = React.useState('fast'); // 'fast' | 'deep'
   const knownLauncherImportKeys = React.useRef(new Set());
+  const launcherOperation = React.useRef(false);
+  const launcherRun = React.useRef(0);
 
   // Exclude paths during scan — common launcher folders + custom
   const [skipLaunchers, setSkipLaunchers] = React.useState({
@@ -82,9 +86,12 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
   };
 
   const importLauncherItems = async (kind, sourceItems) => {
+    if (launcherOperation.current) return;
+    launcherOperation.current = true;
     const launcherLabel = launcherLabelFor(kind);
     const items = (sourceItems || []).filter((item) => !isKnownLauncherItem(item, kind));
     if (!items.length) {
+      launcherOperation.current = false;
       setLauncherStatus(`${launcherLabel} is already imported — no new games were added.`);
       setLauncherConfirm(null);
       return;
@@ -93,61 +100,48 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
     setLauncherImportBusy(true);
     setLauncherStatus(`Importing ${items.length} new ${launcherLabel} game${items.length === 1 ? '' : 's'}…`);
     let imported = 0;
+    try {
     for (const it of items) {
-      // A Steam manifest supplies the exact app ID and title from the user's
-      // local Steam library. Keep that identity locked so a delisted title can
-      // never drift into a fuzzy, unrelated metadata match.
-      let result = null;
-      if (kind === 'steam' && it.appid) {
-        try {
-          result = await window.api?.fetchMetadata({ query: it.name, skipSources: [], geminiKey, aiModel, lockedAppid: it.appid, launcher: kind });
-        } catch { /* retain the authoritative manifest title below */ }
-      } else {
-        try { result = await window.api?.fetchMetadata({ query: it.name, skipSources: [], geminiKey, aiModel, launcher: kind }); } catch { /* retain local launcher identity */ }
-      }
-      let coverUrl = result?.capsuleImage || result?.headerImage || null;
-      if (coverUrl && coverUrl.startsWith('http')) coverUrl = (await window.api?.cacheImage(coverUrl, result?.name || it.name)) || coverUrl;
-      const entry = {
-        name: result?.name || it.name,
-        exePath: it.exe || it.launchExe || it.installdir || it.launchUrl,
-        launchArgs: '', launchUrl: it.launchUrl, source: `${kind}-import`, launcher: kind,
-        appid: result?.appid || it.appid, gogId: result?.gogId || it.gogId,
-        launcherProductId: it.launcherProductId, installedVersion: it.installedVersion || '',
-        steamAppId: kind === 'steam' ? it.appid : undefined, steamBuildId: it.buildid || undefined,
-        coverUrl: coverUrl || result?.headerImage, headerImage: result?.headerImage, background: result?.background,
-        shortDescription: result?.shortDescription, about: result?.about, genres: result?.genres || [], genreTags: result?.genreTags || [],
-        developers: result?.developers || [], publishers: result?.publishers || [], releaseDate: result?.releaseDate || '',
-        metacritic: result?.metacritic, screenshots: result?.screenshots || [], website: result?.website || '',
-        categoryIds: [`__launcher_${kind}__`],
-      };
+      // Persist local launcher identity without waiting for online metadata.
+      const entry = launcherEntry(it, kind);
       // Keep a per-run identity ledger as well as the app's persisted library
       // guard. A double click or a second prompt cannot add this game twice.
       if (!isKnownLauncherItem(it, kind)) {
+        if (!entry.exePath) continue;
+        if (!onAccept) throw new Error('Library import handler is unavailable.');
+        onAccept(entry);
         rememberLauncherItem(it, kind);
         rememberLauncherItem(entry, kind);
-        onAccept?.(entry);
         imported += 1;
       }
       setLauncherStatus(`Imported ${imported}/${items.length} new ${launcherLabel} game${items.length === 1 ? '' : 's'}…`);
     }
-    setLauncherImportBusy(false);
-    setLauncherStatus(`Done — added ${imported} new ${launcherLabel} game${imported === 1 ? '' : 's'}. Existing entries were left untouched.`);
-    window.setTimeout(() => onClose(), 900);
+    setLauncherStatus(`Done — added ${imported} new ${launcherLabel} games and their category. Use Refresh info to choose artwork and descriptions. Existing entries were left untouched.`);
+    } catch (error) {
+      setLauncherStatus(`Added ${imported} games before import stopped: ${error.message || 'Unknown error'}`);
+    } finally { launcherOperation.current = false; setLauncherImportBusy(false); }
   };
 
   const scanLauncherForImport = async (kind) => {
+    if (launcherOperation.current) return;
+    const run = ++launcherRun.current;
+    launcherOperation.current = true;
     const launcherLabel = { steam: 'Steam', epic: 'Epic', gog: 'GOG', itch: 'itch.io' }[kind] || kind;
     setLauncherConfirm(null);
     setLauncherImportBusy(true);
     setLauncherStatus(`Scanning ${launcherLabel}…`);
     const api = launcherApiFor(kind);
-    if (!api) { setLauncherStatus('Not available in browser preview.'); setLauncherImportBusy(false); return; }
+    if (!api) { setLauncherStatus('Not available in browser preview.'); launcherOperation.current = false; setLauncherImportBusy(false); return; }
     let r;
-    try { r = await api(); } catch {
-      setLauncherStatus(`Could not scan ${launcherLabel}. Try again when the launcher is available.`);
+    try { r = await boundedLauncherScan(api); } catch (error) {
+      if (run !== launcherRun.current) return;
+      setLauncherStatus(`Could not scan ${launcherLabel}: ${error.message || 'Launcher unavailable'}`);
+      launcherOperation.current = false;
       setLauncherImportBusy(false);
       return;
     }
+    if (run !== launcherRun.current) return;
+    launcherOperation.current = false;
     if (!r?.ok || !r.items?.length) {
       setLauncherStatus(r?.error || `No installed ${kind} games found.`);
       setLauncherImportBusy(false);
@@ -166,6 +160,8 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
   /* eslint-disable react-hooks/set-state-in-effect, react-hooks/immutability */
   React.useEffect(() => {
     if (!open) {
+      launcherRun.current++;
+      launcherOperation.current = false;
       setStep(1); setRoot(''); setCandidates([]); setCursor(0);
       setCurrent(null); setResult(null); setIcon(null); setBusy(false);
       setAccepted([]); setQueryOverride(''); setSkipSources([]); setLauncherStatus(''); setLauncherConfirm(null); setLauncherImportBusy(false);
@@ -338,14 +334,14 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
 
   return (
     <>
-    <Modal open={open} onClose={onClose} title="Auto-import Wizard" wide testid="wizard-modal">
+    <Modal open={open && !launcherConfirm} onClose={onClose} title="Auto-import Wizard" wide testid="wizard-modal">
       {step === 1 && (
         <div className="space-y-4 p-6">
           <div className="flex items-start gap-3">
             <Sparkles size={18} className="mt-0.5 text-[rgb(var(--accent))]" />
             <p className="text-sm text-muted">
               Pick a folder to scan, or import directly from your installed launchers below.
-              You&apos;ll review every match before anything is added.
+              Launcher imports add installed games using local records after confirmation. Use Refresh info afterwards to choose artwork and descriptions. Folder scans let you review each match.
             </p>
           </div>
 
@@ -364,7 +360,13 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
               <LauncherBtn label="Rockstar"    onClick={() => requestLauncherImport('rockstar')}  disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-rockstar" />
               <LauncherBtn label="itch.io"     onClick={() => requestLauncherImport('itch')}      disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-itch" />
             </div>
-            {launcherStatus && <div className="mt-3 text-[11px] text-muted">{launcherStatus}</div>}
+            {launcherStatus && <div role="status" className="mt-3 text-sm text-ink">{launcherStatus}</div>}
+            {launcherImportBusy && <button type="button" className="mt-2 rounded-md hairline px-3 py-2 text-xs" onClick={() => {
+              launcherRun.current++;
+              launcherOperation.current = false;
+              setLauncherImportBusy(false);
+              setLauncherStatus('Scan cancelled. Late results will not add games.');
+            }}>Cancel scan</button>}
           </div>
 
           {/* Manual folder pick */}
@@ -712,7 +714,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
         </div>
       )}
     </Modal>
-    <AnimatePresence>
+    {typeof document !== 'undefined' && createPortal(<AnimatePresence>
       {launcherConfirm && <motion.div className="fixed inset-0 z-[140] grid place-items-center bg-black/70 p-4 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={() => setLauncherConfirm(null)} data-testid="launcher-import-confirm">
         <motion.div className="w-full max-w-md rounded-2xl border border-[rgb(var(--accent)/0.42)] bg-[rgb(var(--panel))] p-5 shadow-2xl" initial={{ scale: 0.96, y: 8 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.97, y: 4 }} onMouseDown={(event) => event.stopPropagation()}>
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">Launcher import check</p>
@@ -723,7 +725,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
           <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setLauncherConfirm(null)} className="rounded-lg border border-[rgb(var(--border))] px-3 py-2 text-xs font-bold text-muted hover:text-ink">{launcherConfirm.stage === 'repeat' && launcherConfirm.newItems.length === 0 ? 'Done' : 'Cancel'}</button>{(launcherConfirm.stage === 'start' || launcherConfirm.newItems.length > 0) && <button type="button" onClick={() => launcherConfirm.stage === 'start' ? scanLauncherForImport(launcherConfirm.kind) : importLauncherItems(launcherConfirm.kind, launcherConfirm.newItems)} className="rounded-lg bg-[rgb(var(--accent))] px-3 py-2 text-xs font-black text-[rgb(var(--surface))]">{launcherConfirm.stage === 'start' ? 'Scan launcher' : `Import ${launcherConfirm.newItems.length} new`}</button>}</div>
         </motion.div>
       </motion.div>}
-    </AnimatePresence>
+    </AnimatePresence>, document.body)}
     </>
   );
 }

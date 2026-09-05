@@ -1,4 +1,5 @@
 import React from 'react';
+import { categoryHeaderLabel } from '../lib/categoryHeaderLabel.mjs';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import {
@@ -10,6 +11,7 @@ import {
 } from 'lucide-react';
 import { cn, colorFromId, sizeById, formatPlaytime, playtimeSource } from '../lib/utils';
 import SystemHealthBar from './SystemHealthBar';
+import NavButtonArtwork from './NavButtonArtwork';
 
 /* v1.6.4 — Background texture styles applied INSIDE the sidebar so the
    texture never covers hero banners / preview images in the main pane. */
@@ -91,6 +93,16 @@ const SIDEBAR_THEME_ART = {
   'generic-gray': 'generic-gray-atmosphere.png', 'generic-blue': 'generic-blue-atmosphere.png',
 };
 
+// System-installed font stacks only: no download, embedding, or cross-app
+// change. These controls deliberately apply to the Library tree alone.
+const LIBRARY_FONT_OPTIONS = [
+  { id: 'system', label: 'System', family: 'system-ui, -apple-system, "Segoe UI", sans-serif' },
+  { id: 'segoe', label: 'Segoe UI', family: '"Segoe UI", Tahoma, sans-serif' },
+  { id: 'arial', label: 'Arial', family: 'Arial, Helvetica, sans-serif' },
+  { id: 'trebuchet', label: 'Trebuchet', family: '"Trebuchet MS", Arial, sans-serif' },
+  { id: 'georgia', label: 'Georgia', family: 'Georgia, "Times New Roman", serif' },
+];
+
 /**
  * Sidebar (tree view)
  * - Top toolbar: Add · Wizard · Refresh-all · Library settings (size, etc.) · App settings
@@ -113,12 +125,14 @@ export default function Sidebar({
   showCategoryDot = true, categoryMarkerMode = 'dot',
   showSubcatStrip = true,
   nameTextSize = null,
+  libraryFont = 'system', libraryFontWeight = 'regular', libraryFontCursive = false,
   effectsLevel = 2, currentTheme = 'synthwave', motionCadence = 'full', onChangeEffectsLevel, onChangeMotionCadence,
   unseenNewsCount = 0,
   pinnedIds = [],
   onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
   onChangeRowGap, onChangeCatGap, onChangeCatTopGap, onChangeCategoryMarkerMode,
   onToggleSubcatStrip, onChangeNameTextSize,
+  onChangeLibraryFont, onChangeLibraryFontWeight, onChangeLibraryFontCursive,
   bgTextureId, bgTextureOpacity,
   onChangeBgTextureId, onChangeBgTextureOpacity,
   onSelect, onGameViewed,
@@ -138,6 +152,7 @@ export default function Sidebar({
   updatingAll,
   metadataRefreshProgress = { done: 0, total: 0, mode: '' },
   gameResting = false,
+  navDecorationOpacity = 0.46,
   runningGameName = '',
   allGames = [],
   onOpenSettings,
@@ -260,7 +275,10 @@ export default function Sidebar({
     ...sortedCats.map((c) => {
       const isGhost = c.private && !unlockedCategories.includes(c.id);
       const list = isGhost ? [] : searchFilter(orderedGamesIn(c.id));
-      return { id: c.id, category: c, isGhost, games: list, count: isGhost ? '🔒' : list.length };
+      // A locked shelf needs one unmistakable lock, not a chain of lock
+      // emojis/badges competing with its actual Unlock action. Keep the
+      // protected game count private until the player unlocks it.
+      return { id: c.id, category: c, isGhost, games: list, count: isGhost ? '' : list.length };
     }),
     {
       id: '__uncat__',
@@ -277,8 +295,15 @@ export default function Sidebar({
 
   return (
     <aside
-      className="relative flex h-full shrink-0 flex-col border-r hairline glass-soft"
-      style={{ width: sidebarWidth }}
+      className="library-font-scope relative flex h-full shrink-0 flex-col overflow-hidden border-r hairline glass-soft"
+      style={{
+        width: sidebarWidth,
+        '--library-font-family': LIBRARY_FONT_OPTIONS.find((font) => font.id === libraryFont)?.family || LIBRARY_FONT_OPTIONS[0].family,
+        // Regular must feel genuinely lighter than the old semi-bold Library
+        // treatment. Fat is the intentional opt-in weight, not the baseline.
+        '--library-font-weight': libraryFontWeight === 'fat' ? 800 : 400,
+        '--library-font-style': libraryFontCursive ? 'italic' : 'normal',
+      }}
     >
       {/* v1.6.4 — Per-user background texture, rendered INSIDE the sidebar
           only (not full viewport) so it never bleeds over hero banners or
@@ -325,7 +350,7 @@ export default function Sidebar({
       {(() => {
         return (
       <div
-        className="relative flex items-stretch gap-1 px-2 pt-2.5 pb-2"
+        className="special-control-surface neolib-special-nav-art relative z-40 flex items-stretch gap-1 px-2 pt-2.5 pb-2"
         style={{
           // v1.6.4 — Darker toolbar band so the tab pills read as chrome and
           // don't visually blend with the game rows below.
@@ -336,10 +361,12 @@ export default function Sidebar({
         }}
         data-testid="top-toolbar"
       >
-        <TabPill label="Home" icon={<Home size={15} />} showLabel={labelsVisible} labelStyle={toolbarLabelStyle} active={mode === 'home'} onClick={() => { onSelect?.(null); onSetMode('home'); }} testid="tab-home" />
-        <TabPill label="Library" icon={<LibIcon size={15} />} showLabel={labelsVisible} labelStyle={toolbarLabelStyle} active={mode === 'library' && libraryViewMode !== 'wall'} onClick={() => { onChangeLibraryViewMode?.('preview'); onSetMode('library'); onSetLauncherFilter?.('all'); }} testid="tab-library" />
-        <TabPill label="Wall" icon={<Columns size={15} />} showLabel={labelsVisible} labelStyle={toolbarLabelStyle} active={mode === 'library' && libraryViewMode === 'wall'} onClick={() => { onChangeLibraryViewMode?.('wall'); onSelect?.(null); }} testid="tab-cover-wall" />
+        <TabPill decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} label="Home" icon={<Home size={15} />} showLabel={labelsVisible} labelStyle={toolbarLabelStyle} active={mode === 'home'} onClick={() => { onSelect?.(null); onSetMode('home'); }} testid="tab-home" />
+        <TabPill decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} label="Library" icon={<LibIcon size={15} />} showLabel={labelsVisible} labelStyle={toolbarLabelStyle} active={mode === 'library' && libraryViewMode !== 'wall'} onClick={() => { onChangeLibraryViewMode?.('preview'); onSetMode('library'); onSetLauncherFilter?.('all'); }} testid="tab-library" />
+        <TabPill decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} label="Wall" icon={<Columns size={15} />} showLabel={labelsVisible} labelStyle={toolbarLabelStyle} active={mode === 'library' && libraryViewMode === 'wall'} onClick={() => { onChangeLibraryViewMode?.('wall'); onSelect?.(null); }} testid="tab-cover-wall" />
         <TabPill
+          decorationTheme={currentTheme}
+          decorationOpacity={gameResting ? 0 : navDecorationOpacity}
           label="Tools"
           icon={<Boxes size={15} />}
           showLabel={labelsVisible}
@@ -370,7 +397,7 @@ export default function Sidebar({
       {(() => {
         return (
       <div
-        className="flex items-center gap-1.5 p-3 pt-2"
+        className="relative z-40 flex items-center gap-1.5 p-3 pt-2"
         style={{
           // v1.6.4 — Match the darker top-toolbar band so both rows read as
           // one continuous chrome zone (not two "just game rows in disguise").
@@ -394,7 +421,7 @@ export default function Sidebar({
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.15 }}
                 onClick={(e) => e.stopPropagation()}
-                className="absolute left-0 z-30 mt-1 w-56 rounded-lg hairline glass shadow-2xl p-1.5"
+                className="library-toolbar-popover absolute left-0 z-30 mt-1 w-56 rounded-lg hairline shadow-2xl p-1.5"
               >
                 <button
                   data-testid="add-menu-game"
@@ -437,7 +464,7 @@ export default function Sidebar({
             data-testid="sidebar-visuals-btn"
             title="Visuals — themes-adjacent library dials, textures & effects"
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-md hairline px-3 h-8 text-[12px] font-bold transition-all',
+              'library-toolbar-control inline-flex items-center gap-1.5 rounded-md hairline px-3 h-8 text-[12px] font-bold transition-all',
               libSettingsOpen
                 ? 'text-ink border-[rgb(var(--accent)/0.8)] bg-[rgb(var(--accent)/0.14)]'
                 : 'text-ink/90 hover:text-ink hover:border-[rgb(var(--accent)/0.55)] hover:bg-[rgb(var(--accent)/0.10)]'
@@ -481,6 +508,12 @@ export default function Sidebar({
                 onToggleSubcatStrip={onToggleSubcatStrip}
                 nameTextSize={nameTextSize}
                 onChangeNameTextSize={onChangeNameTextSize}
+                libraryFont={libraryFont}
+                libraryFontWeight={libraryFontWeight}
+                libraryFontCursive={libraryFontCursive}
+                onChangeLibraryFont={onChangeLibraryFont}
+                onChangeLibraryFontWeight={onChangeLibraryFontWeight}
+                onChangeLibraryFontCursive={onChangeLibraryFontCursive}
                 effectsLevel={effectsLevel}
                 currentTheme={currentTheme}
                 onChangeEffectsLevel={onChangeEffectsLevel}
@@ -528,7 +561,7 @@ export default function Sidebar({
           horizontal clutter. "+ New" renamed to "+ Category" so its purpose
           is obvious next to "Add Game". */}
       {!isTools && (
-        <div className="flex items-center gap-1 px-3 pb-2" data-testid="launcher-pane-row">
+        <div className="relative z-40 flex items-center gap-1 px-3 pb-2" data-testid="launcher-pane-row">
           <LauncherDropdown
             value={launcherFilter || 'all'}
             onChange={(v) => onSetLauncherFilter?.(v)}
@@ -540,13 +573,13 @@ export default function Sidebar({
               data-testid="sidebar-sort-menu"
               onClick={() => setSortMenuOpen((open) => !open)}
               title={showCategories ? 'Sort games inside every visible category' : 'Sort all visible games'}
-              className={`inline-flex items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] transition-colors ${sortMenuOpen || librarySortMode !== 'manual' ? 'border-[rgb(var(--accent)/0.6)] bg-[rgb(var(--accent)/0.11)] text-ink' : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)]'}`}
+              className={`library-toolbar-control inline-flex items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] transition-colors ${sortMenuOpen || librarySortMode !== 'manual' ? 'border-[rgb(var(--accent)/0.72)] text-ink' : 'text-ink/85 hover:text-ink hover:border-[rgb(var(--accent)/0.62)]'}`}
             >
               <ArrowDownUp size={10} /> Sort <ChevronDown size={10} className={sortMenuOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />
             </button>
             <AnimatePresence>
               {sortMenuOpen && (
-                <motion.div initial={{ opacity: 0, y: -6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }} className="absolute right-0 z-30 mt-1 w-52 rounded-lg hairline glass p-1.5 shadow-2xl">
+                <motion.div initial={{ opacity: 0, y: -6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }} className="library-toolbar-popover absolute right-0 z-30 mt-1 w-52 rounded-lg hairline p-1.5 shadow-2xl">
                   <div className="px-2.5 py-1.5"><p className="text-[9.5px] font-bold uppercase tracking-[0.16em] text-muted">{showCategories ? 'Sort each category' : 'Sort all visible games'}</p></div>
                   {[
                     ['manual', 'Custom order', 'Keep your own drag order'],
@@ -565,14 +598,14 @@ export default function Sidebar({
               data-testid="sidebar-category-quick-switch"
               onClick={() => setCategoriesMenuOpen((open) => !open)}
               title="Categories — show shelves or manage your categories"
-              className={`inline-flex items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] transition-colors ${categoriesMenuOpen ? 'border-[rgb(var(--accent)/0.6)] bg-[rgb(var(--accent)/0.13)] text-ink' : 'text-[rgb(var(--accent-2))] hover:text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)]'}`}
+              className={`library-toolbar-control inline-flex items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] transition-colors ${categoriesMenuOpen ? 'border-[rgb(var(--accent)/0.72)] text-ink' : 'text-ink/85 hover:text-ink hover:border-[rgb(var(--accent)/0.62)]'}`}
             >
               {showCategories ? <ListTree size={10} /> : <Boxes size={10} />}
               Categories <ChevronDown size={10} className={categoriesMenuOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />
             </button>
             <AnimatePresence>
               {categoriesMenuOpen && (
-                <motion.div initial={{ opacity: 0, y: -6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }} className="absolute right-0 z-30 mt-1 w-64 rounded-lg hairline glass p-1.5 shadow-2xl">
+                <motion.div initial={{ opacity: 0, y: -6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }} className="library-toolbar-popover absolute right-0 z-30 mt-1 w-64 rounded-lg hairline p-1.5 shadow-2xl">
                   <div className="px-2.5 py-1.5">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted">Library categories</p>
                   </div>
@@ -603,7 +636,7 @@ export default function Sidebar({
               data-testid="sidebar-autosort-btn"
               onClick={onAutoSort}
               title="Smart auto-sort into 6 default categories"
-              className="inline-flex shrink-0 items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] text-[rgb(var(--accent-2))] hover:text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)]"
+              className="library-toolbar-control inline-flex shrink-0 items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] text-ink/85 hover:text-ink hover:border-[rgb(var(--accent)/0.62)]"
             >
               <Wand2 size={10} /> Auto-sort
             </button>
@@ -613,13 +646,13 @@ export default function Sidebar({
               data-testid="sidebar-refresh-menu-btn"
               onClick={() => setRefreshMenuOpen((v) => !v)}
               title={updatingAll && metadataRefreshProgress.total ? `Refreshing ${metadataRefreshProgress.done}/${metadataRefreshProgress.total} games` : 'Refresh metadata or tidy up your library'}
-              className="inline-flex shrink-0 items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] text-[rgb(var(--accent-2))] hover:text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)]"
+              className="library-toolbar-control inline-flex shrink-0 items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] text-ink/85 hover:text-ink hover:border-[rgb(var(--accent)/0.62)]"
             >
               <RefreshCw size={10} className={updatingAll ? 'animate-spin' : ''} /> {updatingAll && metadataRefreshProgress.total ? `${metadataRefreshProgress.done}/${metadataRefreshProgress.total}` : 'Refresh'}
             </button>
             <AnimatePresence>
               {refreshMenuOpen && (
-                <motion.div initial={{ opacity: 0, y: -6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }} onClick={(e) => e.stopPropagation()} className="absolute right-0 z-30 mt-1 w-64 rounded-lg hairline glass shadow-2xl p-1.5">
+                <motion.div initial={{ opacity: 0, y: -6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }} onClick={(e) => e.stopPropagation()} className="library-toolbar-popover absolute right-0 z-30 mt-1 w-64 rounded-lg hairline shadow-2xl p-1.5">
                   <button data-testid="refresh-menu-refresh" onClick={() => { setRefreshMenuOpen(false); onUpdateAll?.('missing'); }} className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left hover:bg-[rgb(var(--accent)/0.08)] transition-colors"><span className="flex items-center gap-2 text-[12px] font-semibold text-ink"><RefreshCw size={12} className="text-[rgb(var(--accent))]" />Refresh missing metadata</span><span className="text-[10.5px] text-muted">Targets incomplete or older metadata first. Manual edits stay protected.</span></button>
                   <button data-testid="refresh-menu-full" onClick={() => { setRefreshMenuOpen(false); onUpdateAll?.('full'); }} className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left hover:bg-[rgb(var(--accent-2)/0.08)] transition-colors"><span className="flex items-center gap-2 text-[12px] font-semibold text-ink"><RefreshCw size={12} className="text-[rgb(var(--accent-2))]" />Full metadata refresh…</span><span className="text-[10.5px] text-muted">Shows the affected count and needs confirmation before it starts.</span></button>
                   <button data-testid="refresh-menu-tidy" onClick={() => { setRefreshMenuOpen(false); onTidyUp?.(); }} className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left hover:bg-[rgb(var(--accent-2)/0.08)] transition-colors"><span className="flex items-center gap-2 text-[12px] font-semibold text-ink"><Sparkles size={12} className="text-[rgb(var(--accent-2))]" />Tidy up library</span><span className="text-[10.5px] text-muted">Review duplicates and games needing attention.</span></button>
@@ -642,7 +675,7 @@ export default function Sidebar({
           long libraries are actually reachable during a drag operation. */}
       <div
         ref={treeScrollRef}
-        className="flex-1 overflow-y-auto px-2 pb-24"
+        className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-2 pb-24"
         data-testid="sidebar-tree"
         onDragOver={(e) => {
           const el = treeScrollRef.current;
@@ -872,7 +905,7 @@ const SideBtn = React.forwardRef(function SideBtn({ icon, label, labelStyle, onC
       data-testid={testid}
       onClick={onClick}
       title={title || label}
-      className="group inline-flex items-center gap-1.5 rounded-md hairline px-3 h-8 text-[12px] font-semibold text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)] transition-all"
+      className="library-toolbar-control group inline-flex items-center gap-1.5 rounded-md hairline px-3 h-8 text-[12px] font-semibold text-ink/90 hover:text-ink hover:border-[rgb(var(--accent)/0.62)] transition-all"
     >
       <span className="text-[rgb(var(--accent))] transition-transform group-hover:scale-110">{icon}</span>
       {label && <span className="overflow-hidden whitespace-nowrap" style={labelStyle}>{label}</span>}
@@ -880,14 +913,15 @@ const SideBtn = React.forwardRef(function SideBtn({ icon, label, labelStyle, onC
   );
 });
 
-function TabPill({ label, icon, active, onClick, testid, big = false, badge = null, showLabel = true, labelStyle }) {
+function TabPill({ label, icon, active, onClick, testid, big = false, badge = null, showLabel = true, labelStyle, decorationTheme, decorationOpacity }) {
   return (
     <button
       data-testid={testid}
       onClick={onClick}
       title={label}
+      aria-pressed={active}
       className={cn(
-        'neolib-nav-tab group relative inline-flex flex-1 min-w-0 items-center justify-center gap-1.5 rounded-lg transition-all overflow-hidden',
+        'neolib-nav-tab group relative inline-flex flex-1 min-w-0 items-center justify-center gap-1.5 rounded-lg transition-all overflow-visible',
         big ? 'px-3 h-11 text-[12px]' : 'px-2 h-9 text-[10.5px]',
         'font-bold uppercase tracking-[0.14em]',
         active
@@ -895,9 +929,11 @@ function TabPill({ label, icon, active, onClick, testid, big = false, badge = nu
           : 'text-ink/85 hover:text-ink'
       )}
       style={{
+        // Navigation is always functional chrome, never transparent art.
+        // Theme decoration is attached at the edge by CSS, behind this layer.
         background: active
-          ? 'linear-gradient(180deg, rgb(var(--accent)/0.22) 0%, rgb(var(--accent)/0.08) 100%)'
-          : 'rgb(var(--panel)/0.35)',
+          ? 'linear-gradient(180deg, rgb(var(--accent)/0.20) 0%, rgb(var(--accent)/0.07) 100%), rgb(var(--panel))'
+          : 'rgb(var(--panel))',
         border: `1px solid ${active ? 'rgb(var(--accent)/0.6)' : 'rgb(var(--border)/0.55)'}`,
         boxShadow: active
           ? '0 0 16px -4px rgb(var(--accent)/0.55), inset 0 1px 0 rgb(255,255,255,0.05)'
@@ -905,17 +941,19 @@ function TabPill({ label, icon, active, onClick, testid, big = false, badge = nu
       }}
       onMouseEnter={(e) => {
         if (!active) {
-          e.currentTarget.style.background = 'rgb(var(--panel)/0.75)';
+          e.currentTarget.style.background = 'rgb(var(--panel))';
           e.currentTarget.style.borderColor = 'rgb(var(--accent)/0.45)';
         }
       }}
       onMouseLeave={(e) => {
         if (!active) {
-          e.currentTarget.style.background = 'rgb(var(--panel)/0.35)';
+          e.currentTarget.style.background = 'rgb(var(--panel))';
           e.currentTarget.style.borderColor = 'rgb(var(--border)/0.55)';
         }
       }}
     >
+      <NavButtonArtwork theme={decorationTheme} opacity={decorationOpacity} active={active} />
+      <span className="neolib-nav-content">
       <span
         className="grid h-5 w-5 shrink-0 place-items-center rounded transition-colors"
         style={{
@@ -931,6 +969,7 @@ function TabPill({ label, icon, active, onClick, testid, big = false, badge = nu
         </span>
       )}
       {/* Live badge — pulses when there's unseen news; also visible when tab isn't active */}
+      </span>
       {badge != null && badge > 0 && (
         <motion.span
           animate={{ scale: [1, 1.15, 1], opacity: [0.85, 1, 0.85] }}
@@ -1017,8 +1056,8 @@ function LauncherDropdown({ value = 'all', onChange }) {
         className={cn(
           'inline-flex items-center gap-1 rounded-md hairline px-2.5 h-6 text-[10.5px] font-semibold tracking-wide transition-all',
           open || value !== 'all'
-            ? 'text-ink border-[rgb(var(--accent-2)/0.7)] bg-[rgb(var(--accent-2)/0.14)]'
-            : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.5)]'
+            ? 'text-ink border-[rgb(var(--accent-2)/0.78)]'
+            : 'text-ink/85 hover:text-ink hover:border-[rgb(var(--accent)/0.62)]'
         )}
       >
         <ChevronDown size={10} className={cn('transition-transform', open && 'rotate-180')} />
@@ -1031,7 +1070,7 @@ function LauncherDropdown({ value = 'all', onChange }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.12 }}
-            className="absolute left-0 top-full z-40 mt-1 w-40 rounded-md hairline glass shadow-2xl p-1"
+            className="library-toolbar-popover absolute left-0 top-full z-40 mt-1 w-40 rounded-md hairline shadow-2xl p-1"
             data-testid="launcher-dropdown-menu"
           >
             {LAUNCHER_OPTIONS.map((o) => (
@@ -1064,11 +1103,13 @@ function LibrarySettingsPopover({
   librarySize, rowSize = 44, catTextSize = 11, catGlow = 40, iconPosition = 'left',
   rowGap = 2, catGap = 8, catTopGap = 4, showCategoryDot = true, categoryMarkerMode = 'dot',
   showSubcatStrip = true, nameTextSize = null,
+  libraryFont = 'system', libraryFontWeight = 'regular', libraryFontCursive = false,
   effectsLevel = 2, currentTheme = 'synthwave', motionCadence = 'full',
   bgTextureId = 'none', bgTextureOpacity = 12,
   onSetLibrarySize, onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
   onChangeRowGap, onChangeCatGap, onChangeCatTopGap, onChangeCategoryMarkerMode,
   onToggleSubcatStrip, onChangeNameTextSize,
+  onChangeLibraryFont, onChangeLibraryFontWeight, onChangeLibraryFontCursive,
   onChangeEffectsLevel, onChangeMotionCadence,
   onChangeBgTextureId, onChangeBgTextureOpacity,
   onOpenFeedback,
@@ -1078,9 +1119,12 @@ function LibrarySettingsPopover({
 }) {
   const ref = React.useRef(null);
   const dragControls = useDragControls();
+  // Visuals now has three deliberate control lanes on a desktop-sized window.
+  // Keep its dimensions in one place so anchoring and drag bounds agree.
+  const popoverWidth = Math.min(960, Math.max(420, window.innerWidth - 32));
   const clampPopoverPosition = (top, left) => ({
     top: Math.max(12, Math.min(top, window.innerHeight - 116)),
-    left: Math.max(12, Math.min(left, window.innerWidth - 432)),
+    left: Math.max(12, Math.min(left, window.innerWidth - popoverWidth - 12)),
   });
   // Anchor the popover to the trigger button's rect (portaled to body so no
   // parent stacking context can hide it under the game preview).
@@ -1104,7 +1148,7 @@ function LibrarySettingsPopover({
   }, [onClose, anchorEl]);
   const dragBounds = {
     left: Math.min(0, 12 - pos.left),
-    right: Math.max(0, window.innerWidth - pos.left - 432),
+    right: Math.max(0, window.innerWidth - pos.left - popoverWidth - 12),
     top: Math.min(0, 12 - pos.top),
     bottom: Math.max(0, window.innerHeight - pos.top - 96),
   };
@@ -1131,7 +1175,7 @@ function LibrarySettingsPopover({
         // (which doesn't). No transparency at all here — this is a tool panel.
         backgroundColor: 'rgb(var(--surface))',
       }}
-      className="z-[9999] w-[420px] max-w-[calc(100vw-32px)] max-h-[80vh] overflow-y-auto rounded-lg hairline shadow-2xl p-3"
+      className="z-[9999] w-[960px] max-w-[calc(100vw-32px)] max-h-[80vh] overflow-y-auto rounded-lg hairline shadow-2xl p-3"
       data-testid="library-settings-popover"
     >
       <div
@@ -1141,25 +1185,53 @@ function LibrarySettingsPopover({
       >
         <GripVertical size={10} /> Visuals
       </div>
-      {/* v1.4.0 — Visuals popover uses CSS columns (settings-columns) so all
-          dials fit in a compact two-column masonry without endless scroll. */}
-      <div className="settings-columns">
-      <VisualGroup title="Object sizes">
-      <PopSlider
-        label="Row size"
-        value={rowSize}
-        min={22}
-        max={80}
-        suffix="px"
-        onChange={onChangeRowSize}
-        testid="pop-row-size"
-      />
-      <PopSlider label="Spacing between games" value={rowGap} min={-8} max={16} suffix="px" onChange={onChangeRowGap} testid="pop-row-gap" />
-      <PopSlider label="Spacing under category header" value={catGap} min={-6} max={32} suffix="px" onChange={onChangeCatGap} testid="pop-cat-gap" />
-      <PopSlider label="Gap between header & first game" value={catTopGap} min={0} max={24} suffix="px" onChange={onChangeCatTopGap} testid="pop-cat-top-gap" />
-      <DiscretePopSlider label="Icon position" labels={['Left', 'Right', 'None']} value={['left', 'right', 'none'].indexOf(iconPosition)} onChange={(value) => onChangeIconPosition?.(['left', 'right', 'none'][value])} testid="pop-icon-position" />
-      </VisualGroup>
+      {/* Three clear lanes replace the tall masonry list. The solid heading on
+          each group makes the current control family obvious at a glance. */}
+      <div className="visuals-grid">
+      <div className="space-y-3">
+        <VisualGroup title="Object sizes">
+        <PopSlider
+          label="Row size"
+          value={rowSize}
+          min={22}
+          max={80}
+          suffix="px"
+          onChange={onChangeRowSize}
+          testid="pop-row-size"
+        />
+        <PopSlider label="Spacing between games" value={rowGap} min={-8} max={16} suffix="px" onChange={onChangeRowGap} testid="pop-row-gap" />
+        <PopSlider label="Spacing under category header" value={catGap} min={-6} max={32} suffix="px" onChange={onChangeCatGap} testid="pop-cat-gap" />
+        <PopSlider label="Gap between header & first game" value={catTopGap} min={0} max={24} suffix="px" onChange={onChangeCatTopGap} testid="pop-cat-top-gap" />
+        <DiscretePopSlider label="Icon position" labels={['Left', 'Right', 'None']} value={['left', 'right', 'none'].indexOf(iconPosition)} onChange={(value) => onChangeIconPosition?.(['left', 'right', 'none'][value])} testid="pop-icon-position" />
+        </VisualGroup>
+        <VisualGroup title="Layout">
+          <div>
+            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-muted">Column layout</div>
+            <div className="grid grid-cols-2 gap-1">
+              {[
+                { key: false, label: 'Single' },
+                { key: true, label: 'Two columns' },
+              ].map((opt) => (
+                <button
+                  key={String(opt.key)}
+                  data-testid={`pop-two-row-${opt.key ? 'two' : 'one'}`}
+                  onClick={() => onToggleTwoRow && onToggleTwoRow(opt.key)}
+                  className={cn(
+                    'rounded-md hairline py-1.5 text-[11px] transition-colors',
+                    !!twoRow === opt.key
+                      ? 'border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.12)] text-ink'
+                      : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]'
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </VisualGroup>
+      </div>
 
+      <div className="space-y-3">
       <VisualGroup title="Text & category">
       <PopSlider
         label="Game name text size"
@@ -1170,6 +1242,15 @@ function LibrarySettingsPopover({
         onChange={onChangeNameTextSize}
         testid="pop-name-text-size"
       />
+      <div className="rounded-md hairline bg-panel/40 p-2.5" data-testid="library-font-controls">
+        <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-muted">Library font only</div>
+        <p className="mb-2 text-[9.5px] leading-relaxed text-muted">Changes only Library game and category names. Home, Preview, Tools, and Settings keep their current type.</p>
+        <DiscretePopSlider label="Font" labels={LIBRARY_FONT_OPTIONS.map((font) => font.label)} value={Math.max(0, LIBRARY_FONT_OPTIONS.findIndex((font) => font.id === libraryFont))} onChange={(value) => onChangeLibraryFont?.(LIBRARY_FONT_OPTIONS[value]?.id || 'system')} testid="pop-library-font" />
+        <div className="mt-2 grid grid-cols-2 gap-1">
+          <button type="button" onClick={() => onChangeLibraryFontWeight?.(libraryFontWeight === 'fat' ? 'regular' : 'fat')} className={cn('rounded-md hairline px-2 py-1.5 text-[10px] font-bold transition-colors', libraryFontWeight === 'fat' ? 'border-[rgb(var(--accent)/0.65)] bg-[rgb(var(--accent)/0.12)] text-ink' : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]')} data-testid="pop-library-font-fat">Fat</button>
+          <button type="button" onClick={() => onChangeLibraryFontCursive?.(!libraryFontCursive)} className={cn('rounded-md hairline px-2 py-1.5 text-[10px] font-bold transition-colors', libraryFontCursive ? 'border-[rgb(var(--accent)/0.65)] bg-[rgb(var(--accent)/0.12)] text-ink' : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]')} style={{ fontStyle: 'italic' }} data-testid="pop-library-font-cursive">Cursive</button>
+        </div>
+      </div>
       <PopSlider
         label="Category text size"
         value={catTextSize}
@@ -1182,7 +1263,9 @@ function LibrarySettingsPopover({
       <DiscretePopSlider label="Category marker" labels={['Dot', 'Backdrop', 'None']} value={['dot', 'background', 'none'].indexOf(categoryMarkerMode)} onChange={(value) => onChangeCategoryMarkerMode?.(['dot', 'background', 'none'][value])} testid="pop-category-marker" />
       <button data-testid="pop-toggle-subcat-strip" onClick={() => onToggleSubcatStrip && onToggleSubcatStrip(!showSubcatStrip)} className={cn('flex w-full items-center justify-between rounded-md hairline px-2.5 py-2 text-[11px] transition-colors', showSubcatStrip ? 'border-[rgb(var(--accent)/0.5)] bg-[rgb(var(--accent)/0.08)] text-ink' : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]')} title="Toggle the genre/playtime strip shown under each game name"><span>Sub-category strip</span><span className="text-[10px] uppercase tracking-wider">{showSubcatStrip ? 'shown' : 'hidden'}</span></button>
       </VisualGroup>
+      </div>
 
+      <div className="space-y-3">
       <VisualGroup title="FX">
       <PopSlider
         label="Category glow"
@@ -1196,34 +1279,9 @@ function LibrarySettingsPopover({
       <div className="rounded-md hairline bg-panel/40 p-2.5" data-testid="visual-performance-controls"><EffectsPopSlider theme={currentTheme} value={effectsLevel} onChange={onChangeEffectsLevel} /><div className="my-2 border-t border-[rgb(var(--border))]/70" /><MotionCadenceSlider value={motionCadence} onChange={onChangeMotionCadence} /><p className="mt-2 rounded-md border border-[rgb(var(--accent)/0.22)] bg-[rgb(var(--accent)/0.06)] px-2 py-1.5 text-[10px] leading-relaxed text-muted"><b className="text-ink">Performance tip:</b> lowering Effects intensity reduces visual layers; lowering Visual motion rate makes the same FX update less often. Lower both if NEO-LIB feels heavy.</p></div>
       <BgTexturePicker textureId={bgTextureId} opacity={bgTextureOpacity} onChange={onChangeBgTextureId} onChangeOpacity={onChangeBgTextureOpacity} />
       </VisualGroup>
-
-      <VisualGroup title="Layout">
-      <div>
-        <div className="mb-1.5 text-[10px] uppercase tracking-wider text-muted">Column layout</div>
-        <div className="grid grid-cols-2 gap-1">
-          {[
-            { key: false, label: 'Single' },
-            { key: true, label: 'Two columns' },
-          ].map((opt) => (
-            <button
-              key={String(opt.key)}
-              data-testid={`pop-two-row-${opt.key ? 'two' : 'one'}`}
-              onClick={() => onToggleTwoRow && onToggleTwoRow(opt.key)}
-              className={cn(
-                'rounded-md hairline py-1.5 text-[11px] transition-colors',
-                !!twoRow === opt.key
-                  ? 'border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.12)] text-ink'
-                  : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]'
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
       </div>
-      </VisualGroup>
       </div>
-      {/* end .settings-columns */}
+      {/* end .visuals-grid */}
 
       <div className="mt-3 h-px bg-[rgb(var(--border))]" />
       <button
@@ -1299,7 +1357,7 @@ function PopSlider({ label, value, min, max, suffix = '', onChange, testid }) {
 }
 
 function VisualGroup({ title, children }) {
-  return <section className="mb-3 break-inside-avoid rounded-lg border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--panel)/0.22)] p-2 space-y-2"><div className="border-b border-[rgb(var(--border)/0.6)] pb-1 text-[9.5px] font-black uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">{title}</div>{children}</section>;
+  return <section className="overflow-hidden rounded-lg border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--panel)/0.22)]"><div className="border-b border-[rgb(var(--accent)/0.36)] bg-[linear-gradient(90deg,rgb(var(--accent)/0.22),rgb(var(--accent-2)/0.10))] px-2.5 py-2 text-[9.5px] font-black uppercase tracking-[0.2em] text-ink shadow-[inset_0_1px_0_rgb(255,255,255,0.08)]">{title}</div><div className="space-y-2 p-2">{children}</div></section>;
 }
 
 function DiscretePopSlider({ label, labels, value, onChange, testid }) {
@@ -1520,11 +1578,15 @@ function Section({
   // so a small text size + tight category gap let the bloom bleed into the
   // section above/below. Scale every glow dimension off the same slider.
   const catScale = Math.max(0.55, Math.min(1.3, (catTextSize || 11) / 11));
-  // The category control is part of its label, not a fixed toolbar control.
-  // Keep the arrow glyph exactly in step with the category text slider while
-  // retaining a comfortable clickable target around it.
-  const categoryArrowSize = Math.max(6, Math.round(catTextSize || 11));
-  const categoryControlSize = Math.max(20, Math.min(30, categoryArrowSize + 10));
+  // A category header is one typographic unit. The Visuals slider therefore
+  // drives its name, launcher badge, count, arrow glyph, dot, and options
+  // glyph together instead of leaving fixed toolbar-sized pieces behind.
+  const categoryUiFontSize = Math.max(6, Math.min(18, Math.round(catTextSize || 11)));
+  const categoryArrowSize = Math.max(6, Math.round(categoryUiFontSize * 0.86));
+  const categoryControlSize = Math.max(14, Math.min(26, categoryUiFontSize + 6));
+  const categoryMetaIconSize = Math.max(6, Math.round(categoryUiFontSize * 0.9));
+  const categoryBadgePadX = Math.max(2, Math.round(categoryUiFontSize * 0.24));
+  const categoryBadgePadY = Math.max(0, Math.round(categoryUiFontSize * 0.08));
   // Backdrop is a real companion to the category type, rather than a fixed
   // stripe that feels oversized at small text or cramped at large text.
   // Backdrop follows the actual text line-height closely: a marker should
@@ -1596,14 +1658,14 @@ function Section({
         }}
         data-testid={`section-${c.id}`}
         className={cn(
-          'group flex cursor-pointer select-none items-start gap-1 rounded-md px-1.5 py-1.5 transition-colors',
+          'group flex cursor-pointer select-none items-center gap-1 rounded-md px-1.5 py-1.5 transition-colors',
           'hover:bg-[rgb(var(--accent)/0.06)]'
         )}
         style={
-          // v1.4.0 — when the category dot is disabled AND this isn't a ghost/
-          // locked or uncategorized row, use a subtle colored backdrop stripe
-          // matching the category color instead. Keeps the identity signal.
-          categoryMarkerMode === 'background' && !section.isGhost && !isUncat
+          // When the category dot is disabled, use a subtle coloured backdrop
+          // stripe for every real category, including a locked PIN category.
+          // The visual identity remains while its games and count stay private.
+          categoryMarkerMode === 'background' && !isUncat
             ? {
                 background: `linear-gradient(90deg, ${color}${backdropOpacity} 0%, ${color}24 58%, transparent 100%)`,
                 borderLeft: `${backdropBorder}px solid ${color}`,
@@ -1618,11 +1680,11 @@ function Section({
         {/* Drag handle */}
         <span
           className={cn(
-            'mr-0.5 mt-[2px] text-muted/60 transition-opacity',
+            'mr-0.5 shrink-0 text-muted/60 transition-opacity',
             hover && !isUncat ? 'opacity-100' : 'opacity-0'
           )}
         >
-          <GripVertical size={11} />
+          <GripVertical size={categoryMetaIconSize} />
         </span>
 
         {/* A solid, deliberately generous category control: it remains easy to
@@ -1635,7 +1697,7 @@ function Section({
             if (section.isGhost) onUnlockCategory();
             else onToggleCollapsed();
           }}
-          className="mt-0.5 grid shrink-0 place-items-center rounded-md border border-[rgb(var(--border)/0.9)] bg-[rgb(var(--surface)/0.56)] text-[rgb(var(--accent-2))] shadow-sm transition hover:border-[rgb(var(--accent)/0.68)] hover:bg-[rgb(var(--accent)/0.14)] hover:text-ink"
+          className="grid shrink-0 place-items-center rounded-md border border-[rgb(var(--border)/0.9)] bg-[rgb(var(--surface)/0.56)] text-[rgb(var(--accent-2))] shadow-sm transition hover:border-[rgb(var(--accent)/0.68)] hover:bg-[rgb(var(--accent)/0.14)] hover:text-ink"
           style={{ width: categoryControlSize, height: categoryControlSize }}
           title={section.isGhost ? 'Unlock Private category' : collapsed ? 'Expand category' : 'Collapse category'}
           aria-label={section.isGhost ? 'Unlock Private category' : collapsed ? 'Expand category' : 'Collapse category'}
@@ -1643,49 +1705,56 @@ function Section({
           {section.isGhost ? <Lock size={categoryArrowSize} strokeWidth={2.6} /> : collapsed ? <ChevronRight size={categoryArrowSize} strokeWidth={3} /> : <ChevronDown size={categoryArrowSize} strokeWidth={3} />}
         </button>
 
-        {/* Color/lock indicator (or launcher logo text for pinned launcher cats) */}
-        {section.isGhost ? (
-          <Lock size={12} className="text-[rgb(var(--accent))] pulse-ghost" />
-        ) : c.logoLabel ? (
-          <span
-            className="shrink-0 rounded px-1 py-0.5 text-[8.5px] font-extrabold tracking-wider"
-            style={{
-              background: color,
-              color: '#0a0414',
-              boxShadow: `0 0 8px ${color}AA`,
-            }}
-          >
-            {c.logoLabel}
-          </span>
-        ) : categoryMarkerMode === 'background' ? (
-          // v1.4.0 — dot hidden; the section header uses a colored backdrop
-          // stripe instead (see parent style). Reserve a tiny spacer so the
-          // chevron alignment stays consistent.
-          <span aria-hidden className="shrink-0" style={{ width: 2, height: 2 }} />
-        ) : categoryMarkerMode === 'dot' ? (
-          <span
-            className="shrink-0 rounded-full cat-icon"
-            style={{
-              width: Math.round(catTextSize * 0.95),
-              height: Math.round(catTextSize * 0.95),
-              background: color,
-              boxShadow: `0 0 ${Math.round((4 + catGlow * 0.18) * catScale)}px ${color}, 0 0 ${Math.round(catGlow * 0.35 * catScale)}px ${color}80`,
-              color, // for filter:drop-shadow on hover
-            }}
-          />
-        ) : null}
+        {/* Color marker and launcher badge are separate signals. A launcher
+            label such as Steam must not silently replace the player's chosen
+            Dot marker mode—both get their own stable slot after the arrow. */}
+        {!isUncat && <>
+          {categoryMarkerMode === 'dot' && (
+            <span
+              data-testid={`category-marker-${c.id}`}
+              className="relative z-[2] shrink-0 rounded-full cat-icon"
+              style={{
+                width: Math.max(5, Math.round(categoryUiFontSize * 0.78)),
+                height: Math.max(5, Math.round(categoryUiFontSize * 0.78)),
+                background: color,
+                boxShadow: `0 0 ${Math.round((4 + catGlow * 0.18) * catScale)}px ${color}, 0 0 ${Math.round(catGlow * 0.35 * catScale)}px ${color}80`,
+                color, // for filter:drop-shadow on hover
+              }}
+            />
+          )}
+          {!section.isGhost && c.logoLabel ? (
+            <span
+              className="shrink-0 rounded font-extrabold leading-none"
+              style={{
+                background: color,
+                color: '#0a0414',
+                boxShadow: `0 0 8px ${color}AA`,
+                fontSize: categoryUiFontSize,
+                letterSpacing: '0.08em',
+                paddingInline: categoryBadgePadX,
+                paddingBlock: categoryBadgePadY,
+              }}
+            >
+              {c.logoLabel}
+            </span>
+          ) : categoryMarkerMode === 'background' ? (
+            // The backdrop already signals colour. Keep only a small stable
+            // spacer so the category name still aligns with Dot mode.
+            <span aria-hidden className="shrink-0" style={{ width: 2, height: 2 }} />
+          ) : null}
+        </>}
 
         {/* Name — applies dynamic font size + glow (catTextSize / catGlow sliders) */}
         <span
           className={cn(
             // Fixed UI wording must stay complete. When the sidebar is narrow,
             // wrap at a natural word boundary instead of hiding the last words.
-            'min-w-0 flex-1 break-words whitespace-normal font-display font-bold uppercase leading-[1.12] tracking-[0.18em]',
+            'library-font-ui min-w-0 flex-1 break-words whitespace-normal font-display font-bold uppercase leading-[1.12] tracking-[0.18em]',
             section.isGhost ? 'text-[rgb(var(--accent))]/80' : 'text-ink/95'
           )}
           style={(() => {
             const g = Math.max(0, Math.min(300, catGlow)) / 100; // 0..3, smooth
-            const base = `${catTextSize}px`;
+            const base = `${categoryUiFontSize}px`;
             if (section.isGhost || isUncat || g === 0) {
               return { fontSize: base };
             }
@@ -1723,18 +1792,17 @@ function Section({
                 onUnlockCategory();
               }}
               className="-my-1 inline-flex max-w-full items-center gap-1.5 rounded-md px-1 py-1 text-left hover:bg-[rgb(var(--accent)/0.14)] hover:text-[rgb(var(--accent))]"
-              title={`Unlock ${c.name} (${section.count} game${section.count === 1 ? '' : 's'})`}
+              title={`Unlock ${c.name}`}
             >
               <span className="min-w-0 break-words">Unlock {c.name}</span>
-              <span className="shrink-0 text-[0.8em] opacity-70">({section.count})</span>
             </button>
-          ) : c.name}
+          ) : categoryHeaderLabel(c)}
         </span>
 
         {/* Count */}
-        <span className="mt-[1px] shrink-0 rounded-full bg-panel/60 hairline px-1.5 py-0.5 text-[10px] text-muted">
+        {section.count !== '' && <span className="shrink-0 rounded-full bg-panel/60 hairline text-muted" style={{ fontSize: categoryUiFontSize, lineHeight: 1, paddingInline: categoryBadgePadX + 1, paddingBlock: categoryBadgePadY + 1 }}>
           {section.count}
-        </span>
+        </span>}
 
         {/* Kebab menu — guaranteed access to Rename / Set Private / Delete (alongside right-click) */}
         {!isUncat && (
@@ -1748,12 +1816,13 @@ function Section({
             }}
             title="Category options"
             className={cn(
-              'ml-1 grid h-5 w-5 place-items-center rounded transition-colors',
+              'ml-1 grid shrink-0 place-items-center rounded transition-colors',
               'text-muted/70 hover:text-ink hover:bg-[rgb(var(--accent)/0.15)]',
               hover ? 'opacity-100' : 'opacity-60'
             )}
+            style={{ width: categoryControlSize, height: categoryControlSize }}
           >
-            <MoreVertical size={12} />
+            <MoreVertical size={categoryMetaIconSize} />
           </button>
         )}
       </div>
@@ -1903,7 +1972,7 @@ function GameRow({
       onClick={onClick}
       data-testid={`game-row-${g.id}`}
       className={cn(
-        'group relative flex cursor-pointer items-center gap-2.5 rounded-md transition-colors',
+        'group relative flex min-w-0 cursor-pointer items-center gap-2.5 overflow-hidden rounded-md transition-colors',
         selected ? 'bg-[rgb(var(--accent)/0.10)] text-ink' : 'text-muted hover:bg-panel/70 hover:text-ink',
         g.managedTool && g.availability !== 'installed' && 'opacity-60 grayscale-[0.3]',
         isSmall ? 'px-1.5' : 'px-2',
@@ -1965,7 +2034,7 @@ function GameRow({
       )}
 
       {/* Name + meta */}
-      <div className="flex min-w-0 flex-1 flex-col justify-end">
+      <div className="flex min-w-0 flex-1 flex-col justify-end overflow-hidden">
         {/* Genre/meta strip — shown when the "Sub-category" toggle is on and
             row size is not the compact "small" preset (where there's no room).
             Category color dots hide when the "Category dot" toggle is off. */}

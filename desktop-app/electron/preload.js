@@ -52,6 +52,7 @@ contextBridge.exposeInMainWorld('api', {
   launchGame: (opts) => ipcRenderer.invoke('game:launch', opts),
   onGameExited: (cb) => ipcRenderer.on('game:exited', (_e, info) => cb(info)),
   watchExternalGames: (payload) => ipcRenderer.invoke('game:watchExternal', payload),
+  scanExternalGamesNow: () => ipcRenderer.invoke('game:scanExternalNow'),
   onExternalGameState: (cb) => ipcRenderer.on('game:externalState', (_e, info) => cb(info)),
 
   // scan
@@ -86,6 +87,7 @@ contextBridge.exposeInMainWorld('api', {
   getAutoStart: () => ipcRenderer.invoke('app:getAutoStart'),
   getSystemHealth: () => ipcRenderer.invoke('system:health'),
   detectGpuSetup: () => ipcRenderer.invoke('tools:detectGpuSetup'),
+  fetchToolMetadata: (opts) => ipcRenderer.invoke('tools:fetchMetadata', opts),
   verifyManagedTool: (payload) => ipcRenderer.invoke('tools:verifyManagedTool', payload),
   installManagedTool: (toolId) => ipcRenderer.invoke('tools:installManagedTool', toolId),
   inspectGamingPerformance: () => ipcRenderer.invoke('optimize:inspectGaming'),

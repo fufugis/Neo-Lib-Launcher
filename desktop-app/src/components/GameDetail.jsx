@@ -167,7 +167,7 @@ export default function GameDetail({
           game artwork has its own fuller gallery on the right. */}
       <div className="flex min-h-0 flex-1 justify-start overflow-y-auto px-3 py-5 sm:px-4 sm:py-6">
         <section
-          className="min-h-min w-full max-w-none rounded-2xl border border-[rgb(var(--border)/0.88)] bg-[rgb(var(--panel)/0.78)] px-4 py-4 shadow-[0_28px_80px_-52px_rgba(0,0,0,.96)] backdrop-blur-xl sm:px-6 sm:py-5"
+          className="min-h-min w-full max-w-none rounded-2xl border border-[rgb(var(--border)/0.88)] bg-[rgb(var(--panel)/0.56)] px-4 py-4 shadow-[0_28px_80px_-52px_rgba(0,0,0,.96)] backdrop-blur-md sm:px-6 sm:py-5"
           data-testid="game-text-panel"
         >
           <ManagedToolSetup game={game} onLocate={onLocateManagedTool} onInstall={onInstallManagedTool} installing={managedToolInstalling} />
@@ -177,7 +177,7 @@ export default function GameDetail({
             <div className="min-w-0">
               <GameStory game={game} profile={game.genreProfile} />
               <DetailList game={game} />
-              <div className="mt-5 rounded-xl border border-[rgb(var(--border)/0.56)] bg-[rgb(var(--surface)/0.38)] px-3 py-2.5 text-[10.5px] text-muted/75 break-all font-mono">
+              <div className="mt-5 rounded-xl border border-[rgb(var(--border)/0.56)] bg-[rgb(var(--surface)/0.30)] px-3 py-2.5 text-[10.5px] text-muted/75 break-all font-mono">
                 {game.exePath}
                 {game.appid && <span className="block mt-0.5">Steam App ID · {game.appid}</span>}
                 {game.source && <span className="block mt-0.5">Source · {game.source}</span>}
@@ -209,7 +209,7 @@ function GameStory({ game, profile }) {
   const fallback = 'No description yet. Re-fetch info to ask NEO-LIB’s source resolver for official game details.';
 
   return (
-    <section className="overflow-hidden rounded-xl border border-[rgb(var(--border)/0.72)] bg-[linear-gradient(145deg,rgb(var(--panel)/0.34),rgb(var(--surface)/0.14))]" data-testid="game-story-panel">
+    <section className="overflow-hidden rounded-xl border border-[rgb(var(--border)/0.72)] bg-[linear-gradient(145deg,rgb(var(--panel)/0.27),rgb(var(--surface)/0.11))]" data-testid="game-story-panel">
       <div className="flex items-center justify-between gap-3 border-b border-[rgb(var(--border)/0.55)] px-3.5 py-2.5">
         <div>
           <h3 className="text-[10px] font-bold uppercase tracking-[0.28em] text-muted">About this game</h3>
@@ -239,7 +239,7 @@ function GameMediaGallery({ game }) {
   const current = media[active] || media[0];
   if (!current) return <section className="rounded-xl border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--panel)/0.26)] p-4 text-center text-[11px] text-muted"><ImageIcon className="mx-auto mb-2 text-[rgb(var(--accent))]" size={18} /><b className="block text-ink">No game media yet</b><span className="mt-1 block">Refresh info or add screenshots in Customize.</span></section>;
   return (
-    <section className="overflow-hidden rounded-xl border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--panel)/0.3)]" data-testid="game-media-gallery">
+    <section className="overflow-hidden rounded-xl border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--panel)/0.24)]" data-testid="game-media-gallery">
       <div className="flex items-center justify-between border-b border-[rgb(var(--border)/0.55)] px-3.5 py-2.5"><div><h3 className="text-[10px] font-bold uppercase tracking-[0.28em] text-muted">Game media</h3><p className="mt-0.5 text-[10px] text-muted/70">{media.length} verified image{media.length === 1 ? '' : 's'}</p></div><span className="rounded-full border border-[rgb(var(--border)/0.55)] px-2 py-1 text-[9px] font-semibold text-muted">{active + 1} / {media.length}</span></div>
       <div className="group relative aspect-[16/10] overflow-hidden bg-[rgb(var(--surface)/0.35)]">
         <motion.img key={current} initial={{ opacity: 0.72, scale: 1.012 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.28 }} src={current} alt={`${game.name} game artwork`} className="h-full w-full object-cover" />
@@ -259,7 +259,7 @@ function DetailList({ game }) {
   if (game.website) rows.push({ icon: <Globe size={13} />, label: 'Website', value: 'Open official site', action: () => window.api?.openExternal(game.website) });
   if (!rows.length) return null;
   return (
-    <section className="mt-5 overflow-hidden rounded-xl border border-[rgb(var(--border)/0.7)] bg-[rgb(var(--surface)/0.2)]" data-testid="game-detail-list">
+    <section className="mt-5 overflow-hidden rounded-xl border border-[rgb(var(--border)/0.7)] bg-[rgb(var(--surface)/0.16)]" data-testid="game-detail-list">
       <div className="border-b border-[rgb(var(--border)/0.55)] px-3.5 py-2 text-[9px] font-bold uppercase tracking-[0.24em] text-muted">Game details</div>
       <div className="divide-y divide-[rgb(var(--border)/0.45)]">
         {rows.map((row) => (
@@ -397,7 +397,7 @@ function ActionBar({ game, categories, onLaunch, onLaunchError, onRefetch, onRev
   }, [catOpen]);
 
   return (
-    <div className="special-control-surface relative z-10 flex flex-wrap items-center gap-3 border-y hairline px-6 py-3" style={{ backgroundColor: 'rgb(var(--surface) / 0.45)', backdropFilter: 'blur(14px) saturate(140%)' }}>
+    <div className="special-control-surface neolib-special-action-art relative z-10 flex flex-wrap items-center gap-3 border-y hairline px-6 py-3" style={{ backgroundColor: 'rgb(var(--surface) / 0.24)', backdropFilter: 'blur(8px) saturate(124%)' }}>
       <motion.button
         data-testid="detail-launch-btn"
         whileTap={{ scale: 0.95 }}
@@ -647,7 +647,7 @@ function MetaStrip({ game }) {
   return (
     <div className="relative z-10 grid grid-cols-2 gap-px border-b hairline sm:grid-cols-3 lg:grid-cols-6" style={{ backgroundColor: 'rgb(var(--border) / 0.35)' }}>
       {items.map((it) => (
-        <div key={it.label} className="px-4 py-3" style={{ backgroundColor: 'rgb(var(--surface) / 0.55)', backdropFilter: 'blur(14px) saturate(140%)' }}>
+        <div key={it.label} className="px-4 py-3" style={{ backgroundColor: 'rgb(var(--surface) / 0.44)', backdropFilter: 'blur(10px) saturate(128%)' }}>
           <div className="mb-1 flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted/90">
             <span className="text-[rgb(var(--accent))]">{it.icon}</span>
             {it.label}
@@ -805,24 +805,26 @@ function LatestNewsPill({ game }) {
     let alive = true;
     setItem(null); setExpanded(false);
     if (!game) return () => { alive = false; };
-    const eligible = game.appid || game.gogId || /itch\.io/.test(game.website || '') || game.source === 'itch';
+    // The per-game latest-news pill follows the same all-launcher policy as
+    // Home: named local and launcher-owned entries may use public discovery.
+    const eligible = String(game.name || '').trim();
     if (!eligible) return () => { alive = false; };
     if (!(typeof window !== 'undefined' && window.api?.latestNewsForGame)) return () => { alive = false; };
     window.api.latestNewsForGame({
       id: game.id, appid: game.appid, gogId: game.gogId,
-      website: game.website, source: game.source, name: game.name,
+      website: game.website, source: game.source, launcher: game.launcher, name: game.name,
     }).then((res) => {
       if (!alive) return;
       if (res?.ok && res.item) setItem(res.item);
     }).catch(() => {});
     return () => { alive = false; };
-  }, [game?.id, game?.appid, game?.gogId, game?.website]);
+  }, [game?.id, game?.appid, game?.gogId, game?.website, game?.launcher, game?.source, game?.name]);
 
   if (!item) return null;
 
   const daysAgo = Math.max(0, Math.floor((Date.now() - item.date) / 86400000));
   const timeStr = daysAgo === 0 ? 'today' : daysAgo === 1 ? 'yesterday' : `${daysAgo}d ago`;
-  const platformLabel = { steam: 'Steam', itch: 'itch.io', gog: 'GOG' }[item.platform] || 'News';
+  const platformLabel = { steam: 'Steam', itch: 'itch.io', gog: 'GOG', 'official-web': 'Official site', web: 'Web discovery' }[item.platform] || 'News';
   const visual = item.image || game.headerImage || game.background || game.hero || game.screenshots?.[0] || game.coverUrl || game.cover || '';
 
   const openLink = (e) => {
@@ -1101,7 +1103,7 @@ function GenreProfile({ profile, fallbackGenres = [], embedded = false }) {
   if (!groups.length && !fallbackGenres.length) return null;
   const shownGroups = groups.length ? groups : [['Source genres', fallbackGenres.map((label) => ({ id: label, label }))]];
   return (
-    <aside className={`genre-identity-blob self-start overflow-hidden rounded-xl border border-[rgb(var(--accent)/0.34)] bg-[rgb(var(--surface)/0.45)] ${embedded ? 'w-full shadow-[0_12px_28px_-22px_rgb(var(--accent))]' : ''}`} data-testid="game-genre-profile">
+    <aside className={`genre-identity-blob self-start overflow-hidden rounded-xl border border-[rgb(var(--accent)/0.34)] bg-[rgb(var(--surface)/0.36)] ${embedded ? 'w-full shadow-[0_12px_28px_-22px_rgb(var(--accent))]' : ''}`} data-testid="game-genre-profile">
       <div className="border-b border-[rgb(var(--accent)/0.22)] bg-[rgb(var(--accent)/0.11)] px-3 py-2.5">
         <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[rgb(var(--accent))]">Game identity</div>
         <div className="mt-1 flex items-center justify-between gap-2">

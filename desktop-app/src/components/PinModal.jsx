@@ -1,7 +1,7 @@
 import React from 'react';
 import Modal from './Modal';
 import { motion } from 'framer-motion';
-import { Lock, KeyRound, X } from 'lucide-react';
+import { Lock, KeyRound, ShieldCheck, X } from 'lucide-react';
 
 /**
  * PinModal — used in 3 modes:
@@ -50,7 +50,20 @@ export default function PinModal({ open, mode, onClose, onSubmit, categoryName, 
 
         <PinInput value={pin} onChange={setPin} testid="pin-input" autoFocus />
         {mode === 'set' && (
-          <PinInput value={pin2} onChange={setPin2} testid="pin-input-2" placeholder="Confirm" />
+          <>
+            <PinInput value={pin2} onChange={setPin2} testid="pin-input-2" placeholder="Confirm" />
+            <div className="rounded-xl border border-red-400/35 bg-red-400/[0.07] px-3.5 py-3 text-xs leading-relaxed text-ink/90" data-testid="pin-panic-button-guide">
+              <div className="mb-1.5 flex items-center gap-2 font-bold text-red-300">
+                <ShieldCheck size={14} /> Your private-library safety button
+              </div>
+              <p>
+                Once this category has a PIN, use the red-outlined <strong>Lock private</strong> button on the top-right of <strong>Home</strong> whenever you need privacy fast. It immediately locks every PIN category, hides protected games across NEO-LIB, and returns to a safe Library view.
+              </p>
+              <p className="mt-1.5 text-muted">
+                Lock private does not change or erase this PIN. To reveal this category later, enter this PIN again in the Library or Wall.
+              </p>
+            </div>
+          </>
         )}
 
         {error && (
