@@ -1,4 +1,5 @@
 import React from 'react';
+import { DecorationLayer } from './ui/VisualBoundary';
 
 const FRAME_FILES = {
   anime: 'anime-button-frame-v2.png',
@@ -27,7 +28,7 @@ export default function NavButtonArtwork({ theme, opacity = 0.46, active = false
     maxWidth: 'none', objectFit: 'fill', pointerEvents: 'none',
   };
   return (
-    <span aria-hidden="true" data-testid="nav-button-artwork" data-art-theme={theme}
+    <DecorationLayer data-testid="nav-button-artwork" data-art-theme={theme}
       style={{ position: 'absolute', inset: theme === 'pro' ? '-10px -5px' : `-${outward}px`, zIndex: 2, pointerEvents: 'none',
         borderRadius: '10px', overflow: 'visible', opacity: Math.min(1, strength * 1.85) }}>
       <img src={src} alt="" draggable={false} style={imageStyle} />
@@ -60,6 +61,6 @@ export default function NavButtonArtwork({ theme, opacity = 0.46, active = false
             : { right: '-2px', top: '-2px' }),
           filter: theme === 'pro' ? 'sepia(0.3) saturate(1.3) brightness(1.15)' : 'saturate(1.15)' }} />
       </span>)}
-    </span>
+    </DecorationLayer>
   );
 }

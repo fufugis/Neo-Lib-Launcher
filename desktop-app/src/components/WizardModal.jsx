@@ -1,5 +1,5 @@
 import React from 'react';
-import { createPortal } from 'react-dom';
+import { renderForegroundPortal } from './ui/VisualBoundary';
 import { launcherEntry, boundedLauncherScan } from '../lib/launcherImport.mjs';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -9,6 +9,8 @@ import {
 import Modal from './Modal';
 import { guessNameFromPath } from '../lib/utils';
 import { genreDisplayGroups, normalizeGenreProfile } from '../lib/genreTaxonomy';
+import { createBoundedOperation } from '../services/bounded-operation.mjs';
+import { OPERATION_STATUS } from '../state/operation-state.mjs';
 
 /**
  * Auto-import Wizard
@@ -33,6 +35,12 @@ function launcherImportKeys(item, kind = '') {
   ].filter(Boolean);
 }
 
+function operationFailureMessage(operation, label) {
+  if (operation?.status === OPERATION_STATUS.TIMED_OUT) return `${label} timed out. Nothing else will be added.`;
+  if (operation?.status === OPERATION_STATUS.CANCELLED) return `${label} cancelled. Late results will be ignored.`;
+  return operation?.message || `${label} failed.`;
+}
+
 export default function WizardModal({ open, onClose, onImport, onAccept, onAddManual, geminiKey, aiModel = 'gemini-2.5-flash', existingExePaths = [], existingGames = [], prefilledRoot = '', autoScan = false }) {
   const [step, setStep] = React.useState(1);
   const [root, setRoot] = React.useState('');
@@ -53,6 +61,18 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
   const knownLauncherImportKeys = React.useRef(new Set());
   const launcherOperation = React.useRef(false);
   const launcherRun = React.useRef(0);
+  const launcherBoundedOperation = React.useRef(null);
+  // Folder scans and per-game metadata are intentionally separate from the
+  // launcher route, but must have the same escape hatch. Native work cannot
+  // always be force-stopped, so the renderer owns the timeout/cancel boundary
+  // and permanently ignores any late result.
+  const folderScanRun = React.useRef(0);
+  const metadataRun = React.useRef(0);
+  const acceptRun = React.useRef(0);
+  const folderBoundedOperation = React.useRef(null);
+  const metadataBoundedOperation = React.useRef(null);
+  const imageBoundedOperation = React.useRef(null);
+  const [wizardStatus, setWizardStatus] = React.useState('');
 
   // Exclude paths during scan — common launcher folders + custom
   const [skipLaunchers, setSkipLaunchers] = React.useState({
@@ -99,27 +119,35 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
     setLauncherConfirm(null);
     setLauncherImportBusy(true);
     setLauncherStatus(`Importing ${items.length} new ${launcherLabel} game${items.length === 1 ? '' : 's'}…`);
-    let imported = 0;
-    try {
-    for (const it of items) {
-      // Persist local launcher identity without waiting for online metadata.
-      const entry = launcherEntry(it, kind);
-      // Keep a per-run identity ledger as well as the app's persisted library
-      // guard. A double click or a second prompt cannot add this game twice.
-      if (!isKnownLauncherItem(it, kind)) {
-        if (!entry.exePath) continue;
-        if (!onAccept) throw new Error('Library import handler is unavailable.');
-        onAccept(entry);
-        rememberLauncherItem(it, kind);
-        rememberLauncherItem(entry, kind);
-        imported += 1;
-      }
-      setLauncherStatus(`Imported ${imported}/${items.length} new ${launcherLabel} game${items.length === 1 ? '' : 's'}…`);
-    }
-    setLauncherStatus(`Done — added ${imported} new ${launcherLabel} games and their category. Use Refresh info to choose artwork and descriptions. Existing entries were left untouched.`);
-    } catch (error) {
-      setLauncherStatus(`Added ${imported} games before import stopped: ${error.message || 'Unknown error'}`);
-    } finally { launcherOperation.current = false; setLauncherImportBusy(false); }
+    launcherBoundedOperation.current?.cancel('Replaced by a newer launcher import.');
+    const operation = createBoundedOperation({ domain: 'launcher-import', total: items.length, timeoutMs: 30_000, task: async ({ isCurrent }) => {
+      let imported = 0;
+      let failure = '';
+      try {
+        for (const it of items) {
+          if (!isCurrent()) break;
+          const entry = launcherEntry(it, kind);
+          if (!isKnownLauncherItem(it, kind)) {
+            if (!entry.exePath) continue;
+            if (!onAccept) throw new Error('Library import handler is unavailable.');
+            onAccept(entry);
+            rememberLauncherItem(it, kind);
+            rememberLauncherItem(entry, kind);
+            imported += 1;
+          }
+          setLauncherStatus(`Imported ${imported}/${items.length} new ${launcherLabel} game${items.length === 1 ? '' : 's'}…`);
+        }
+      } catch (error) { failure = error?.message || 'Unknown import error'; }
+      return { imported, failure, operationCompleted: imported, operationFailed: failure ? Math.max(1, items.length - imported) : 0 };
+    } });
+    launcherBoundedOperation.current = operation;
+    const outcome = await operation.promise;
+    const imported = Number(outcome.value?.imported || 0);
+    if (outcome.state.status === OPERATION_STATUS.SUCCEEDED) setLauncherStatus(`Done — added ${imported} new ${launcherLabel} games and their category. Use Refresh info to choose artwork and descriptions. Existing entries were left untouched.`);
+    else if (outcome.state.status === OPERATION_STATUS.PARTIAL) setLauncherStatus(`Added ${imported} games before import stopped: ${outcome.value?.failure || 'One or more entries could not be added.'}`);
+    else setLauncherStatus(operationFailureMessage(outcome.state, 'Launcher import'));
+    launcherOperation.current = false;
+    setLauncherImportBusy(false);
   };
 
   const scanLauncherForImport = async (kind) => {
@@ -132,15 +160,30 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
     setLauncherStatus(`Scanning ${launcherLabel}…`);
     const api = launcherApiFor(kind);
     if (!api) { setLauncherStatus('Not available in browser preview.'); launcherOperation.current = false; setLauncherImportBusy(false); return; }
-    let r;
-    try { r = await boundedLauncherScan(api); } catch (error) {
-      if (run !== launcherRun.current) return;
-      setLauncherStatus(`Could not scan ${launcherLabel}: ${error.message || 'Launcher unavailable'}`);
+    launcherBoundedOperation.current?.cancel('Replaced by a newer launcher scan.');
+    const operation = createBoundedOperation({
+      domain: 'launcher-scan', timeoutMs: 32_000,
+      task: async () => {
+        const result = await boundedLauncherScan(api, 30_000);
+        if (!result?.ok) throw Object.assign(new Error(result?.error || `${launcherLabel} is unavailable.`), { code: 'UNAVAILABLE' });
+        return result;
+      },
+    });
+    launcherBoundedOperation.current = operation;
+    const outcome = await operation.promise;
+    if (run !== launcherRun.current) return;
+    if (outcome.state.status !== OPERATION_STATUS.SUCCEEDED) {
+      const message = outcome.state.status === OPERATION_STATUS.TIMED_OUT
+        ? `${launcherLabel} scan timed out. Nothing was added. Try again or choose the install folder.`
+        : outcome.state.status === OPERATION_STATUS.CANCELLED
+          ? 'Scan cancelled. Late results will not add games.'
+          : `Could not scan ${launcherLabel}: ${outcome.state.message || 'Launcher unavailable'}`;
+      setLauncherStatus(message);
       launcherOperation.current = false;
       setLauncherImportBusy(false);
       return;
     }
-    if (run !== launcherRun.current) return;
+    const r = outcome.value;
     launcherOperation.current = false;
     if (!r?.ok || !r.items?.length) {
       setLauncherStatus(r?.error || `No installed ${kind} games found.`);
@@ -161,10 +204,18 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
   React.useEffect(() => {
     if (!open) {
       launcherRun.current++;
+      folderScanRun.current++;
+      metadataRun.current++;
+      acceptRun.current++;
+      launcherBoundedOperation.current?.cancel('Wizard closed.');
+      folderBoundedOperation.current?.cancel('Wizard closed.');
+      metadataBoundedOperation.current?.cancel('Wizard closed.');
+      imageBoundedOperation.current?.cancel('Wizard closed.');
       launcherOperation.current = false;
       setStep(1); setRoot(''); setCandidates([]); setCursor(0);
       setCurrent(null); setResult(null); setIcon(null); setBusy(false);
       setAccepted([]); setQueryOverride(''); setSkipSources([]); setLauncherStatus(''); setLauncherConfirm(null); setLauncherImportBusy(false);
+      setWizardStatus('');
       setSkippedExisting(0);
     } else if (prefilledRoot) {
       // Drag-drop opened the Wizard with a specific folder — skip the picker step
@@ -201,8 +252,11 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
 
   const startScan = async () => {
     if (!root) return;
+    const run = ++folderScanRun.current;
+    folderBoundedOperation.current?.cancel('Replaced by a newer folder scan.');
     setStep(2);
     setBusy(true);
+    setWizardStatus(`Scanning ${root}…`);
     const excludes = [
       ...customExcludes,
       // Common launcher directory name fragments — main process filters paths containing any of these
@@ -217,7 +271,26 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
       ...(skipLaunchers.rockstar ? ['Rockstar Games'] : []),
       ...(skipLaunchers.itch    ? ['itch\\apps', 'itch apps'] : []),
     ];
-    const found = (await window.api?.scanDirectory(root, excludes, { deep: scanDepth === 'deep' })) || [];
+    const operation = createBoundedOperation({
+      domain: 'wizard-folder-scan',
+      timeoutMs: scanDepth === 'deep' ? 55_000 : 32_000,
+      task: async () => {
+        if (!window.api?.scanDirectory) throw Object.assign(new Error('Folder scanning is available only in the installed NEO-LIB app.'), { code: 'UNAVAILABLE' });
+        const found = await window.api.scanDirectory(root, excludes, { deep: scanDepth === 'deep' });
+        if (!Array.isArray(found)) throw new Error('Folder scan returned an unreadable result.');
+        return { found, operationCompleted: found.length };
+      },
+    });
+    folderBoundedOperation.current = operation;
+    const outcome = await operation.promise;
+    if (run !== folderScanRun.current) return;
+    if (outcome.state.status !== OPERATION_STATUS.SUCCEEDED) {
+      setBusy(false);
+      setStep(1);
+      setWizardStatus(operationFailureMessage(outcome.state, 'Folder scan'));
+      return;
+    }
+    const found = outcome.value?.found || [];
     // De-dupe: filter out games already in the library (by exePath, case-insensitive)
     const known = new Set((existingExePaths || []).map((p) => (p || '').toLowerCase()));
     const fresh = found.filter((cand) => !known.has((cand.exe || '').toLowerCase()));
@@ -225,12 +298,45 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
     setSkippedExisting(skippedCount);
     setCandidates(fresh);
     setBusy(false);
+    setWizardStatus(fresh.length ? `Found ${fresh.length} new item${fresh.length === 1 ? '' : 's'} to review.` : 'No new programs were found in that folder.');
     if (fresh.length === 0) setStep(4);
     else setStep(3);
   };
 
-  const prepCandidate = async (cand) => {
+  const runMetadataLookup = async (cand, query, sources = [], { includeIcon = false } = {}) => {
+    if (!cand) return;
+    const run = ++metadataRun.current;
+    metadataBoundedOperation.current?.cancel('Replaced by a newer metadata lookup.');
     setBusy(true);
+    setWizardStatus('Looking up a reviewable match…');
+    const operation = createBoundedOperation({
+      domain: 'wizard-metadata',
+      timeoutMs: 28_000,
+      task: async () => {
+        if (!window.api?.fetchMetadata) throw Object.assign(new Error('Metadata lookup is available only in the installed NEO-LIB app.'), { code: 'UNAVAILABLE' });
+        const tasks = [window.api.fetchMetadata({ query, skipSources: sources, geminiKey, aiModel })];
+        if (includeIcon) tasks.push(window.api?.extractIcon?.(cand.exe));
+        const settled = await Promise.allSettled(tasks);
+        const metadata = settled[0];
+        if (metadata.status === 'rejected') throw metadata.reason || new Error('Metadata lookup failed.');
+        return { metadata: metadata.value || null, icon: includeIcon && settled[1]?.status === 'fulfilled' ? settled[1].value : undefined };
+      },
+    });
+    metadataBoundedOperation.current = operation;
+    const outcome = await operation.promise;
+    if (run !== metadataRun.current) return;
+    setBusy(false);
+    if (outcome.state.status !== OPERATION_STATUS.SUCCEEDED) {
+      setResult(null);
+      setWizardStatus(`${operationFailureMessage(outcome.state, 'Metadata lookup')} You can re-search, skip this entry, or try again.`);
+      return;
+    }
+    if (includeIcon) setIcon(outcome.value?.icon || null);
+    setResult(outcome.value?.metadata || null);
+    setWizardStatus(outcome.value?.metadata ? '' : 'No match found. You can re-search or accept the local entry without metadata.');
+  };
+
+  const prepCandidate = async (cand) => {
     setResult(null);
     setSkipSources([]);
     const guess = cand.folderName || guessNameFromPath(cand.exe);
@@ -238,45 +344,48 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
     // games that don't match can immediately tweak the name instead of staring at a blank box.
     setQueryOverride(guess);
     setCurrent(cand);
-    const ico = await window.api?.extractIcon(cand.exe);
-    setIcon(ico);
-    const r = await window.api?.fetchMetadata({ query: guess, skipSources: [], geminiKey, aiModel });
-    setResult(r);
-    setBusy(false);
+    setIcon(null);
+    await runMetadataLookup(cand, guess, [], { includeIcon: true });
   };
 
   const reSearch = async () => {
-    setBusy(true);
     const q = queryOverride || current?.folderName || '';
-    const r = await window.api?.fetchMetadata({ query: q, skipSources, geminiKey, aiModel });
-    setResult(r);
-    setBusy(false);
+    await runMetadataLookup(current, q, skipSources);
   };
 
   const trySkipCurrentSource = async () => {
     if (!result?.source) return;
     const newSkips = [...new Set([...skipSources, result.source])];
     setSkipSources(newSkips);
-    setBusy(true);
-    const r = await window.api?.fetchMetadata({
-      query: queryOverride || current?.folderName || '',
-      skipSources: newSkips,
-      geminiKey,
-      aiModel,
-    });
-    setResult(r);
-    setBusy(false);
+    await runMetadataLookup(current, queryOverride || current?.folderName || '', newSkips);
   };
 
   const acceptCurrent = async () => {
+    const run = ++acceptRun.current;
     setBusy(true);
     let coverUrl = result?.capsuleImage || result?.headerImage || null;
     if (coverUrl && coverUrl.startsWith('http')) {
-      coverUrl = (await window.api?.cacheImage(coverUrl, result.name)) || coverUrl;
+      imageBoundedOperation.current?.cancel('Replaced by a newer image cache request.');
+      const operation = createBoundedOperation({
+        domain: 'wizard-image-cache', timeoutMs: 12_000,
+        task: async () => ({ cached: await window.api?.cacheImage?.(coverUrl, result.name) || '' }),
+      });
+      imageBoundedOperation.current = operation;
+      const outcome = await operation.promise;
+      // Artwork caching is an optional convenience: a slow cache may never
+      // block accepting the reviewed local game and its remote artwork.
+      if (outcome.state.status === OPERATION_STATUS.SUCCEEDED) coverUrl = outcome.value?.cached || coverUrl;
     }
+    if (run !== acceptRun.current) return;
     const entry = {
       name: result?.name || current?.folderName,
       exePath: current?.exe,
+      // Keep local launcher evidence even after reviewed metadata is applied.
+      // External-game Rest Mode needs this bounded install root because clients
+      // such as Battle.net can start a child game EXE instead of the bootstrapper.
+      installDir: current?.installdir || current?.installDir || '',
+      launcher: current?.launcher || result?.source || '',
+      launcherProductId: current?.launcherProductId || '',
       icon,
       source: result?.source,
       appid: result?.appid,
@@ -298,6 +407,21 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
     if (onAccept) onAccept(entry);
     setAccepted((a) => [...a, entry]);
     advance();
+  };
+
+  const cancelFolderScan = () => {
+    folderScanRun.current++;
+    folderBoundedOperation.current?.cancel('Cancelled by the player.');
+    setBusy(false);
+    setStep(1);
+    setWizardStatus('Folder scan cancelled. Nothing was added.');
+  };
+
+  const cancelMetadataLookup = () => {
+    metadataRun.current++;
+    metadataBoundedOperation.current?.cancel('Cancelled by the player.');
+    setBusy(false);
+    setWizardStatus('Metadata lookup cancelled. You can re-search or skip this entry.');
   };
 
   const skipCurrent = () => advance();
@@ -363,6 +487,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
             {launcherStatus && <div role="status" className="mt-3 text-sm text-ink">{launcherStatus}</div>}
             {launcherImportBusy && <button type="button" className="mt-2 rounded-md hairline px-3 py-2 text-xs" onClick={() => {
               launcherRun.current++;
+              launcherBoundedOperation.current?.cancel('Cancelled by the player.');
               launcherOperation.current = false;
               setLauncherImportBusy(false);
               setLauncherStatus('Scan cancelled. Late results will not add games.');
@@ -489,6 +614,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
               Start scan <ChevronRight size={13} />
             </button>
           </div>
+          {wizardStatus && <div role="status" className="rounded-md border border-[rgb(var(--accent)/0.24)] bg-[rgb(var(--accent)/0.06)] px-3 py-2 text-[11px] leading-relaxed text-muted">{wizardStatus}</div>}
         </div>
       )}
 
@@ -496,7 +622,8 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
         <div className="space-y-3 p-10 text-center">
           <Loader2 size={28} className="mx-auto animate-spin text-[rgb(var(--accent))]" />
           <div className="font-display text-base">Scanning {root}…</div>
-          <div className="text-xs text-muted">Walking the disk for programs.</div>
+          <div className="text-xs text-muted">{scanDepth === 'deep' ? 'Deep scan can take up to 55 seconds.' : 'Fast scan can take up to 32 seconds.'} You can cancel safely at any time.</div>
+          <button type="button" onClick={cancelFolderScan} className="mx-auto rounded-md hairline px-3 py-2 text-xs text-muted hover:text-ink">Cancel scan</button>
         </div>
       )}
 
@@ -571,6 +698,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
               <p className="text-[12.5px] leading-relaxed text-muted line-clamp-5 min-h-[60px]">
                 {result?.shortDescription || result?.about || (busy ? 'Searching…' : 'No description found.')}
               </p>
+              {wizardStatus && <div role="status" className="rounded-md border border-[rgb(var(--accent)/0.22)] bg-[rgb(var(--accent)/0.05)] px-3 py-2 text-[10.5px] leading-relaxed text-muted">{wizardStatus}</div>}
               {result?.releaseDate && (
                 <div className="flex flex-wrap gap-1.5">
                   <span className="rounded-full hairline px-2 py-0.5 text-[10px] text-muted">Released {result.releaseDate}</span>
@@ -622,6 +750,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
                   <button
                     data-testid="wizard-research-btn"
                     onClick={reSearch}
+                    disabled={busy || !current}
                     className="inline-flex items-center gap-1.5 rounded-md hairline px-3 h-8 text-xs hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)]"
                   >
                     <Search size={12} /> Re-search
@@ -631,6 +760,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
                   <button
                     data-testid="wizard-try-other-btn"
                     onClick={trySkipCurrentSource}
+                    disabled={busy}
                     className="text-[11px] text-[rgb(var(--accent-2))] hover:underline"
                   >
                     Try a different source (skip {result.source})
@@ -644,7 +774,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
             <div className="flex items-center gap-2">
               <button
                 data-testid="wizard-back-btn"
-                disabled={cursor === 0}
+                disabled={cursor === 0 || busy}
                 onClick={goBack}
                 className="inline-flex items-center gap-2 rounded-full hairline px-4 py-2 text-xs text-muted hover:text-ink disabled:opacity-30 disabled:cursor-not-allowed"
                 title="Go back to the previous candidate"
@@ -653,11 +783,13 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
               </button>
               <button
                 data-testid="wizard-skip-btn"
+                disabled={busy}
                 onClick={skipCurrent}
                 className="inline-flex items-center gap-2 rounded-full hairline px-4 py-2 text-xs text-muted hover:text-ink"
               >
                 <XIcon size={13} /> Skip
               </button>
+              {busy && <button type="button" onClick={cancelMetadataLookup} className="rounded-full hairline px-3 py-2 text-xs text-muted hover:text-ink">Cancel lookup</button>}
             </div>
             <div className="text-[10px] text-muted/70">
               {cursor + 1} / {candidates.length}
@@ -714,7 +846,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
         </div>
       )}
     </Modal>
-    {typeof document !== 'undefined' && createPortal(<AnimatePresence>
+    {typeof document !== 'undefined' && renderForegroundPortal(<AnimatePresence>
       {launcherConfirm && <motion.div className="fixed inset-0 z-[140] grid place-items-center bg-black/70 p-4 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={() => setLauncherConfirm(null)} data-testid="launcher-import-confirm">
         <motion.div className="w-full max-w-md rounded-2xl border border-[rgb(var(--accent)/0.42)] bg-[rgb(var(--panel))] p-5 shadow-2xl" initial={{ scale: 0.96, y: 8 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.97, y: 4 }} onMouseDown={(event) => event.stopPropagation()}>
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">Launcher import check</p>
@@ -725,7 +857,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
           <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setLauncherConfirm(null)} className="rounded-lg border border-[rgb(var(--border))] px-3 py-2 text-xs font-bold text-muted hover:text-ink">{launcherConfirm.stage === 'repeat' && launcherConfirm.newItems.length === 0 ? 'Done' : 'Cancel'}</button>{(launcherConfirm.stage === 'start' || launcherConfirm.newItems.length > 0) && <button type="button" onClick={() => launcherConfirm.stage === 'start' ? scanLauncherForImport(launcherConfirm.kind) : importLauncherItems(launcherConfirm.kind, launcherConfirm.newItems)} className="rounded-lg bg-[rgb(var(--accent))] px-3 py-2 text-xs font-black text-[rgb(var(--surface))]">{launcherConfirm.stage === 'start' ? 'Scan launcher' : `Import ${launcherConfirm.newItems.length} new`}</button>}</div>
         </motion.div>
       </motion.div>}
-    </AnimatePresence>, document.body)}
+    </AnimatePresence>)}
     </>
   );
 }

@@ -1,12 +1,13 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createPortal } from 'react-dom';
+import { renderForegroundPortal } from './ui/VisualBoundary';
 import { ChevronRight, ChevronLeft, Sparkles, X } from 'lucide-react';
 import { playFungistCue } from '../lib/sound';
-import { playFungistVoice } from '../lib/mascotVoice';
+import { playMascotVoice } from '../lib/mascotVoice';
 
 const FUNGIST_ASSET = `${import.meta.env.BASE_URL}mascot/fungist-stand.png`;
+const FIFI_ASSET = `${import.meta.env.BASE_URL}mascot/fifi/poses/fifi-idle-v1.png`;
 
 /**
  * TutorialModal — first-time onboarding overlay.
@@ -75,7 +76,10 @@ const STEPS = [
   },
 ];
 
-export default function TutorialModal({ open, onClose, onDontShowAgain, onNavigate, soundsEnabled = true, voiceEnabled = true, voiceVolume = 72 }) {
+export default function TutorialModal({ open, onClose, onDontShowAgain, onNavigate, mascotId = 'fungist', soundsEnabled = true, voiceEnabled = true, voiceVolume = 72 }) {
+  const selectedMascot = mascotId === 'fifi' ? 'fifi' : 'fungist';
+  const mascotName = selectedMascot === 'fifi' ? 'FiFi' : 'Fungist';
+  const mascotAsset = selectedMascot === 'fifi' ? FIFI_ASSET : FUNGIST_ASSET;
   const [idx, setIdx] = React.useState(0);
   const [anchor, setAnchor] = React.useState(null);
   const [dontShow, setDontShow] = React.useState(false);
@@ -89,33 +93,33 @@ export default function TutorialModal({ open, onClose, onDontShowAgain, onNaviga
   React.useEffect(() => {
     const showSpeech = (event) => {
       const line = event.detail;
-      if (!open || !line?.speech) return;
+      if (!open || !line?.speech || line.mascotId !== selectedMascot) return;
       window.clearTimeout(speechTimer.current);
       setSpokenLine(line);
       speechTimer.current = window.setTimeout(() => setSpokenLine(null), Number(line.durationMs) || 3_800);
     };
-    window.addEventListener('neolib-fungist-speaking', showSpeech);
+    window.addEventListener('neolib-mascot-speaking', showSpeech);
     return () => {
-      window.removeEventListener('neolib-fungist-speaking', showSpeech);
+      window.removeEventListener('neolib-mascot-speaking', showSpeech);
       window.clearTimeout(speechTimer.current);
     };
-  }, [open]);
+  }, [open, selectedMascot]);
 
   React.useEffect(() => {
     if (open && !wasOpen.current) {
       setIdx(0);
       setDontShow(false);
-      if (soundsEnabled && voiceEnabled) playFungistVoice('welcome', { volume: voiceVolume, cooldownMs: 12_000, priority: true });
+      if (soundsEnabled && voiceEnabled) playMascotVoice('welcome', { mascotId: selectedMascot, volume: voiceVolume, cooldownMs: 12_000, priority: true });
       else if (soundsEnabled) playFungistCue('welcome');
     }
     wasOpen.current = open;
-  }, [open, soundsEnabled, voiceEnabled, voiceVolume]);
+  }, [open, soundsEnabled, voiceEnabled, voiceVolume, selectedMascot]);
 
   React.useEffect(() => {
     if (open && idx === STEPS.length - 1 && soundsEnabled && voiceEnabled) {
-      playFungistVoice('introduce', { volume: voiceVolume, cooldownMs: 18_000 });
+      playMascotVoice('introduce', { mascotId: selectedMascot, volume: voiceVolume, cooldownMs: 18_000 });
     }
-  }, [idx, open, soundsEnabled, voiceEnabled, voiceVolume]);
+  }, [idx, open, soundsEnabled, voiceEnabled, voiceVolume, selectedMascot]);
 
   // Reveal each real destination before measuring its target. The short delay
   // gives React time to paint Home/Tools or the Visuals popover first.
@@ -175,7 +179,7 @@ export default function TutorialModal({ open, onClose, onDontShowAgain, onNaviga
     onClose?.();
   };
 
-  return createPortal(
+  return renderForegroundPortal(
     <AnimatePresence>
       <motion.div
         key="tutorial-overlay"
@@ -236,14 +240,14 @@ export default function TutorialModal({ open, onClose, onDontShowAgain, onNaviga
           <div className="mb-3 flex items-center gap-2 text-[10px] uppercase tracking-[0.32em] text-[rgb(var(--accent-2))]">
             <Sparkles size={11} /> Step {idx + 1} of {STEPS.length}
           </div>
-          {step.mascot && <img src={FUNGIST_ASSET} alt="Fungist, the NEO-LIB companion" className="pointer-events-none absolute right-4 top-11 h-16 w-16 object-contain opacity-95" />}
+          {step.mascot && <img src={mascotAsset} alt={`${mascotName}, the NEO-LIB companion`} className="pointer-events-none absolute right-4 top-11 h-16 w-16 object-contain opacity-95" />}
           <div className={`mb-3 text-3xl ${step.mascot ? 'pr-16' : ''}`}>{step.icon}</div>
           <h2 className={`font-display text-xl font-bold mb-2 neon-text ${step.mascot ? 'pr-16' : ''}`}>{step.title}</h2>
           <p className={`text-sm text-muted leading-relaxed ${step.mascot ? 'pr-16' : ''}`}>{step.body}</p>
           <AnimatePresence>
             {spokenLine && (
               <motion.div initial={{ opacity: 0, y: 5, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 4, scale: 0.98 }} className="mt-3 rounded-xl border border-[rgb(var(--accent)/0.48)] bg-[rgb(var(--accent)/0.10)] px-3 py-2" data-testid="tutorial-fungist-speech">
-                <p className="text-[8.5px] font-black uppercase tracking-[0.16em] text-[rgb(var(--accent-2))]">Fungist says</p>
+                <p className="text-[8.5px] font-black uppercase tracking-[0.16em] text-[rgb(var(--accent-2))]">{mascotName} says</p>
                 <p className="mt-0.5 text-[11px] font-bold leading-relaxed text-ink">“{spokenLine.speech}”</p>
               </motion.div>
             )}
@@ -304,7 +308,6 @@ export default function TutorialModal({ open, onClose, onDontShowAgain, onNaviga
           </div>
         </motion.div>
       </motion.div>
-    </AnimatePresence>,
-    document.body
+    </AnimatePresence>
   );
 }

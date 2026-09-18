@@ -1,0 +1,18 @@
+const assert = require('node:assert/strict');
+const { createNewsNormalizationService } = require('../electron/providers/news-normalization-service.cjs');
+const NOW = Date.parse('2026-09-16T12:00:00Z');
+const service = createNewsNormalizationService({ now: () => NOW });
+assert.equal(service.isLikelyEnglish('Patch notes', 'Small fix'), true);
+assert.equal(service.isLikelyEnglish('更新情報', '新しい内容'), false);
+assert.deepEqual(service.tokens('The Portal 2 Game: Edition'), ['portal']);
+assert.equal(service.publicUrl('https://google.com/url?q=https%3A%2F%2Fgame.test%2Fnews'), 'https://game.test/news');
+assert.equal(service.publicUrl('javascript:alert(1)'), '');
+assert.equal(service.date('posted 2 days ago'), NOW - 2 * 86400000);
+assert.equal(service.date('September 15, 2026'), Date.parse('September 15, 2026'));
+const item = service.result({ id: 'g1', name: 'Portal Reloaded', website: 'https://game.test' }, { title: 'Portal Reloaded patch announcement', snippet: 'September 15, 2026 update news', url: 'https://game.test/news' }, NOW - 7 * 86400000);
+assert.equal(item.platform, 'official-web');
+assert.equal(item.sourceKind, 'official website');
+assert.equal(item.gameId, 'g1');
+assert.equal(service.result({ name: 'Portal Reloaded' }, { title: 'Unrelated patch', snippet: 'September 15, 2026' }, NOW - 7 * 86400000), null);
+assert.equal(service.result({ name: 'Portal Reloaded' }, { title: 'Portal Reloaded review', snippet: 'September 15, 2026' }, NOW - 7 * 86400000), null);
+console.log('PASS: news normalization preserves language filtering, safe redirect URLs, absolute/relative dates, game-token confidence and official-site labelling. Pure offline fixtures only.');

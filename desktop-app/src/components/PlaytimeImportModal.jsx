@@ -1,5 +1,5 @@
 import React from 'react';
-import { createPortal } from 'react-dom';
+import { renderForegroundPortal } from './ui/VisualBoundary';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Check, RefreshCw, Edit3, AlertTriangle, Filter } from 'lucide-react';
 import { formatPlaytime, playtimeSource } from '../lib/utils';
@@ -386,7 +386,7 @@ export default function PlaytimeImportModal({
     </AnimatePresence>
   );
   if (typeof document === 'undefined') return body;
-  return createPortal(body, document.body);
+  return renderForegroundPortal(body);
 }
 
 function ImportRow({ row, onToggle, onManualEdit, onRefresh, hasRefresh }) {

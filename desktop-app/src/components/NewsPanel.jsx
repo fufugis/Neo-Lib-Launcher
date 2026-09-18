@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { renderForegroundPortal } from './ui/VisualBoundary';
 import {
   Newspaper, RefreshCw, ExternalLink, MessageCircle, Sparkles,
   Users, Megaphone, Globe2, Filter, Gamepad2, X, GripVertical,
 } from 'lucide-react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
+import { createBoundedOperation } from '../services/bounded-operation.mjs';
+import { OPERATION_STATUS } from '../state/operation-state.mjs';
 
 const isElectron = typeof window !== 'undefined' && !!window.api;
 
@@ -56,11 +58,12 @@ export default function NewsPanel({ games = [], onClose, anchorSelector }) {
   const coveredCount = sourceCounts.steam + sourceCounts.itch + sourceCounts.gog + sourceCounts.publicWeb;
   const uncoveredCount = (games || []).length - coveredCount;
 
-  const [state, setState] = useState({ loading: false, error: '', items: [], fetchedAt: 0 });
+  const [state, setState] = useState({ loading: false, error: '', items: [], fetchedAt: 0, operation: null });
   const [enabledFeeds, setEnabledFeeds] = useState({
     official: true, community: true, thirdparty: true, itch: true, gog: true, 'official-web': true, web: true,
   });
   const fetchedOnce = useRef(false);
+  const activeOperation = useRef(null);
 
   const openExternal = (url) => {
     if (!url) return;
@@ -69,19 +72,35 @@ export default function NewsPanel({ games = [], onClose, anchorSelector }) {
 
   const load = async (force = false) => {
     if (!isElectron || !eligibleGames.length) return;
-    setState((s) => ({ ...s, loading: true, error: '' }));
-    try {
-      const payloadGames = eligibleGames.map((g) => ({
+    activeOperation.current?.cancel('Replaced by a newer news request.');
+    const payloadGames = eligibleGames.map((g) => ({
         id: g.id, appid: g.appid, name: g.name,
         website: g.website, source: g.source, launcher: g.launcher, gogId: g.gogId,
-      }));
-      const res = await window.api.fetchAllNews({ games: payloadGames, days: 14, force });
-      if (!res?.ok) throw new Error(res?.error || 'Failed to load news');
-      setState({ loading: false, error: '', items: res.items || [], fetchedAt: res.fetchedAt || Date.now() });
-    } catch (e) {
-      setState((s) => ({ ...s, loading: false, error: String(e.message || e) }));
+    }));
+    const operation = createBoundedOperation({
+      domain: 'news-refresh', total: payloadGames.length, timeoutMs: 30_000,
+      task: async () => {
+        const result = await window.api.fetchAllNews({ games: payloadGames, days: 14, force });
+        if (!result?.ok) throw Object.assign(new Error(result?.error || 'News sources were unavailable.'), { code: result?.errorCode || 'FAILED' });
+        return { ...result, operationCompleted: payloadGames.length };
+      },
+      onState: (nextOperation) => setState((current) => ({ ...current, operation: nextOperation, loading: nextOperation.status === OPERATION_STATUS.RUNNING })),
+    });
+    activeOperation.current = operation;
+    const outcome = await operation.promise;
+    if (activeOperation.current?.id !== operation.id) return;
+    if ([OPERATION_STATUS.SUCCEEDED, OPERATION_STATUS.PARTIAL].includes(outcome.state.status)) {
+      const result = outcome.value || {};
+      setState({ loading: false, error: outcome.state.status === OPERATION_STATUS.PARTIAL ? 'Some news sources could not be checked. Showing the results that completed.' : '', items: result.items || [], fetchedAt: result.fetchedAt || Date.now(), operation: outcome.state });
+    } else {
+      const message = outcome.state.status === OPERATION_STATUS.TIMED_OUT
+        ? 'News checking timed out. Nothing is stuck; try Refresh again.'
+        : outcome.state.status === OPERATION_STATUS.CANCELLED ? 'News refresh cancelled.' : (outcome.state.message || 'News could not be loaded.');
+      setState((current) => ({ ...current, loading: false, error: message, operation: outcome.state }));
     }
   };
+
+  useEffect(() => () => { activeOperation.current?.cancel('News panel closed.'); }, []);
 
   useEffect(() => {
     if (fetchedOnce.current) return;
@@ -208,14 +227,14 @@ export default function NewsPanel({ games = [], onClose, anchorSelector }) {
               <p className="mt-1 text-[10px] leading-relaxed text-muted/80">Direct launcher/store feeds come first. Public-site and web discovery are shown with their own source label, never as a verified launcher update.</p>
             </div>
             <button
-              onClick={() => load(true)}
-              disabled={state.loading || !eligibleGames.length}
+              onClick={() => state.loading ? activeOperation.current?.cancel('Cancelled by the player.') : load(true)}
+              disabled={!eligibleGames.length}
               data-testid="news-refresh-btn"
               className="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-bold hairline bg-panel/60 hover:bg-panel disabled:opacity-40"
-              title="Refresh news"
+              title={state.loading ? 'Cancel this news refresh' : 'Refresh news'}
             >
               <RefreshCw size={11} className={state.loading ? 'animate-spin' : ''} />
-              {state.loading ? 'Loading…' : 'Refresh'}
+              {state.loading ? 'Cancel' : 'Refresh'}
             </button>
             {onClose && (
               <button
@@ -308,7 +327,7 @@ export default function NewsPanel({ games = [], onClose, anchorSelector }) {
   );
 
   if (typeof document === 'undefined') return null;
-  return createPortal(body, document.body);
+  return renderForegroundPortal(body);
 }
 
 

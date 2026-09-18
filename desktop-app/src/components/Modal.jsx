@@ -1,5 +1,5 @@
 import React from 'react';
-import { createPortal } from 'react-dom';
+import { renderForegroundPortal } from './ui/VisualBoundary';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { X, GripHorizontal } from 'lucide-react';
 
@@ -26,7 +26,7 @@ export default function Modal({ open, onClose, title, children, wide, testid }) 
 
   if (typeof document === 'undefined') return null;
 
-  return createPortal(
+  return renderForegroundPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -83,7 +83,6 @@ export default function Modal({ open, onClose, title, children, wide, testid }) 
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>,
-    document.body
+    </AnimatePresence>
   );
 }

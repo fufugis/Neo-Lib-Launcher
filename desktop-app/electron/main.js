@@ -13,6 +13,69 @@ const crypto = require('crypto');
 const http = require('http');
 const https = require('https');
 const os = require('os');
+const { createLauncherScanners } = require('./launchers/scanners.cjs');
+const { createAppStorage } = require('./storage/app-storage.cjs');
+const { createDocumentStore } = require('./storage/document-store.cjs');
+const { createIpcRegistry } = require('./ipc/registry.cjs');
+const { createIpcFailureReporter } = require('./ipc/failure-log.cjs');
+const { createDiagnosticRecorder } = require('./diagnostics/diagnostic-recorder.cjs');
+const { registerPersistenceIpc } = require('./ipc/persistence-ipc.cjs');
+const { registerWindowIpc } = require('./ipc/window-ipc.cjs');
+const { registerDialogIpc } = require('./ipc/dialog-ipc.cjs');
+const { registerShellIpc } = require('./ipc/shell-ipc.cjs');
+const { registerExeIpc } = require('./ipc/exe-ipc.cjs');
+const { registerSystemIpc } = require('./ipc/system-ipc.cjs');
+const { registerPlaytimeIpc } = require('./ipc/playtime-ipc.cjs');
+const { registerImageIpc } = require('./ipc/image-ipc.cjs');
+const { registerAppOsIpc } = require('./ipc/app-os-ipc.cjs');
+const { registerAppLifecycleIpc } = require('./ipc/app-lifecycle-ipc.cjs');
+const { registerDiagnosticsIpc } = require('./ipc/diagnostics-ipc.cjs');
+const { registerDoctorIpc } = require('./ipc/doctor-ipc.cjs');
+const { registerDealsIpc } = require('./ipc/deals-ipc.cjs');
+const { registerGameIpc } = require('./ipc/game-ipc.cjs');
+const { registerGeminiIpc } = require('./ipc/gemini-ipc.cjs');
+const { registerGogIpc } = require('./ipc/gog-ipc.cjs');
+const { registerLauncherIpc } = require('./ipc/launcher-ipc.cjs');
+const { registerMetadataIpc } = require('./ipc/metadata-ipc.cjs');
+const { registerNewsIpc } = require('./ipc/news-ipc.cjs');
+const { registerOptimizeIpc } = require('./ipc/optimize-ipc.cjs');
+const { registerReleasesIpc } = require('./ipc/releases-ipc.cjs');
+const { registerSavesIpc } = require('./ipc/saves-ipc.cjs');
+const { registerScanIpc } = require('./ipc/scan-ipc.cjs');
+const { registerSteamIpc } = require('./ipc/steam-ipc.cjs');
+const { registerStorageIpc } = require('./ipc/storage-ipc.cjs');
+const { registerToolsIpc } = require('./ipc/tools-ipc.cjs');
+const { registerUpdatesIpc } = require('./ipc/updates-ipc.cjs');
+const { registerWebIpc } = require('./ipc/web-ipc.cjs');
+const { createSystemHealthService } = require('./system/system-health-service.cjs');
+const { createPlaytimeHistoryService, localDayKey } = require('./playtime/playtime-history-service.cjs');
+const { createImageCacheService } = require('./images/image-cache-service.cjs');
+const { createAppOsService } = require('./app/app-os-service.cjs');
+const { createAppLifecycleService } = require('./app/app-lifecycle-service.cjs');
+const { createLaunchDoctorService } = require('./doctor/launch-doctor-service.cjs');
+const { createSaveService } = require('./saves/save-service.cjs');
+const { createStorageScanService } = require('./storage/storage-scan-service.cjs');
+const { createJunkService } = require('./optimize/junk-service.cjs');
+const { createOptimizeProcessService } = require('./optimize/process-inspection-service.cjs');
+const { createExternalGameWatchService } = require('./game/external-game-watch-service.cjs');
+const { createGameLaunchService } = require('./game/game-launch-service.cjs');
+const { createStoreProviderService } = require('./providers/store-provider-service.cjs');
+const { createPublicWebProviderService } = require('./providers/public-web-provider-service.cjs');
+const { createSpecialistMetadataProviderService } = require('./providers/specialist-metadata-provider-service.cjs');
+const { createMetadataCandidateService } = require('./providers/metadata-candidate-service.cjs');
+const { createGeminiProviderService } = require('./providers/gemini-provider-service.cjs');
+const { createNewsNormalizationService } = require('./providers/news-normalization-service.cjs');
+const { createPublicNewsProviderService } = require('./providers/public-news-provider-service.cjs');
+const { createWeeklyReleaseProviderService } = require('./providers/weekly-release-provider-service.cjs');
+const { createSteamNewsProviderService } = require('./providers/steam-news-provider-service.cjs');
+const { createOwnedNewsProviderService } = require('./providers/owned-news-provider-service.cjs');
+const { createUpdateHistoryProviderService } = require('./providers/update-history-provider-service.cjs');
+const { createDealsProviderService } = require('./providers/deals-provider-service.cjs');
+const { createUpdateScanCoordinatorService } = require('./providers/update-scan-coordinator-service.cjs');
+const { createUpdateSourceDiscoveryService } = require('./providers/update-source-discovery-service.cjs');
+const { createInstalledVersionEvidenceService } = require('./providers/installed-version-evidence-service.cjs');
+const { createUpdatePageVersionService } = require('./providers/update-page-version-service.cjs');
+const { createIndependentUpdateAssessmentService } = require('./providers/independent-update-assessment-service.cjs');
 
 // ---- Optional Discord Rich Presence (native IPC, no third-party deps) ----
 // Talks to the local Discord client over a named pipe (Windows) or Unix
@@ -20,18 +83,26 @@ const os = require('os');
 // frame format. Fails silently if Discord isn't running.
 const net = require('net');
 
-// Public NEO-LIB Discord Application ID. Loaded from electron/discord-config.js
-// which the GitHub Actions workflow overwrites at build time using the
-// `NEOLIB_DISCORD_APP_ID` repository secret. Empty = RPC disabled silently.
+// Public NEO-LIB Discord Application ID. CI creates an ignored generated file
+// before renderer provenance is calculated. The checked-in empty fallback keeps
+// local/source builds safe and deterministic. Empty = RPC disabled silently.
 let DISCORD_APP_ID = '';
 try {
   // eslint-disable-next-line global-require
-  DISCORD_APP_ID = require('./discord-config').DISCORD_APP_ID || '';
-} catch { DISCORD_APP_ID = ''; }
+  DISCORD_APP_ID = require('./discord-config.generated').DISCORD_APP_ID || '';
+} catch {
+  try {
+    // eslint-disable-next-line global-require
+    DISCORD_APP_ID = require('./discord-config').DISCORD_APP_ID || '';
+  } catch { DISCORD_APP_ID = ''; }
+}
 // Env var still wins (handy for `set NEOLIB_DISCORD_APP_ID=... && yarn dev`)
 if (process.env.NEOLIB_DISCORD_APP_ID) DISCORD_APP_ID = process.env.NEOLIB_DISCORD_APP_ID;
 
 const isDev = process.env.NODE_ENV === 'development';
+let reportIpcFailure = () => {};
+const { handle: registerIpc } = createIpcRegistry({ ipcMain, onFailure: failure => reportIpcFailure(failure) });
+const remainingIpcServices = Object.create(null);
 
 // Keep the running window, taskbar group, installed EXE, Start shortcut, and
 // desktop shortcut under one stable Windows identity. This matches the
@@ -39,64 +110,55 @@ const isDev = process.env.NODE_ENV === 'development';
 // pinned taskbar icon after an upgrade.
 if (process.platform === 'win32') app.setAppUserModelId('com.neolib.app');
 
-// Kept in the main process so the renderer receives only a small, read-only
-// snapshot. No game processes are inspected or modified.
-let previousCpuSample = null;
-function cpuSample() {
-  return os.cpus().reduce((total, cpu) => {
-    const times = cpu.times || {};
-    total.idle += times.idle || 0;
-    total.total += Object.values(times).reduce((sum, value) => sum + value, 0);
-    return total;
-  }, { idle: 0, total: 0 });
-}
-
-async function readSystemHealth() {
-  let previous = previousCpuSample;
-  let next = cpuSample();
-  // The first sample has no baseline; take a short second sample so the first
-  // rendered value is useful rather than briefly reporting 0% CPU.
-  if (!previous) {
-    previous = next;
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    next = cpuSample();
-  }
-  const totalDelta = next.total - previous.total;
-  const idleDelta = next.idle - previous.idle;
-  const cpuPercent = totalDelta > 0
-    ? Math.max(0, Math.min(100, Math.round((1 - (idleDelta / totalDelta)) * 100)))
-    : null;
-  previousCpuSample = next;
-
-  const totalBytes = os.totalmem();
-  const freeBytes = os.freemem();
-  const usedBytes = Math.max(0, totalBytes - freeBytes);
-  const toGb = (value) => Math.round((value / (1024 ** 3)) * 10) / 10;
-  return {
-    cpuPercent,
-    ramPercent: totalBytes ? Math.round((usedBytes / totalBytes) * 100) : null,
-    memoryUsedGb: toGb(usedBytes),
-    memoryFreeGb: toGb(freeBytes),
-    memoryTotalGb: toGb(totalBytes),
-  };
-}
-
-// ---------------- Paths ---------------- //
-const dataDir = () => app.getPath('userData');
-const libraryFile = () => path.join(dataDir(), 'library.json');
-const settingsFile = () => path.join(dataDir(), 'settings.json');
-const coversDir = () => path.join(dataDir(), 'covers');
-const saveBackupsDir = () => path.join(dataDir(), 'save-backups');
-const managedToolsDir = () => path.join(dataDir(), 'managed-tools');
-// v1.6.4 — Daily playtime snapshots so Stats can compute "played in the last N
-// days" (Steam's localconfig only stores lifetime totals, not deltas).
-const playtimeHistoryFile = () => path.join(dataDir(), 'playtime-history.json');
-
-async function ensureDirs() {
-  await fsp.mkdir(coversDir(), { recursive: true });
-  await fsp.mkdir(saveBackupsDir(), { recursive: true });
-  await fsp.mkdir(managedToolsDir(), { recursive: true });
-}
+// ---------------- Local storage ---------------- //
+// Paths and JSON persistence have one owner. Existing call sites retain their
+// names so this extraction cannot change IPC or saved-data behaviour.
+const appStorage = createAppStorage({ app, path, fs, fsp });
+const {
+  dataDir,
+  coversDir,
+  saveBackupsDir,
+  managedToolsDir,
+  diagnosticsDir,
+  launchSafetyLogFile,
+  ipcFailureLogFile,
+  launchSafetyStateFile,
+  ensureDirs,
+  readJsonSync,
+  writeJsonSync,
+  appendTextSync,
+} = appStorage;
+const diagnostics = createDiagnosticRecorder({
+  fs,
+  path,
+  directory: diagnosticsDir,
+  appVersion: app.getVersion(),
+  platform: process.platform,
+  release: os.release(),
+  arch: process.arch,
+});
+reportIpcFailure = createIpcFailureReporter({
+  appendTextSync,
+  logFile: ipcFailureLogFile,
+  recordDiagnostic: (event, details) => diagnostics.record(event, details),
+});
+const documents = createDocumentStore({ storage: appStorage });
+const systemHealth = createSystemHealthService({ os });
+const playtimeHistory = createPlaytimeHistoryService({ documents });
+const imageCache = createImageCacheService({ path, coversDir, download: httpDownload });
+const appOs = createAppOsService({ app, shell, fsp, path, execPath: process.execPath, recordLaunchSafety });
+const appLifecycle = createAppLifecycleService({
+  buildTray,
+  destroyTray,
+  clearDiscordActivity,
+  getDiscordSocket: () => discordSock,
+  setDiscordSocket: value => { discordSock = value; },
+  getDiscordReady: () => discordReady,
+  setDiscordReady: value => { discordReady = value; },
+  getDiscordAppId: () => DISCORD_APP_ID,
+  quitApp: () => { isQuitting = true; app.quit(); },
+});
+const launchDoctor = createLaunchDoctorService({ fs, fsp, path, walkDir });
 
 function safePathPart(value, fallback = 'game') {
   const clean = String(value || '').replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '');
@@ -134,6 +196,15 @@ async function isDirectoryEmpty(directory) {
   const entries = await fsp.readdir(directory);
   return entries.length === 0;
 }
+
+const saveService = createSaveService({
+  fs, fsp, path, os, saveBackupsDir, safePathPart, isInside, folderStats,
+  isDirectoryEmpty, defaultSteamPath,
+});
+const storageScanService = createStorageScanService({ fsp, path, isInside, folderStats });
+const junkService = createJunkService({
+  fsp, path, shell, tempDir: () => app.getPath('temp'), normalWinPath,
+});
 
 // ---------------- HTTP helpers ---------------- //
 function httpGetJson(url, timeoutMs = 7000) {
@@ -177,25 +248,6 @@ function httpDownload(url, destPath) {
   });
 }
 
-// ---------------- JSON store ---------------- //
-async function readJson(filePath, fallback) {
-  try {
-    const text = await fsp.readFile(filePath, 'utf8');
-    return JSON.parse(text);
-  } catch {
-    return fallback;
-  }
-}
-// Atomic write: stage to .tmp then rename, so a killed process / power loss can't
-// corrupt the on-disk JSON (which previously caused settings to silently reset
-// — e.g. theme reverting to default on next launch).
-async function writeJson(filePath, data) {
-  await fsp.mkdir(path.dirname(filePath), { recursive: true });
-  const tmp = filePath + '.tmp';
-  await fsp.writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
-  await fsp.rename(tmp, filePath);
-}
-
 // ---------------- Window ---------------- //
 let mainWindow;
 let tray = null;
@@ -208,11 +260,8 @@ const appStartedAt = Date.now();
 // Read the persisted setting synchronously so the close handler knows the
 // user's preference even before the renderer wires up.
 function shouldMinimizeToTray() {
-  try {
-    const raw = fs.readFileSync(settingsFile(), 'utf-8');
-    const s = JSON.parse(raw);
-    return s && s.minimizeToTray === true;
-  } catch { return false; }
+  const s = documents.loadSettingsSnapshot();
+  return s && s.minimizeToTray === true;
 }
 
 // The installer icon is a build resource, but Electron's runtime tray needs
@@ -297,8 +346,7 @@ function createWindow() {
   // unplugged, resolution changed) falls back to the default.
   let bounds = { width: defaultW, height: defaultH, x: undefined, y: undefined, center: true };
   try {
-    const raw = fs.readFileSync(settingsFile(), 'utf-8');
-    const s = JSON.parse(raw);
+    const s = documents.loadSettingsSnapshot();
     const saved = s && s.windowBounds;
     if (saved && typeof saved.width === 'number' && typeof saved.height === 'number') {
       // Constrain to primary display so the window can't open off-screen
@@ -336,15 +384,54 @@ function createWindow() {
     },
   });
 
+  // A renderer failure must leave privacy-safe evidence behind. The recorder
+  // classifies the message but never stores its text, paths, URLs or app data.
+  mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    if (Number(level) < 2) return;
+    const source = path.basename(String(sourceId || '')).slice(0, 120);
+    recordLaunchSafety('renderer-console', {
+      level: Number(level),
+      message: String(message || '').slice(0, 2000),
+      line: Number(line) || 0,
+      source,
+    });
+  });
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    recordLaunchSafety('renderer-process-gone', {
+      reason: String(details?.reason || 'unknown'),
+      exitCode: Number(details?.exitCode) || 0,
+    });
+  });
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedUrl, isMainFrame) => {
+    if (!isMainFrame) return;
+    recordLaunchSafety('renderer-load-failed', {
+      errorCode: Number(errorCode) || 0,
+      error: String(errorDescription || '').slice(0, 500),
+      target: path.basename(String(validatedUrl || '')).slice(0, 120),
+    });
+  });
+  mainWindow.webContents.on('did-finish-load', () => {
+    recordLaunchSafety('renderer-load-finished');
+  });
+
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.loadURL('http://localhost:5173').catch((error) => {
+      recordLaunchSafety('renderer-load-rejected', { error: String(error?.message || error).slice(0, 1000) });
+    });
     // mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
-    mainWindow.loadFile(path.join(__dirname, '..', 'dist-renderer', 'index.html'));
+    mainWindow.loadFile(path.join(__dirname, '..', 'dist-renderer', 'index.html')).catch((error) => {
+      recordLaunchSafety('renderer-load-rejected', { error: String(error?.message || error).slice(0, 1000) });
+    });
   }
 
   mainWindow.on('maximize', () => mainWindow.webContents.send('window:maximized', true));
   mainWindow.on('unmaximize', () => mainWindow.webContents.send('window:maximized', false));
+  // The renderer uses these actual native visibility transitions to enter its
+  // no-background-work Rest Mode. This covers close-to-tray, the tray icon,
+  // and Windows restore without treating a hidden window as a game launch.
+  mainWindow.on('hide', () => mainWindow.webContents.send('window:visibility', { visible: false }));
+  mainWindow.on('show', () => mainWindow.webContents.send('window:visibility', { visible: true }));
 
   // Persist window bounds (debounced) whenever the user resizes or moves the
   // window. Stored in settings.json alongside other prefs so they survive
@@ -357,10 +444,9 @@ function createWindow() {
         if (!mainWindow || mainWindow.isDestroyed()) return;
         if (mainWindow.isMaximized() || mainWindow.isMinimized()) return;
         const b = mainWindow.getBounds();
-        let s = {};
-        try { s = JSON.parse(fs.readFileSync(settingsFile(), 'utf-8')); } catch { s = {}; }
-        s.windowBounds = { width: b.width, height: b.height, x: b.x, y: b.y };
-        fs.writeFileSync(settingsFile(), JSON.stringify(s, null, 2));
+        documents.patchSettings({
+          windowBounds: { width: b.width, height: b.height, x: b.x, y: b.y },
+        }).catch(() => {});
       } catch { /* ignore disk errors */ }
     }, 400);
   };
@@ -417,212 +503,51 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-// IPC for the renderer to toggle tray mode live, without restarting.
-ipcMain.handle('app:setMinimizeToTray', async (_e, enabled) => {
-  if (enabled) buildTray();
-  else destroyTray();
-  return enabled;
-});
+// Live tray and Discord preferences share one lifecycle boundary.
+registerAppLifecycleIpc({ registerIpc, appLifecycle });
+registerDiagnosticsIpc({ registerIpc, diagnostics, shell });
 
 // ---------------- IPC: Window controls ---------------- //
-ipcMain.handle('window:minimize', () => mainWindow?.minimize());
-ipcMain.handle('window:toggleMaximize', () => {
-  if (!mainWindow) return false;
-  if (mainWindow.isMaximized()) mainWindow.unmaximize();
-  else mainWindow.maximize();
-  return mainWindow.isMaximized();
-});
-ipcMain.handle('window:close', () => mainWindow?.close());
+registerWindowIpc({ registerIpc, getMainWindow: () => mainWindow });
 
 // ---------------- IPC: Library / Settings ---------------- //
-ipcMain.handle('library:load', async () => readJson(libraryFile(), { games: [] }));
-ipcMain.handle('library:save', async (_e, data) => {
-  await writeJson(libraryFile(), data);
-  return true;
-});
-ipcMain.handle('settings:load', async () =>
-  readJson(settingsFile(), { theme: 'synthwave', firstRun: true })
-);
-ipcMain.handle('settings:save', async (_e, data) => {
-  await writeJson(settingsFile(), data);
-  return true;
-});
+registerPersistenceIpc({ registerIpc, documents });
 
 // ---------------- IPC: Dialog ---------------- //
-ipcMain.handle('dialog:pickExe', async () => {
-  const result = await dialog.showOpenDialog(mainWindow, {
-    title: 'Select game executable',
-    properties: ['openFile'],
-    filters: [{ name: 'Executables', extensions: ['exe', 'lnk', 'bat', 'cmd'] }],
-  });
-  if (result.canceled || result.filePaths.length === 0) return null;
-  return result.filePaths[0];
-});
+registerDialogIpc({ registerIpc, dialog, getMainWindow: () => mainWindow });
 
-ipcMain.handle('dialog:pickDirectory', async () => {
-  const result = await dialog.showOpenDialog(mainWindow, {
-    title: 'Select folder to scan for games',
-    properties: ['openDirectory'],
-  });
-  if (result.canceled || result.filePaths.length === 0) return null;
-  return result.filePaths[0];
-});
-
-// Image picker — used by the "Edit metadata" modal for icon/cover/hero overrides.
-// Returns a file:// URL the renderer can drop straight into <img src=…>.
-ipcMain.handle('dialog:pickImage', async () => {
-  const result = await dialog.showOpenDialog(mainWindow, {
-    title: 'Pick an image (icon / cover / hero)',
-    properties: ['openFile'],
-    filters: [
-      { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'ico'] },
-    ],
-  });
-  if (result.canceled || result.filePaths.length === 0) return null;
-  const p = result.filePaths[0];
-  return { path: p, url: 'file://' + p.replace(/\\/g, '/') };
-});
-
-// Resolve a Windows .lnk shortcut to its underlying target (.exe) so users
-// can drag desktop shortcuts onto the app and have them work.
-ipcMain.handle('shell:resolveLnk', async (_e, lnkPath) => {
-  try {
-    const info = shell.readShortcutLink(lnkPath);
-    return { ok: true, target: info?.target || null, args: info?.args || '' };
-  } catch (err) {
-    return { ok: false, error: err?.message || String(err) };
-  }
-});
+// Resolve Windows shortcuts used by drag/drop imports.
+registerShellIpc({ registerIpc, shell });
 
 // ---------------- IPC: Exe icon extraction ---------------- //
-ipcMain.handle('exe:icon', async (_e, exePath) => {
-  try {
-    const img = await app.getFileIcon(exePath, { size: 'large' });
-    if (img.isEmpty()) return null;
-    return img.toDataURL();
-  } catch {
-    return null;
-  }
-});
+registerExeIpc({ registerIpc, app });
 
 // ---------------- IPC: Launch game ---------------- //
-const runningGames = new Map(); // exePath -> { startedAt }
 // Final safety boundary for every executable launch request. The renderer also
 // prevents duplicate clicks, but a renderer regression must never be able to
 // start a whole library. URI-only system tools are intentionally exempt.
-const launchSafety = { lastAt: 0, lockedUntil: 0 };
-const launchAuthorizations = new Map(); // webContents id -> one short-lived token
-const LAUNCH_COOLDOWN_MS = 3500;
-const LAUNCH_SAFETY_LOCK_MS = 10000;
-const STARTUP_LAUNCH_QUARANTINE_MS = 15000;
-const launchSafetyLogFile = () => path.join(dataDir(), 'launch-safety.log');
-const launchSafetyStateFile = () => path.join(dataDir(), 'launch-safety.json');
-
 function recordLaunchSafety(event, details = {}) {
-  try {
-    fs.appendFileSync(launchSafetyLogFile(), `${JSON.stringify({ at: new Date().toISOString(), event, ...details })}\n`, 'utf8');
-  } catch { /* a diagnostics log must never block NEO-LIB */ }
+  diagnostics.record(event, details);
 }
 
 function readSharedLaunchSafety() {
-  try { return JSON.parse(fs.readFileSync(launchSafetyStateFile(), 'utf8')) || {}; } catch { return {}; }
+  return readJsonSync(launchSafetyStateFile(), {}) || {};
 }
 
 function writeSharedLaunchSafety(value) {
-  try { fs.writeFileSync(launchSafetyStateFile(), JSON.stringify(value), 'utf8'); } catch { /* best effort */ }
+  try { writeJsonSync(launchSafetyStateFile(), value); } catch { /* best effort */ }
 }
 
-ipcMain.handle('game:armLaunch', (event) => {
-  const now = Date.now();
-  if (now - appStartedAt < STARTUP_LAUNCH_QUARANTINE_MS) {
-    recordLaunchSafety('blocked-arm-during-startup-quarantine', { senderId: event.sender.id });
-    return { ok: false, error: 'NEO-LIB is still settling after startup. Please wait a moment before launching a game.' };
-  }
-  const token = crypto.randomBytes(24).toString('hex');
-  launchAuthorizations.set(event.sender.id, { token, expiresAt: now + 1200 });
-  // The isolated preload grants this call only after a trusted pointer/key
-  // event on [data-neolib-launch], then consumes it immediately.
-  recordLaunchSafety('armed-by-trusted-launch-control', { senderId: event.sender.id });
-  return { ok: true, token };
+const gameLaunchService = createGameLaunchService({
+  shell, spawn, path, crypto, appStartedAt, recordSafety: recordLaunchSafety,
+  readSharedSafety: readSharedLaunchSafety, writeSharedSafety: writeSharedLaunchSafety,
+  setDiscordActivity, clearDiscordActivity,
+  sendExited(payload) {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('game:exited', payload);
+  },
 });
-
-ipcMain.handle('game:launch', async (event, { exePath, launchArgs, gameId, name, launchToken } = {}) => {
-  if (!exePath || typeof exePath !== 'string') {
-    return { ok: false, error: 'No exePath provided' };
-  }
-  try {
-    // Managed system shortcuts (for example Windows Graphics Settings) are
-    // explicit URI targets, never guessed from a game path.
-    if (/^(?:ms-settings:|shell:)/i.test(exePath)) {
-      await shell.openExternal(exePath);
-      return { ok: true, target: 'uri' };
-    }
-    const now = Date.now();
-    const safeName = String(name || path.basename(exePath) || 'unknown').slice(0, 120);
-    const authorization = launchAuthorizations.get(event.sender.id);
-    launchAuthorizations.delete(event.sender.id);
-    if (!authorization || authorization.token !== launchToken || now > authorization.expiresAt) {
-      recordLaunchSafety('blocked-missing-launch-authorization', { gameId, name: safeName, senderId: event.sender.id });
-      return { ok: false, error: 'Launch safety blocked a request that did not come from the Launch button.' };
-    }
-    if (now - appStartedAt < STARTUP_LAUNCH_QUARANTINE_MS) {
-      recordLaunchSafety('blocked-startup-quarantine', { gameId, name: safeName, sinceStartMs: now - appStartedAt });
-      return { ok: false, error: 'NEO-LIB is still settling after startup. Please wait a moment before launching a game.' };
-    }
-    if (now < launchSafety.lockedUntil) {
-      recordLaunchSafety('blocked-local-lock', { gameId, name: safeName });
-      return { ok: false, error: 'Launch safety lock is active. Please wait a moment before starting another game.' };
-    }
-    if (now - launchSafety.lastAt < LAUNCH_COOLDOWN_MS) {
-      launchSafety.lockedUntil = now + LAUNCH_SAFETY_LOCK_MS;
-      recordLaunchSafety('blocked-local-rapid-repeat', { gameId, name: safeName });
-      return { ok: false, error: 'Launch safety blocked rapid repeated game starts. Please wait a moment and try again.' };
-    }
-    const sharedSafety = readSharedLaunchSafety();
-    if (now < Number(sharedSafety.lockedUntil || 0)) {
-      recordLaunchSafety('blocked-shared-lock', { gameId, name: safeName });
-      return { ok: false, error: 'Launch safety lock is active in another NEO-LIB process. Please wait a moment.' };
-    }
-    if (now - Number(sharedSafety.lastAt || 0) < LAUNCH_COOLDOWN_MS) {
-      const lockedUntil = now + LAUNCH_SAFETY_LOCK_MS;
-      writeSharedLaunchSafety({ lastAt: sharedSafety.lastAt || now, lockedUntil });
-      recordLaunchSafety('blocked-shared-rapid-repeat', { gameId, name: safeName });
-      return { ok: false, error: 'Launch safety blocked rapid repeated starts across NEO-LIB windows.' };
-    }
-    launchSafety.lastAt = now;
-    writeSharedLaunchSafety({ lastAt: now, lockedUntil: 0 });
-    recordLaunchSafety('accepted', { gameId, name: safeName });
-    const argv = (launchArgs || '').trim()
-      ? (launchArgs || '').trim().split(/\s+/)
-      : [];
-    if (process.platform === 'win32') {
-      const child = spawn(exePath, argv, {
-        detached: true,
-        stdio: 'ignore',
-        cwd: path.dirname(exePath),
-      });
-      const startedAt = Date.now();
-      runningGames.set(gameId || exePath, { startedAt });
-      // Discord RPC — set the rich activity for the game we just launched
-      setDiscordActivity({ name, startedAt });
-      child.on('exit', () => {
-        const seconds = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-        runningGames.delete(gameId || exePath);
-        clearDiscordActivity();
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('game:exited', { gameId, exePath, seconds });
-        }
-      });
-      child.on('error', () => { runningGames.delete(gameId || exePath); clearDiscordActivity(); });
-      child.unref();
-      return { ok: true };
-    }
-    const err = await shell.openPath(exePath);
-    return { ok: !err, error: err || undefined };
-  } catch (e) {
-    return { ok: false, error: String(e) };
-  }
-});
+remainingIpcServices["game:armLaunch"] = event => gameLaunchService.arm(event);
+remainingIpcServices["game:launch"] = (event, payload) => gameLaunchService.launch(event, payload);
 
 // ---------------- Discord Rich Presence (native IPC) ---------------- //
 // Protocol reference: https://discord.com/developers/docs/topics/rpc
@@ -729,29 +654,9 @@ function clearDiscordActivity() {
 }
 
 function isDiscordRpcEnabled() {
-  try {
-    const raw = fs.readFileSync(settingsFile(), 'utf-8');
-    const s = JSON.parse(raw);
-    return s && s.discordRpcEnabled !== false;
-  } catch { return true; }
+  const s = documents.loadSettingsSnapshot();
+  return s ? s.discordRpcEnabled !== false : true;
 }
-
-// Live toggle from the renderer
-ipcMain.handle('app:setDiscordRpc', async (_e, enabled) => {
-  if (!enabled) {
-    clearDiscordActivity();
-    if (discordSock) {
-      try { discordSock.destroy(); } catch { /* ignore */ }
-      discordSock = null; discordReady = false;
-    }
-  }
-  return { ok: true, hasAppId: !!DISCORD_APP_ID };
-});
-ipcMain.handle('app:discordRpcStatus', async () => ({
-  hasAppId: !!DISCORD_APP_ID,
-  installed: true,
-  ready: !!discordReady,
-}));
 
 // ---------------- IPC: Drive scanner ---------------- //
 const NOISE_KEYWORDS = [
@@ -799,7 +704,7 @@ async function walkDir(dir, depth, maxDepth, accum, maxFiles, excludes = []) {
   }
 }
 
-ipcMain.handle('scan:directory', async (_e, root, excludes = [], options = {}) => {
+remainingIpcServices["scan:directory"] = async (_e, root, excludes = [], options = {}) => {
   if (!root) return [];
   const found = [];
   // Fast (default): 5 levels deep, up to 1500 files. Deep: 10 levels, up to 5000.
@@ -841,7 +746,7 @@ ipcMain.handle('scan:directory', async (_e, root, excludes = [], options = {}) =
   }
   // Limit
   return candidates.slice(0, 80);
-});
+};
 
 // ---------------- IPC: Steam Store search & details ---------------- //
 function cleanSearchTerm(name) {
@@ -870,15 +775,6 @@ function fuzzyScore(a, b) {
   const uni = ta.size + tb.size - inter;
   if (uni === 0) return 0;
   return inter / uni;
-}
-
-// Pick the best of a list of {name, ...} matches against a query.
-function pickBestMatch(query, results, nameKey = 'name') {
-  if (!results || results.length === 0) return null;
-  const scored = results.map((r) => ({ r, s: fuzzyScore(query, r[nameKey] || '') }));
-  scored.sort((a, b) => b.s - a.s);
-  // If the top score is too low and there's no clear winner, still return the top
-  return scored[0].r;
 }
 
 // Automatic metadata must be conservative. A low-confidence cross-store hit
@@ -959,120 +855,42 @@ function httpPostJson(url, body, extraHeaders = {}) {
   });
 }
 
-ipcMain.handle('steam:search', async (_e, query) => {
-  const term = cleanSearchTerm(query);
-  if (!term) return [];
-  const url = `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=en&cc=us`;
-  try {
-    const data = await httpGetJson(url);
-    return (data.items || []).map((it) => ({
-      appid: it.id,
-      name: it.name,
-      tinyImage: it.tiny_image,
-      price: it.price ? it.price.final : null,
-    }));
-  } catch {
-    return [];
-  }
+const storeProviders = createStoreProviderService({ httpGetJson, cleanSearchTerm, stripHtml, steamGenreEvidence });
+const publicWebProvider = createPublicWebProviderService({ httpGetText, cleanSearchTerm, cleanTitle, publicSearchUrl });
+const specialistMetadataProviders = createSpecialistMetadataProviderService({ httpGetText, httpPostJson, cleanTitle });
+const newsNormalization = createNewsNormalizationService({ now: Date.now });
+const metadataCandidates = createMetadataCandidateService({
+  cleanSearchTerm,
+  listSources: {
+    steam: term => listSteamCandidates(term),
+    gog: term => listGogCandidates(term),
+    itch: term => listItchCandidates(term),
+    dlsite: term => listDlsiteCandidates(term),
+    vndb: term => listVndbCandidates(term),
+    ryuugames: term => listRyuuCandidates(term),
+    f95zone: term => listF95Candidates(term),
+    google: term => listGoogleCandidates(term),
+    ai: (term, context) => listAiCandidates(term, context.geminiKey, context.aiModel),
+  },
+  expandSources: {
+    steam: candidate => expandSteam(candidate),
+    gog: candidate => expandGog(candidate),
+    itch: candidate => expandItch(candidate),
+    dlsite: candidate => dlsiteLookup(candidate.id),
+    vndb: candidate => expandVndb(candidate),
+    ryuugames: candidate => expandRyuu(candidate),
+    f95zone: candidate => expandF95(candidate),
+    google: candidate => expandGoogle(candidate),
+    ai: candidate => candidate.raw,
+  },
 });
-
-ipcMain.handle('steam:details', async (_e, appid) => {
-  const url = `https://store.steampowered.com/api/appdetails?appids=${appid}&l=en&cc=us`;
-  try {
-    const data = await httpGetJson(url);
-    const entry = data && data[appid];
-    if (!entry || !entry.success) return null;
-    const d = entry.data;
-    const genreTags = await steamGenreEvidence(appid, d);
-    return {
-      appid,
-      name: d.name,
-      type: d.type,
-      shortDescription: d.short_description,
-      aboutTheGame: stripHtml(d.about_the_game || '').slice(0, 1400),
-      headerImage: d.header_image,
-      capsuleImage: d.capsule_imagev5 || d.capsule_image,
-      background: d.background_raw || d.background,
-      screenshots: (d.screenshots || []).slice(0, 6).map((s) => s.path_full),
-      genres: (d.genres || []).map((g) => g.description),
-      genreTags,
-      developers: d.developers || [],
-      publishers: d.publishers || [],
-      releaseDate: d.release_date ? d.release_date.date : '',
-      metacritic: d.metacritic ? d.metacritic.score : null,
-      website: d.website || '',
-    };
-  } catch {
-    return null;
-  }
-});
-
-function stripHtml(html) {
-  return html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .trim();
-}
+remainingIpcServices["steam:search"] = (_event, query) => storeProviders.searchSteam(query);
+remainingIpcServices["steam:details"] = (_event, appid) => storeProviders.getSteamDetails(appid);
 
 // ---------------- IPC: cache image locally ---------------- //
-ipcMain.handle('image:cache', async (_e, { url, name }) => {
-  if (!url) return null;
-  try {
-    const safe = (name || 'cover').replace(/[^a-z0-9_-]+/gi, '_').slice(0, 60);
-    const ext = (url.match(/\.(jpg|jpeg|png|webp)/i) || ['.jpg'])[0];
-    const out = path.join(coversDir(), `${safe}_${Date.now()}${ext}`);
-    await httpDownload(url, out);
-    return 'file://' + out.replace(/\\/g, '/');
-  } catch {
-    return null;
-  }
-});
+registerImageIpc({ registerIpc, imageCache });
 
-ipcMain.handle('app:openExternal', async (_e, url) => {
-  const target = String(url || '');
-  // Games are never opened through the generic browser/link bridge. A future
-  // launcher protocol must use the guarded game:launch route and a deliberate
-  // UI action, otherwise a background link could become a game start.
-  if (/^(?:steam:\/\/run\/|com\.epicgames\.launcher:\/\/apps\/.*(?:action=launch|launch)|uplay:\/\/launch\/|battlenet:\/\/|ea(?:desktop)?:\/\/.*launch|riotclient:\/\/)/i.test(target)) {
-    recordLaunchSafety('blocked-game-protocol-external', { target: target.slice(0, 180) });
-    return { ok: false, error: 'Launch safety blocked a game protocol outside the Launch action.' };
-  }
-  recordLaunchSafety('external-open', { protocol: target.split(':', 1)[0].slice(0, 32) || 'unknown' });
-  await shell.openExternal(target);
-  return { ok: true };
-});
-
-ipcMain.handle('app:revealInFolder', async (_e, p) => {
-  if (!p || typeof p !== 'string') return { ok: false, error: 'No launch path is configured for this game.' };
-  try {
-    const stat = await fsp.stat(p);
-    if (stat.isDirectory()) {
-      const error = await shell.openPath(p);
-      return error ? { ok: false, error } : { ok: true, opened: p };
-    }
-    shell.showItemInFolder(p);
-    return { ok: true, opened: path.dirname(p) };
-  } catch {
-    // A moved or quarantined executable cannot be selected in Explorer, but
-    // the containing folder can still help the player diagnose the problem.
-    const dir = path.dirname(p);
-    const error = await shell.openPath(dir);
-    return error ? { ok: false, error: 'The configured file no longer exists and its containing folder could not be opened.' } : { ok: true, opened: dir, missingTarget: true };
-  }
-});
-
-ipcMain.handle('app:openContainingDir', async (_e, p) => {
-  if (!p) return;
-  const dir = path.dirname(p);
-  await shell.openPath(dir);
-});
+registerAppOsIpc({ registerIpc, appOs });
 
 // ---------------- GPU setup + managed hardware utilities ---------------- //
 // First-run detection is read-only: Windows reports adapter names and drivers
@@ -1159,7 +977,7 @@ function installedManagedToolPath(toolId) {
   return firstExistingPath(MANAGED_TOOL_PATHS[toolId]?.() || []);
 }
 
-ipcMain.handle('tools:detectGpuSetup', async () => {
+remainingIpcServices["tools:detectGpuSetup"] = async () => {
   const script = String.raw`
     Get-CimInstance Win32_VideoController | Select-Object Name,VideoProcessor,DriverVersion,PNPDeviceID,AdapterRAM | ConvertTo-Json -Depth 3 -Compress
   `;
@@ -1195,15 +1013,15 @@ ipcMain.handle('tools:detectGpuSetup', async () => {
       cpuz: { exePath: installedManagedToolPath('cpuz') },
     },
   };
-});
+};
 
-ipcMain.handle('tools:verifyManagedTool', async (_event, { toolId, exePath } = {}) => {
+remainingIpcServices["tools:verifyManagedTool"] = async (_event, { toolId, exePath } = {}) => {
   if (!['gpuz', 'cpuz'].includes(toolId) || !exePath || !path.isAbsolute(exePath) || !fs.existsSync(exePath)) return { ok: false, error: 'Choose an existing executable file.' };
   const base = path.basename(exePath).toLowerCase();
   const expected = toolId === 'gpuz' ? /gpu[_-]?z.*\.exe$/ : /cpu[_-]?z.*\.exe$/;
   if (!expected.test(base)) return { ok: false, error: `That does not look like the ${toolId === 'gpuz' ? 'GPU-Z' : 'CPU-Z'} executable.` };
   return { ok: true, exePath };
-});
+};
 
 function officialDownloadHost(url, allowedHosts) {
   try {
@@ -1240,7 +1058,7 @@ async function validExecutable(filePath) {
   } catch { return false; }
 }
 
-ipcMain.handle('tools:installManagedTool', async (_event, toolId) => {
+remainingIpcServices["tools:installManagedTool"] = async (_event, toolId) => {
   if (!['gpuz', 'cpuz'].includes(toolId)) return { ok: false, error: 'Unsupported managed tool.' };
   try {
     const download = await resolveManagedToolDownload(toolId);
@@ -1267,7 +1085,7 @@ ipcMain.handle('tools:installManagedTool', async (_event, toolId) => {
   } catch (error) {
     return { ok: false, error: error?.message || 'Official tool download failed.' };
   }
-});
+};
 
 // ---------------- Steam library detection ---------------- //
 function readSteamLibraryFolders(steamPath) {
@@ -1316,843 +1134,85 @@ function defaultSteamPath() {
   return null;
 }
 
-ipcMain.handle('launcher:scan-steam', async () => {
-  const steamPath = defaultSteamPath();
-  if (!steamPath) return { ok: false, error: 'Steam install not found.', items: [] };
-  const libraries = readSteamLibraryFolders(steamPath);
-  const found = [];
-  for (const lib of libraries) {
-    const sa = path.join(lib, 'steamapps');
-    try {
-      const entries = fs.readdirSync(sa);
-      for (const e of entries) {
-        if (!e.startsWith('appmanifest_') || !e.endsWith('.acf')) continue;
-        try {
-          const text = fs.readFileSync(path.join(sa, e), 'utf8');
-          const m = parseAcfManifest(text);
-          if (!m.appid || !m.name) continue;
-          // Heuristic: skip Steamworks Common Redistributables / Tools
-          if (/^(Steamworks Common|Proton |Steam Linux Runtime|Steam Linux|Steam Audio)/i.test(m.name)) continue;
-          const installdir = path.join(sa, 'common', m.installdir);
-          // Best-effort: find a primary .exe inside the install dir for launching directly.
-          // (We still prefer `steam://run/{appid}` for launching, but we expose the exe so
-          //  NEO-LIB can extract an icon + treat it like any other game.)
-          let exe = null;
-          try {
-            const findExe = (dir, depth = 0) => {
-              if (depth > 2 || !dir) return null;
-              for (const name of fs.readdirSync(dir)) {
-                const full = path.join(dir, name);
-                let stat;
-                try { stat = fs.statSync(full); } catch { continue; }
-                if (stat.isFile() && name.toLowerCase().endsWith('.exe')) {
-                  // Import the playable executable, never the first alphabetic
-                  // converter/editor/helper that happens to sit beside it.
-                  if (!isLikelyGameExe(name)) continue;
-                  return full;
-                }
-                if (stat.isDirectory()) {
-                  const r = findExe(full, depth + 1);
-                  if (r) return r;
-                }
-              }
-              return null;
-            };
-            exe = findExe(installdir);
-          } catch { /* ignore */ }
-          found.push({
-            appid: m.appid,
-            name: m.name,
-            exe: exe || installdir,   // fall back to dir; launch will use steam:// URL anyway
-            installdir,
-            buildid: m.buildid,
-            launchUrl: `steam://run/${m.appid}`,
-            launcher: 'steam',
-            source: 'steam',
-          });
-        } catch { /* skip manifest */ }
-      }
-    } catch { /* skip lib */ }
-  }
-  return { ok: true, items: found, source: 'steam' };
-});
-
-// Generic launcher placeholders — useful for users to manually add shortcut folders.
-ipcMain.handle('launcher:scan-epic', async () => {
-  const manifestsDir = path.join(process.env.PROGRAMDATA || 'C:\\ProgramData', 'Epic', 'EpicGamesLauncher', 'Data', 'Manifests');
-  if (!fs.existsSync(manifestsDir)) return { ok: false, error: 'Epic Games Launcher manifests not found.' };
-  const items = [];
-  try {
-    for (const f of fs.readdirSync(manifestsDir)) {
-      if (!f.endsWith('.item')) continue;
-      try {
-        const data = JSON.parse(fs.readFileSync(path.join(manifestsDir, f), 'utf8'));
-        if (!data.bIsApplication || data.bIsManaged === false) continue;
-        items.push({
-          name: data.DisplayName,
-          installdir: data.InstallLocation,
-          appid: data.AppName,
-          launchUrl: `com.epicgames.launcher://apps/${data.CatalogNamespace}%3A${data.CatalogItemId}%3A${data.AppName}?action=launch&silent=true`,
-          launchExe: data.LaunchExecutable ? path.join(data.InstallLocation, data.LaunchExecutable) : null,
-        });
-      } catch {}
-    }
-  } catch {}
-  return { ok: true, items, source: 'epic' };
-});
-ipcMain.handle('app:setAutoStart', async (_e, enabled) => {
-  try {
-    app.setLoginItemSettings({
-      openAtLogin: !!enabled,
-      path: process.execPath,
-    });
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, error: String(e) };
-  }
-});
-
-ipcMain.handle('app:getAutoStart', async () => {
-  try {
-    return !!app.getLoginItemSettings().openAtLogin;
-  } catch {
-    return false;
-  }
-});
+// Keep the existing renderer/preload contract; scanner implementation is isolated.
+Object.assign(remainingIpcServices, createLauncherScanners({
+  fs, path, spawn, process, isLikelyGameExe,
+  defaultSteamPath, readSteamLibraryFolders, parseAcfManifest, battleNetProductFor,
+}));
 
 // External-game Rest Mode monitor. It deliberately matches only executable
 // paths already stored in the user's library. It never probes game memory,
 // injects code, hooks graphics, or assumes that an idle launcher means a game
 // is running. Windows exposes these paths through the ordinary process list.
-const externalGameWatch = { games: [], timer: null, checking: false, activeId: null };
-const PROCESS_PATH_SCRIPT = 'Get-CimInstance -ClassName Win32_Process | Where-Object { $_.ExecutablePath } | Select-Object ProcessId,ExecutablePath | ConvertTo-Json -Compress';
 function normalWinPath(value) { return String(value || '').replace(/^"|"$/g, '').replace(/\//g, '\\').toLowerCase(); }
-function runningWindowsExePaths() {
-  return new Promise((resolve) => {
-    if (process.platform !== 'win32') return resolve([]);
-    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', PROCESS_PATH_SCRIPT], { windowsHide: true, timeout: 8000, maxBuffer: 8 * 1024 * 1024 }, (error, stdout) => {
-      if (error || !stdout) return resolve([]);
-      try {
-        const parsed = JSON.parse(stdout);
-        const records = Array.isArray(parsed) ? parsed : [parsed];
-        resolve(records.map((entry) => normalWinPath(entry?.ExecutablePath)).filter(Boolean));
-      } catch { resolve([]); }
-    });
-  });
-}
-function scheduleExternalGameWatch(delayMs) {
-  if (externalGameWatch.timer) clearTimeout(externalGameWatch.timer);
-  externalGameWatch.timer = null;
-  if (!externalGameWatch.games.length) return;
-  externalGameWatch.timer = setTimeout(() => {
-    externalGameWatch.timer = null;
-    checkExternalGameWatch();
-  }, delayMs);
-}
-async function checkExternalGameWatch() {
-  if (externalGameWatch.checking || !externalGameWatch.games.length) return { ok: false, busy: true };
-  externalGameWatch.checking = true;
-  try {
-    const paths = new Set(await runningWindowsExePaths());
-    const launchedHere = new Set([...runningGames.keys()].map(String));
-    const active = externalGameWatch.games.find((game) => paths.has(game.exePath) && !launchedHere.has(String(game.id))) || null;
-    const nextId = active?.id || null;
-    if (nextId !== externalGameWatch.activeId) {
-      externalGameWatch.activeId = nextId;
-      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('game:externalState', { active: !!active, gameId: active?.id || null, name: active?.name || '' });
-    }
-    return { ok: true, active: !!active, gameId: active?.id || null, name: active?.name || '' };
-  } finally {
-    externalGameWatch.checking = false;
-    // An active game gets a quicker exit check so NEO-LIB resumes shortly
-    // after it closes. Idle checks stay deliberately light.
-    scheduleExternalGameWatch(externalGameWatch.activeId ? 8_000 : 30_000);
-  }
-}
-ipcMain.handle('game:watchExternal', async (_e, { games = [] } = {}) => {
-  const candidates = (games || []).map((game) => ({ id: game?.id, name: String(game?.name || 'Game'), exePath: normalWinPath(game?.exePath) }));
-  // Old libraries can still contain an importer/editor/helper selected by an
-  // earlier first-EXE heuristic. Such a background utility must never make
-  // Rest Mode hide Fungist or pause NEO-LIB as if the actual game were open.
-  externalGameWatch.games = candidates.filter((game) => game.id && game.exePath && path.isAbsolute(game.exePath) && isLikelyGameExe(path.basename(game.exePath)));
-  const ignored = candidates.length - externalGameWatch.games.length;
-  if (!externalGameWatch.games.length) {
-    externalGameWatch.activeId = null;
-    if (externalGameWatch.timer) { clearTimeout(externalGameWatch.timer); externalGameWatch.timer = null; }
-    return { ok: true, watching: 0, ignored };
-  }
-  // Full executable-path enumeration needs a Windows management query. Stay
-  // light while idle, then check more quickly only long enough to notice a
-  // detected game's exit and restore normal NEO-LIB behavior.
-  if (!externalGameWatch.timer) checkExternalGameWatch();
-  return { ok: true, watching: externalGameWatch.games.length, ignored };
+const externalGameWatch = createExternalGameWatchService({
+  execFile, path, normalWinPath, isLikelyGameExe,
+  getRunningGameKeys: () => gameLaunchService.runningKeys(),
+  sendExternalState(payload) {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('game:externalState', payload);
+  },
 });
-ipcMain.handle('game:scanExternalNow', async () => {
+remainingIpcServices["game:watchExternal"] = async (_e, { games = [] } = {}) => {
+  return externalGameWatch.watch({ games });
+};
+remainingIpcServices["game:scanExternalNow"] = async () => {
   // Player-requested scan used from a high-usage warning. It remains the same
   // path-only local check as the passive watcher—no launcher account, game
   // memory, overlay, injection, or network access is involved.
-  return checkExternalGameWatch();
-});
+  return externalGameWatch.scanNow();
+};
 
-function queryRegistry(root, view) {
-  return new Promise((resolve) => {
-    const child = spawn('reg.exe', ['query', root, '/s', view], { windowsHide: true });
-    let stdout = '';
-    child.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
-    child.on('error', () => resolve(''));
-    child.on('close', () => resolve(stdout));
-  });
-}
-
-function primaryExeIn(folder, depth = 0) {
-  if (!folder || depth > 2) return null;
-  let entries = [];
-  try { entries = fs.readdirSync(folder, { withFileTypes: true }); } catch { return null; }
-  for (const entry of entries) {
-    const full = path.join(folder, entry.name);
-    if (entry.isFile() && isLikelyGameExe(entry.name)) return full;
-  }
-  for (const entry of entries) {
-    if (!entry.isDirectory() || /^(redist|support|__redist|dependencies)$/i.test(entry.name)) continue;
-    const found = primaryExeIn(path.join(folder, entry.name), depth + 1);
-    if (found) return found;
-  }
-  return null;
-}
-
-ipcMain.handle('launcher:scan-gog', async () => {
-  const roots = ['HKLM\\SOFTWARE\\WOW6432Node\\GOG.com\\Games', 'HKLM\\SOFTWARE\\GOG.com\\Games'];
-  const outputs = await Promise.all(roots.flatMap((root) => ['/reg:64', '/reg:32'].map((view) => queryRegistry(root, view))));
-  const blocks = outputs.join('\n').split(/\r?\n\s*(?=HKEY_)/i);
-  const items = [];
-  const seen = new Set();
-  for (const block of blocks) {
-    const value = (name) => block.match(new RegExp(`^\\s*${name}\\s+REG_\\w+\\s+(.+)$`, 'im'))?.[1]?.trim() || '';
-    const installPath = value('path') || value('PATH');
-    const gameId = value('gameID') || value('gameId') || block.match(/\\Games\\([^\\\r\n]+)\s*$/im)?.[1] || '';
-    const name = value('gameName') || value('GAMENAME');
-    if (!installPath || !name || seen.has(gameId || installPath.toLowerCase()) || !fs.existsSync(installPath)) continue;
-    seen.add(gameId || installPath.toLowerCase());
-    items.push({
-      gogId: gameId,
-      name,
-      exe: primaryExeIn(installPath) || installPath,
-      installdir: installPath,
-      launcher: 'gog',
-      source: 'gog',
-      buildId: value('buildId') || value('BUILDID'),
-    });
-  }
-  return items.length ? { ok: true, items, source: 'gog' } : { ok: false, items: [], error: 'No installed GOG games found in the Windows registry.' };
-});
-
-ipcMain.handle('launcher:scan-ea', async () => {
-  const roots = [
-    'HKLM\\SOFTWARE\\EA Games',
-    'HKLM\\SOFTWARE\\WOW6432Node\\EA Games',
-    'HKLM\\SOFTWARE\\Origin Games',
-    'HKLM\\SOFTWARE\\WOW6432Node\\Origin Games',
-  ];
-  const outputs = await Promise.all(roots.flatMap((root) => ['/reg:64', '/reg:32'].map((view) => queryRegistry(root, view))));
-  const blocks = outputs.join('\n').split(/\r?\n\s*(?=HKEY_)/i);
-  const items = [];
-  const seen = new Set();
-  for (const block of blocks) {
-    const value = (name) => {
-      const escapedName = name.replace(/[^a-z0-9 ]/gi, '\\$&');
-      return block.match(new RegExp(`^\\s*${escapedName}\\s+REG_\\w+\\s+(.+)$`, 'im'))?.[1]?.trim() || '';
-    };
-    const installPath = value('Install Dir') || value('InstallDir') || value('InstallLocation') || value('Path');
-    const name = value('DisplayName') || value('GameName') || value('Title');
-    const productId = value('Product GUID') || value('ProductId') || value('contentID') || block.match(/\\([^\\\r\n]+)\s*$/im)?.[1] || '';
-    if (!installPath || !name || !fs.existsSync(installPath)) continue;
-    const key = productId || installPath.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    items.push({
-      launcherProductId: productId,
-      name,
-      exe: primaryExeIn(installPath) || installPath,
-      installdir: installPath,
-      launcher: 'ea',
-      source: 'ea',
-      installedVersion: value('DisplayVersion') || value('Version'),
-    });
-  }
-  return items.length ? { ok: true, items, source: 'ea' } : { ok: false, items: [], error: 'No installed EA/Origin games found in the Windows registry.' };
-});
-
-ipcMain.handle('launcher:scan-ubisoft', async () => {
-  const roots = [
-    'HKLM\\SOFTWARE\\Ubisoft\\Launcher\\Installs',
-    'HKLM\\SOFTWARE\\WOW6432Node\\Ubisoft\\Launcher\\Installs',
-  ];
-  const outputs = await Promise.all(roots.flatMap((root) => ['/reg:64', '/reg:32'].map((view) => queryRegistry(root, view))));
-  const blocks = outputs.join('\n').split(/\r?\n\s*(?=HKEY_)/i);
-  const items = [];
-  const seen = new Set();
-  for (const block of blocks) {
-    const value = (name) => {
-      const escapedName = name.replace(/[^a-z0-9 ]/gi, '\\$&');
-      return block.match(new RegExp(`^\\s*${escapedName}\\s+REG_\\w+\\s+(.+)$`, 'im'))?.[1]?.trim() || '';
-    };
-    const installPath = value('InstallDir') || value('Install Dir') || value('InstallLocation');
-    const productId = block.match(/\\Installs\\([^\\\r\n]+)\s*$/im)?.[1] || value('GameId');
-    if (!installPath || !productId || !fs.existsSync(installPath) || seen.has(productId)) continue;
-    seen.add(productId);
-    const folderName = path.basename(installPath.replace(/[\\/]+$/, ''));
-    const name = value('DisplayName') || value('GameName') || folderName || `Ubisoft Game ${productId}`;
-    items.push({
-      launcherProductId: `ubisoft:${productId}`,
-      name,
-      exe: primaryExeIn(installPath) || installPath,
-      installdir: installPath,
-      launcher: 'ubisoft',
-      source: 'ubisoft',
-      launchUrl: `uplay://launch/${productId}/0`,
-      nameEvidence: value('DisplayName') || value('GameName') ? 'registry' : 'install-folder',
-    });
-  }
-  return items.length ? { ok: true, items, source: 'ubisoft' } : { ok: false, items: [], error: 'No installed Ubisoft Connect games found in the Windows registry.' };
-});
-
-ipcMain.handle('launcher:scan-battlenet', async () => {
-  const roots = [
-    'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
-    'HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
-  ];
-  const outputs = await Promise.all(roots.flatMap((root) => ['/reg:64', '/reg:32'].map((view) => queryRegistry(root, view))));
-  const blocks = outputs.join('\n').split(/\r?\n\s*(?=HKEY_)/i);
-  const items = [];
-  const seen = new Set();
-  for (const block of blocks) {
-    const value = (name) => {
-      const escapedName = name.replace(/[^a-z0-9 ]/gi, '\\$&');
-      return block.match(new RegExp(`^\\s*${escapedName}\\s+REG_\\w+\\s+(.+)$`, 'im'))?.[1]?.trim() || '';
-    };
-    const publisher = value('Publisher');
-    const name = value('DisplayName');
-    const installPath = value('InstallLocation');
-    if (!/blizzard|battle\.net/i.test(publisher) || !name || !installPath || !fs.existsSync(installPath)) continue;
-    if (/battle\.net( desktop app)?$/i.test(name.trim())) continue;
-    // Battle.net/Windows sometimes gives us an older or shortened display
-    // name (for example just "Overwatch"). Match that local evidence against
-    // the bounded Blizzard catalogue before any generic store search runs.
-    const product = battleNetProductFor(name, installPath, value('ProductID'));
-    const canonicalName = product?.name || name;
-    const key = `${canonicalName.toLowerCase()}|${installPath.toLowerCase()}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    items.push({
-      launcherProductId: `battlenet:${value('ProductID') || canonicalName}`,
-      name: canonicalName,
-      exe: primaryExeIn(installPath) || installPath,
-      installdir: installPath,
-      launcher: 'battlenet',
-      source: 'battlenet',
-      installedVersion: value('DisplayVersion'),
-      metadataHint: product ? 'official-battlenet-product' : 'windows-display-name',
-    });
-  }
-  return items.length ? { ok: true, items, source: 'battlenet' } : { ok: false, items: [], error: 'No installed Battle.net games found in Windows installation records.' };
-});
-
-ipcMain.handle('launcher:scan-riot', async () => {
-  const metadataRoot = path.join(process.env.PROGRAMDATA || 'C:\\ProgramData', 'Riot Games', 'Metadata');
-  if (!fs.existsSync(metadataRoot)) return { ok: false, items: [], error: 'Riot installed-game metadata was not found.' };
-  const files = [];
-  const walk = (folder, depth = 0) => {
-    if (depth > 3 || files.length >= 100) return;
-    let entries = [];
-    try { entries = fs.readdirSync(folder, { withFileTypes: true }); } catch { return; }
-    for (const entry of entries) {
-      const full = path.join(folder, entry.name);
-      if (entry.isDirectory()) walk(full, depth + 1);
-      else if (/\.product_settings\.ya?ml$/i.test(entry.name)) files.push(full);
-    }
-  };
-  walk(metadataRoot);
-  const items = [];
-  const seen = new Set();
-  for (const file of files) {
-    let yaml = '';
-    try { yaml = fs.readFileSync(file, 'utf8'); } catch { continue; }
-    const field = (name) => yaml.match(new RegExp(`^${name}:\\s*["']?([^"'\\r\\n]+)`, 'im'))?.[1]?.trim() || '';
-    const productId = field('product_id') || path.basename(path.dirname(file));
-    const name = field('product_name') || field('name') || productId;
-    if (!productId || !name || /riot client/i.test(name) || seen.has(productId)) continue;
-    const installPath = field('product_install_full_path').replace(/\//g, '\\');
-    const configuredExe = field('product_executable_full_path').replace(/\//g, '\\');
-    const exe = configuredExe && fs.existsSync(configuredExe) ? configuredExe : primaryExeIn(installPath) || installPath;
-    if (!exe || (!fs.existsSync(exe) && !fs.existsSync(installPath))) continue;
-    seen.add(productId);
-    items.push({
-      launcherProductId: `riot:${productId}`,
-      name,
-      exe,
-      installdir: installPath,
-      launcher: 'riot',
-      source: 'riot',
-      installedVersion: field('product_version'),
-    });
-  }
-  return items.length ? { ok: true, items, source: 'riot' } : { ok: false, items: [], error: 'No installed Riot games were present in the local metadata.' };
-});
-
-ipcMain.handle('launcher:scan-xbox', async () => {
-  const roots = [];
-  for (let code = 67; code <= 90; code += 1) {
-    const candidate = `${String.fromCharCode(code)}:\\XboxGames`;
-    try { if (fs.existsSync(candidate)) roots.push(candidate); } catch { /* inaccessible drive */ }
-  }
-  const items = [];
-  const seen = new Set();
-  for (const root of roots) {
-    let folders = [];
-    try { folders = fs.readdirSync(root, { withFileTypes: true }).filter((entry) => entry.isDirectory()); } catch { continue; }
-    for (const folder of folders.slice(0, 300)) {
-      const content = path.join(root, folder.name, 'Content');
-      const configPath = path.join(content, 'MicrosoftGame.config');
-      if (!fs.existsSync(configPath)) continue;
-      let xml = '';
-      try { xml = fs.readFileSync(configPath, 'utf8'); } catch { continue; }
-      const attr = (name) => xml.match(new RegExp(`${name}=["']([^"']+)["']`, 'i'))?.[1]?.trim() || '';
-      const storeId = attr('StoreId') || attr('Id') || folder.name;
-      if (seen.has(storeId)) continue;
-      const configuredExe = attr('Executable') || xml.match(/<Executable[^>]+Name=["']([^"']+)["']/i)?.[1] || '';
-      const exe = configuredExe ? path.join(content, configuredExe.replace(/\//g, '\\')) : primaryExeIn(content) || content;
-      const displayName = attr('DefaultDisplayName');
-      const name = displayName && !/^ms-resource:/i.test(displayName) ? displayName : folder.name;
-      seen.add(storeId);
-      items.push({
-        launcherProductId: `xbox:${storeId}`,
-        name,
-        exe: fs.existsSync(exe) ? exe : content,
-        installdir: content,
-        launcher: 'xbox',
-        source: 'xbox',
-        storeId,
-      });
-    }
-  }
-  return items.length ? { ok: true, items, source: 'xbox' } : { ok: false, items: [], error: 'No Xbox/Game Pass installs with MicrosoftGame.config were found under local XboxGames roots.' };
-});
-
-ipcMain.handle('launcher:scan-rockstar', async () => {
-  const roots = [
-    'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
-    'HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
-  ];
-  const outputs = await Promise.all(roots.flatMap((root) => ['/reg:64', '/reg:32'].map((view) => queryRegistry(root, view))));
-  const blocks = outputs.join('\n').split(/\r?\n\s*(?=HKEY_)/i);
-  const items = [];
-  const seen = new Set();
-  for (const block of blocks) {
-    const value = (name) => {
-      const escapedName = name.replace(/[^a-z0-9 ]/gi, '\\$&');
-      return block.match(new RegExp(`^\\s*${escapedName}\\s+REG_\\w+\\s+(.+)$`, 'im'))?.[1]?.trim() || '';
-    };
-    const publisher = value('Publisher');
-    const name = value('DisplayName');
-    if (!/rockstar games/i.test(publisher) || !name || /(launcher|social club|sdk)/i.test(name)) continue;
-    let installPath = value('InstallLocation');
-    if (!installPath) {
-      const uninstall = value('UninstallString');
-      const executable = uninstall.match(/^"([^"]+\.exe)"/i)?.[1] || uninstall.match(/^([^\s]+\.exe)/i)?.[1] || '';
-      if (executable) installPath = path.dirname(executable);
-    }
-    if (!installPath || !fs.existsSync(installPath)) continue;
-    const productId = block.match(/\\([^\\\r\n]+)\s*$/im)?.[1] || name;
-    const key = `${name.toLowerCase()}|${installPath.toLowerCase()}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    items.push({
-      launcherProductId: `rockstar:${productId}`,
-      name,
-      exe: primaryExeIn(installPath) || installPath,
-      installdir: installPath,
-      launcher: 'rockstar',
-      source: 'rockstar',
-      installedVersion: value('DisplayVersion'),
-    });
-  }
-  return items.length ? { ok: true, items, source: 'rockstar' } : { ok: false, items: [], error: 'No installed Rockstar games found in verified Windows installation records.' };
-});
-
-// itch.io keeps its configured install locations in its own user preferences.
-// We deliberately do *not* open butler.db here: it is the desktop client's live
-// SQLite catalog and direct/concurrent access is neither needed nor safe for a
-// read-only launcher import. A completed itch install has a receipt marker in
-// the game's folder, so this adapter only reads those known locations and then
-// lets the normal approval-first metadata flow enrich the folder-derived title.
-function itchInstallRoots() {
-  const appData = process.env.APPDATA || '';
-  const preferences = path.join(appData, 'itch', 'preferences.json');
-  if (!preferences || !fs.existsSync(preferences)) return [];
-  try {
-    const data = JSON.parse(fs.readFileSync(preferences, 'utf8'));
-    const locations = data?.installLocations && typeof data.installLocations === 'object'
-      ? Object.values(data.installLocations) : [];
-    return [...new Set(locations
-      .map((location) => typeof location?.path === 'string' ? location.path.trim() : '')
-      .filter((location) => location && fs.existsSync(location))
-      .map((location) => path.resolve(location)))];
-  } catch {
-    return [];
-  }
-}
-
-function itchDisplayName(folderName) {
-  return String(folderName || '')
-    .replace(/\s+\d+$/, '')
-    .replace(/^game-\d+$/i, '')
-    .replace(/[-_]+/g, ' ')
-    .replace(/\b\w/g, (letter) => letter.toUpperCase())
-    .trim();
-}
-
-ipcMain.handle('launcher:scan-itch', async () => {
-  const roots = itchInstallRoots();
-  if (!roots.length) {
-    return {
-      ok: false,
-      items: [],
-      error: 'No itch.io install locations were found in the itch desktop app preferences.',
-    };
-  }
-  const items = [];
-  const seen = new Set();
-  for (const root of roots) {
-    let folders = [];
-    try { folders = fs.readdirSync(root, { withFileTypes: true }).filter((entry) => entry.isDirectory()); } catch { continue; }
-    for (const folder of folders.slice(0, 1_000)) {
-      // "downloads" is itch's staging area, never an installed game.
-      if (/^downloads$/i.test(folder.name)) continue;
-      const installDir = path.join(root, folder.name);
-      const receipt = path.join(installDir, '.itch', 'receipt.json.gz');
-      if (!fs.existsSync(receipt)) continue;
-      const key = installDir.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      const name = itchDisplayName(folder.name) || folder.name;
-      items.push({
-        launcherProductId: `itch:${key}`,
-        name,
-        exe: primaryExeIn(installDir) || installDir,
-        installdir: installDir,
-        launcher: 'itch',
-        source: 'itch',
-        // The receipt is only a completion marker. Do not parse or copy it;
-        // it is not relied upon as a metadata source.
-        nameEvidence: 'itch-install-folder',
-      });
-    }
-  }
-  return items.length
-    ? { ok: true, items, source: 'itch' }
-    : { ok: false, items: [], error: 'No completed itch.io installs were found in the configured itch install locations.' };
-});
-
-ipcMain.handle('app:openPath', async (_e, p) => {
-  if (!p || typeof p !== 'string') return { ok: false, error: 'No path provided.' };
-  const error = await shell.openPath(p);
-  return error ? { ok: false, error } : { ok: true };
-});
-
-ipcMain.handle('dialog:pickSaveFolder', async () => {
-  const result = await dialog.showOpenDialog(mainWindow, {
-    title: 'Select this game\'s save folder',
-    properties: ['openDirectory'],
-  });
-  if (result.canceled || result.filePaths.length === 0) return null;
-  return result.filePaths[0];
-});
 
 // ---------------- Save folders and local backups ---------------- //
 // Backups are deliberately kept under NEO-LIB's own app-data directory. The
 // restore path never overwrites live files: it can only restore into an empty
 // directory or make a separate "NEOLIB Restored" folder for manual review.
-ipcMain.handle('saves:inspect', async (_e, savePath) => {
-  try {
-    if (!savePath || typeof savePath !== 'string') return { ok: false, error: 'No save folder selected.' };
-    const stat = await fsp.stat(savePath);
-    if (!stat.isDirectory()) return { ok: false, error: 'The selected path is not a folder.' };
-    return { ok: true, path: savePath, ...(await folderStats(savePath)) };
-  } catch (error) {
-    return { ok: false, error: error?.code === 'ENOENT' ? 'This folder no longer exists.' : String(error?.message || error) };
-  }
-});
+remainingIpcServices["saves:inspect"] = async (_e, savePath) => {
+  return saveService.inspect(savePath);
+};
 
-ipcMain.handle('saves:listBackups', async (_e, gameId) => {
-  try {
-    const root = path.join(saveBackupsDir(), safePathPart(gameId));
-    let entries = [];
-    try { entries = await fsp.readdir(root, { withFileTypes: true }); } catch { return { ok: true, backups: [] }; }
-    const backups = [];
-    for (const entry of entries) {
-      if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
-      const backupPath = path.join(root, entry.name);
-      try {
-        const meta = JSON.parse(await fsp.readFile(path.join(backupPath, 'backup.json'), 'utf8'));
-        backups.push({ ...meta, backupPath });
-      } catch { /* incomplete backup is never shown as recoverable */ }
-    }
-    backups.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
-    return { ok: true, backups };
-  } catch (error) { return { ok: false, error: String(error?.message || error), backups: [] }; }
-});
+remainingIpcServices["saves:listBackups"] = async (_e, gameId) => {
+  return saveService.listBackups(gameId);
+};
 
-ipcMain.handle('saves:createBackup', async (_e, { gameId, gameName, savePath } = {}) => {
-  try {
-    if (!gameId || !savePath) return { ok: false, error: 'Select a save folder first.' };
-    const source = path.resolve(savePath);
-    const stat = await fsp.stat(source);
-    if (!stat.isDirectory()) return { ok: false, error: 'The selected save path is not a folder.' };
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupPath = path.join(saveBackupsDir(), safePathPart(gameId), stamp);
-    const contentPath = path.join(backupPath, 'files');
-    await fsp.mkdir(contentPath, { recursive: true });
-    await fsp.cp(source, contentPath, { recursive: true, force: false, errorOnExist: true, dereference: false });
-    const meta = { gameId, gameName: String(gameName || 'Game'), originalPath: source, createdAt: Date.now(), ...(await folderStats(contentPath)) };
-    await fsp.writeFile(path.join(backupPath, 'backup.json'), JSON.stringify(meta, null, 2), 'utf8');
-    return { ok: true, backup: { ...meta, backupPath } };
-  } catch (error) { return { ok: false, error: String(error?.message || error) }; }
-});
+remainingIpcServices["saves:createBackup"] = async (_e, { gameId, gameName, savePath } = {}) => {
+  return saveService.createBackup({ gameId, gameName, savePath });
+};
 
-ipcMain.handle('saves:restore', async (_e, { backupPath, savePath, mode = 'empty' } = {}) => {
-  try {
-    const backupRoot = path.resolve(saveBackupsDir());
-    const resolvedBackup = path.resolve(String(backupPath || ''));
-    const contentPath = path.join(resolvedBackup, 'files');
-    if (!isInside(backupRoot, resolvedBackup)) return { ok: false, error: 'That backup is outside NEO-LIB\'s backup folder.' };
-    if (!(await fsp.stat(contentPath)).isDirectory()) return { ok: false, error: 'Backup files are missing.' };
-    if (!savePath || typeof savePath !== 'string') return { ok: false, error: 'Choose a destination folder first.' };
-    const target = path.resolve(savePath);
-    await fsp.mkdir(target, { recursive: true });
-    let destination = target;
-    if (mode === 'safe-copy') {
-      const stamp = new Date().toISOString().slice(0, 10);
-      destination = path.join(target, `NEOLIB Restored ${stamp}`);
-      let suffix = 2;
-      while (fs.existsSync(destination)) destination = path.join(target, `NEOLIB Restored ${stamp} (${suffix++})`);
-      await fsp.mkdir(destination, { recursive: true });
-    } else if (!(await isDirectoryEmpty(target))) {
-      return { ok: false, conflict: true, error: 'The live save folder already contains files. Nothing was changed.' };
-    }
-    await fsp.cp(contentPath, destination, { recursive: true, force: false, errorOnExist: true, dereference: false });
-    return { ok: true, restoredTo: destination, ...(await folderStats(destination)) };
-  } catch (error) { return { ok: false, error: String(error?.message || error) }; }
-});
+remainingIpcServices["saves:restore"] = async (_e, { backupPath, savePath, mode = 'empty' } = {}) => {
+  return saveService.restore({ backupPath, savePath, mode });
+};
 
 // A lightweight, automatic first pass for ordinary Windows save locations.
 // It only checks a small set of known folders and existing matching children;
 // it never crawls a drive, reads save content, or changes the chosen folder.
-ipcMain.handle('saves:detectCommon', async (_e, { gameName, exePath, appid } = {}) => {
-  const candidates = new Map();
-  const terms = String(gameName || '').toLowerCase().split(/[^a-z0-9]+/).filter((term) => term.length >= 3).slice(0, 5);
-  const gameKey = String(gameName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  if (!terms.length) return { ok: true, candidates: [] };
-  const add = async (candidatePath, source, baseScore = 0, allowBaseMatch = false) => {
-    try {
-      const stat = await fsp.stat(candidatePath);
-      if (!stat.isDirectory()) return;
-      const label = path.basename(candidatePath).toLowerCase();
-      const matches = terms.filter((term) => label.includes(term)).length;
-      const score = baseScore + matches + (gameKey && label.replace(/[^a-z0-9]/g, '').includes(gameKey) ? 5 : 0);
-      if (score <= baseScore && !allowBaseMatch) return;
-      const key = path.resolve(candidatePath).toLowerCase();
-      const current = candidates.get(key);
-      if (!current || score > current.score) candidates.set(key, { path: candidatePath, source, score });
-    } catch { /* absent/inaccessible candidate */ }
-  };
-  const addMatchingChildren = async (root, source) => {
-    try {
-      const entries = await fsp.readdir(root, { withFileTypes: true });
-      for (const entry of entries.slice(0, 800)) {
-        if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
-        await add(path.join(root, entry.name), source, 0);
-      }
-    } catch { /* optional Windows folder is unavailable */ }
-  };
-  const home = os.homedir();
-  const roots = [
-    [path.join(home, 'Documents'), 'Documents'],
-    [path.join(home, 'Documents', 'My Games'), 'Documents / My Games'],
-    [path.join(home, 'Saved Games'), 'Saved Games'],
-    [process.env.APPDATA, 'AppData / Roaming'],
-    [process.env.LOCALAPPDATA, 'AppData / Local'],
-    [process.env.USERPROFILE ? path.join(process.env.USERPROFILE, 'AppData', 'LocalLow') : '', 'AppData / LocalLow'],
-  ].filter(([root]) => root);
-  for (const [root, source] of roots) {
-    await add(path.join(root, String(gameName || '')), source, 2);
-    await addMatchingChildren(root, source);
-  }
-  // A selected executable provides a useful local signal for portable/indie
-  // games that keep a clearly named save folder beside the game itself.
-  if (exePath) {
-    const gameRoot = path.dirname(exePath);
-    for (const folder of ['save', 'saves', 'savedata', 'savegame', 'savegames']) await add(path.join(gameRoot, folder), 'Game folder', 1, true);
-  }
-  // Steam Cloud's local mirror is deterministic by app id. It works before a
-  // game is run through NEO-LIB, provided Steam has already created the save.
-  if (appid) {
-    const steamPath = defaultSteamPath();
-    const userdata = steamPath ? path.join(steamPath, 'userdata') : '';
-    try {
-      const users = await fsp.readdir(userdata, { withFileTypes: true });
-      for (const user of users.slice(0, 20)) {
-        if (!user.isDirectory() || !/^\d+$/.test(user.name)) continue;
-        const remote = path.join(userdata, user.name, String(appid), 'remote');
-        try {
-          if ((await fsp.stat(remote)).isDirectory()) candidates.set(path.resolve(remote).toLowerCase(), { path: remote, source: 'Steam Cloud local mirror', score: 12 });
-        } catch { /* no Steam Cloud mirror for this account/game */ }
-      }
-    } catch { /* Steam unavailable */ }
-  }
-  return { ok: true, candidates: [...candidates.values()].sort((a, b) => b.score - a.score || a.path.localeCompare(b.path)).slice(0, 12) };
-});
+remainingIpcServices["saves:detectCommon"] = async (_e, { gameName, exePath, appid } = {}) => {
+  return saveService.detectCommon({ gameName, exePath, appid });
+};
 
-ipcMain.handle('saves:findCandidates', async (_e, { root, gameName } = {}) => {
-  try {
-    const rootPath = path.resolve(String(root || ''));
-    if (!root || !(await fsp.stat(rootPath)).isDirectory()) return { ok: false, error: 'Choose a valid folder or drive to search.', candidates: [] };
-    const terms = String(gameName || '').toLowerCase().split(/[^a-z0-9]+/).filter((term) => term.length >= 3).slice(0, 5);
-    if (!terms.length) return { ok: false, error: 'This game needs a longer name to search for save candidates.', candidates: [] };
-    const candidates = [];
-    let visited = 0;
-    let truncated = false;
-    const maxVisited = 40000;
-    const maxDepth = 7;
-    async function walk(current, depth) {
-      if (visited >= maxVisited || candidates.length >= 80) { truncated = true; return; }
-      let entries = [];
-      try { entries = await fsp.readdir(current, { withFileTypes: true }); } catch { return; }
-      for (const entry of entries) {
-        if (visited >= maxVisited || candidates.length >= 80) { truncated = true; return; }
-        if (entry.isSymbolicLink()) continue;
-        visited += 1;
-        const full = path.join(current, entry.name);
-        const label = entry.name.toLowerCase();
-        const matched = terms.filter((term) => label.includes(term)).length;
-        if (entry.isDirectory() && matched > 0) {
-          candidates.push({ path: full, matchedTerms: matched });
-          continue;
-        }
-        if (entry.isDirectory() && depth < maxDepth) await walk(full, depth + 1);
-      }
-    }
-    await walk(rootPath, 0);
-    return { ok: true, candidates, visited, truncated };
-  } catch (error) { return { ok: false, error: String(error?.message || error), candidates: [] }; }
-});
+remainingIpcServices["saves:findCandidates"] = async (_e, { root, gameName } = {}) => {
+  return saveService.findCandidates({ root, gameName });
+};
 
 // User-triggered only: measuring whole game folders can be expensive on large
 // libraries, so Home never scans disks silently. "Mod content" is an estimate
 // of folders conventionally named mods/mod/workshop inside the game directory.
-const STORAGE_FOLDER_CACHE = new Map();
-ipcMain.handle('storage:scanGames', async (_e, { games = [], force = false } = {}) => {
-  const results = [];
-  const skipped = [];
-  const candidates = [];
-  const seenRoots = new Set();
-  const launcherExecutables = new Set(['steam.exe', 'epicgameslauncher.exe', 'eadesktop.exe', 'ubisoftconnect.exe', 'upc.exe', 'battle.net.exe', 'battle.net launcher.exe', 'riotclientservices.exe', 'riotclientux.exe', 'goggalaxy.exe']);
-  for (const game of Array.isArray(games) ? games.slice(0, 250) : []) {
-    if (!game?.id || !game?.exePath || typeof game.exePath !== 'string' || !path.isAbsolute(game.exePath)) continue;
-    let exeStat;
-    try { exeStat = await fsp.stat(game.exePath); } catch { skipped.push({ id: game.id, name: game.name || 'Unnamed game', reason: 'Configured executable is missing or unavailable.' }); continue; }
-    if (!exeStat.isFile()) { skipped.push({ id: game.id, name: game.name || 'Unnamed game', reason: 'Configured launch target is a folder, not a game executable.' }); continue; }
-    if (launcherExecutables.has(path.basename(game.exePath).toLowerCase())) { skipped.push({ id: game.id, name: game.name || 'Unnamed game', reason: 'Configured target is a launcher executable, not a game install.' }); continue; }
-    const root = path.resolve(path.dirname(game.exePath));
-    const rootKey = root.toLowerCase();
-    // Multiple entries aimed at the same install folder are one storage unit;
-    // showing the same byte count five times is misleading and wastes I/O.
-    if (seenRoots.has(rootKey)) continue;
-    seenRoots.add(rootKey);
-    candidates.push({ id: game.id, name: game.name || 'Unnamed game', exePath: game.exePath, root, rootKey });
-  }
-  // If one entry points at a folder that contains several other configured
-  // game roots, it is almost certainly a shared library/launcher folder—not
-  // one giant game. Exclude it rather than misattribute all children to it.
-  const safeCandidates = candidates.filter((candidate) => {
-    const childRoots = candidates.filter((other) => other.id !== candidate.id && isInside(candidate.root, other.root)).length;
-    if (childRoots < 2) return true;
-    skipped.push({ id: candidate.id, name: candidate.name, reason: `Configured folder contains ${childRoots} other library roots; skipped as a shared folder.` });
-    return false;
-  });
-  const measure = async ({ id, name, exePath, root, rootKey }) => {
-    try {
-      const stat = await fsp.stat(root);
-      if (!stat.isDirectory()) return;
-      const cached = STORAGE_FOLDER_CACHE.get(rootKey);
-      if (!force && cached && Date.now() - cached.ts < 10 * 60 * 1000) {
-        results.push({ id, name, exePath, root, ...cached.result, cached: true });
-        return;
-      }
-      const total = await folderStats(root, 60000);
-      let modBytes = 0;
-      let modFiles = 0;
-      let entries = [];
-      try { entries = await fsp.readdir(root, { withFileTypes: true }); } catch { entries = []; }
-      for (const entry of entries) {
-        if (!entry.isDirectory() || entry.isSymbolicLink() || !/^(mods?|workshop|modding)$/i.test(entry.name)) continue;
-        const mod = await folderStats(path.join(root, entry.name), 30000);
-        modBytes += mod.bytes; modFiles += mod.files;
-      }
-      const result = { bytes: total.bytes, files: total.files, modBytes, modFiles, truncated: total.truncated };
-      STORAGE_FOLDER_CACHE.set(rootKey, { ts: Date.now(), result });
-      results.push({ id, name, exePath, root, ...result, cached: false });
-    } catch { /* inaccessible or external drive disconnected */ }
-  };
-  // Three folder walks at once keeps the UI responsive while significantly
-  // reducing the wait for libraries spread across several game folders.
-  for (let start = 0; start < safeCandidates.length; start += 3) {
-    // eslint-disable-next-line no-await-in-loop
-    await Promise.all(safeCandidates.slice(start, start + 3).map(measure));
-  }
-  return { ok: true, results, skipped: skipped.slice(0, 40), scannedAt: Date.now() };
-});
+remainingIpcServices["storage:scanGames"] = async (_e, { games = [], force = false } = {}) => {
+  return storageScanService.scanGames({ games, force });
+};
 
 // Launch Doctor is diagnostic only. It checks the configured target and finds
 // plausible sibling executables; it never executes, deletes, or changes files.
-ipcMain.handle('doctor:inspectLaunch', async (_e, { exePath, gameName } = {}) => {
-  const result = { ok: true, configuredPath: exePath || '', exists: false, candidates: [], notes: [] };
-  try {
-    if (!exePath || typeof exePath !== 'string') {
-      result.notes.push('No launch executable is configured for this game.');
-      return result;
-    }
-    const stat = await fsp.stat(exePath);
-    result.exists = stat.isFile();
-  } catch {
-    result.notes.push('The configured executable could not be found. It may have moved, the drive may be disconnected, or security software may have quarantined it.');
-  }
-  if (!result.exists) {
-    result.notes.push('Check the game folder and your antivirus quarantine before choosing a replacement executable.');
-  }
-  const root = path.dirname(exePath || '');
-  const found = [];
-  if (root && fs.existsSync(root)) {
-    await walkDir(root, 0, 2, found, 40, []);
-    const gameTokens = String(gameName || '').toLowerCase().split(/[^a-z0-9]+/).filter((value) => value.length >= 3);
-    result.candidates = found.filter((candidate) => candidate !== exePath).map((candidate) => ({
-      path: candidate,
-      matchScore: gameTokens.filter((token) => path.basename(candidate).toLowerCase().includes(token)).length,
-    })).sort((a, b) => b.matchScore - a.matchScore || a.path.localeCompare(b.path)).slice(0, 12);
-  }
-  if (result.exists && result.candidates.length === 0) result.notes.push('The configured file exists. A launcher, DRM client, missing dependency, or the game itself closing immediately may still be responsible.');
-  return result;
-});
+registerDoctorIpc({ registerIpc, launchDoctor });
 
 // Lightweight, local-only system readiness snapshot used by the Library footer.
-ipcMain.handle('system:health', async () => readSystemHealth());
+registerSystemIpc({ registerIpc, systemHealth });
 
 // ---------------- Optimize Center ---------------- //
 // These tools are deliberately on-demand. The process view uses ordinary
 // Windows performance/process APIs and never inspects process memory. Cleanup
 // only returns exact file candidates from bounded roots and moves confirmed
 // files to the Recycle Bin; it never recursively deletes a directory.
-const optimizeProcessSnapshot = new Map();
-const optimizeJunkSnapshot = new Map();
 
 function runPowerShellJson(script, timeout = 20_000) {
   return new Promise((resolve) => {
@@ -2233,196 +1293,36 @@ $topProcesses = @($processes | Sort-Object cpuPercent -Descending | Select-Objec
 } | ConvertTo-Json -Depth 6 -Compress
 `;
 
-const protectedProcessNames = new Set(['system', 'registry', 'smss', 'csrss', 'wininit', 'services', 'lsass', 'svchost', 'winlogon', 'dwm', 'explorer', 'fontdrvhost', 'sihost', 'taskhostw']);
-ipcMain.handle('optimize:inspectGaming', async () => {
-  const payload = await runPowerShellJson(GAMING_INSPECT_SCRIPT);
-  if (!payload) return { ok: false, error: 'Windows performance details are unavailable.' };
-  optimizeProcessSnapshot.clear();
-  const processes = (Array.isArray(payload.processes) ? payload.processes : payload.processes ? [payload.processes] : []).map((entry) => {
-    const pid = Number(entry.pid);
-    const name = String(entry.name || 'Unknown');
-    const protectedEntry = pid <= 4 || pid === process.pid || protectedProcessNames.has(name.toLowerCase()) || normalWinPath(entry.path) === normalWinPath(process.execPath);
-    const record = { pid, name, path: String(entry.path || ''), protected: protectedEntry, capturedAt: Date.now() };
-    if (pid > 0) optimizeProcessSnapshot.set(pid, record);
-    return { ...record, cpuPercent: Number(entry.cpuPercent || 0), memoryBytes: Number(entry.memoryBytes || 0) };
-  });
-  const gpu = (Array.isArray(payload.gpu) ? payload.gpu : payload.gpu ? [payload.gpu] : []).map((entry) => ({ pid: Number(entry.pid), name: String(entry.name || 'Unknown'), percent: Number(entry.percent || 0) }));
-  return { ok: true, processes, gpu, gpuAvailable: !!payload.gpuAvailable, os: payload.os || {}, settings: payload.settings || {}, inspectedAt: Date.now() };
+const optimizeProcessService = createOptimizeProcessService({
+  runPowerShellJson, inspectScript: GAMING_INSPECT_SCRIPT, execFile, normalWinPath,
 });
+remainingIpcServices["optimize:inspectGaming"] = async () => {
+  return optimizeProcessService.inspectGaming();
+};
 
-ipcMain.handle('optimize:closeProcess', async (_event, { pid, name } = {}) => {
-  const numericPid = Number(pid);
-  const record = optimizeProcessSnapshot.get(numericPid);
-  if (!record || Date.now() - record.capturedAt > 2 * 60 * 1000) return { ok: false, error: 'The process list is stale. Refresh it first.' };
-  if (record.protected || record.name !== String(name || '')) return { ok: false, error: 'NEO-LIB will not close this protected or changed process.' };
-  return new Promise((resolve) => {
-    // Deliberately omit taskkill /F: Windows gets the non-forced close request
-    // first so cooperative apps can shut down normally.
-    execFile('taskkill.exe', ['/PID', String(numericPid)], { windowsHide: true, timeout: 8000 }, (error) => {
-      if (error) return resolve({ ok: false, error: 'Windows refused the normal close request. NEO-LIB will not force-kill it.' });
-      optimizeProcessSnapshot.delete(numericPid);
-      resolve({ ok: true, name: record.name });
-    });
-  });
-});
+remainingIpcServices["optimize:closeProcess"] = async (_event, { pid, name } = {}) => {
+  return optimizeProcessService.closeProcess({ pid, name });
+};
 
-function optimizeFileToken(filePath, stat) {
-  return Buffer.from(`${filePath}|${stat.size}|${stat.mtimeMs}`).toString('base64url').slice(0, 120);
-}
+remainingIpcServices["optimize:scanJunk"] = async (_event, { games = [] } = {}) => {
+  return junkService.scan({ games });
+};
 
-async function collectJunkFiles(root, options, out, seen) {
-  const { depth = 0, maxDepth = 1, kind = 'Temporary file', match, minAgeMs = 0, maxEntries = 3000 } = options;
-  if (!root || !path.isAbsolute(root) || out.length >= 600 || seen.visited >= maxEntries) return;
-  let entries = [];
-  try { entries = await fsp.readdir(root, { withFileTypes: true }); } catch { return; }
-  for (const entry of entries) {
-    if (out.length >= 600 || seen.visited >= maxEntries) break;
-    seen.visited += 1;
-    const fullPath = path.join(root, entry.name);
-    if (entry.isSymbolicLink()) continue;
-    if (entry.isDirectory()) {
-      if (depth < maxDepth) await collectJunkFiles(fullPath, { ...options, depth: depth + 1 }, out, seen);
-      continue;
-    }
-    if (!entry.isFile() || !match(entry.name, fullPath)) continue;
-    try {
-      const stat = await fsp.stat(fullPath);
-      if (Date.now() - stat.mtimeMs < minAgeMs) continue;
-      const token = optimizeFileToken(fullPath, stat);
-      if (optimizeJunkSnapshot.has(token)) continue;
-      const item = { token, path: fullPath, name: entry.name, folder: path.dirname(fullPath), bytes: stat.size, modifiedAt: stat.mtimeMs, kind, selectedByDefault: kind !== 'Large installer or archive' };
-      optimizeJunkSnapshot.set(token, { ...item, capturedAt: Date.now() });
-      out.push(item);
-    } catch { /* file disappeared or became inaccessible */ }
-  }
-}
-
-ipcMain.handle('optimize:scanJunk', async (_event, { games = [] } = {}) => {
-  optimizeJunkSnapshot.clear();
-  const out = [];
-  const protectedFiles = new Set((games || []).flatMap((game) => [game?.exePath, game?.saveFolder]).filter(Boolean).map(normalWinPath));
-  const safeMatch = (name, fullPath) => !protectedFiles.has(normalWinPath(fullPath)) && /(?:\.tmp$|\.log$|\.dmp$|\.old$|\.bak$|crash|report)/i.test(name);
-  const seen = { visited: 0 };
-  const week = 7 * 24 * 60 * 60 * 1000;
-  const knownRoots = [
-    { root: app.getPath('temp'), kind: 'Old temporary/log file', maxDepth: 2, match: safeMatch, minAgeMs: week },
-    { root: path.join(process.env.LOCALAPPDATA || '', 'CrashDumps'), kind: 'Crash dump', maxDepth: 1, match: (name, fullPath) => !protectedFiles.has(normalWinPath(fullPath)) && /\.dmp$/i.test(name), minAgeMs: 24 * 60 * 60 * 1000 },
-  ];
-  for (const config of knownRoots) await collectJunkFiles(config.root, { ...config, maxEntries: 5000 }, out, seen);
-
-  const archiveRoots = new Set();
-  for (const game of (games || []).slice(0, 500)) {
-    const exePath = String(game?.exePath || '');
-    if (!path.isAbsolute(exePath)) continue;
-    const gameRoot = path.dirname(exePath);
-    archiveRoots.add(gameRoot);
-    archiveRoots.add(path.dirname(gameRoot));
-  }
-  const largeArchive = (name, fullPath) => !protectedFiles.has(normalWinPath(fullPath)) && /(?:\.zip|\.rar|\.7z|\.iso|\.msi|setup\.exe)$/i.test(name);
-  for (const root of [...archiveRoots].slice(0, 120)) {
-    const before = out.length;
-    await collectJunkFiles(root, { maxDepth: 1, kind: 'Large installer or archive', match: largeArchive, minAgeMs: 14 * 24 * 60 * 60 * 1000, maxEntries: 1200 }, out, seen);
-    for (let index = before; index < out.length; index += 1) {
-      if (out[index].bytes < 250 * 1024 * 1024) {
-        optimizeJunkSnapshot.delete(out[index].token);
-        out[index] = null;
-      }
-    }
-  }
-  const items = out.filter(Boolean).sort((a, b) => b.bytes - a.bytes).slice(0, 500);
-  const keep = new Set(items.map((item) => item.token));
-  for (const token of optimizeJunkSnapshot.keys()) if (!keep.has(token)) optimizeJunkSnapshot.delete(token);
-  return { ok: true, items, totalBytes: items.reduce((sum, item) => sum + item.bytes, 0), scannedAt: Date.now(), visited: seen.visited, scope: 'Known Windows temp/crash locations and folders beside configured library games only.' };
-});
-
-ipcMain.handle('optimize:trashJunk', async (_event, { tokens = [] } = {}) => {
-  const selected = [...new Set(tokens)].slice(0, 100);
-  const trashed = [];
-  const failed = [];
-  for (const token of selected) {
-    const record = optimizeJunkSnapshot.get(String(token));
-    if (!record || Date.now() - record.capturedAt > 30 * 60 * 1000) { failed.push({ token, error: 'Stale scan result' }); continue; }
-    try {
-      const stat = await fsp.stat(record.path);
-      if (!stat.isFile() || optimizeFileToken(record.path, stat) !== token) { failed.push({ token, error: 'File changed since scan' }); continue; }
-      await shell.trashItem(record.path);
-      trashed.push({ token, path: record.path, bytes: record.bytes });
-      optimizeJunkSnapshot.delete(token);
-    } catch (error) { failed.push({ token, error: error?.message || 'Could not move file to Recycle Bin' }); }
-  }
-  return { ok: failed.length === 0, trashed, failed, reclaimedBytes: trashed.reduce((sum, item) => sum + item.bytes, 0) };
-});
+remainingIpcServices["optimize:trashJunk"] = async (_event, { tokens = [] } = {}) => {
+  return junkService.trash({ tokens });
+};
 
 // ---------------- GOG search & details ---------------- //
-ipcMain.handle('gog:search', async (_e, query) => {
-  const term = cleanSearchTerm(query);
-  if (!term) return [];
-  const url = `https://catalog.gog.com/v1/catalog?limit=10&query=like:${encodeURIComponent(term)}&order=desc:score&productType=in:game,pack`;
-  try {
-    const data = await httpGetJson(url);
-    return (data.products || []).map((p) => ({
-      id: p.id,
-      slug: p.slug,
-      title: p.title,
-      genres: (p.genres || []).map((g) => g.name || g),
-      developers: (p.developers || []),
-      publishers: (p.publishers || []),
-      releaseDate: p.releaseDate ? p.releaseDate.slice(0, 10) : '',
-      coverHorizontal: p.coverHorizontal,
-      coverVertical: p.coverVertical,
-      screenshots: (p.screenshots || []).map((s) =>
-        (typeof s === 'string' ? s : s.url || s).replace('{formatter}', 'product_card_v2_logo_710x355').replace('{ext}', 'webp')
-      ).slice(0, 6),
-      url: `https://www.gog.com${p.storeLink || ''}`,
-    }));
-  } catch {
-    return [];
-  }
-});
+remainingIpcServices["gog:search"] = async (_e, query) => {
+  return storeProviders.searchGog(query);
+};
 
 // ---------------- Web fallback (DuckDuckGo + Google) ---------------- //
 // A small generic search primitive. Game metadata deliberately supplies its
 // own game-specific query below; Tools uses this unchanged so GPU-Z, OBS,
 // Windows utilities, editors and other software never get game-store results.
-async function ddgSearchRaw(term) {
-  const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(term)}`;
-  try {
-    const html = await httpGetText(url);
-    // crude: parse anchor titles + snippets
-    const results = [];
-    const reBlock = /<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>[\s\S]{0,1200}?class="result__snippet"[^>]*>([\s\S]{0,500}?)<\/a>/g;
-    let m;
-    while ((m = reBlock.exec(html)) && results.length < 8) {
-      const title = m[2].replace(/<[^>]+>/g, '').trim();
-      const snippet = m[3].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-      results.push({ url: decodeURIComponent(m[1]), title, snippet });
-    }
-    return results;
-  } catch {
-    return [];
-  }
-}
-
-async function googleScrapeRaw(term) {
-  // Best-effort, Google may rate-limit / show captcha. Used as last resort.
-  const url = `https://www.google.com/search?q=${encodeURIComponent(term)}&hl=en`;
-  try {
-    const html = await httpGetText(url);
-    const results = [];
-    const re = /<a[^>]+href="([^"]+)"[^>]*>[\s\S]{0,600}?<h3[^>]*>([\s\S]*?)<\/h3>[\s\S]{0,2200}?<div[^>]+VwiC3b[^>]*>([\s\S]{0,400}?)<\/div>/g;
-    let m;
-    while ((m = re.exec(html)) && results.length < 8) {
-      results.push({
-        url: publicSearchUrl(m[1]),
-        title: m[2].replace(/<[^>]+>/g, '').trim(),
-        snippet: m[3].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(),
-      });
-    }
-    return results;
-  } catch {
-    return [];
-  }
-}
+const ddgSearchRaw = term => publicWebProvider.searchDuckDuckGo(term);
+const googleScrapeRaw = term => publicWebProvider.searchGoogle(term);
 
 /**
  * itch.io scrape — public search results page.
@@ -2431,30 +1331,7 @@ async function googleScrapeRaw(term) {
  * carry the cover thumb, title, and creator inline.
  */
 async function itchSearch(term) {
-  const url = `https://itch.io/search?q=${encodeURIComponent(term)}`;
-  try {
-    const html = await httpGetText(url);
-    const results = [];
-    // Each game card contains: <a class="game_link" href="..."><img data-lazy_src="..." alt="..."/>...</a>
-    const re = /<a class="title game_link"[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>[\s\S]{0,800}?(?:data-background_image="([^"]+)"|class="lazy_loaded" src="([^"]+)")/g;
-    let m;
-    while ((m = re.exec(html)) && results.length < 8) {
-      const link = m[1];
-      const title = m[2].replace(/<[^>]+>/g, '').trim();
-      const img = m[3] || m[4] || '';
-      results.push({ url: link, title, image: img });
-    }
-    // Fallback simpler regex if the first didn't match the current itch HTML structure
-    if (results.length === 0) {
-      const re2 = /<a class="title game_link"[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>/g;
-      while ((m = re2.exec(html)) && results.length < 8) {
-        results.push({ url: m[1], title: m[2].trim(), image: '' });
-      }
-    }
-    return results;
-  } catch {
-    return [];
-  }
+  return specialistMetadataProviders.itchSearch(term);
 }
 
 /**
@@ -2465,40 +1342,10 @@ async function itchSearch(term) {
  * source for east-asian indie titles.
  */
 function extractDLsiteCode(term) {
-  const m = (term || '').match(/\b(R[EJ]|VJ|BJ)\d{4,9}\b/i);
-  return m ? m[0].toUpperCase() : null;
+  return specialistMetadataProviders.extractDLsiteCode(term);
 }
 async function dlsiteLookup(code) {
-  if (!code) return null;
-  // English maniax site has cleaner HTML + safe-for-work-aware metadata
-  const url = `https://www.dlsite.com/maniax/work/=/product_id/${code}.html`;
-  try {
-    const html = await httpGetText(url);
-    const title  = (html.match(/<meta property="og:title" content="([^"]+)"/) || [])[1] || '';
-    const desc   = (html.match(/<meta property="og:description" content="([^"]+)"/) || [])[1] || '';
-    const image  = (html.match(/<meta property="og:image" content="([^"]+)"/) || [])[1] || '';
-    if (!title) return null;
-    const maker  =
-      (html.match(/itemprop="brand"[^>]*>[\s\S]*?<a[^>]*>([^<]+)<\/a>/) || [])[1] ||
-      (html.match(/class="maker_name"[^>]*>[\s\S]*?<a[^>]*>([^<]+)<\/a>/) || [])[1] || '';
-    return {
-      source: 'dlsite',
-      name: title.trim(),
-      shortDescription: desc.trim().slice(0, 240),
-      about: desc.trim(),
-      headerImage: image,
-      capsuleImage: image,
-      background: image,
-      screenshots: [],
-      genres: ['Visual Novel'],
-      developers: maker ? [maker.trim()] : [],
-      publishers: maker ? [maker.trim()] : [],
-      releaseDate: '',
-      website: url,
-    };
-  } catch {
-    return null;
-  }
+  return specialistMetadataProviders.dlsiteLookup(code);
 }
 
 /**
@@ -2507,33 +1354,7 @@ async function dlsiteLookup(code) {
  * No key required for basic queries.
  */
 async function vndbLookup(term) {
-  try {
-    const body = {
-      filters: ['search', '=', term],
-      fields: 'title, image.url, description, released, developers.name, screenshots.url',
-      results: 3,
-    };
-    const data = await httpPostJson('https://api.vndb.org/kana/vn', body);
-    if (!data?.results?.length) return null;
-    const top = data.results[0];
-    return {
-      source: 'vndb',
-      name: top.title,
-      shortDescription: (top.description || '').replace(/\[.*?\]/g, '').slice(0, 240),
-      about: (top.description || '').replace(/\[.*?\]/g, ''),
-      headerImage: top.image?.url || '',
-      capsuleImage: top.image?.url || '',
-      background: top.image?.url || '',
-      screenshots: (top.screenshots || []).map((s) => s.url).slice(0, 6),
-      genres: ['Visual Novel'],
-      developers: (top.developers || []).map((d) => d.name).slice(0, 3),
-      publishers: [],
-      releaseDate: top.released || '',
-      website: `https://vndb.org/v${top.id || ''}`,
-    };
-  } catch {
-    return null;
-  }
+  return specialistMetadataProviders.vndbLookup(term);
 }
 
 /**
@@ -2541,97 +1362,19 @@ async function vndbLookup(term) {
  * findable cover/description here when DLsite is JP-locked or itch lacks them.
  */
 async function ryuugamesSearch(term) {
-  try {
-    const url = `https://www.ryuugames.com/?s=${encodeURIComponent(term)}`;
-    const html = await httpGetText(url);
-    // Each post: <h2 class="post-title"><a href="..." title="...">TITLE</a></h2>
-    const m = html.match(/<h2[^>]*post-title[^>]*>\s*<a[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>/);
-    if (!m) return null;
-    const pageUrl = m[1];
-    const title   = m[2].replace(/<[^>]+>/g, '').trim();
-    // Visit the post itself to grab the cover image + description.
-    const page = await httpGetText(pageUrl);
-    const cover = (page.match(/<meta property="og:image" content="([^"]+)"/) || [])[1] || '';
-    const desc  = (page.match(/<meta property="og:description" content="([^"]+)"/) || [])[1] || '';
-    return {
-      source: 'ryuugames',
-      name: cleanTitle(title) || term,
-      shortDescription: desc,
-      about: desc,
-      headerImage: cover,
-      capsuleImage: cover,
-      background: cover,
-      screenshots: [],
-      genres: ['Visual Novel'],
-      developers: [],
-      publishers: [],
-      releaseDate: '',
-      website: pageUrl,
-    };
-  } catch {
-    return null;
-  }
+  return specialistMetadataProviders.ryuugamesSearch(term);
 }
 
 /**
  * Fetch a single itch.io game page and pull out cover, description, creator.
  */
 async function itchDetails(pageUrl) {
-  try {
-    const html = await httpGetText(pageUrl);
-    const cover =
-      (html.match(/<meta property="og:image" content="([^"]+)"/) || [])[1] || '';
-    const desc =
-      (html.match(/<meta property="og:description" content="([^"]+)"/) || [])[1] || '';
-    const title =
-      (html.match(/<meta property="og:title" content="([^"]+)"/) || [])[1] || '';
-    // Creator slug from URL: https://USER.itch.io/GAME
-    const userMatch = pageUrl.match(/https?:\/\/([^.]+)\.itch\.io/);
-    const developer = userMatch ? userMatch[1] : '';
-    // Extract up to 4 screenshot URLs from the page's gallery
-    const shots = [];
-    const reShot = /href="([^"]+\.(?:png|jpg|jpeg|webp|gif))"[^>]*class="screenshot/g;
-    let sm;
-    while ((sm = reShot.exec(html)) && shots.length < 6) shots.push(sm[1]);
-    return { title, cover, desc, developer, shots };
-  } catch {
-    return null;
-  }
+  return specialistMetadataProviders.itchDetails(pageUrl);
 }
 
-ipcMain.handle('web:search', async (_e, query) => {
-  const term = cleanSearchTerm(query);
-  if (!term) return { results: [], synthesized: null };
-  let results = await ddgSearch(term);
-  if (results.length === 0) results = await googleScrape(term);
-  // Synthesize a single guess from the best result.
-  let synth = null;
-  if (results.length > 0) {
-    const top = results[0];
-    const yearMatch = (top.snippet + ' ' + top.title).match(/\b(19|20)\d{2}\b/);
-    const genreKeywords = [
-      'RPG', 'action', 'adventure', 'puzzle', 'platformer', 'shooter', 'strategy',
-      'simulation', 'roguelike', 'rogue-like', 'horror', 'survival', 'racing', 'sports',
-      'fighting', 'metroidvania', 'visual novel', 'sandbox', 'open-world', 'open world', 'indie',
-    ];
-    const text = (top.snippet + ' ' + top.title).toLowerCase();
-    const genres = Array.from(new Set(genreKeywords.filter((k) => text.includes(k.toLowerCase()))))
-      .map((g) => g.replace(/\b\w/g, (c) => c.toUpperCase()));
-    synth = {
-      name: cleanTitle(top.title) || term,
-      about: top.snippet,
-      shortDescription: top.snippet,
-      genres,
-      releaseDate: yearMatch ? yearMatch[0] : '',
-      website: top.url || '',
-      developers: [],
-      publishers: [],
-      screenshots: [],
-      source: 'web',
-    };
-  }
-  return { results, synthesized: synth };
-});
+remainingIpcServices["web:search"] = async (_e, query) => {
+  return publicWebProvider.searchWeb(query);
+};
 
 function cleanTitle(t) {
   return (t || '')
@@ -2735,7 +1478,7 @@ async function toolOpenGraph(url) {
   } catch { return {}; }
 }
 
-ipcMain.handle('tools:fetchMetadata', async (_event, { query, exePath } = {}) => {
+remainingIpcServices["tools:fetchMetadata"] = async (_event, { query, exePath } = {}) => {
   const file = await readWindowsToolFileInfo(exePath);
   const fileTerms = [query, file.ProductName, file.FileDescription, path.basename(String(exePath || ''), path.extname(String(exePath || '')))]
     .map(cleanSoftwareTerm).filter(Boolean);
@@ -2781,7 +1524,7 @@ ipcMain.handle('tools:fetchMetadata', async (_event, { query, exePath } = {}) =>
     evidence,
     metadataFetchedAt: Date.now(),
   };
-});
+};
 
 function inferToolCategory(value) {
   const text = String(value || '').toLowerCase();
@@ -2801,116 +1544,42 @@ const AI_MODELS = Object.freeze([
   { id: 'gemini-2.5-flash', provider: 'gemini', label: 'Gemini 2.5 Flash' },
 ]);
 const DEFAULT_AI_MODEL = AI_MODELS[0].id;
+const geminiProvider = createGeminiProviderService({ httpPostJson, cleanSearchTerm, models: AI_MODELS, defaultModel: DEFAULT_AI_MODEL });
 function resolveAiModel(model) {
-  const id = String(model || '').trim();
-  return AI_MODELS.some((entry) => entry.id === id) ? id : DEFAULT_AI_MODEL;
+  return geminiProvider.resolveModel(model);
 }
 
 // Game callers retain their carefully tuned game vocabulary. Keeping this
 // wrapper separate is important: a generic software request must never be
 // silently rewritten into a video-game search.
 async function ddgSearch(term) {
-  return ddgSearchRaw(`${term} video game wiki`);
+  return publicWebProvider.searchGameDuckDuckGo(term);
 }
 
 async function googleScrape(term) {
-  return googleScrapeRaw(`${term} video game`);
-}
-function geminiTextList(value) {
-  return Array.isArray(value) ? value.map((entry) => String(entry || '').trim()).filter(Boolean).slice(0, 12) : [];
-}
-function normalizeGeminiMetadata(value, fallbackName = '') {
-  if (!value || typeof value !== 'object') return null;
-  const name = String(value.name || '').trim().slice(0, 180);
-  if (!name) return null;
-  return {
-    source: 'gemini', name,
-    shortDescription: String(value.shortDescription || '').trim().slice(0, 700),
-    about: String(value.about || '').trim().slice(0, 3000),
-    genres: geminiTextList(value.genres),
-    developers: geminiTextList(value.developers),
-    publishers: geminiTextList(value.publishers),
-    releaseDate: String(value.releaseDate || '').trim().slice(0, 80),
-    website: String(value.website || '').trim().slice(0, 500),
-    metacritic: Number.isFinite(Number(value.metacritic)) ? Number(value.metacritic) : null,
-    screenshots: [],
-    queryEvidence: fallbackName,
-  };
+  return publicWebProvider.searchGameGoogle(term);
 }
 async function requestGeminiGameMetadata(apiKey, query, model) {
-  const key = String(apiKey || '').trim();
-  const term = cleanSearchTerm(String(query || '')).slice(0, 180);
-  const activeModel = resolveAiModel(model);
-  if (!key) throw new Error('Add a Gemini API key in Settings first.');
-  if (!term) throw new Error('Enter a game name before asking AI.');
-  const prompt = `You identify PC video games from rough local filenames and folder names.\n\nGame clue: "${term}"\n\nReturn ONLY one JSON object with this exact shape:\n{"name":"canonical title or empty","shortDescription":"","about":"","genres":[],"developers":[],"publishers":[],"releaseDate":"","website":"official game/store/wiki URL or empty","metacritic":null}\n\nRules: Do not invent a title when uncertain. Keep genres specific when known. Do not include markdown, commentary, download links, or file paths.`;
-  const data = await httpPostJson(
-    `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${encodeURIComponent(key)}`,
-    { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.1, maxOutputTokens: 900 } },
-  );
-  if (data?.error?.message) throw new Error(`Gemini: ${data.error.message}`);
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  let parsed;
-  try { parsed = JSON.parse(text); } catch { throw new Error('Gemini returned an unreadable metadata response.'); }
-  const normalized = normalizeGeminiMetadata(parsed, term);
-  if (!normalized) throw new Error('Gemini could not identify this game confidently. Try a clearer title clue or another source.');
-  return normalized;
+  return geminiProvider.requestGameMetadata(apiKey, query, model);
 }
 
-ipcMain.handle('gemini:metadata', async (_e, { apiKey, query, model } = {}) => {
+remainingIpcServices["gemini:metadata"] = async (_e, { apiKey, query, model } = {}) => {
   try { return { ok: true, model: resolveAiModel(model), metadata: await requestGeminiGameMetadata(apiKey, query, model) }; }
   catch (error) { return { ok: false, error: error?.message || 'Gemini request failed.' }; }
-});
+};
 
-ipcMain.handle('gemini:test', async (_e, { apiKey, model } = {}) => {
+remainingIpcServices["gemini:test"] = async (_e, { apiKey, model } = {}) => {
   try {
     const activeModel = resolveAiModel(model);
     const metadata = await requestGeminiGameMetadata(apiKey, 'Portal 2', activeModel);
     return { ok: true, model: activeModel, name: metadata.name };
   } catch (error) { return { ok: false, error: error?.message || 'Gemini test failed.' }; }
-});
+};
 
-// Fungist's chat is intentionally opt-in: the player must press Send. The
-// player explicitly chose a library-aware Oracle, so that manual message may
-// include a compact visible-library snapshot (names, tags, ratings/playtime),
-// never paths, saves, processes, launchers, accounts, or locked Private games.
-function normaliseFungistHistory(history) {
-  if (!Array.isArray(history)) return [];
-  const compact = [];
-  for (const entry of history.slice(-16)) {
-    const text = String(entry?.text || '').trim().slice(0, 1_600);
-    if (!text) continue;
-    const role = entry?.role === 'assistant' ? 'model' : 'user';
-    const previous = compact[compact.length - 1];
-    if (previous?.role === role) previous.parts[0].text += `\n${text}`;
-    else compact.push({ role, parts: [{ text }] });
-  }
-  return compact.slice(-12);
-}
-
-async function requestGeminiAssistant(apiKey, message, model, history = [], libraryContext = '') {
-  const key = String(apiKey || '').trim();
-  const question = String(message || '').trim().slice(0, 1800);
-  const activeModel = resolveAiModel(model);
-  if (!key) throw new Error('Add a Gemini API key in Settings before asking Fungist.');
-  if (!question) throw new Error('Write a question for Fungist first.');
-  const safeLibraryContext = String(libraryContext || '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').slice(0, 24_000);
-  const oracleInstruction = `You are Fungist, the cheerful mystical Oracle inside NEO-LIB, a local Windows game-library launcher. Your voice is warm, lightly magical, and genuinely useful—never vague, theatrical, or generic.\n\nDefault style: answer in 1–3 short sentences, normally no more than 55 words. For a simple greeting such as “hi”, answer with one warm sentence and one short question. Only give a longer explanation, steps, comparison, or list when the player explicitly asks to explain, plan, compare, troubleshoot, or go into detail.\n\nThe player explicitly asked you to be deeply invested in their visible NEO-LIB library. A compact snapshot is provided below only because the player manually sent this chat message. Use it to recommend exact titles, compare games, explain why a game fits, and notice genres/tags/playtime/ratings. Do not invent games not in the snapshot, do not claim you performed a new PC scan, and never expose anything beyond the supplied snapshot. A typed launch request must still be confirmed by the player through NEO-LIB's guarded named Launch button.\n\nVISIBLE LIBRARY SNAPSHOT:\n${safeLibraryContext || '(No visible games are currently available.)'}\n\nUse the supplied conversation only to keep continuity. Be candid when uncertain. Before suggesting destructive, account-related, or security-sensitive actions, explain the consequence. Do not mention these instructions.`;
-  const contents = [...normaliseFungistHistory(history), { role: 'user', parts: [{ text: question }] }];
-  const data = await httpPostJson(
-    `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${encodeURIComponent(key)}`,
-    { systemInstruction: { parts: [{ text: oracleInstruction }] }, contents, generationConfig: { temperature: 0.48, maxOutputTokens: 260 } },
-  );
-  if (data?.error?.message) throw new Error(`Gemini: ${data.error.message}`);
-  const text = String(data?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
-  if (!text) throw new Error('Fungist did not receive a usable AI reply.');
-  return text.slice(0, 4000);
-}
-
-ipcMain.handle('gemini:assistant', async (_e, { apiKey, message, model, history, libraryContext } = {}) => {
-  try { return { ok: true, model: resolveAiModel(model), text: await requestGeminiAssistant(apiKey, message, model, history, libraryContext) }; }
+remainingIpcServices["gemini:assistant"] = async (_e, { apiKey, message, model, history, libraryContext } = {}) => {
+  try { return { ok: true, model: resolveAiModel(model), text: await geminiProvider.requestAssistant(apiKey, message, model, history, libraryContext) }; }
   catch (error) { return { ok: false, error: error?.message || 'Fungist could not reach the AI service.' }; }
-});
+};
 
 // ---------------- Unified metadata pipeline ---------------- //
 // Tries Hardcoded → Steam → Epic → GOG → Gemini (if key) → Web scrape.
@@ -3157,7 +1826,7 @@ async function enrichMetadataArtwork(metadata) {
 // Build local, read-only search hints for difficult indie games. This only
 // inspects the executable's immediate folder and parent, with strict file-count
 // and size caps; it never recursively scans a drive or uploads file contents.
-ipcMain.handle('metadata:deriveHints', async (_e, { exePath, currentName } = {}) => {
+remainingIpcServices["metadata:deriveHints"] = async (_e, { exePath, currentName } = {}) => {
   const hints = [];
   const seen = new Set();
   const noise = /^(game|launcher|launch|start|play|main|win32|win64|x86|x64|bin|build|release|shipping|binaries|www)$/i;
@@ -3203,7 +1872,7 @@ ipcMain.handle('metadata:deriveHints', async (_e, { exePath, currentName } = {})
     }
   }
   return { hints: hints.slice(0, 10) };
-});
+};
 
 /**
  * `metadata:listCandidates` — replaces the old "give me one best guess"
@@ -3225,46 +1894,18 @@ ipcMain.handle('metadata:deriveHints', async (_e, { exePath, currentName } = {})
  *   'google'    → DDG/Google scrape — up to 8 generic web results
  *   'ai'        → Gemini "name this game" → returns a single synthetic hit
  */
-ipcMain.handle('metadata:listCandidates', async (_e, { source, query, geminiKey, aiModel } = {}) => {
-  const term = cleanSearchTerm(query || '');
-  if (!term) return { candidates: [], error: 'Empty query' };
-
-  try {
-    if (source === 'steam') return { candidates: await listSteamCandidates(term) };
-    if (source === 'gog') return { candidates: await listGogCandidates(term) };
-    if (source === 'itch') return { candidates: await listItchCandidates(term) };
-    if (source === 'dlsite') return { candidates: await listDlsiteCandidates(term) };
-    if (source === 'vndb') return { candidates: await listVndbCandidates(term) };
-    if (source === 'ryuugames') return { candidates: await listRyuuCandidates(term) };
-    if (source === 'f95zone') return { candidates: await listF95Candidates(term) };
-    if (source === 'google') return { candidates: await listGoogleCandidates(term) };
-    if (source === 'ai') return { candidates: await listAiCandidates(term, geminiKey, aiModel) };
-  } catch (e) {
-    return { candidates: [], error: String(e) };
-  }
-  return { candidates: [], error: 'Unknown source' };
-});
+remainingIpcServices["metadata:listCandidates"] = async (_e, { source, query, geminiKey, aiModel } = {}) => {
+  return metadataCandidates.listCandidates({ source, query, geminiKey, aiModel });
+};
 
 /**
  * `metadata:expandCandidate` — turn a candidate preview into a full metadata
  * record (the kind AcceptMetadataModal expects). Called when the user picks
  * a result from the carousel.
  */
-ipcMain.handle('metadata:expandCandidate', async (_e, { candidate } = {}) => {
-  if (!candidate || !candidate.source) return null;
-  try {
-    if (candidate.source === 'steam') return await expandSteam(candidate);
-    if (candidate.source === 'gog') return await expandGog(candidate);
-    if (candidate.source === 'itch') return await expandItch(candidate);
-    if (candidate.source === 'dlsite') return await dlsiteLookup(candidate.id);
-    if (candidate.source === 'vndb') return await expandVndb(candidate);
-    if (candidate.source === 'ryuugames') return await expandRyuu(candidate);
-    if (candidate.source === 'f95zone') return await expandF95(candidate);
-    if (candidate.source === 'google') return await expandGoogle(candidate);
-    if (candidate.source === 'ai') return candidate.raw; // already a full record
-  } catch { return null; }
-  return null;
-});
+remainingIpcServices["metadata:expandCandidate"] = async (_e, { candidate } = {}) => {
+  return metadataCandidates.expandCandidate({ candidate });
+};
 
 // ---- Per-source list helpers (lightweight previews) ---- //
 
@@ -3577,7 +2218,7 @@ async function listAiCandidates(term, geminiKey, aiModel) {
   }];
 }
 
-ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey, aiModel, lockedAppid, launcher, launcherProductId, force = false }) => {
+remainingIpcServices["metadata:auto"] = async (_e, { query, skipSources = [], geminiKey, aiModel, lockedAppid, launcher, launcherProductId, force = false }) => {
   const launcherKey = String(launcher || '').toLowerCase();
   // A Battle.net product identity is authoritative for its own import. Check
   // it before an inherited/old Steam app ID so a cross-store metadata field
@@ -3835,13 +2476,7 @@ ipcMain.handle('metadata:auto', async (_e, { query, skipSources = [], geminiKey,
   }
 
   return null;
-});
-
-/* ============================================================ */
-/* DEALS — Epic free games + Steam specials                       */
-/* Cached in memory for 1 hour. No API keys required.             */
-/* ============================================================ */
-let DEALS_CACHE = { ts: 0, items: [] };
+};
 
 /* ============================================================ */
 /* LAUNCHER DETECTOR — process-only check. Never reads client data. */
@@ -3905,7 +2540,7 @@ async function steamGenreEvidence(appid, storeData = {}) {
   }
 }
 
-ipcMain.handle('launcher:detect', async () => detectRunningLaunchers());
+remainingIpcServices["launcher:detect"] = async () => detectRunningLaunchers();
 
 const SOCIAL_PLATFORM_IDS = new Set(['steam', 'epic', 'ea', 'ubisoft', 'battlenet']);
 
@@ -3929,7 +2564,7 @@ function safeManualClientPath(manualPaths, platform) {
 
 // Launchers inspection combines the existing process check with a local
 // installation check. Manual paths originate only from the user's file picker.
-ipcMain.handle('launcher:inspectSocialClients', async (_event, manualPaths = {}) => {
+remainingIpcServices["launcher:inspectSocialClients"] = async (_event, manualPaths = {}) => {
   const { existsSync } = require('fs');
   const running = await detectRunningLaunchers();
   const clients = {};
@@ -3939,9 +2574,9 @@ ipcMain.handle('launcher:inspectSocialClients', async (_event, manualPaths = {})
     clients[platform] = { running: !!running[platform], installed: !!executable, path: executable, pathSource: executable && executable === manualPath ? 'manual' : executable ? 'standard' : '', savedPathMissing: !!manualPath && !existsSync(manualPath) };
   }
   return clients;
-});
+};
 
-ipcMain.handle('launcher:pickSocialClient', async (_event, platform) => {
+remainingIpcServices["launcher:pickSocialClient"] = async (_event, platform) => {
   if (!SOCIAL_PLATFORM_IDS.has(platform)) return null;
   const label = { steam: 'Steam', epic: 'Epic Games Launcher', ea: 'EA app', ubisoft: 'Ubisoft Connect', battlenet: 'Battle.net' }[platform];
   const result = await dialog.showOpenDialog(mainWindow, {
@@ -3950,11 +2585,11 @@ ipcMain.handle('launcher:pickSocialClient', async (_event, platform) => {
     filters: [{ name: 'Application', extensions: ['exe'] }],
   });
   return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
-});
+};
 
 // Launchers — opens only the platform's normal client surface.
 // It never reads client tokens, cookies, memory, friend lists, or chat history.
-ipcMain.handle('launcher:openSocial', async (_event, platform, manualPath) => {
+remainingIpcServices["launcher:openSocial"] = async (_event, platform, manualPath) => {
   if (!SOCIAL_PLATFORM_IDS.has(platform)) return { ok: false, error: 'Unsupported platform.' };
   if (process.platform !== 'win32') return { ok: false, error: 'Launchers currently supports Windows clients only.' };
   const { shell } = require('electron');
@@ -3968,200 +2603,41 @@ ipcMain.handle('launcher:openSocial', async (_event, platform, manualPath) => {
   if (!executable) return { ok: false, error: 'Client not found. Use Locate to choose its executable once.' };
   const openError = await shell.openPath(executable);
   return openError ? { ok: false, error: openError } : { ok: true };
-});
+};
+
+// Steam owns Steam Input. This narrow route opens its controller-first surface
+// only after the renderer has confirmed Steam is already running; it is not a
+// generic game-protocol escape hatch.
+remainingIpcServices["launcher:openSteamController"] = async () => {
+  if (process.platform !== 'win32') return { ok: false, error: 'Steam controller settings are available on Windows only.' };
+  const running = await detectRunningLaunchers();
+  if (!running.steam) return { ok: false, error: 'Start Steam first, then open its controller menu from here.' };
+  try { await shell.openExternal('steam://open/bigpicture'); return { ok: true }; }
+  catch { return { ok: false, error: 'Steam controller menu could not be opened.' }; }
+};
 
 // Update queues are separate from game launching. Keep this bridge fixed and
 // platform-scoped so a renderer cannot turn a pending-update card into a
 // generic game-protocol launcher.
-ipcMain.handle('launcher:openDownloads', async (_event, platform) => {
+remainingIpcServices["launcher:openDownloads"] = async (_event, platform) => {
   const platformKey = String(platform || '').trim().toLowerCase();
   if (platformKey !== 'steam') return { ok: false, error: 'This launcher does not expose a safe downloads queue yet.' };
   if (process.platform !== 'win32') return { ok: false, error: 'Launcher downloads are currently available on Windows only.' };
   try {
     const { shell } = require('electron');
-    await shell.openExternal('steam://downloads/');
+    // `steam://downloads/` is not a documented Steam handoff and may simply
+    // be ignored by a running client. The `open` route opens the Downloads
+    // page without starting a game or changing queue state.
+    await shell.openExternal('steam://open/downloads');
     recordLaunchSafety('launcher-downloads-open', { platform: 'steam' });
     return { ok: true };
   } catch {
     return { ok: false, error: 'Steam could not open its Downloads page.' };
   }
-});
+};
 
-ipcMain.handle('deals:fetch', async () => {
-  const ONE_HOUR = 60 * 60 * 1000;
-  if (Date.now() - DEALS_CACHE.ts < ONE_HOUR && DEALS_CACHE.items.length) {
-    return DEALS_CACHE.items;
-  }
-  const items = [];
-
-  // -- Epic free games (current + upcoming)
-  try {
-    const epic = await httpGetJson(
-      'https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=en-US&country=US&allowCountries=US'
-    );
-    const games = epic?.data?.Catalog?.searchStore?.elements || [];
-    for (const g of games) {
-      const promo = g?.promotions?.promotionalOffers?.[0]?.promotionalOffers?.[0];
-      if (!promo) continue;
-      const discount = promo.discountSetting?.discountPercentage;
-      // Epic uses discountPercentage 0 to mean "100% off" oddly; verify it's truly free
-      const isFree = discount === 0 || promo.discountSetting?.discountType === 'PERCENTAGE';
-      if (!isFree) continue;
-      const slug = g.productSlug || g.urlSlug || g.catalogNs?.mappings?.[0]?.pageSlug || '';
-      if (!slug) continue;
-      const image = (g.keyImages || []).find((k) => k.type === 'OfferImageWide' || k.type === 'DieselStoreFrontWide')?.url
-                  || (g.keyImages || [])[0]?.url;
-      items.push({
-        id: `epic-${g.id}`,
-        platform: 'epic',
-        title: g.title,
-        subtitle: 'Free this week · Epic Games',
-        priceText: 'FREE',
-        originalPrice: g.price?.totalPrice?.fmtPrice?.originalPrice || '',
-        image,
-        url: `https://store.epicgames.com/en-US/p/${slug}`,
-        endsAt: promo.endDate,
-      });
-    }
-  } catch (e) { /* offline / network failure — skip */ }
-
-  // -- Steam featured specials
-  try {
-    const sf = await httpGetJson('https://store.steampowered.com/api/featuredcategories?cc=us&l=en');
-    const specials = sf?.specials?.items || [];
-    // Expanded supply: up to 15 entries (was 8) and threshold lowered to 20% (was 25%).
-    for (const s of specials.slice(0, 15)) {
-      if (!s.discount_percent || s.discount_percent < 20) continue;
-      items.push({
-        id: `steam-${s.id}`,
-        platform: 'steam',
-        appid: s.id,
-        title: s.name,
-        subtitle: `-${s.discount_percent}% · Steam`,
-        priceText: `$${(s.final_price / 100).toFixed(2)}`,
-        originalPrice: `$${(s.original_price / 100).toFixed(2)}`,
-        image: s.large_capsule_image || s.header_image,
-        url: `https://store.steampowered.com/app/${s.id}`,
-        discount: s.discount_percent,
-      });
-    }
-  } catch (e) { /* skip */ }
-
-  // -- Instant Gaming hot deals (paying affiliate via igr= partner code in deals.js wrapper)
-  // Lightweight regex scrape — IG's HTML has been stable for years. If their markup ever
-  // changes, this block silently yields zero items and the other sources keep working.
-  try {
-    const html = await httpGetText('https://www.instant-gaming.com/en/?type=hotdeal&sort=hot');
-    const reItem = /<a[^>]*class="[^"]*cover[^"]*"[^>]*href="(\/en\/[^"]+)"[\s\S]*?<picture[^>]*>[\s\S]*?<img[^>]*src="([^"]+)"[\s\S]*?<\/a>[\s\S]*?<div[^>]*class="[^"]*name[^"]*"[^>]*>([^<]+)<[\s\S]*?<div[^>]*class="[^"]*price[^"]*"[^>]*>([^<]+)<[\s\S]*?<div[^>]*class="[^"]*discount[^"]*"[^>]*>([^<]+)</g;
-    let m;
-    let count = 0;
-    const fallbackUrls = new Set();
-    while ((m = reItem.exec(html)) !== null && count < 12) {
-      const [, hrefPath, image, title, price, discount] = m;
-      if (!hrefPath || !title) continue;
-      if (fallbackUrls.has(hrefPath)) continue;
-      fallbackUrls.add(hrefPath);
-      items.push({
-        id: `ig-${count}-${hrefPath.replace(/\W+/g, '').slice(0, 24)}`,
-        platform: 'instant-gaming',
-        title: title.trim(),
-        subtitle: `${(discount || '').trim()} · Instant Gaming`,
-        priceText: (price || '').trim() || '—',
-        originalPrice: '',
-        image: image.startsWith('http') ? image : `https:${image}`,
-        url: `https://www.instant-gaming.com${hrefPath}`,
-        discount: parseInt(String(discount || '').replace(/[^0-9-]/g, ''), 10) || 0,
-      });
-      count += 1;
-    }
-  } catch (e) { /* IG unreachable — keep the other deals */ }
-
-  // -- GOG top discounts (public catalog API, no auth needed).
-  //    Wide selection (~10-15 items) at 40%+ off. Includes many EA/Ubi
-  //    titles since GOG sells them too. Wrapped through Skimlinks for revenue.
-  try {
-    const url = 'https://catalog.gog.com/v1/catalog?limit=15&order=desc:discount&price=discounted:eq:true&productType=in:game,pack';
-    const data = await httpGetJson(url, 8000);
-    const prods = (data?.products || []).slice(0, 12);
-    for (const p of prods) {
-      const disc = String(p?.price?.discount || '').replace(/[^0-9]/g, '');
-      const discPct = parseInt(disc, 10) || 0;
-      if (discPct < 40) continue;
-      items.push({
-        id: `gog-${p.id}`,
-        platform: 'gog',
-        title: p.title,
-        subtitle: `-${discPct}% · GOG`,
-        priceText: p?.price?.final || '',
-        originalPrice: p?.price?.base || '',
-        image: (p.coverHorizontal || p.image || '').replace(/^\/\//, 'https://'),
-        url: `https://www.gog.com${p.storeLink || ''}`,
-        discount: discPct,
-      });
-    }
-  } catch (e) { /* GOG catalog unreachable — skip */ }
-
-  // -- Fanatical star deal (single big-ticket deal, updated daily).
-  //    Fanatical carries a lot of EA / Ubisoft catalog titles + Steam keys.
-  //    Wrapped via Awin (MID 18809 covers Fanatical) once approved, else Skimlinks.
-  try {
-    const fan = await httpGetJson('https://www.fanatical.com/api/all/en', 8000);
-    const sd = fan?.stardeal;
-    if (sd && sd.slug && sd.discount_percent > 20) {
-      const priceUsd = sd?.price?.USD;
-      const fullUsd  = sd?.fullPrice?.USD;
-      const cover = sd.cover
-        ? `https://fanatical.imgix.net/product/original/${sd.cover}?auto=compress,format&w=400`
-        : '';
-      items.push({
-        id: `fan-star-${sd.slug}`,
-        platform: 'fanatical',
-        title: sd.name,
-        subtitle: `-${sd.discount_percent}% · Fanatical star deal`,
-        priceText: priceUsd != null ? `$${Number(priceUsd).toFixed(2)}` : '',
-        originalPrice: fullUsd != null ? `$${Number(fullUsd).toFixed(2)}` : '',
-        image: cover,
-        url: `https://www.fanatical.com/en/game/${sd.slug}`,
-        discount: sd.discount_percent,
-      });
-    }
-  } catch (e) { /* Fanatical unreachable — skip */ }
-
-  // -- Ubisoft Store deals (server-rendered HTML).
-  //    Static tiles carry ~6 curated titles; prices load via JS so we skip them
-  //    and let the store page show them. Wrapped via Skimlinks for catch-all revenue.
-  try {
-    const html = await httpGetText('https://store.ubisoft.com/us/deals');
-    const cardRe = /data-itemid="([^"]{8,40})"[\s\S]{0,4000}?href="(\/us\/[^"]+?\.html\?lang=en_US)"[\s\S]{0,3500}?data-src="([^"]+?\.(?:jpg|jpeg|png|webp))[^"]*"[\s\S]{0,500}?title="Go to product: ([^"]+)"/g;
-    let m;
-    let count = 0;
-    const seenIds = new Set();
-    while ((m = cardRe.exec(html)) !== null && count < 8) {
-      const [, itemid, hrefPath, image, rawTitle] = m;
-      if (seenIds.has(itemid)) continue;
-      seenIds.add(itemid);
-      // Unescape common HTML entities
-      const title = String(rawTitle)
-        .replace(/&ndash;/g, '–').replace(/&mdash;/g, '—')
-        .replace(/&rsquo;/g, '\u2019').replace(/&lsquo;/g, '\u2018')
-        .replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
-      items.push({
-        id: `ubi-${itemid}`,
-        platform: 'ubisoft',
-        title,
-        subtitle: 'On sale · Ubisoft Store',
-        priceText: '',
-        originalPrice: '',
-        image: image.startsWith('http') ? image : `https://store.ubisoft.com${image}`,
-        url: `https://store.ubisoft.com${hrefPath}`,
-      });
-      count += 1;
-    }
-  } catch (e) { /* Ubisoft HTML unreachable — skip */ }
-
-  DEALS_CACHE = { ts: Date.now(), items };
-  return items;
-});
+const dealsProvider = createDealsProviderService({ httpGetJson, httpGetText, now: Date.now });
+remainingIpcServices["deals:fetch"] = () => dealsProvider.fetch();
 
 // ---------------- Released This Week ---------------- //
 // This is intentionally a discovery feed, not an exhaustive release calendar.
@@ -4169,145 +2645,8 @@ ipcMain.handle('deals:fetch', async () => {
 // we then verify each title's store type and actual release date through Steam's
 // public store details response. That protects Home from filling with tiny,
 // low-visibility uploads while keeping the criteria understandable.
-let WEEKLY_RELEASES_CACHE = { ts: 0, payload: null };
-
-function parseStoreReleaseDate(value) {
-  if (!value || typeof value !== 'string') return 0;
-  const parsed = Date.parse(value.replace(/,/g, ''));
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function ownerFloor(value) {
-  const match = String(value || '').match(/([\d,]+)/);
-  return match ? Number(match[1].replace(/,/g, '')) || 0 : 0;
-}
-
-async function mapWithConcurrency(items, limit, worker) {
-  const output = [];
-  let cursor = 0;
-  const run = async () => {
-    while (cursor < items.length) {
-      const index = cursor++;
-      try { output[index] = await worker(items[index]); } catch { output[index] = null; }
-    }
-  };
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
-  return output;
-}
-
-ipcMain.handle('releases:weekly', async (_event, { force = false } = {}) => {
-  const SIX_HOURS = 6 * 60 * 60 * 1000;
-  if (!force && WEEKLY_RELEASES_CACHE.payload && Date.now() - WEEKLY_RELEASES_CACHE.ts < SIX_HOURS) {
-    return { ok: true, ...WEEKLY_RELEASES_CACHE.payload, fetchedAt: WEEKLY_RELEASES_CACHE.ts, cached: true };
-  }
-
-  try {
-    // SteamSpy tells us about current player/review momentum, while Steam's
-    // own New Releases shelf supplies the names that a purely interest-led
-    // list can miss during a quiet launch week. Neither source alone is good
-    // enough: SteamSpy often contains older live-service games, and the store
-    // shelf alone should not overrule genuine player interest.
-    const [trendResult, featuredResult] = await Promise.allSettled([
-      httpGetJson('https://steamspy.com/api.php?request=top100in2weeks', 10_000),
-      httpGetJson('https://store.steampowered.com/api/featuredcategories?cc=us&l=en', 10_000),
-    ]);
-    if (trendResult.status !== 'fulfilled' && featuredResult.status !== 'fulfilled') {
-      throw new Error('The current release sources could not be reached.');
-    }
-    const candidateByApp = new Map();
-    for (const item of Object.values(trendResult.status === 'fulfilled' ? (trendResult.value || {}) : {})) {
-      if (!item || !Number(item.appid)) continue;
-      candidateByApp.set(Number(item.appid), { ...item, appid: Number(item.appid), featured: false });
-    }
-    const featuredItems = featuredResult.status === 'fulfilled'
-      ? (featuredResult.value?.new_releases?.items || [])
-      : [];
-    for (const item of featuredItems) {
-      const appid = Number(item?.id || item?.appid || 0);
-      if (!appid) continue;
-      const existing = candidateByApp.get(appid) || {};
-      candidateByApp.set(appid, {
-        ...existing,
-        appid,
-        name: existing.name || item.name || '',
-        featured: true,
-        featuredImage: item.large_capsule_image || item.small_capsule_image || existing.featuredImage || '',
-      });
-    }
-    // Keep a bounded pool: all of the small official shelf plus the strongest
-    // SteamSpy signals. Store-recommended games are deliberately retained even
-    // with no early review count, but only become a fallback after stronger
-    // Major and Noteworthy candidates have been exhausted.
-    const candidates = [...candidateByApp.values()]
-      .sort((a, b) => Number(b.featured) - Number(a.featured) || Number(b.ccu || 0) - Number(a.ccu || 0) || Number(b.positive || 0) - Number(a.positive || 0))
-      .slice(0, 150);
-    const now = Date.now();
-    const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
-    const verified = await mapWithConcurrency(candidates, 4, async (signal) => {
-      const raw = await httpGetJson(`https://store.steampowered.com/api/appdetails?appids=${signal.appid}&l=en&cc=us`, 8_000);
-      const data = raw?.[signal.appid]?.success ? raw[signal.appid].data : null;
-      const releaseAt = parseStoreReleaseDate(data?.release_date?.date);
-      if (!data || data.type !== 'game' || data.release_date?.coming_soon || releaseAt < weekAgo || releaseAt > now + 24 * 60 * 60 * 1000) return null;
-      const ccu = Number(signal.ccu || 0);
-      const positives = Number(signal.positive || 0);
-      const owners = ownerFloor(signal.owners);
-      const recommendations = Number(data.recommendations?.total || 0);
-      // Major is the normal Home feed. Noteworthy is the stronger quiet-week
-      // fallback. The final Popular tier is deliberately limited to titles
-      // present in Steam's actual New Releases shelf, so a brand-new game does
-      // not need hours of review accumulation before Home can show anything.
-      const tier = (ccu >= 150 || positives >= 250 || owners >= 20_000 || recommendations >= 1_000)
-        ? 'major'
-        : (ccu >= 45 || positives >= 75 || owners >= 5_000 || recommendations >= 250)
-          ? 'noteworthy'
-          : signal.featured ? 'popular' : null;
-      if (!tier) return null;
-      const why = ccu >= 500 ? 'High current player interest'
-        : positives >= 1_000 || recommendations >= 1_000 ? 'Strong early review interest'
-          : owners >= 100_000 ? 'Major launch reach'
-            : tier === 'major' ? 'Notable early player interest'
-              : tier === 'noteworthy' ? 'Worth watching: early player interest'
-                : 'Popular new Steam release';
-      return {
-        id: `steam-${signal.appid}`,
-        appid: Number(signal.appid),
-        title: data.name || signal.name || 'Untitled game',
-        image: data.header_image || signal.featuredImage || `https://cdn.akamai.steamstatic.com/steam/apps/${signal.appid}/header.jpg`,
-        platform: 'Steam',
-        releaseAt,
-        releaseDate: data.release_date?.date || '',
-        url: `https://store.steampowered.com/app/${signal.appid}`,
-        why,
-        ccu,
-        reviewCount: positives,
-        recommendations,
-        tier,
-        genres: (data.genres || []).map((genre) => genre.description).slice(0, 3),
-      };
-    });
-    const released = verified.filter(Boolean).sort((a, b) => b.releaseAt - a.releaseAt || b.ccu - a.ccu);
-    const major = released.filter((item) => item.tier === 'major');
-    const noteworthy = released.filter((item) => item.tier === 'noteworthy');
-    const popular = released.filter((item) => item.tier === 'popular');
-    const tier = major.length ? 'major' : noteworthy.length ? 'semi-major' : popular.length ? 'popular' : 'none';
-    const items = (tier === 'major' ? major : tier === 'semi-major' ? noteworthy : popular).slice(0, 12);
-    const payload = {
-      items,
-      tier,
-      criteria: tier === 'major'
-        ? 'Released within seven days, verified as a full game, and showing major recent player, review, or launch-reach signals. SteamSpy and Steam’s New Releases shelf provide the candidates.'
-        : tier === 'semi-major'
-          ? 'No major launch cleared the strict threshold this week, so this view is showing noteworthy games with verified early player or review momentum.'
-          : tier === 'popular'
-            ? 'No major or noteworthy launch cleared the evidence threshold this week, so this view is showing verified games from Steam’s current New Releases shelf. It is a popular-release fallback, not an exhaustive store dump.'
-            : 'No qualifying new releases were returned by the current verified sources. Try Refresh later.',
-    };
-    WEEKLY_RELEASES_CACHE = { ts: Date.now(), payload };
-    return { ok: true, ...payload, fetchedAt: WEEKLY_RELEASES_CACHE.ts, cached: false };
-  } catch (error) {
-    return { ok: false, items: [], error: error?.message || 'Release feed unavailable.' };
-  }
-});
+const weeklyReleaseProvider = createWeeklyReleaseProviderService({ httpGetJson, now: Date.now });
+remainingIpcServices["releases:weekly"] = (_event, { force = false } = {}) => weeklyReleaseProvider.fetch({ force });
 
 // ---------------- Steam News (per-appid, cached 30 min) ---------------- //
 // Renderer sends [{ appid, name }]. We fetch each app's latest news, keep
@@ -4321,90 +2660,20 @@ ipcMain.handle('releases:weekly', async (_event, { force = false } = {}) => {
 // title/snippet is dominated by a non-Latin script so the News panel stays
 // English-only without needing a translation service.
 function isLikelyEnglishNews(title, snippet) {
-  const text = `${title || ''} ${snippet || ''}`;
-  if (!text.trim()) return true;
-  const nonLatin = text.match(
-    /[\u0400-\u04FF\u0370-\u03FF\u0590-\u05FF\u0600-\u06FF\u0900-\u097F\u0E00-\u0E7F\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uAC00-\uD7A3]/g
-  );
-  return !nonLatin || nonLatin.length < 3;
+  return newsNormalization.isLikelyEnglish(title, snippet);
 }
 
-let STEAM_NEWS_CACHE = { ts: 0, keyHash: '', items: [] };
-ipcMain.handle('news:fetchSteam', async (_e, { games = [], days = 14, force = false } = {}) => {
-  const list = (games || [])
-    .filter((g) => g && g.appid)
-    .map((g) => ({ appid: String(g.appid), name: g.name || String(g.appid), gameId: g.id || null }));
-  if (!list.length) return { ok: true, items: [], fetchedAt: Date.now() };
-
-  const keyHash = list.map((g) => g.appid).sort().join(',') + `|${days}`;
-  const THIRTY_MIN = 30 * 60 * 1000;
-  if (!force && STEAM_NEWS_CACHE.keyHash === keyHash && Date.now() - STEAM_NEWS_CACHE.ts < THIRTY_MIN) {
-    return { ok: true, items: STEAM_NEWS_CACHE.items, fetchedAt: STEAM_NEWS_CACHE.ts, cached: true };
-  }
-
-  const cutoffSec = Math.floor((Date.now() - days * 24 * 60 * 60 * 1000) / 1000);
-  const out = [];
-  // Fetch in parallel with a cap on concurrency (8 at a time) to be polite
-  const batchSize = 8;
-  for (let i = 0; i < list.length; i += batchSize) {
-    const slice = list.slice(i, i + batchSize);
-    // eslint-disable-next-line no-await-in-loop
-    await Promise.all(
-      slice.map(async (g) => {
-        const url = `https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${g.appid}&count=15&maxlength=400&format=json`;
-        try {
-          const data = await httpGetJson(url, 8000);
-          const items = data?.appnews?.newsitems || [];
-          for (const it of items) {
-            if (typeof it.date !== 'number' || it.date < cutoffSec) continue;
-            // Strip Steam BBCode-ish tags and heavy HTML for the snippet
-            const raw = String(it.contents || '');
-            const articleImage = raw.match(/\[img](https?:\/\/[^\]\s]+)\[\/img]/i)?.[1]
-              || raw.match(/<img[^>]+src=["'](https?:\/\/[^"']+)["']/i)?.[1]
-              || '';
-            const snippet = raw
-              .replace(/\[img][\s\S]*?\[\/img]/gi, '')
-              .replace(/\[url=[^\]]*]([\s\S]*?)\[\/url]/gi, '$1')
-              .replace(/\[\/?[a-z0-9=*\s"'.:/#-]+]/gi, '')
-              .replace(/<[^>]+>/g, '')
-              .replace(/\s+/g, ' ')
-              .trim()
-              .slice(0, 320);
-            if (!isLikelyEnglishNews(it.title, snippet)) continue;
-            out.push({
-              id: `${g.appid}-${it.gid}`,
-              platform: 'steam',
-              gameId: g.gameId,
-              appid: g.appid,
-              gameName: g.name,
-              title: it.title || '(untitled)',
-              url: it.url,
-              author: it.author || '',
-              date: it.date * 1000,
-              feedname: it.feedname || '',
-              feedlabel: it.feedlabel || '',
-              feed_type: typeof it.feed_type === 'number' ? it.feed_type : null,
-              snippet,
-              image: articleImage,
-            });
-          }
-        } catch (err) {
-          // per-game failure is fine — keep going
-        }
-      })
-    );
-  }
-  out.sort((a, b) => b.date - a.date);
-  STEAM_NEWS_CACHE = { ts: Date.now(), keyHash, items: out };
-  return { ok: true, items: out, fetchedAt: Date.now(), cached: false };
-});
+const steamNewsProvider = createSteamNewsProviderService({ httpGetJson, isLikelyEnglish: isLikelyEnglishNews, now: Date.now });
+remainingIpcServices["news:fetchSteam"] = async (_e, { games = [], days = 14, force = false } = {}) => {
+  return steamNewsProvider.fetch({ games, days, force });
+};
 
 // ---------------- Steam Manifest (local disk) ---------------- //
 // Reads the appmanifest_<appid>.acf on disk for a single Steam appid, returns
 // buildid + LastUpdated + SizeOnDisk. Used by GameDetail to display
 // "Updated N days ago · Build 12345". Cached in-process for 5 min per appid.
 const STEAM_MANIFEST_CACHE = new Map(); // appid -> { ts, data }
-ipcMain.handle('steam:manifest', async (_e, appid) => {
+remainingIpcServices["steam:manifest"] = async (_e, appid) => {
   if (!appid) return { ok: false, error: 'no appid' };
   const key = String(appid);
   const FIVE_MIN = 5 * 60 * 1000;
@@ -4437,193 +2706,26 @@ ipcMain.handle('steam:manifest', async (_e, appid) => {
     } catch { /* try next lib */ }
   }
   return { ok: false, error: 'Manifest not found (game not installed locally?).' };
-});
-
-// Read a small, local set of version files beside a selected game executable.
-// This intentionally does not scan drives, unpack archives, or inspect process
-// memory: it is only enough to make independent/repack version checks useful
-// when a release build left its version in a readme, changelog, or file name.
-// Windows executables can also carry a ProductVersion/FileVersion resource.
-// That resource is useful discovery evidence but deliberately lower confidence
-// than a launcher manifest or a game-owned version file: some engines leave a
-// generic build number there.
-function readWindowsExecutableVersion(exePath) {
-  if (process.platform !== 'win32' || !exePath) return Promise.resolve(null);
-  // Never put a game executable path after PowerShell's -Command switch.
-  // powershell.exe treats every remaining command-line token as command text,
-  // so a path that was meant to be `$args[0]` could instead be invoked while
-  // the startup update scan walked the library. Bind the path through a
-  // process-only environment variable and use an encoded, fixed script. The
-  // inspected path is therefore data consumed by Get-Item -LiteralPath; it can
-  // never become executable PowerShell syntax.
-  //
-  // Also leave PE-resource inspection asleep during the boot/intro window.
-  // Filename and nearby version-file evidence remain available immediately.
-  if (Date.now() - appStartedAt < 30_000) return Promise.resolve(null);
-  const script = [
-    "$target=[Environment]::GetEnvironmentVariable('NEOLIB_VERSION_TARGET','Process')",
-    'if([string]::IsNullOrWhiteSpace($target)){exit 2}',
-    '$v=(Get-Item -LiteralPath $target -ErrorAction Stop).VersionInfo',
-    'if($v.ProductVersion){$v.ProductVersion}elseif($v.FileVersion){$v.FileVersion}',
-  ].join(';');
-  const encodedScript = Buffer.from(script, 'utf16le').toString('base64');
-  return new Promise((resolve) => {
-    execFile('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', encodedScript], {
-      windowsHide: true,
-      timeout: 4_500,
-      maxBuffer: 32 * 1024,
-      env: { ...process.env, NEOLIB_VERSION_TARGET: exePath },
-    }, (error, stdout) => {
-      if (error) return resolve(null);
-      const match = String(stdout || '').match(/\d+(?:[.,]\d+){1,4}(?:[a-z]|\s*(?:alpha|beta|rc)\d*)?/i);
-      return resolve(match ? match[0].replace(/,/g, '.').replace(/\s+/g, '') : null);
-    });
-  });
-}
-
-async function deriveInstalledVersionFromLocalGame(game = {}) {
-  const exePath = String(game.exePath || '');
-  if (!exePath || !path.isAbsolute(exePath)) return null;
-  const roots = [path.dirname(exePath), path.dirname(path.dirname(exePath))];
-  const candidates = [];
-  const seen = new Set();
-  // Unity builds often keep the public game build in the executable's paired
-  // *_Data folder instead of a readable root-level version text file. Aloft
-  // and many other indie games follow this layout. These are tiny, bounded
-  // local probes—not an install-folder crawl or binary analysis pass.
-  const exeStem = path.basename(exePath, path.extname(exePath));
-  const unityData = path.join(path.dirname(exePath), `${exeStem}_Data`);
-  for (const filename of ['globalgamemanagers', 'boot.config']) {
-    const fullPath = path.join(unityData, filename);
-    try {
-      if (fs.statSync(fullPath).isFile()) candidates.push(fullPath);
-    } catch { /* optional Unity data file is absent */ }
-  }
-  for (const root of roots) {
-    try {
-      for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-        if (candidates.length >= 24) break;
-        if (!entry.isFile()) continue;
-        const fullPath = path.join(root, entry.name);
-        if (seen.has(fullPath)) continue;
-        seen.add(fullPath);
-        if (/^\.build\.info$/i.test(entry.name) || /^(?:version|changelog|patch|readme|release|notes|about|config|game|build|manifest|app).*\.(?:txt|md|nfo|html?|json|ini|cfg|info|ya?ml|xml|properties)$/i.test(entry.name)) candidates.push(fullPath);
-      }
-    } catch { /* inaccessible game folder is not an error */ }
-  }
-  const nameVersion = (value) => String(value || '').match(/(?:\bv(?:ersion)?\s*|[_\- ])(\d+(?:\.\d+){1,3}(?:[a-z]|\s*(?:alpha|beta|rc)\d*)?)(?=$|[_\- .])/i)?.[1];
-  for (const file of candidates) {
-    try {
-      const raw = fs.readFileSync(file);
-      const text = raw.subarray(0, /globalgamemanagers$/i.test(file) ? 2_000_000 : 96_000).toString('utf8');
-      // Blizzard's ordinary local .build.info file has a typed header line
-      // followed by a pipe-delimited value line. It is an excellent installed
-      // version clue for Battle.net games and avoids treating them as generic
-      // independent titles.
-      if (/\.build\.info$/i.test(file)) {
-        const [headerLine, valueLine] = text.split(/\r?\n/).filter(Boolean);
-        const headers = String(headerLine || '').split('|').map((value) => value.split('!')[0].trim().toLowerCase());
-        const values = String(valueLine || '').split('|').map((value) => value.trim());
-        const versionIndex = headers.findIndex((value) => /^(version|productversion|buildid)$/.test(value));
-        const buildVersion = versionIndex >= 0 ? values[versionIndex] : '';
-        if (/^\d+(?:\.\d+){1,4}(?:[a-z]|\s*(?:alpha|beta|rc)\d*)?$/i.test(buildVersion)) {
-          return { version: buildVersion.replace(/\s+/g, ''), evidence: '.build.info' };
-        }
-      }
-      // Common release-file shapes: labelled text, JSON/config key-values,
-      // and XML/application manifests. This stays inside the same bounded
-      // local candidate set and never treats arbitrary prose numbers as builds.
-      const match = text.match(/(?:\b(?:game\s+)?version|\bbuild|bundleversion|productversion|applicationversion|assemblyversion)\s*[\s\0]*(?:is|:|=|#|-|to)?[\s\0]*["']?v?(\d+(?:\.\d+){1,3}(?:[a-z]|\s*(?:alpha|beta|rc)\d*)?)/i)
-        || text.match(/["'](?:version|gameVersion|buildVersion|productVersion)["']\s*:\s*["']v?(\d+(?:\.\d+){1,3}(?:[a-z]|\s*(?:alpha|beta|rc)\d*)?)["']/i)
-        || text.match(/<\s*(?:version|applicationversion|assemblyversion)\s*>\s*v?(\d+(?:\.\d+){1,3}(?:[a-z]|\s*(?:alpha|beta|rc)\d*)?)\s*<\s*\/\s*(?:version|applicationversion|assemblyversion)\s*>/i);
-      if (match?.[1]) return { version: match[1].replace(/\s+/g, ''), evidence: path.basename(file) };
-    } catch { /* skip unreadable/non-text files */ }
-  }
-  const fromExe = nameVersion(path.basename(exePath));
-  if (fromExe) return { version: fromExe, evidence: path.basename(exePath) };
-  const resourceVersion = await readWindowsExecutableVersion(exePath);
-  return resourceVersion ? { version: resourceVersion, evidence: 'Windows executable version resource', confidence: 'weak' } : null;
-}
-
-const INDEPENDENT_UPDATE_CACHE = new Map();
-const UPDATE_SOURCE_DISCOVERY_CACHE = new Map();
-const UPDATE_SOURCE_CONFIDENCE = {
-  'saved source': 100,
-  'game website': 92,
-  'Steam public patch notes': 88,
-  'Battle.net product page': 88,
-  'automatic web discovery': 48,
 };
 
-function updateTitleTokens(name = '') {
-  return String(name).toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter((token) => token.length >= 3 && !['game', 'the', 'for', 'and'].includes(token));
-}
-
-function ddgResultUrl(value = '') {
-  try {
-    const parsed = new URL(String(value));
-    const redirected = parsed.searchParams.get('uddg');
-    return redirected ? decodeURIComponent(redirected) : parsed.toString();
-  } catch { return String(value || ''); }
-}
-
-// This keeps the normal automatic path hands-free. We start with known
-// official metadata/launcher pages, then lightly inspect a few web-search
-// results that clearly mention the game's title and an update/patch context.
-// Results are evidence, not permission to guess: a page without an explicit
-// version never marks a game up to date.
-async function discoverUpdateSources(game) {
-  const key = `${game.id || game.name}|${game.website || ''}|${game.updateWatchUrl || ''}`;
-  const cached = UPDATE_SOURCE_DISCOVERY_CACHE.get(key);
-  if (cached && Date.now() - cached.ts < 6 * 60 * 60 * 1000) return cached.sources;
-  const candidates = [];
-  const add = (url, kind) => {
-    try {
-      const normalized = new URL(url).toString();
-      if (!candidates.some((candidate) => candidate.url === normalized)) candidates.push({ url: normalized, kind });
-    } catch { /* ignore non-web routes */ }
-  };
-  add(game.updateWatchUrl, 'saved source');
-  add(game.website, 'game website');
-  // A Steam app ID is metadata, not ownership. Its public announcement feed
-  // is safe to read for an independently installed/repack copy too, and it
-  // gives games such as Aloft a reliable patch-history source without logging
-  // into Steam or pretending the local copy is launcher-owned.
-  if (/^\d+$/.test(String(game.appid || ''))) add(`https://steamcommunity.com/app/${game.appid}/allnews/?l=english`, 'Steam public patch notes');
-  if (String(game.launcher || game.source).toLowerCase() === 'battlenet') {
-    const product = BATTLENET_PRODUCTS.find((entry) => entry.match.test(String(game.name || '')));
-    if (product) add(product.url, 'Battle.net product page');
-  }
-  const tokens = updateTitleTokens(game.name);
-  if (candidates.length < 3 && tokens.length) {
-    try {
-      const results = await ddgSearch(`${game.name} latest version patch notes`);
-      for (const result of results || []) {
-        if (candidates.length >= 3) break;
-        const haystack = `${result.title || ''} ${result.snippet || ''}`.toLowerCase();
-        const titleMatches = tokens.filter((token) => haystack.includes(token)).length;
-        if (titleMatches < Math.min(2, tokens.length) || !/(?:update|patch|version|release|devlog|changelog)/i.test(haystack)) continue;
-        add(ddgResultUrl(result.url), 'automatic web discovery');
-      }
-    } catch { /* source discovery is best effort */ }
-  }
-  UPDATE_SOURCE_DISCOVERY_CACHE.set(key, { ts: Date.now(), sources: candidates });
-  return candidates;
-}
+const installedVersionEvidence = createInstalledVersionEvidenceService({
+  fs, path, execFile, platform: process.platform, processEnv: process.env,
+  now: Date.now, appStartedAt,
+});
+const updateSourceDiscovery = createUpdateSourceDiscoveryService({ search: ddgSearch, battleNetProducts: BATTLENET_PRODUCTS, now: Date.now });
+const updatePageVersions = createUpdatePageVersionService({ confidenceFor: kind => updateSourceDiscovery.confidenceFor(kind) });
+const independentUpdateAssessment = createIndependentUpdateAssessmentService({
+  fetchText: httpGetText, stripHtml,
+  discoverSources: game => updateSourceDiscovery.discover(game),
+  deriveInstalledVersion: game => installedVersionEvidence.derive(game),
+  pageVersions: updatePageVersions, now: Date.now,
+});
 
 // Read-only update intelligence. NEO-LIB only reports an update as pending
 // when the launcher's own manifest exposes concrete undownloaded bytes. Raw
 // state flags are returned for diagnostics but never guessed into a warning.
 // App and Home can request their warm-up at nearly the same time; coalesce
 // those calls so the library is never inspected twice in parallel.
-let updateScanInFlight = null;
-let recentUpdateScan = { at: 0, key: '', result: null };
-function updateScanKey(games = []) {
-  return (Array.isArray(games) ? games : []).map((game) => [
-    game?.id, game?.appid, game?.launcher, game?.steamOwned,
-    game?.installedVersion, game?.updateWatchUrl, game?.website, game?.exePath,
-  ].map((value) => String(value ?? '')).join('~')).sort().join('|');
-}
 async function scanGameUpdates(games = []) {
   const updateScanStartedAt = Date.now();
   recordLaunchSafety('update-scan-started', { gameCount: Array.isArray(games) ? games.length : 0, sinceStartMs: updateScanStartedAt - appStartedAt });
@@ -4667,7 +2769,14 @@ async function scanGameUpdates(games = []) {
     const total = Number(manifest.bytesToDownload || 0);
     const downloaded = Number(manifest.bytesDownloaded || 0);
     const remainingBytes = total > downloaded ? total - downloaded : 0;
-    if (remainingBytes <= 0) {
+    const stateFlags = Number(manifest.stateFlags || 0);
+    // Steam may preserve non-zero BytesToDownload/BytesDownloaded values in a
+    // completed manifest. Only its explicit update/download states make those
+    // byte counters current pending-update evidence. This prevents an already
+    // updated game from remaining on Home's update card forever.
+    const steamUpdateStateMask = 2 | 256 | 512 | 1024 | 1048576 | 2097152 | 4194304;
+    const updateActive = (stateFlags & steamUpdateStateMask) !== 0;
+    if (remainingBytes <= 0 || !updateActive) {
       ledger.push({ id: game.id, status: 'current', source: 'Steam manifest', checkedAt: Date.now(), currentVersion: manifest.buildid || '' });
       continue;
     }
@@ -4679,22 +2788,13 @@ async function scanGameUpdates(games = []) {
       buildId: manifest.buildid || '',
       remainingBytes,
       totalBytes: total,
-      stateFlags: Number(manifest.stateFlags || 0),
+      stateFlags,
       status: downloaded > 0 ? 'downloading' : 'pending',
       actionUrl: `steam://downloads/`,
     };
     items.push(pendingItem);
     ledger.push({ id: game.id, status: pendingItem.status, source: 'Steam manifest', checkedAt: Date.now(), currentVersion: manifest.buildid || '' });
   }
-  const versionParts = (value) => String(value || '').toLowerCase().replace(/^v/, '').match(/\d+/g)?.map(Number) || [];
-  const compareVersions = (a, b) => {
-    const aa = versionParts(a); const bb = versionParts(b);
-    for (let i = 0; i < Math.max(aa.length, bb.length); i += 1) {
-      const delta = (aa[i] || 0) - (bb[i] || 0);
-      if (delta) return delta;
-    }
-    return 0;
-  };
   // Independent games are checked in a small parallel queue. This lets the
   // startup scan cover a real library without opening a burst of requests or
   // serially holding it up behind one slow forum page.
@@ -4717,104 +2817,11 @@ async function scanGameUpdates(games = []) {
       });
       return;
     }
-    const localVersion = game.installedVersion ? { version: String(game.installedVersion), evidence: 'saved game metadata' } : await deriveInstalledVersionFromLocalGame(game);
-    const sources = await discoverUpdateSources(game);
-    if (!sources.length) {
-      const missing = 'a trustworthy update source';
-      needsSetup.push({ id: game.id, name: game.name || 'Unnamed game', missing });
-      ledger.push({ id: game.id, status: 'needs-evidence', source: 'Automatic discovery', checkedAt: Date.now(), currentVersion: localVersion?.version || '', missing });
-      return;
-    }
-    const cacheKey = `${game.id}|${localVersion?.version || 'unknown'}|${sources.map((source) => source.url).join('|')}`;
-    const cached = INDEPENDENT_UPDATE_CACHE.get(cacheKey);
-    if (cached && Date.now() - cached.ts < 15 * 60 * 1000) {
-      checked += 1;
-      if (cached.item) items.push({ ...cached.item });
-      ledger.push({ id: game.id, status: cached.item?.status === 'attention' ? 'needs-evidence' : cached.item ? 'available' : localVersion ? 'current' : 'needs-evidence', source: 'Independent source', checkedAt: Date.now(), currentVersion: localVersion?.version || '', latestVersion: cached.item?.latestVersion || localVersion?.version || '' });
-      return;
-    }
-    try {
-      const sourceResults = await Promise.all(sources.map(async (source) => {
-        try {
-          const html = await httpGetText(source.url, 9_000);
-          return { ...source, text: stripHtml(html).replace(/\s+/g, ' ').slice(0, 500_000) };
-        } catch { return null; }
-      }));
-      const matches = [];
-      const pattern = /(?:\b(?:version|build)\s*(?:is|to|[:=#-])?\s*v?(\d+(?:\.\d+){1,3}[a-z]?)|\bv(\d+(?:\.\d+){1,3}[a-z]?))/gi;
-      for (const source of sourceResults.filter(Boolean)) {
-        let match;
-        while ((match = pattern.exec(source.text)) !== null && matches.length < 80) matches.push({ version: match[1] || match[2], source, confidence: UPDATE_SOURCE_CONFIDENCE[source.kind] || 35 });
-      }
-      // A precise official/saved source takes precedence over a higher-looking
-      // number found by generic search. Search-only evidence is still useful
-      // where it is the sole source, but cannot overrule the official route.
-      const trustedMatches = matches.filter((entry) => entry.confidence >= 80);
-      const latest = (trustedMatches.length ? trustedMatches : matches)
-        .sort((a, b) => compareVersions(b.version, a.version) || b.confidence - a.confidence)[0];
-      const latestVersion = latest?.version || '';
-      checked += 1;
-      // A public patch page can still be useful even when the local build did
-      // not expose its version. Surface that as an amber "check this" item,
-      // never as a false green update claim. This keeps older standalone and
-      // repack installs visible while NEO-LIB keeps trying local evidence on
-      // later scans.
-      if (!localVersion || localVersion.confidence === 'weak') {
-        const attentionItem = latestVersion ? {
-          id: game.id,
-          name: game.name,
-          platform: 'Independent source',
-          status: 'attention',
-          currentVersion: localVersion?.version || 'Unknown',
-          latestVersion,
-          actionUrl: latest.source.url,
-          sourceKind: 'watch-page',
-          installedVersionEvidence: localVersion?.evidence || 'not readable from this local build',
-          latestVersionEvidence: latest.source.kind,
-        } : null;
-        INDEPENDENT_UPDATE_CACHE.set(cacheKey, { ts: Date.now(), item: attentionItem });
-        if (attentionItem) {
-          items.push(attentionItem);
-          ledger.push({ id: game.id, status: 'needs-evidence', source: 'Public patch evidence', checkedAt: Date.now(), currentVersion: localVersion?.version || '', latestVersion, missing: localVersion?.confidence === 'weak' ? 'a stronger installed-version signal' : 'installed version', evidence: { installed: localVersion?.evidence || 'not readable', latest: latest.source.kind, sourceConfidence: latest.confidence, attemptedSources: sourceResults.filter(Boolean).map((entry) => entry.kind).slice(0, 3) } });
-        } else {
-          const missing = 'installed version and an explicit latest version';
-          needsSetup.push({ id: game.id, name: game.name || 'Unnamed game', missing });
-          ledger.push({ id: game.id, status: 'needs-evidence', source: 'Automatic update discovery', checkedAt: Date.now(), missing });
-        }
-        return;
-      }
-      const foundUpdate = latestVersion && compareVersions(latestVersion, localVersion.version) > 0 ? {
-        id: game.id,
-        name: game.name,
-        platform: 'Independent source',
-        status: 'available',
-        currentVersion: localVersion.version,
-        latestVersion,
-        actionUrl: latest.source.url,
-        sourceKind: 'watch-page',
-        installedVersionEvidence: localVersion.evidence,
-        latestVersionEvidence: latest.source.kind,
-      } : null;
-      INDEPENDENT_UPDATE_CACHE.set(cacheKey, { ts: Date.now(), item: foundUpdate });
-      if (foundUpdate) items.push(foundUpdate);
-      // Never call a game current because a web page had no parseable version.
-      // That exact mistake hid older Battle.net and standalone installs.
-      if (latestVersion) {
-        ledger.push({ id: game.id, status: foundUpdate ? 'available' : 'current', source: 'Automatic update evidence', checkedAt: Date.now(), currentVersion: localVersion.version, latestVersion, evidence: { installed: localVersion.evidence, latest: latest.source.kind, sourceConfidence: latest.confidence, attemptedSources: sourceResults.filter(Boolean).map((entry) => entry.kind).slice(0, 3) } });
-      } else {
-        const missing = 'an explicit latest version';
-        needsSetup.push({ id: game.id, name: game.name || 'Unnamed game', missing });
-        ledger.push({ id: game.id, status: 'needs-evidence', source: 'Automatic update discovery', checkedAt: Date.now(), currentVersion: localVersion.version, missing });
-      }
-    } catch {
-      // A blocked or temporarily unavailable source is not proof that this
-      // game is current. Keep it visible in the repair queue so a failed
-      // request cannot make an older standalone install look clean.
-      checked += 1;
-      const missing = 'a reachable current-version source';
-      needsSetup.push({ id: game.id, name: game.name || 'Unnamed game', missing });
-      ledger.push({ id: game.id, status: 'needs-evidence', source: 'Automatic update discovery', checkedAt: Date.now(), currentVersion: localVersion?.version || '', missing });
-    }
+    const assessment = await independentUpdateAssessment.assess(game);
+    if (assessment.checked) checked += 1;
+    if (assessment.item) items.push(assessment.item);
+    if (assessment.need) needsSetup.push(assessment.need);
+    if (assessment.ledger) ledger.push(assessment.ledger);
   };
   for (let start = 0; start < independentCandidates.length; start += 4) {
     // eslint-disable-next-line no-await-in-loop
@@ -4825,72 +2832,12 @@ async function scanGameUpdates(games = []) {
   return { ok: true, checked, launcherManagedCount, items, needsSetup: needsSetup.slice(0, 20), ledger, scannedAt: Date.now(), confidence: 'launcher-manifest-and-local-version' };
 }
 
-ipcMain.handle('updates:scan', async (_e, { games = [], force = false } = {}) => {
-  const key = updateScanKey(games);
-  // A Preview asks about one game while Home asks about the whole library. A
-  // short cache is useful only when those exact inputs match—otherwise Preview
-  // could accidentally receive another game's first update item.
-  if (!force && recentUpdateScan.result && recentUpdateScan.key === key && Date.now() - recentUpdateScan.at < 15_000) {
-    return { ...recentUpdateScan.result, cached: true };
-  }
-  if (updateScanInFlight) {
-    if (updateScanInFlight.key === key) return updateScanInFlight.promise;
-    try { await updateScanInFlight.promise; } catch { /* the next request still gets its own attempt */ }
-  }
-  const pending = scanGameUpdates(games)
-    .then((result) => {
-      recentUpdateScan = { at: Date.now(), key, result };
-      return result;
-    })
-    .finally(() => {
-      if (updateScanInFlight?.promise === pending) updateScanInFlight = null;
-    });
-  updateScanInFlight = { key, promise: pending };
-  return pending;
-});
+const updateScanCoordinator = createUpdateScanCoordinatorService({ scan: scanGameUpdates, now: Date.now });
+remainingIpcServices["updates:scan"] = (_event, request = {}) => updateScanCoordinator.run(request);
 
-ipcMain.handle('updates:history', async (_e, { url, currentVersion = '' } = {}) => {
-  let parsed;
-  try { parsed = new URL(url); } catch { return { ok: false, entries: [], error: 'Invalid update page URL.' }; }
-  if (!['http:', 'https:'].includes(parsed.protocol)) return { ok: false, entries: [], error: 'Only public HTTP/HTTPS update pages are supported.' };
-  try {
-    const html = await httpGetText(parsed.toString());
-    const textBody = stripHtml(html).replace(/\s+/g, ' ').slice(0, 700_000);
-    const pattern = /(?:\b(?:version|build)\s*(?:is|to|[:=#-])?\s*v?(\d+(?:\.\d+){1,3}[a-z]?)|\bv(\d+(?:\.\d+){1,3}[a-z]?))/gi;
-    const seen = new Set();
-    const entries = [];
-    let match;
-    while ((match = pattern.exec(textBody)) !== null && entries.length < 30) {
-      const version = match[1] || match[2];
-      if (seen.has(version.toLowerCase())) continue;
-      seen.add(version.toLowerCase());
-      const before = textBody.slice(Math.max(0, match.index - 90), match.index);
-      const after = textBody.slice(match.index + match[0].length, match.index + match[0].length + 260);
-      const context = `${before} ${match[0]} ${after}`.trim();
-      const date = context.match(/\b(?:20\d{2}[-/.]\d{1,2}[-/.]\d{1,2}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+20\d{2})\b/i)?.[0] || '';
-      entries.push({ version, date, summary: context.slice(0, 340), url: parsed.toString() });
-    }
-    const parts = (value) => String(value || '').toLowerCase().replace(/^v/, '').match(/\d+/g)?.map(Number) || [];
-    const compare = (a, b) => {
-      const aa = parts(a); const bb = parts(b);
-      for (let i = 0; i < Math.max(aa.length, bb.length); i += 1) {
-        const delta = (aa[i] || 0) - (bb[i] || 0);
-        if (delta) return delta;
-      }
-      return 0;
-    };
-    entries.sort((a, b) => compare(b.version, a.version));
-    return {
-      ok: true,
-      entries: entries.slice(0, 20).map((entry) => ({ ...entry, newerThanInstalled: currentVersion ? compare(entry.version, currentVersion) > 0 : null })),
-      sourceUrl: parsed.toString(),
-      currentVersion,
-      fetchedAt: Date.now(),
-    };
-  } catch (error) {
-    return { ok: false, entries: [], error: error?.message || 'Update history page could not be read.' };
-  }
-});
+remainingIpcServices["updates:history"] = async (_e, { url, currentVersion = '' } = {}) => {
+  return updateHistoryProvider.fetch({ url, currentVersion });
+};
 
 // ---------------- itch.io devlog RSS ---------------- //
 // For each itch.io game (source === 'itch' OR website contains .itch.io),
@@ -4906,45 +2853,7 @@ function stripHtml(s) {
 }
 
 async function fetchItchDevlog(game, cutoffMs) {
-  const url = game.website || '';
-  if (!/itch\.io/.test(url)) return [];
-  const base = url.replace(/\/+$/, '').replace(/\/devlog(\.rss)?$/i, '');
-  const rssUrl = `${base}/devlog.rss`;
-  try {
-    const xml = await httpGetText(rssUrl);
-    const items = [];
-    const re = /<item>([\s\S]*?)<\/item>/g;
-    let m;
-    while ((m = re.exec(xml)) !== null) {
-      const block = m[1];
-      const title = stripHtml((block.match(/<title>([\s\S]*?)<\/title>/) || [])[1] || '');
-      const link = ((block.match(/<link>([\s\S]*?)<\/link>/) || [])[1] || '').trim();
-      const pub = (block.match(/<pubDate>([\s\S]*?)<\/pubDate>/) || [])[1] || '';
-      const desc = stripHtml((block.match(/<description>([\s\S]*?)<\/description>/) || [])[1] || '');
-      const image = (block.match(/<media:content[^>]+url=["'](https?:\/\/[^"']+)["']/i) || [])[1]
-        || (block.match(/<enclosure[^>]+url=["'](https?:\/\/[^"']+)["']/i) || [])[1]
-        || (block.match(/<img[^>]+src=["'](https?:\/\/[^"']+)["']/i) || [])[1]
-        || '';
-      const dateMs = pub ? Date.parse(pub) : 0;
-      if (!dateMs || dateMs < cutoffMs) continue;
-      items.push({
-        id: `itch-${game.id}-${link || title}`,
-        platform: 'itch',
-        gameId: game.id,
-        gameName: game.name,
-        gameUrl: url,
-        title: title || '(untitled devlog)',
-        url: link || url,
-        author: '',
-        date: dateMs,
-        snippet: desc.slice(0, 320),
-        image,
-      });
-    }
-    return items;
-  } catch {
-    return [];
-  }
+  return ownedNewsProvider.fetchItch(game, cutoffMs);
 }
 
 // ---------------- GOG changelog (public product JSON) ---------------- //
@@ -4952,62 +2861,12 @@ async function fetchItchDevlog(game, cutoffMs) {
 // blob typically contains `<h4>YYYY-MM-DD</h4><p>notes</p>` sections; we parse
 // per-date sections and treat each as a news item.
 async function fetchGogChangelog(game, cutoffMs) {
-  const gid = game.gogId;
-  if (!gid) return [];
-  const url = `https://api.gog.com/products/${gid}?expand=changelog&locale=en-US`;
-  try {
-    const data = await httpGetJson(url, 8000);
-    const html = String(data?.changelog || '');
-    if (!html) return [];
-    // Split on <h1..h6> headings that look like dates OR contain a parseable
-    // date fragment (e.g. "Internal Update (30 March 2018)", "1.2.3 - 2024-05-01").
-    const re = /<h[1-6][^>]*>\s*([^<]{4,80}?)\s*<\/h[1-6]>([\s\S]*?)(?=<h[1-6][^>]*>|$)/g;
-    const items = [];
-    let m;
-    while ((m = re.exec(html)) !== null) {
-      const rawHeading = stripHtml(m[1]);
-      const body = stripHtml(m[2]).slice(0, 320);
-      // Try to parse a date from the heading. Look for common formats.
-      // 1) ISO/US: 2024-05-01, 2024/05/01, 05-01-2024
-      // 2) Long: "1 May 2024", "May 1 2024", "May 1, 2024"
-      // 3) With parens/prefix: "Update (30 March 2018)", "Patch 1.5 - 2024-05-01"
-      let dateMs = 0;
-      const iso = rawHeading.match(/\b(20\d{2}|19\d{2})[-/](0?[1-9]|1[0-2])[-/](0?[1-9]|[12]\d|3[01])\b/);
-      if (iso) {
-        const [, y, mo, d] = iso;
-        const ms = Date.parse(`${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`);
-        if (Number.isFinite(ms)) dateMs = ms;
-      }
-      if (!dateMs) {
-        const long = rawHeading.match(/\b(\d{1,2})\s+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(20\d{2}|19\d{2})\b/i);
-        if (long) {
-          const ms = Date.parse(`${long[1]} ${long[2]} ${long[3]}`);
-          if (Number.isFinite(ms)) dateMs = ms;
-        }
-      }
-      if (!dateMs) {
-        // Fallback: try raw heading (works for pure "2024-05-01" or "May 1, 2024")
-        const ms = Date.parse(rawHeading);
-        if (Number.isFinite(ms)) dateMs = ms;
-      }
-      if (!dateMs || dateMs < cutoffMs) continue;
-      items.push({
-        id: `gog-${game.id}-${dateMs}`,
-        platform: 'gog',
-        gameId: game.id,
-        gameName: game.name,
-        title: `Patch notes · ${rawHeading}`,
-        url: game.website || `https://www.gog.com/game/${gid}`,
-        author: '',
-        date: dateMs,
-        snippet: body,
-      });
-    }
-    return items;
-  } catch {
-    return [];
-  }
+  return ownedNewsProvider.fetchGog(game, cutoffMs);
 }
+
+const updateHistoryProvider = createUpdateHistoryProviderService({ httpGetText, stripHtml, now: Date.now });
+
+const ownedNewsProvider = createOwnedNewsProviderService({ httpGetText, httpGetJson, stripHtml });
 
 // ---------------- Public web news fallback ---------------- //
 // Steam, GOG and itch expose useful public feeds. Most other launchers do
@@ -5016,127 +2875,24 @@ async function fetchGogChangelog(game, cutoffMs) {
 // first, then expose a clearly-labelled search result only when no owned-feed
 // item was found. This never signs into a launcher, reads account data, or
 // treats a search hit as proof of an update.
-const WEB_NEWS_CACHE = new Map();
 let webNewsCursor = 0;
 const WEB_NEWS_CACHE_MS = 6 * 60 * 60 * 1000;
 const WEB_NEWS_MAX_FRESH_PER_PASS = 14;
-
-function newsTokens(name = '') {
-  return String(name).toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/)
-    .filter((token) => token.length >= 3 && !['game', 'the', 'for', 'and', 'edition'].includes(token));
-}
+const publicNewsProvider = createPublicNewsProviderService({ searchDuckDuckGo: ddgSearchRaw, searchGoogle: googleScrapeRaw, normalization: newsNormalization, now: Date.now, cacheMs: WEB_NEWS_CACHE_MS });
 
 function publicSearchUrl(value = '') {
-  const raw = String(value || '').replace(/&amp;/g, '&').trim();
-  if (!raw) return '';
-  try {
-    const parsed = new URL(raw, 'https://www.google.com');
-    const redirected = parsed.searchParams.get('uddg') || parsed.searchParams.get('q') || parsed.searchParams.get('url');
-    const candidate = redirected && /^https?:\/\//i.test(redirected) ? redirected : parsed.toString();
-    const target = new URL(candidate);
-    if (!/^https?:$/.test(target.protocol) || /(^|\.)google\./i.test(target.hostname)) return '';
-    return target.toString();
-  } catch { return ''; }
-}
-
-function searchNewsDate(value = '') {
-  const text = String(value || '');
-  const relative = text.match(/\b(\d{1,3})\s*(minute|hour|day|week|month)s?\s+ago\b/i);
-  if (relative) {
-    const amount = Number(relative[1]);
-    const unit = relative[2].toLowerCase();
-    const multiplier = unit === 'minute' ? 60_000 : unit === 'hour' ? 3_600_000 : unit === 'day' ? 86_400_000 : unit === 'week' ? 7 * 86_400_000 : 30 * 86_400_000;
-    return Date.now() - amount * multiplier;
-  }
-  const iso = text.match(/\b(?:20\d{2}|19\d{2})[-/.](?:0?[1-9]|1[0-2])[-/.](?:0?[1-9]|[12]\d|3[01])\b/);
-  const long = text.match(/\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s+(?:20\d{2}|19\d{2})\b/i)
-    || text.match(/\b\d{1,2}\s+(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(?:20\d{2}|19\d{2})\b/i);
-  const parsed = Date.parse(iso?.[0] || long?.[0] || '');
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function gameSiteHost(game = {}) {
-  try { return new URL(game.website || '').hostname.replace(/^www\./i, '').toLowerCase(); } catch { return ''; }
-}
-
-function publicNewsCacheKey(game = {}, cutoffMs = 0) {
-  const windowDays = Math.max(1, Math.round((Date.now() - Number(cutoffMs || Date.now())) / 86_400_000));
-  return `${game.id || game.name}|${game.name}|${game.website || ''}|${game.launcher || game.source || ''}|${windowDays}`;
-}
-
-function isGameNewsResult(game, result, cutoffMs) {
-  const title = String(result?.title || '');
-  const snippet = String(result?.snippet || '');
-  const tokens = newsTokens(game.name);
-  const combined = `${title} ${snippet}`.toLowerCase();
-  const titleMatches = tokens.filter((token) => combined.includes(token)).length;
-  if (!tokens.length || titleMatches < Math.min(2, tokens.length)) return null;
-  if (!/(?:news|update|patch|hotfix|devlog|changelog|roadmap|season|announcement)/i.test(combined)) return null;
-  const date = searchNewsDate(combined);
-  if (!date || date < cutoffMs || date > Date.now() + 86_400_000) return null;
-  const url = publicSearchUrl(result?.url);
-  const siteHost = gameSiteHost(game);
-  let sourceKind = 'web search';
-  if (siteHost && url) {
-    try {
-      const resultHost = new URL(url).hostname.replace(/^www\./i, '').toLowerCase();
-      if (resultHost === siteHost || resultHost.endsWith(`.${siteHost}`)) sourceKind = 'official website';
-    } catch { /* retain the explicitly labelled web-search source */ }
-  }
-  return {
-    id: `web-${game.id || game.name}-${date}-${title}`,
-    platform: sourceKind === 'official website' ? 'official-web' : 'web',
-    gameId: game.id || null,
-    gameName: game.name || '',
-    title: title || 'Recent game news',
-    url: url || `https://www.google.com/search?q=${encodeURIComponent(`${game.name} game news update`)}`,
-    author: '',
-    date,
-    snippet: snippet.slice(0, 320),
-    sourceKind,
-  };
+  return newsNormalization.publicUrl(value);
 }
 
 async function fetchPublicWebNews(game, cutoffMs, force = false) {
-  const key = publicNewsCacheKey(game, cutoffMs);
-  const cached = WEB_NEWS_CACHE.get(key);
-  if (!force && cached && Date.now() - cached.ts < WEB_NEWS_CACHE_MS) return cached.items;
-  const siteHost = gameSiteHost(game);
-  const queries = [
-    siteHost ? `site:${siteHost} ${game.name} news update patch` : '',
-    `${game.name} game latest news update patch notes`,
-  ].filter(Boolean);
-  let candidates = [];
-  for (const query of queries) {
-    try {
-      // DuckDuckGo provides direct outbound URLs. Google is a deliberately
-      // secondary fallback because it can rate-limit automated requests.
-      let results = await ddgSearchRaw(query);
-      if (!results.length) results = await googleScrapeRaw(query);
-      candidates = candidates.concat(results || []);
-      const official = candidates.map((result) => isGameNewsResult(game, result, cutoffMs)).filter(Boolean).filter((item) => item.platform === 'official-web');
-      if (official.length) break;
-    } catch { /* one source being unavailable never blocks the library */ }
-  }
-  const unique = new Map();
-  for (const result of candidates) {
-    const item = isGameNewsResult(game, result, cutoffMs);
-    if (!item) continue;
-    const keyPart = `${item.title.toLowerCase()}|${item.date}`;
-    if (!unique.has(keyPart) || item.platform === 'official-web') unique.set(keyPart, item);
-  }
-  const items = [...unique.values()]
-    .sort((left, right) => Number(right.date) - Number(left.date) || (left.platform === 'official-web' ? -1 : 1))
-    .slice(0, 2);
-  WEB_NEWS_CACHE.set(key, { ts: Date.now(), items });
-  return items;
+  return publicNewsProvider.fetch(game, cutoffMs, force);
 }
 
 // ---------------- Unified news fetch ---------------- //
 // Wraps owned feeds first, then carefully bounded public-web discovery for
 // every remaining named library game. Cached 30 min by input signature.
 let NEWS_ALL_CACHE = { ts: 0, keyHash: '', payload: null };
-ipcMain.handle('news:fetchAll', async (_e, { games = [], days = 14, force = false } = {}) => {
+remainingIpcServices["news:fetchAll"] = async (_e, { games = [], days = 14, force = false } = {}) => {
   const arr = Array.isArray(games) ? games : [];
   const steamList = arr.filter((g) => g && g.appid);
   const itchList  = arr.filter((g) => g && /itch\.io/.test(g.website || '') || (g && g.source === 'itch'));
@@ -5230,9 +2986,8 @@ ipcMain.handle('news:fetchAll', async (_e, { games = [], days = 14, force = fals
   const cachedFallbacks = [];
   const freshFallbacks = [];
   for (const game of fallbackCandidates) {
-    const cacheKey = publicNewsCacheKey(game, cutoffMs);
-    const cached = WEB_NEWS_CACHE.get(cacheKey);
-    if (!force && cached && Date.now() - cached.ts < WEB_NEWS_CACHE_MS) cachedFallbacks.push(game);
+    const cacheState = publicNewsProvider.inspectCache(game, cutoffMs);
+    if (!force && cacheState.fresh) cachedFallbacks.push(game);
     else freshFallbacks.push(game);
   }
   const rotatingFresh = freshFallbacks.length
@@ -5262,7 +3017,7 @@ ipcMain.handle('news:fetchAll', async (_e, { games = [], days = 14, force = fals
   };
   NEWS_ALL_CACHE = { ts: Date.now(), keyHash, payload };
   return { ok: true, ...payload, fetchedAt: Date.now(), cached: false };
-});
+};
 
 
 // ---------------- Latest news for one game ---------------- //
@@ -5270,7 +3025,7 @@ ipcMain.handle('news:fetchAll', async (_e, { games = [], days = 14, force = fals
 // Returns AT MOST one item (the newest across all sources for that game),
 // scoped to the last 30 days. Per-game 15-minute cache.
 const LATEST_NEWS_CACHE = new Map(); // gameKey -> { ts, item }
-ipcMain.handle('news:latestForGame', async (_e, game) => {
+remainingIpcServices["news:latestForGame"] = async (_e, game) => {
   if (!game) return { ok: true, item: null };
   const key = String(game.id || game.appid || game.website || '');
   const FIFTEEN_MIN = 15 * 60 * 1000;
@@ -5346,7 +3101,7 @@ ipcMain.handle('news:latestForGame', async (_e, game) => {
   const item = results[0] || null;
   LATEST_NEWS_CACHE.set(key, { ts: Date.now(), item });
   return { ok: true, item, cached: false };
-});
+};
 
 
 // ---------------- Steam Playtime Import (localconfig.vdf) ---------------- //
@@ -5403,7 +3158,7 @@ function extractAppBlocks(vdfText) {
   return results;
 }
 
-ipcMain.handle('steam:importPlaytime', async (_e, { force = false } = {}) => {
+remainingIpcServices["steam:importPlaytime"] = async (_e, { force = false } = {}) => {
   const FIVE_MIN = 5 * 60 * 1000;
   if (!force && STEAM_PLAYTIME_CACHE.data && Date.now() - STEAM_PLAYTIME_CACHE.ts < FIVE_MIN) {
     return { ok: true, ...STEAM_PLAYTIME_CACHE.data, cached: true };
@@ -5539,24 +3294,21 @@ ipcMain.handle('steam:importPlaytime', async (_e, { force = false } = {}) => {
   // in the same day overwrite the entry for that day. Kept for 400 days.
   try {
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const dayKey = today.toISOString().slice(0, 10); // YYYY-MM-DD
-    let history = {};
-    if (fs.existsSync(playtimeHistoryFile())) {
-      try { history = JSON.parse(fs.readFileSync(playtimeHistoryFile(), 'utf8')); } catch { history = {}; }
-    }
+    const dayKey = localDayKey(today); // Local calendar day, not UTC.
+    const history = await documents.loadPlaytimeHistory();
     if (!history.byAppid) history.byAppid = {};
     for (const [appid, rec] of Object.entries(merged)) {
       if (!history.byAppid[appid]) history.byAppid[appid] = {};
       history.byAppid[appid][dayKey] = Number(rec.playtime) || 0;
       // Prune per-appid entries older than 400 days
       const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 400);
-      const cutoffKey = cutoff.toISOString().slice(0, 10);
+      const cutoffKey = localDayKey(cutoff);
       for (const k of Object.keys(history.byAppid[appid])) {
         if (k < cutoffKey) delete history.byAppid[appid][k];
       }
     }
     history.lastSnapshotAt = Date.now();
-    fs.writeFileSync(playtimeHistoryFile(), JSON.stringify(history));
+    await documents.savePlaytimeHistory(history);
   } catch { /* ignore snapshot errors */ }
 
   const payload = {
@@ -5576,43 +3328,27 @@ ipcMain.handle('steam:importPlaytime', async (_e, { force = false } = {}) => {
   };
   STEAM_PLAYTIME_CACHE = { ts: Date.now(), data: payload };
   return { ok: true, ...payload, cached: false };
-});
+};
 
 
-// v1.6.4 — Playtime history reader. Returns per-appid delta hours (in minutes)
-// over the last N days. Renderer uses this to power Stats "Most played · This
-// week" ranking correctly (Steam only stores lifetime totals).
-ipcMain.handle('playtime:history', async (_e, { days = 7 } = {}) => {
-  try {
-    if (!fs.existsSync(playtimeHistoryFile())) return { ok: true, deltas: {}, lastSnapshotAt: 0 };
-    const history = JSON.parse(fs.readFileSync(playtimeHistoryFile(), 'utf8')) || {};
-    const byAppid = history.byAppid || {};
-    // Find the oldest snapshot key ON OR BEFORE `days` ago per appid. Delta =
-    // latestSnapshot - baselineSnapshot. If no baseline (game not tracked
-    // that far back), report 0 so the row shows "no recent playtime" instead
-    // of hallucinating hours.
-    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days); cutoff.setHours(0, 0, 0, 0);
-    const cutoffKey = cutoff.toISOString().slice(0, 10);
-    const deltas = {};
-    for (const [appid, dayMap] of Object.entries(byAppid)) {
-      const keys = Object.keys(dayMap).sort(); // ascending YYYY-MM-DD
-      if (keys.length === 0) continue;
-      const latestKey = keys[keys.length - 1];
-      const latestVal = Number(dayMap[latestKey]) || 0;
-      // Baseline = latest key that is <= cutoffKey. If none (first ever
-      // record is AFTER cutoff), fall back to the earliest key we have —
-      // that's when tracking started, so delta = latest - earliest.
-      let baselineVal = null;
-      for (const k of keys) {
-        if (k <= cutoffKey) baselineVal = Number(dayMap[k]) || 0;
-        else break;
-      }
-      if (baselineVal === null) baselineVal = Number(dayMap[keys[0]]) || 0;
-      const delta = Math.max(0, latestVal - baselineVal);
-      if (delta > 0) deltas[appid] = delta;
-    }
-    return { ok: true, deltas, lastSnapshotAt: history.lastSnapshotAt || 0 };
-  } catch (e) {
-    return { ok: false, error: String(e?.message || e), deltas: {} };
-  }
-});
+// v1.6.4 — local per-game deltas for range-aware Stats rankings.
+registerPlaytimeIpc({ registerIpc, playtimeHistory });
+
+
+// Remaining Stage 3 domains register only after every service is defined.
+registerDealsIpc({ registerIpc, services: remainingIpcServices });
+registerGameIpc({ registerIpc, services: remainingIpcServices });
+registerGeminiIpc({ registerIpc, services: remainingIpcServices });
+registerGogIpc({ registerIpc, services: remainingIpcServices });
+registerLauncherIpc({ registerIpc, services: remainingIpcServices });
+registerMetadataIpc({ registerIpc, services: remainingIpcServices });
+registerNewsIpc({ registerIpc, services: remainingIpcServices });
+registerOptimizeIpc({ registerIpc, services: remainingIpcServices });
+registerReleasesIpc({ registerIpc, services: remainingIpcServices });
+registerSavesIpc({ registerIpc, services: remainingIpcServices });
+registerScanIpc({ registerIpc, services: remainingIpcServices });
+registerSteamIpc({ registerIpc, services: remainingIpcServices });
+registerStorageIpc({ registerIpc, services: remainingIpcServices });
+registerToolsIpc({ registerIpc, services: remainingIpcServices });
+registerUpdatesIpc({ registerIpc, services: remainingIpcServices });
+registerWebIpc({ registerIpc, services: remainingIpcServices });

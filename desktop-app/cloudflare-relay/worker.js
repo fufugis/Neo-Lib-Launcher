@@ -46,9 +46,12 @@ export default {
     if (url.pathname !== '/feedback') {
       return withCors(new Response('Not found', { status: 404 }));
     }
+    if (!env.RELAY_SHARED_KEY || !env.DISCORD_WEBHOOK_URL || !env.RATE_LIMIT_KV) {
+      return withCors(new Response('Relay unavailable', { status: 503 }));
+    }
 
     const rawBody = await request.text();
-    if (rawBody.length > MAX_BODY_BYTES) {
+    if (new TextEncoder().encode(rawBody).byteLength > MAX_BODY_BYTES) {
       return withCors(new Response('Payload too large', { status: 413 }));
     }
 
@@ -70,7 +73,12 @@ export default {
     }
 
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-    const allowed = await checkRateLimit(env, ip);
+    let allowed;
+    try {
+      allowed = await checkRateLimit(env, ip);
+    } catch {
+      return withCors(new Response('Relay unavailable', { status: 503 }));
+    }
     if (!allowed) {
       return withCors(new Response('Rate limit exceeded, try again later.', { status: 429 }));
     }
@@ -87,6 +95,7 @@ export default {
     const embed = (payload.embeds && payload.embeds[0]) || {};
     const safePayload = {
       username: 'NEO-LIB in-app',
+      allowed_mentions: { parse: [] },
       embeds: [
         {
           title: String(embed.title || '').slice(0, 250),
@@ -105,11 +114,16 @@ export default {
       ],
     };
 
-    const discordRes = await fetch(env.DISCORD_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(safePayload),
-    });
+    let discordRes;
+    try {
+      discordRes = await fetch(env.DISCORD_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(safePayload),
+      });
+    } catch {
+      return withCors(new Response('Forwarding unavailable', { status: 502 }));
+    }
 
     return withCors(new Response(null, { status: discordRes.status === 204 ? 204 : discordRes.status }));
   },

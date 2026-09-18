@@ -1203,6 +1203,8 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
   position: fixed;
   z-index: 99999;
   max-width: min(330px, calc(100vw - 28px));
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
   transform: translateX(-50%);
   border: 1px solid rgb(var(--accent) / .52);
   border-radius: 8px;

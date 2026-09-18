@@ -25,6 +25,20 @@ jobs:
         working-directory: desktop-app
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Validate release tag and package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $packageVersion = node -p "require('./package.json').version"
+          $expectedTag = "v$packageVersion"
+          if ($env:GITHUB_REF_NAME -ne $expectedTag) {
+            Write-Error "Release tag '$env:GITHUB_REF_NAME' is invalid. Use exact clean tag '$expectedTag' so older NEO-LIB installs can detect the update."
+            exit 1
+          }
+          Write-Host "Release tag $expectedTag matches package version and the legacy update contract."
 
       - uses: actions/setup-node@v4
         with:
@@ -59,10 +73,18 @@ jobs:
         env:
           NEOLIB_FEEDBACK_RELAY_URL: ${{ secrets.NEOLIB_FEEDBACK_RELAY_URL }}
           NEOLIB_FEEDBACK_RELAY_KEY: ${{ secrets.NEOLIB_FEEDBACK_RELAY_KEY }}
+          NEOLIB_DISCORD_APP_ID: ${{ secrets.NEOLIB_DISCORD_APP_ID }}
         run: |
-          "VITE_FEEDBACK_RELAY_URL=$env:NEOLIB_FEEDBACK_RELAY_URL" | Out-File -FilePath .env -Encoding utf8
-          "VITE_FEEDBACK_RELAY_KEY=$env:NEOLIB_FEEDBACK_RELAY_KEY" | Out-File -FilePath .env -Encoding utf8 -Append
-          yarn build:renderer
+          try {
+            node scripts/prepare-release-config.cjs
+            if ($LASTEXITCODE -ne 0) { throw "Release configuration failed with exit code $LASTEXITCODE." }
+            yarn build:renderer
+            if ($LASTEXITCODE -ne 0) { throw "Renderer build failed with exit code $LASTEXITCODE." }
+          }
+          finally {
+            node scripts/cleanup-release-config.cjs
+            if ($LASTEXITCODE -ne 0) { throw "Release configuration cleanup failed with exit code $LASTEXITCODE." }
+          }
 
       - name: Verify renderer output exists
         run: |
@@ -72,17 +94,6 @@ jobs:
           }
           Write-Host "Renderer OK"
         shell: pwsh
-
-      - name: Bake Discord App ID into build (if secret is set)
-        if: env.NEOLIB_DISCORD_APP_ID != ''
-        shell: pwsh
-        env:
-          NEOLIB_DISCORD_APP_ID: ${{ secrets.NEOLIB_DISCORD_APP_ID }}
-        run: |
-          $id = $env:NEOLIB_DISCORD_APP_ID
-          $content = "module.exports = { DISCORD_APP_ID: '" + $id + "' };"
-          Set-Content -Path electron/discord-config.js -Value $content -Encoding UTF8
-          Write-Host "Discord App ID baked into electron/discord-config.js"
 
       - name: Build NSIS installer (verbose)
         # `--publish never` prevents electron-builder from trying to talk to GH releases
@@ -109,13 +120,14 @@ jobs:
         shell: pwsh
 
       - name: Zip portable folder
-        shell: pwsh
-        run: |
-          if (-not (Test-Path dist\win-unpacked)) {
-            Write-Error "dist/win-unpacked is missing - portable build failed"
-            exit 1
-          }
-          Compress-Archive -Path dist/win-unpacked/* -DestinationPath dist/NEO-LIB-windows-portable.zip -Force
+        run: yarn package:portable
+
+      - name: Inspect release candidate identity and contents
+        run: yarn inspect:release
+        env:
+          NEOLIB_EXPECT_FEEDBACK_RELAY_URL: ${{ secrets.NEOLIB_FEEDBACK_RELAY_URL }}
+          NEOLIB_EXPECT_FEEDBACK_RELAY_KEY: ${{ secrets.NEOLIB_FEEDBACK_RELAY_KEY }}
+          NEOLIB_EXPECT_DISCORD_APP_ID: ${{ secrets.NEOLIB_DISCORD_APP_ID }}
 
       # Always upload artifacts (visible on every workflow run, even if a later step fails)
       - name: Upload artifacts (Actions tab)
@@ -126,6 +138,8 @@ jobs:
           path: |
             desktop-app/dist/*.exe
             desktop-app/dist/NEO-LIB-windows-portable.zip
+            desktop-app/dist/release-candidate-v*.json
+            desktop-app/dist/SHA256SUMS-v*.txt
           if-no-files-found: warn
 
       # Attach installer + portable zip directly to the GitHub Release page.
@@ -137,7 +151,10 @@ jobs:
           files: |
             desktop-app/dist/*.exe
             desktop-app/dist/NEO-LIB-windows-portable.zip
-          fail_on_unmatched_files: false
+            desktop-app/dist/release-candidate-v*.json
+            desktop-app/dist/SHA256SUMS-v*.txt
+          fail_on_unmatched_files: true
           generate_release_notes: false
+          body_path: RELEASE_NOTES_v1.7.7.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -2,7 +2,7 @@
 
 > A synthwave-flavored, **fully portable Windows game library** that unifies every game on your PC — Steam, Epic, EA App, GOG, standalone — into one neon-lit interface. No accounts. No cloud. No telemetry.
 
-![status](https://img.shields.io/badge/status-testing-f59e0b) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.7.5-8a4fff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![status](https://img.shields.io/badge/status-testing-f59e0b) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.7.7-8a4fff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
 ---
 
@@ -25,6 +25,112 @@ Games launch via their **original executable**, so Steam overlays, Epic achievem
 ---
 
 ## 🎨 Features
+
+The v1.7.5 startup blank-window regression found after the first coherent rebuild
+has been repaired at its source: Fungist's extracted notification helper is now
+correctly imported. Builds also run a renderer-wide undefined-name check, show a
+safe recovery screen instead of an empty window, and retain a small local startup
+diagnostic when the interface cannot mount. A newly rebuilt installer still needs
+the remaining Windows acceptance pass before this repair is published; the user has
+now confirmed that the repaired app opens successfully.
+
+Game Ready CPU reporting now takes a fresh one-second whole-machine sample on every
+read instead of averaging across the previous 15-second UI polling gap. This gives it
+a time window much closer to Windows Task Manager while acknowledging that rapidly
+changing readings viewed at different instants may still differ.
+
+FiFi is now connected to the real mascot selector as a second companion. Her
+layered rig blinks, tracks the pointer, breathes, moves fins and tendrils, reacts
+with event-specific particles/gestures, follows Rest Mode and reduced motion, and
+uses her own 27-line local voice pool. The separate
+[FiFi motion studio](desktop-app/public/mascot/fifi/studio.html) remains available
+for visual review, and her [voice performance scripts](desktop-app/public/mascot/fifi/VOICE_SCRIPT.md)
+document the reaction map. A rebuilt installed-app visual/listening pass is still required.
+
+Settings now includes a source-complete Controller Center. It inspects connected
+gamepads only while open, remembers a short preferred-device fingerprint and
+shows live button/stick activity without keeping input history. Pair/remove opens
+the exact allowlisted Windows Bluetooth page; unknown battery or disconnect data
+is not guessed. A dormant semantic navigation core covers dead zones, safe repeat
+timing, typing/modal suppression and Launch-control exclusion, but global
+controller navigation remains disabled pending physical-device acceptance.
+
+The architecture source restructure is now complete across storage, native contracts,
+launcher adapters, metadata/news/update providers, launch and low-use handling,
+renderer state, visual boundaries, truthful operation status, privacy-safe diagnostics
+and release hardening. Automated checks pass; clean/upgrade migration, cancellation,
+visual/privacy, performance and broader packaged Windows acceptance still remain before
+the architecture milestone can be described as release-ready.
+
+Release hardening now has an enforceable source gate and a concise
+[architecture ownership map](ARCHITECTURE_OWNERSHIP.md). It checks runtime files
+for conflicting declarations and broken local modules, keeps package/renderer/
+changelog versions aligned, verifies release entries and assets, and prevents
+retired duplicate paths from returning. The separate
+[release checklist](RELEASE_HARDENING.md) records what still requires an actual
+Windows build, clean/upgrade smoke tests, performance measurements and rollback;
+passing source checks alone is deliberately not labelled release-ready.
+
+Every current renderer build also embeds a source fingerprint, build time, Git
+revision and architecture label shown under Settings → About. Electron Builder
+checks the same fingerprint before packaging and stops with a direct rebuild
+instruction if `dist-renderer` is missing or belongs to older source. This prevents
+a current native process from being accidentally shipped with a stale interface.
+
+Deal discovery is now structurally isolated too. Epic, Steam, Instant Gaming, GOG,
+Fanatical and Ubisoft retain their established filters and renderer data, but one
+tested provider now owns their requests and populated-only one-hour cache. Its tests
+use injected fixtures and contact no store.
+
+Update-scan coordination is isolated from evidence gathering as well. Identical Home
+and Preview requests still coalesce, different inputs serialize, forced refresh skips
+the exact-input 15-second cache, and failed scans remain retryable. Deferred tests do
+not inspect the player's library.
+
+Update-source selection now has its own tested boundary. Saved and official pages,
+public Steam notes, maintained Battle.net pages and carefully matched public results
+retain their source confidence, three-page cap, URL cleanup and six-hour cache. The
+offline suite injects search results and never contacts a search engine.
+
+Installed-version evidence is now isolated behind a bounded safety-tested service.
+It checks only an absolute executable's two nearby folders, reads at most 24 named
+candidate files, understands Blizzard and Unity/config clues, and keeps Windows
+resource inspection asleep during startup. The fixed encoded reader receives the
+game path only as environment data, never executable command text.
+
+Public update-page version evaluation is separated too. A pure tested service owns
+Version/Build/v discovery, numeric comparison, the 80-match limit and trusted-source
+priority, so a giant number on a generic search page cannot overrule a smaller
+version published by a saved or official source.
+
+The provider/update architecture is now source-complete across seventeen injected
+services. Independent per-game assessment owns bounded page fetching and evidence
+caching, preserves honest missing-evidence states, and no longer lets a cached page
+without a version appear current. Full alpha/beta/rc installed-version suffixes are
+retained. Offline regression plus a bounded read-only live smoke pass across Steam,
+GOG, public search, itch.io, Steam News and live deal sources. Packaged Windows refresh
+acceptance remains pending because this managed build environment returns `spawn EPERM`
+before the renderer can bundle.
+
+Renderer state now has clear owners too. Library/category changes, navigation,
+private-game redaction, metadata review queues, playtime and settings-derived visuals
+are separated from the central app and covered by pure transition tests. Home remains
+the startup screen while the most recent safe Library and Tools selections are
+remembered. The app uses one guarded preload gateway, and theme ambience/decorative
+rendering has its own visual component without changing the selected appearance.
+
+Interface behavior now has shared boundaries as well. Popup-based menus and modals
+use one foreground gateway, decorative art cannot intercept clicks, and changelog
+content, Settings controls, Home calculations and mascot decisions have focused
+owners with renderer-wide syntax and behavior checks. Packaged visual/focus testing
+is still required before release.
+
+Long-running interface work now reports a truthful lifecycle too. Launcher imports,
+metadata review, news, releases, update checks and storage scans distinguish running,
+partial, failed, cancelled, timed-out, unavailable and completed work; active manual
+tasks can be cancelled and late superseded results are ignored. A local bounded
+operation summary contains no game identity or request content and can accompany a
+feedback report only when the player explicitly opts in.
 
 - **Outside-Library PC check** — a player-requested, read-only Windows snapshot can name top CPU/RAM apps during a Fungist alert, even when the game was never imported. Clear game/client names are highlighted without touching game memory, accounts, overlays, or processes.
 - **5 dynamic themes** — Synthwave · Midnight · Ocean · Crimson · Anime — each with its own animated particle background
@@ -58,7 +164,44 @@ Library + settings live at `%APPDATA%\NEO-LIB\`. Delete that folder to factory-r
 
 ## 📜 Patch notes
 
-### v1.7.5 — Library Refinement, Safety & Fungist *(testing candidate — not published)*
+### v1.7.7 — Architecture, Reliability & FiFi *(testing candidate — not published)*
+
+This is NEO-LIB's largest update so far: a complete maintainability and safety
+rebuild beneath the existing launcher, plus FiFi, all-launcher metadata/news,
+stronger privacy, reviewed refresh results, a reorganised Home, Controller Center,
+Special-theme artwork and extensive reliability fixes.
+
+➡️ **[Read the complete, structured v1.7.7 release notes](RELEASE_NOTES_v1.7.7.md)**
+
+Release pipeline hardening: GitHub now refuses to publish a build when the feedback relay is missing or malformed, verifies the configured relay is really present in the packaged renderer, and rejects known credential signatures or packaged `.env` files. Optional Discord Rich Presence is generated before build provenance, accepts only a numeric application ID and is verified in the final archive. Candidate evidence records hashes and enabled/disabled facts without writing integration values.
+
+Package cleanup: the obsolete `electron-store` production dependency was removed after the versioned NEO-LIB document service became the sole owner of Library, settings and playtime persistence. The release gate now prevents an unused native runtime dependency from quietly returning.
+
+Internal IPC hardening: all 83 renderer-to-native commands now pass through a duplicate-safe registry and one of 28 explicit domain modules. Every preload command maps exactly once and `main.js` contains zero direct registrations. All 53 payload commands reject malformed or oversized renderer data before native work; the other 30 intentionally take no payload. All 83 commands validate results against their established renderer shapes. Valid success/failure results remain compatible, while malformed results, service throws and rejected promises become contract-matched safe failures. Channel-aware local diagnostics retain only an error class, never request payloads or error text. Automated contracts and safe failure logging are complete; packaged Windows acceptance is pending.
+
+Internal save-service hardening: all six save inspection, backup, restore and discovery operations now live behind one independently tested native service. A temporary-disk test exposed and fixed an existing copy conflict that could make backup/restore reject its own pre-created destination. Copies now retain strict no-overwrite behavior, restore remains confined to NEO-LIB-owned backups, and occupied live save folders remain untouched. Packaged Windows interaction acceptance is pending.
+
+Internal storage-scan hardening: Home's user-triggered game/mod measurement and cache now have one independently tested service. Real temporary-filesystem checks cover missing and launcher targets, duplicate/shared roots, mod totals, caching and forced rescans. No background drive crawl or live-library access was introduced.
+
+Internal Optimize hardening: junk discovery and Recycle Bin dispatch now have one independently tested service. It protects configured game/save paths, ignores fresh and undersized candidates, requires a fresh unchanged scan token, collapses duplicate selections, and exposes no force-delete path. The regression test uses a fake Recycle Bin and deletes no candidate file.
+
+Optimize process inspection and cooperative close requests now have a separate tested service too. Windows-critical processes, NEO-LIB itself, stale snapshots and changed names remain protected; an allowed close uses exact-PID `taskkill` without forced termination, and Windows refusal is never escalated.
+
+Game launch and external-game watching now have separate tested services. Launching retains its trusted one-use token, startup quarantine, local and cross-window cooldowns, exact detached spawn, running-game lifecycle and exit reporting. External detection remains a path-only Windows process-list comparison, ignores helper executables and games launched by NEO-LIB, and returns to light monitoring after the detected game closes. Tests perform no real launch or process query.
+
+Internal storage hardening: library, settings and playtime now use a versioned local document boundary. Existing schema-0 JSON receives schema 1 only after an exact `.bak`; valid saves are serialized and retain a last-known-good copy, while unreadable or newer files are protected from automatic overwrite. Private categories, PIN fields, manual/unknown metadata and settings are preserved by structural tests. Virtual-disk and regression checks pass; the local build remains blocked by `spawn EPERM`, so packaged migration/restart acceptance is pending.
+
+Internal deals hardening: Epic free games, Steam specials, Instant Gaming, GOG, Fanatical, and Ubisoft discovery now run through one independently tested provider service. Existing filtering, caps, mappings, failure isolation, and the populated-only one-hour cache remain unchanged. Tests use injected fixtures only and contact no store.
+
+Internal update-scan hardening: exact library request keys, the 15-second recent-result cache, forced refresh, overlapping Home/Preview scan sharing, different-input serialization, and failed-scan recovery now have one independently tested coordinator. Update evidence rules remain unchanged; tests use deferred fake scans and read no live library.
+
+Internal update-source hardening: saved/official pages, public Steam notes, maintained Battle.net pages, and title-matched public fallbacks now have one independently tested discovery service. URL deduplication, source confidence, three-source cap, redirect cleanup, six-hour caching, and offline fallback remain unchanged.
+
+Internal installed-version hardening: bounded Blizzard `.build.info`, Unity/config, filename, and weak Windows-resource evidence now have one independently tested service. It refuses relative paths, checks only two nearby folders and at most 24 named files, preserves the 30-second startup quarantine, and binds the EXE path as inert process data to a fixed encoded reader.
+
+Internal update-page hardening: bounded Version/Build/v discovery, numeric comparison, the 80-match limit, source confidence, and trusted-evidence preference now use one pure tested service. Generic search evidence remains a fallback and cannot overrule a trusted source solely with a larger number.
+
+Internal maintenance: installed-game scanners for ten launchers now live in a dedicated native module with explicit dependencies. Detection behaviour and IPC names are preserved. Before/after offline tests and isolated main-process integration checks pass; launcher checks now gate renderer builds. Local build verification was blocked by `spawn EPERM`; packaged Windows acceptance remains pending. See `desktop-app/electron/launchers/README.md` for scope and verification limits.
 
 #### Major changes & new features
 

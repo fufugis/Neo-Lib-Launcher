@@ -4,11 +4,31 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.7.5-8a4fff) ![status](https://img.shields.io/badge/status-testing-f59e0b) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.7.7-8a4fff) ![status](https://img.shields.io/badge/status-testing-f59e0b) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.7.5 (Library Refinement, Safety & Fungist — testing candidate)
+### Latest — v1.7.7 (Architecture, Reliability & FiFi — testing candidate)
+
+The complete player-facing and GitHub Release notes are maintained in
+[`RELEASE_NOTES_v1.7.7.md`](../RELEASE_NOTES_v1.7.7.md). They cover the finished
+architecture rebuild, FiFi, launcher imports, metadata/news/update intelligence,
+privacy, Home, Special themes, controller foundations, performance, diagnostics and
+release safety without exposing the internal development ledger.
 
 #### Major changes & new features
+
+- **Release builds fail safely (testing)** — GitHub refuses missing or malformed feedback-relay configuration, verifies the configured relay reached the packaged renderer, and rejects credential-like signatures or packaged `.env` files. The relay has offline signing/rate-limit/payload tests, and a temporary outage now offers a deliberate GitHub fallback without discarding the typed report. Optional Discord Rich Presence is numeric-only, generated before provenance and verified in the archive. The evidence report keeps hashes and enabled/disabled facts, never the configured values.
+
+- **Unused packaged dependency removed** — NEO-LIB’s tested versioned document service already owns Library, settings and playtime storage, so the obsolete `electron-store` production package and its transitive runtime tree are no longer shipped.
+
+- **Controller Center (testing)** — Settings now lists browser-visible gamepads only while the panel is open, remembers a short preferred-device fingerprint and provides a live button/stick test without storing input history. Pair/remove uses an exact allowlisted Windows Bluetooth hand-off. The dormant navigation safety core is present, but global controller navigation remains disabled until physical-device acceptance.
+
+- **FiFi joins the live mascot selector (testing)** — FiFi is no longer only a packaged development preview. Settings can select her, the shared companion host preserves alerts, chat, dragging, saved docking, launch/completion reactions and Rest Mode, and her articulated rig adds blinking, gaze, breathing, fins, tendrils and reaction particles. All 27 separate FiFi recordings are mapped to the same bounded events and voice controls. Installed visual and listening acceptance remains open.
+
+- **Correct local-day playtime ranges** — daily Steam playtime snapshots and Stats range cutoffs now use the player's local calendar date, preventing positive UTC offsets from shifting midnight activity into the previous day.
+
+- **Fresher CPU snapshot (testing)** — Game Ready now measures a new one-second whole-machine CPU interval on every refresh instead of averaging across the previous 15-second polling gap. This should follow Windows Task Manager much more closely while acknowledging that rapidly changing readings may still differ moment to moment.
+
+- **Privacy-safe Diagnostic Recorder (testing)** — startup, renderer, Electron child-process, main-process and native-command failures now leave a small rotating local record of error classes and bounded status facts. It cannot retain game names, paths, URLs, searches, payloads, message text, keys, PINs or private-category identity. Feedback can copy the report or open its folder; attachment is unchecked by default and nothing uploads automatically.
 
 - **Cleaner category headers** — launcher badges no longer repeat the same name beside them; custom category names remain visible.
 
@@ -529,8 +549,13 @@ yarn build:win   # → dist/NEO-LIB-Setup-x.y.z.exe (NSIS installer)
 yarn dev         # hot-reload dev mode (Vite + Electron)
 ```
 
-The portable build script in `package.json` (`build:portable`) produces a
-self-contained folder you can zip and ship.
+`yarn build:portable` produces `dist/NEO-LIB-windows-portable.zip` through the
+same packager used by GitHub. For a release candidate, set the documented
+`NEOLIB_FEEDBACK_RELAY_URL`, `NEOLIB_FEEDBACK_RELAY_KEY` and optional numeric
+`NEOLIB_DISCORD_APP_ID`, then run `yarn build:release`. That command validates
+the settings, builds one renderer generation, creates installer + portable ZIP,
+inspects the package and writes JSON evidence plus public SHA-256 checksums. The
+temporary renderer `.env` is removed after compilation, including failed builds.
 
 ---
 
@@ -542,10 +567,13 @@ desktop-app/
 │   ├── main.js              # Main process (IPC, scanners, deals, scrapers)
 │   └── preload.js           # Context bridge → window.api
 ├── src/
-│   ├── App.jsx              # Root state, modals, persistence
+│   ├── App.jsx              # Root state, workflows, persistence + shell
 │   ├── styles.css           # Themes + animations + particle fields
 │   ├── components/
-│   │   ├── Sidebar.jsx          # Tree, tabs, launcher filter, two-row
+│   │   ├── app/                 # Root dialog, review + transient overlay composition
+│   │   ├── Sidebar.jsx          # Library composition + state/action wiring
+│   │   ├── library/             # Visuals, live tree, toolbar controls + focused policy
+│   │   ├── preview/             # Preview information, hero, actions + status
 │   │   ├── GameDetail.jsx       # Right info pane
 │   │   ├── ShowcaseStrip.jsx    # Deals + recently played
 │   │   ├── WizardModal.jsx      # Folder scanner + exclusions
@@ -553,11 +581,16 @@ desktop-app/
 │   │   ├── TroubleshootModal.jsx# Per-source refetch UI
 │   │   ├── DonateModal.jsx      # PayPal QR & link
 │   │   └── SettingsModal.jsx    # User preferences
-│   └── lib/
-│       ├── utils.js
-│       ├── sound.js
-│       ├── deals.js             # Affiliate URL wrapper
-│       └── affiliateConfig.js   # Build-time IDs (DO NOT COMMIT CHANGES)
+│   ├── lib/
+│   │   ├── utils.js
+│   │   ├── sound.js
+│   │   ├── deals.js             # Affiliate URL wrapper
+│   │   └── affiliateConfig.js   # Build-time IDs (DO NOT COMMIT CHANGES)
+│   ├── state/
+│   │   └── demo-library.mjs     # Pure browser-preview seed factory
+│   └── services/
+│       ├── metadata-workflow.mjs# Reviewed metadata refresh + repair coordination
+│       └── category-privacy-workflow.mjs # Category, PIN + panic coordination
 ├── build/                   # icon.ico, installer assets
 ├── package.json
 └── vite.config.js
@@ -604,7 +637,7 @@ app start.
 - [ ] Cloud sync via GitHub Gist (opt-in, encrypted)
 - [ ] Steam manifest reading — show actual build IDs + "updated X days ago"
 - [ ] Keyboard shortcuts overlay (press `?`)
-- [ ] Split bloated `App.jsx` / `Sidebar.jsx` into hooks
+- [ ] Continue behavior-preserving `App.jsx` composition boundaries (Preview and Sidebar are extracted)
 
 ---
 

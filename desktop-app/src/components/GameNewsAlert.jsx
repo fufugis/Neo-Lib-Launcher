@@ -1,5 +1,5 @@
 import React from 'react';
-import { createPortal } from 'react-dom';
+import { renderForegroundPortal } from './ui/VisualBoundary';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, ExternalLink, X } from 'lucide-react';
 
@@ -121,7 +121,7 @@ export default function GameNewsAlert({ alert, onDismiss, onOpen, muted = false 
     </AnimatePresence>
   );
   if (typeof document === 'undefined') return body;
-  return createPortal(body, document.body);
+  return renderForegroundPortal(body);
 }
 
 /* Soft two-tone bell chime, ~700ms total. */

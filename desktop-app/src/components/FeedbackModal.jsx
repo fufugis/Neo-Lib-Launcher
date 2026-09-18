@@ -1,7 +1,8 @@
 import React from 'react';
-import { createPortal } from 'react-dom';
+import { renderForegroundPortal } from './ui/VisualBoundary';
+import { exportOperationDiagnostics, readOperationJournal } from '../services/operation-journal.mjs';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bug, Lightbulb, MessageCircle, Send, X, Check, AlertTriangle } from 'lucide-react';
+import { Bug, Lightbulb, MessageCircle, Send, X, Check, AlertTriangle, Copy, FolderOpen } from 'lucide-react';
 
 /**
  * FeedbackModal — one modal, three modes. Posts to a Discord webhook via a
@@ -26,7 +27,6 @@ const RELAY_URL = import.meta.env.VITE_FEEDBACK_RELAY_URL || '';
 const RELAY_KEY = import.meta.env.VITE_FEEDBACK_RELAY_KEY || '';
 const WEBHOOK_URL = import.meta.env.VITE_FEEDBACK_WEBHOOK_URL || '';
 const RELAY_CONFIGURED = !!(RELAY_URL && RELAY_KEY);
-const GITHUB_ISSUES_URL = 'https://github.com/fufugis/Neo-Lib-Launcher/issues/new';
 
 /** HMAC-SHA256 sign `${timestamp}.${rawBody}` with the shared relay key. */
 async function signRelayBody(rawBody) {
@@ -54,7 +54,11 @@ async function postFeedbackPayload(payload) {
       },
       body: rawBody,
     });
-    if (!res.ok && res.status !== 204) throw new Error(`Relay ${res.status}`);
+    if (!res.ok && res.status !== 204) {
+      if (res.status === 429) throw new Error('Too many reports were sent recently. Please try again later.');
+      if (res.status >= 500) throw new Error('The Discord feedback service is temporarily unavailable. Please try again later.');
+      throw new Error(`The Discord feedback service rejected this report (${res.status}).`);
+    }
     return true;
   }
   if (WEBHOOK_URL) {
@@ -103,8 +107,11 @@ export default function FeedbackModal({ open, initialMode = 'feedback', appVersi
   const [mode, setMode] = React.useState(initialMode);
   const [text, setText] = React.useState('');
   const [name, setName] = React.useState('');
-  const [status, setStatus] = React.useState('idle'); // idle | sending | ok | opened | error
+  const [status, setStatus] = React.useState('idle'); // idle | sending | ok | error
   const [errorMsg, setErrorMsg] = React.useState('');
+  const [includeDiagnostics, setIncludeDiagnostics] = React.useState(false);
+  const [nativeDiagnostics, setNativeDiagnostics] = React.useState({ count: 0, report: '' });
+  const [diagnosticAction, setDiagnosticAction] = React.useState('');
 
   React.useEffect(() => {
     if (open) {
@@ -113,37 +120,53 @@ export default function FeedbackModal({ open, initialMode = 'feedback', appVersi
       setName('');
       setStatus('idle');
       setErrorMsg('');
+      setIncludeDiagnostics(false);
+      setNativeDiagnostics({ count: 0, report: '' });
+      setDiagnosticAction('');
+      window.api?.getDiagnosticReport?.().then((result) => {
+        if (result?.ok && typeof result.report === 'string') {
+          setNativeDiagnostics({ count: Number(result.count) || 0, report: result.report });
+        }
+      }).catch(() => {});
     }
   }, [open, initialMode]);
 
   if (!open) return null;
   const cfg = MODES[mode] || MODES.feedback;
   const disabled = status === 'sending' || text.trim().length < 3;
+  const operationDiagnosticCount = readOperationJournal().length;
+  const diagnosticCount = operationDiagnosticCount + nativeDiagnostics.count;
+  const diagnosticText = includeDiagnostics && diagnosticCount
+    ? [
+        nativeDiagnostics.report ? `NEO-LIB local recorder:\n${nativeDiagnostics.report}` : '',
+        operationDiagnosticCount ? `Safe operation summary:\n${exportOperationDiagnostics()}` : '',
+      ].filter(Boolean).join('\n\n')
+    : '';
 
-  const openGitHubIssue = () => {
-    const platform = (typeof navigator !== 'undefined' && navigator.platform) || 'unknown';
-    const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
-    const title = `[${cfg.label}] ${text.trim().split(/\n/)[0].slice(0, 78) || 'NEO-LIB feedback'}`;
-    const body = [
-      text.trim(),
-      '',
-      '---',
-      `NEO-LIB version: ${appVersion || 'unknown'}`,
-      `Theme: ${theme || 'unknown'}`,
-      `Platform: ${platform}`,
-      `App: ${ua.slice(0, 120)}`,
-    ].join('\n');
-    const url = `${GITHUB_ISSUES_URL}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
-    if (window.api?.openExternal) window.api.openExternal(url);
-    else window.open(url, '_blank', 'noopener,noreferrer');
-    setStatus('opened');
-    setTimeout(() => { onClose?.(); }, 1_200);
+  const copyDiagnosticReport = async () => {
+    const report = [
+      nativeDiagnostics.report,
+      operationDiagnosticCount ? exportOperationDiagnostics() : '',
+    ].filter(Boolean).join('\n\n');
+    if (!report) return;
+    try {
+      await navigator.clipboard.writeText(report);
+      setDiagnosticAction('copied');
+    } catch {
+      setDiagnosticAction('copy-failed');
+    }
+  };
+
+  const openDiagnosticFolder = async () => {
+    const result = await window.api?.openDiagnosticFolder?.();
+    setDiagnosticAction(result?.ok ? 'opened-folder' : 'folder-failed');
   };
 
   const submit = async () => {
     if (disabled) return;
     if (!FEEDBACK_ENABLED) {
-      openGitHubIssue();
+      setStatus('error');
+      setErrorMsg('Discord feedback is not configured in this build. Rebuild with the protected Feedback relay settings.');
       return;
     }
     setStatus('sending');
@@ -162,6 +185,7 @@ export default function FeedbackModal({ open, initialMode = 'feedback', appVersi
               { name: 'Version', value: appVersion || 'unknown', inline: true },
               { name: 'Theme',   value: theme || 'unknown',      inline: true },
               { name: 'Platform', value: platform, inline: true },
+              ...(diagnosticText ? [{ name: 'Safe operation summary (player approved)', value: `\`\`\`json\n${diagnosticText.slice(0, 900)}\n\`\`\`` }] : []),
             ],
             footer: { text: ua.slice(0, 120) },
             timestamp: new Date().toISOString(),
@@ -256,7 +280,7 @@ export default function FeedbackModal({ open, initialMode = 'feedback', appVersi
               >
                 <MessageCircle size={14} className="mt-0.5 text-[rgb(var(--accent-2))]" />
                 <span className="text-ink/90">
-                  This build sends feedback through GitHub instead. Your report opens as a prefilled issue in your browser, including only version, theme, platform, and the text you choose to send.
+                  Discord feedback is not configured in this local build. A release build must include the protected relay settings; NEO-LIB never embeds a Discord webhook in the app.
                 </span>
               </div>
             )}
@@ -288,22 +312,26 @@ export default function FeedbackModal({ open, initialMode = 'feedback', appVersi
               />
             </div>
 
-            <div className="text-[10.5px] text-muted">
-              We attach app version, theme, and platform automatically. Nothing else.
+            <label className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 ${diagnosticCount ? 'cursor-pointer border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.28)]' : 'cursor-not-allowed border-[rgb(var(--border)/0.45)] opacity-55'}`}>
+              <input type="checkbox" checked={includeDiagnostics} disabled={!diagnosticCount} onChange={(event) => setIncludeDiagnostics(event.target.checked)} className="mt-0.5 accent-[rgb(var(--accent))]" data-testid="feedback-include-diagnostics" />
+              <span className="text-[10.5px] leading-relaxed text-muted"><b className="text-ink">Include safe diagnostic report</b><br />{diagnosticCount ? `${diagnosticCount} recent safe event${diagnosticCount === 1 ? '' : 's'}: component, status, duration, counts, and error type only. No game names, paths, URLs, searches, PIN categories, keys, payloads, or message text.` : 'No recent diagnostics are available.'}</span>
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" onClick={copyDiagnosticReport} disabled={!diagnosticCount} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[rgb(var(--border))] px-2.5 text-[10.5px] text-ink disabled:cursor-not-allowed disabled:opacity-45" data-testid="feedback-copy-diagnostics"><Copy size={12} /> Copy diagnostic report</button>
+              <button type="button" onClick={openDiagnosticFolder} disabled={!window.api?.openDiagnosticFolder} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[rgb(var(--border))] px-2.5 text-[10.5px] text-ink disabled:cursor-not-allowed disabled:opacity-45" data-testid="feedback-open-diagnostic-folder"><FolderOpen size={12} /> Open log folder</button>
+              {diagnosticAction === 'copied' && <span className="text-[10.5px] text-[#4ade80]">Copied.</span>}
+              {diagnosticAction === 'opened-folder' && <span className="text-[10.5px] text-[#4ade80]">Folder opened.</span>}
+              {(diagnosticAction === 'copy-failed' || diagnosticAction === 'folder-failed') && <span className="text-[10.5px] text-[#ff5a6e]">That action was unavailable.</span>}
             </div>
+            <div className="text-[10.5px] text-muted">We attach app version, theme, and platform automatically. The diagnostic report is included only when you choose it above; NEO-LIB never uploads it in the background.</div>
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between gap-2 border-t border-[rgb(var(--border))] px-5 py-3">
-            <div className="min-h-[16px] text-[11.5px]">
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[rgb(var(--border))] px-5 py-3">
+            <div className="mr-auto min-h-[16px] min-w-[180px] flex-1 text-[11.5px]">
               {status === 'ok' && (
                 <span className="inline-flex items-center gap-1 text-[#4ade80]">
                   <Check size={12} /> Sent — thank you!
-                </span>
-              )}
-              {status === 'opened' && (
-                <span className="inline-flex items-center gap-1 text-[#4ade80]">
-                  <Check size={12} /> GitHub report opened — thank you!
                 </span>
               )}
               {status === 'error' && (
@@ -332,7 +360,7 @@ export default function FeedbackModal({ open, initialMode = 'feedback', appVersi
               }
             >
               <Send size={12} />
-              {status === 'sending' ? 'Sending…' : FEEDBACK_ENABLED ? 'Send to Discord' : 'Open GitHub report'}
+              {status === 'sending' ? 'Sending…' : 'Send to Discord'}
             </button>
           </div>
         </motion.div>
@@ -340,7 +368,7 @@ export default function FeedbackModal({ open, initialMode = 'feedback', appVersi
     </AnimatePresence>
   );
   if (typeof document === 'undefined') return body;
-  return createPortal(body, document.body);
+  return renderForegroundPortal(body);
 }
 
 /**

@@ -37,7 +37,7 @@ const STATUS = {
 const HEALTH_TEXT_SHADOW = '0 1px 2px rgba(0, 0, 0, 0.82)';
 
 /** Full-width Library footer overlay. It intentionally sits above the game rows. */
-export default function SystemHealthBar({ resting = false, runningGameName = '', games = [], onStatusChange, openRequest = 0 }) {
+export default function SystemHealthBar({ resting = false, runningGameName = '', restReason = '', games = [], onStatusChange, openRequest = 0 }) {
   const [open, setOpen] = React.useState(false);
   const [optimizeOpen, setOptimizeOpen] = React.useState(false);
   const [health, setHealth] = React.useState(null);
@@ -92,14 +92,15 @@ export default function SystemHealthBar({ resting = false, runningGameName = '',
     if (openRequest > 0) setOpen(true);
   }, [openRequest]);
   const tips = [];
-  if (resting) tips.push(`NEO-LIB is resting while ${runningGameName || 'your game'} is running.`);
+  if (resting) tips.push(restReason || `NEO-LIB is resting while ${runningGameName || 'your game'} is running.`);
   if (resting) tips.push('Theme effects, animations, sounds, system polling, launcher scans, news checks, deal rotation, and social checks are paused.');
   if (!resting) tips.push('If NEO-LIB appears in Optimize while you are browsing, that is expected. Launching a tracked game automatically enables Rest Mode and pauses its non-essential background work.');
   if (!resting && cpuLevel === 'high') tips.push('CPU is very busy. Pause downloads, updates, or heavy background apps before launching.');
   else if (!resting && cpuLevel === 'medium') tips.push('CPU use is elevated. Check browser tabs, updates, and launchers running in the background.');
   if (ramLevel === 'high') tips.push('RAM is nearly full. Close memory-heavy apps to help avoid stutter.');
   else if (ramLevel === 'medium') tips.push('RAM use is elevated. Closing a few background apps will leave more room for your game.');
-  if (!tips.length && state === 'ready') tips.push('Your current CPU and RAM use look comfortable for launching a game.');
+  if (!tips.length && state === 'ready') tips.push('Your recent CPU and current RAM use look comfortable for launching a game.');
+  if (!resting) tips.push('CPU can change between this one-second snapshot and Windows Task Manager, but both now use a comparable recent time window.');
   if (failed) tips.push('The local system check is unavailable right now. Try refresh in the desktop app.');
 
   return (
@@ -114,7 +115,7 @@ export default function SystemHealthBar({ resting = false, runningGameName = '',
             <header className="flex items-center justify-between gap-3 border-b border-[rgb(var(--border)/0.75)] px-3 py-2.5">
               <div className="flex min-w-0 items-center gap-2">
                 <StatusIcon size={16} style={{ color: config.color }} className={pulseClass} />
-                <div className="min-w-0"><h2 className="text-xs font-black tracking-[0.12em]">{config.title}</h2><p className="text-[10px] text-muted">{resting ? 'Background work paused until the game closes' : 'Local, read-only check · refreshes every 15 seconds'}</p></div>
+                <div className="min-w-0"><h2 className="text-xs font-black tracking-[0.12em]">{config.title}</h2><p className="text-[10px] text-muted">{resting ? 'Background work paused until NEO-LIB wakes' : 'Local, read-only 1-second snapshot · refreshes every 15 seconds'}</p></div>
               </div>
               {!resting && <button onClick={() => refresh({ manual: true })} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted hover:bg-panel hover:text-ink" title="Refresh system check"><RefreshCw size={13} className={loading ? 'animate-spin' : ''} /></button>}
             </header>
@@ -129,7 +130,7 @@ export default function SystemHealthBar({ resting = false, runningGameName = '',
           className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 text-left transition-colors hover:bg-[rgb(var(--surface)/0.68)]" title="Open Game Ready details"
         >
           <span className={`flex shrink-0 items-center gap-2 text-[11px] font-black tracking-[0.13em] ${pulseClass}`} style={{ color: config.color, textShadow: HEALTH_TEXT_SHADOW }}><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: config.color, boxShadow: `0 0 10px ${config.color}` }} />{config.title}</span>
-          <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 text-[10.5px] text-muted">{resting ? <span className="truncate">{runningGameName ? `${runningGameName} is running · background work paused` : 'Game running · background work paused'}</span> : <><span className="whitespace-nowrap">CPU <UsageText level={cpuLevel} value={health?.cpuPercent} /></span><span className="hidden text-muted/45 min-[260px]:inline">·</span><span className="whitespace-nowrap">RAM <UsageText level={ramLevel} value={health?.ramPercent} /></span></>}</span>
+          <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 text-[10.5px] text-muted">{resting ? <span className="truncate">{restReason || (runningGameName ? `${runningGameName} is running · background work paused` : 'Background work paused')}</span> : <><span className="whitespace-nowrap">CPU <UsageText level={cpuLevel} value={health?.cpuPercent} /></span><span className="hidden text-muted/45 min-[260px]:inline">·</span><span className="whitespace-nowrap">RAM <UsageText level={ramLevel} value={health?.ramPercent} /></span></>}</span>
           <ChevronUp size={15} className={`shrink-0 text-muted transition-transform ${open ? '' : 'rotate-180'}`} />
         </button>
         <button type="button" onClick={() => { setOpen(false); setOptimizeOpen(true); }} className="group flex shrink-0 items-center gap-1.5 border-l border-[rgb(var(--border)/0.75)] px-3 text-[10px] font-black uppercase tracking-[0.08em] text-[rgb(var(--accent))] hover:bg-[rgb(var(--accent)/0.1)]" title="Open Optimize Center for gaming performance and safe cleanup"><Rocket size={14} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /><span className="hidden min-[285px]:inline">Optimize</span></button>

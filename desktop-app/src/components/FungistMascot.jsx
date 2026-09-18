@@ -2,7 +2,9 @@ import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Activity, Archive, BellRing, Bot, ChevronRight, Send, Settings2, X } from 'lucide-react';
 import { playFungistCue } from '../lib/sound';
-import { fungistChatVoiceFor, playFungistVoice, stopFungistVoice } from '../lib/mascotVoice';
+import { fungistChatVoiceFor, playMascotVoice, stopMascotVoice } from '../lib/mascotVoice';
+import { isLikelyGameProcess, libraryCommandFor, messageFor, noticeCooldownMs, notificationEnabled, shortMemory, shortTime, voiceForNotice, whyFor } from './mascot/fungist-model.mjs';
+import FifiAvatar from './FifiAvatar';
 
 // Vite's production base is relative (`./`) so these work in both the browser
 // and Electron's file:// renderer. Root paths such as `/mascot/...` resolve to
@@ -35,136 +37,8 @@ const FIREWORKS = [
   { x: 67, y: 43, delay: 0.36 }, { x: -63, y: 50, delay: 0.54 },
 ];
 
-function notificationEnabled(settings, key) {
-  return settings?.[key] !== false;
-}
-
-function noticeCooldownMs(notice) {
-  if (notice?.kind === 'health' && notice.level === 'major') return 5 * 60_000;
-  if (notice?.kind === 'health') return 15 * 60_000;
-  return 6 * 60 * 60_000;
-}
-
-function whyFor(notice) {
-  if (notice?.kind === 'health' && notice.level === 'major') return 'Your Game Ready monitor saw sustained high CPU or RAM use. This major alert is limited to once every five minutes.';
-  if (notice?.kind === 'health') return 'Your Game Ready monitor saw elevated CPU or RAM use. This reminder is limited to once every fifteen minutes.';
-  if (notice?.kind === 'news') return 'A newly detected article belongs to a game you marked as a favourite.';
-  if (notice?.kind === 'game-update') return 'A checked update source confirmed a newer version for one of your favourited games.';
-  if (notice?.kind === 'app-update') return 'NEO-LIB found a release newer than the version you are running.';
-  return 'This was triggered by one of your enabled Fungist reactions.';
-}
-
-function shortTime(value) {
-  try { return new Date(value).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch { return ''; }
-}
-
-function shortMemory(bytes) {
-  const value = Number(bytes || 0);
-  if (value >= 1024 ** 3) return `${(value / 1024 ** 3).toFixed(value >= 10 * 1024 ** 3 ? 0 : 1)} GB`;
-  if (value >= 1024 ** 2) return `${Math.round(value / 1024 ** 2)} MB`;
-  return '0 MB';
-}
-
-// This deliberately recognises only clear game/client process names. The
-// snapshot is still useful when there is no match: the player sees the actual
-// top CPU/RAM apps rather than NEO-LIB inventing a game name.
-const GAME_PROCESS_HINTS = /(?:overwatch|warcraft|worldofwarcraft|diablo|hearthstone|starcraft|valorant|leagueoflegends|leagueclient|fortnite|apex|minecraft|eldenring|cyberpunk|forza|game-win64-shipping)/i;
-
-function isLikelyGameProcess(process) {
-  return GAME_PROCESS_HINTS.test(`${process?.name || ''} ${process?.path || ''}`);
-}
-
-function commandKey(value = '') {
-  return String(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-}
-
-function gameWords(game) {
-  return [game?.name, ...(game?.genres || []), ...(game?.genreTags || []), ...(game?.genreProfile?.tags || []), ...(game?.genreProfile?.core || [])]
-    .filter(Boolean).join(' ');
-}
-
-function closestLibraryGames(games, query) {
-  const needle = commandKey(query);
-  if (!needle) return [];
-  return (games || []).map((game) => {
-    const name = commandKey(game.name);
-    const words = commandKey(gameWords(game));
-    const requestedWords = needle.split(' ').filter(Boolean);
-    let score = 0;
-    if (name === needle) score += 100;
-    if (name.includes(needle)) score += 80;
-    if (needle.includes(name)) score += 55;
-    if (requestedWords.length > 1 && requestedWords.every((word) => name.split(' ').includes(word))) score += 70;
-    score += needle.split(' ').filter((word) => word.length > 1 && words.includes(word)).length * 8;
-    return { game, score };
-  }).filter((item) => item.score > 0).sort((a, b) => b.score - a.score).map((item) => item.game);
-}
-
-// Typed commands resolve locally from the visible library. They never cause a
-// background launch: the player must still click the named, guarded Launch
-// confirmation that appears in chat.
-function libraryCommandFor(text, games) {
-  const raw = String(text || '').trim();
-  const match = raw.match(/^(?:please\s+)?launch\s+(.+?)\s*[.!?]*$/i);
-  if (!match) return null;
-  const request = match[1].replace(/\b(?:a|the)\s+/i, '').replace(/\bgame\b/i, '').trim();
-  const words = commandKey(request);
-  let candidates = [];
-  if (/\brandom\b/.test(words)) {
-    const genreWords = words.replace(/\brandom\b|\bgame\b/g, '').trim().split(' ').filter(Boolean);
-    candidates = (games || []).filter((game) => genreWords.every((word) => commandKey(gameWords(game)).includes(word)));
-    if (!candidates.length) candidates = games || [];
-    const chosen = candidates.length ? candidates[Math.floor(Math.random() * candidates.length)] : null;
-    return chosen ? { game: chosen, text: `I chose ${chosen.name} from your visible library. Ready when you are.`, actionLabel: `Launch ${chosen.name}` } : { text: 'Your visible library is empty right now, so I have nothing safe to choose.' };
-  }
-  candidates = closestLibraryGames(games, request);
-  const chosen = candidates[0];
-  return chosen
-    ? { game: chosen, text: `${chosen.name} is ready. I will wait for your confirmation.`, actionLabel: `Launch ${chosen.name}` }
-    : { text: `I could not match “${request}” in your visible library. Try the game name exactly, or ask me to help you find something similar.` };
-}
-
 function QuickSetting({ label, value, onChange }) {
   return <div className="flex items-center gap-2 rounded-xl border border-[rgb(var(--border)/0.68)] bg-[rgb(var(--surface)/0.42)] px-2.5 py-2"><span className="min-w-0 flex-1 text-[10px] font-bold text-ink">{label}</span><button type="button" role="switch" aria-label={label} aria-checked={value} onClick={() => onChange?.(!value)} className={`relative h-5 w-9 rounded-full transition-colors ${value ? 'bg-[rgb(var(--accent))]' : 'bg-[rgb(var(--border)/0.8)]'}`}><span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${value ? 'translate-x-4' : 'translate-x-0.5'}`} /></button></div>;
-}
-
-function messageFor({ healthState, newsAlert, favouriteUpdate, appUpdate, notificationSettings }) {
-  if (healthState === 'high' && notificationEnabled(notificationSettings, 'pcHigh')) return {
-    key: 'pc-high', level: 'major', title: 'Hey — your PC needs attention',
-    body: 'CPU or RAM use is staying very high. Let’s check what is competing with your game before you launch.',
-    action: 'Show performance', kind: 'health',
-  };
-  if (newsAlert && notificationEnabled(notificationSettings, 'favouriteNews')) return {
-    key: `news-${newsAlert.id}`, level: 'minor', title: `News for ${newsAlert.gameName || 'a favourite'}`,
-    body: newsAlert.title || 'Something new just landed.', action: 'Read news', kind: 'news',
-  };
-  if (favouriteUpdate && notificationEnabled(notificationSettings, 'favouriteUpdates')) return {
-    key: `game-update-${favouriteUpdate.id}`, level: 'minor', title: `${favouriteUpdate.name} has an update`,
-    body: 'A favourited game has a verified newer version ready to check out.', action: 'View game', kind: 'game-update',
-  };
-  if (appUpdate && notificationEnabled(notificationSettings, 'appUpdates')) return {
-    key: `neolib-${appUpdate.latestVersion || 'available'}`, level: 'minor', title: 'A NEO-LIB update is ready',
-    body: appUpdate.latestVersion ? `Version ${appUpdate.latestVersion} is available.` : 'A newer NEO-LIB release is available.',
-    action: 'See update', kind: 'app-update',
-  };
-  if (healthState === 'check' && notificationEnabled(notificationSettings, 'pcCheck')) return {
-    key: 'pc-check', level: 'minor', title: 'Quick PC check',
-    body: 'Your CPU or RAM use is elevated. I can show you what to check before gaming.', action: 'Show performance', kind: 'health',
-  };
-  return null;
-}
-
-function voiceForNotice(notice) {
-  // Welcome is never a general notice voice. It is reserved for the one
-  // post-intro greeting below, otherwise a harmless re-render or re-shown
-  // notice can make it sound as if NEO-LIB has just started again.
-  if (notice?.kind === 'welcome') return '';
-  if (notice?.kind === 'news') return 'news';
-  if (notice?.kind === 'game-update') return 'check-this';
-  if (notice?.kind === 'app-update') return 'neolib-update';
-  if (notice?.kind === 'health' && notice.level === 'major') return 'attention';
-  if (notice?.kind === 'health') return 'ouff';
-  return '';
 }
 
 /**
@@ -173,12 +47,15 @@ function voiceForNotice(notice) {
  * all of it stops because the whole companion is removed in Rest Mode.
  */
 export default function FungistMascot({
+  mascotId = 'fungist',
+  effectsLevel = 2,
   enabled = true,
   resting = false,
   healthState = 'checking',
   newsAlert = null,
   favouriteUpdate = null,
   appUpdate = null,
+  activity = null,
   notificationSettings = {},
   onOpenHealth,
   externalRunningGame = null,
@@ -211,6 +88,10 @@ export default function FungistMascot({
   onLaunchRequested,
   onReportBug,
 }) {
+  const selectedMascot = mascotId === 'fifi' ? 'fifi' : 'fungist';
+  const mascotName = selectedMascot === 'fifi' ? 'FiFi' : 'Fungist';
+  const mascotPortrait = selectedMascot === 'fifi' ? `${import.meta.env.BASE_URL}mascot/fifi/poses/fifi-idle-v1.png` : ASSETS.stand;
+  const playVoice = React.useCallback((id, options = {}) => playMascotVoice(id, { ...options, mascotId: selectedMascot }), [selectedMascot]);
   const [notice, setNotice] = React.useState(null);
   const [chatOpen, setChatOpen] = React.useState(false);
   const [question, setQuestion] = React.useState('');
@@ -308,7 +189,7 @@ export default function FungistMascot({
     return () => window.removeEventListener('resize', resize);
   }, []);
 
-  const candidate = messageFor({ healthState, newsAlert, favouriteUpdate, appUpdate, notificationSettings });
+  const candidate = messageFor({ healthState, newsAlert, favouriteUpdate, appUpdate, activity, notificationSettings });
   React.useEffect(() => {
     if (resting || !enabled) { setNotice(null); setChatOpen(false); setContextOpen(false); return; }
     if (!candidate) { setNotice(null); return; }
@@ -341,7 +222,7 @@ export default function FungistMascot({
   // hot reload but is cleared when the desktop window is closed.
   React.useEffect(() => {
     if (!welcomeKey || !enabled || resting || startupWelcomePlayed.current || !soundsEnabled || !voiceEnabled) return;
-    const storageKey = 'neolib-fungist-startup-welcome-played';
+    const storageKey = `neolib-${selectedMascot}-startup-welcome-played`;
     try {
       if (window.sessionStorage.getItem(storageKey) === '1') {
         startupWelcomePlayed.current = true;
@@ -353,8 +234,8 @@ export default function FungistMascot({
       // is unavailable.
     }
     startupWelcomePlayed.current = true;
-    playFungistVoice('welcome', { volume: voiceVolume, cooldownMs: 0, priority: true });
-  }, [welcomeKey, enabled, resting, soundsEnabled, voiceEnabled, voiceVolume]);
+    playVoice('welcome', { volume: voiceVolume, cooldownMs: 0, priority: true });
+  }, [welcomeKey, enabled, resting, soundsEnabled, voiceEnabled, voiceVolume, playVoice, selectedMascot]);
 
   React.useEffect(() => {
     if (!contextOpen) return undefined;
@@ -396,18 +277,18 @@ export default function FungistMascot({
   React.useEffect(() => {
     const showSpeech = (event) => {
       const line = event.detail;
-      if (!line?.speech || !enabled || (resting && !launchCelebration?.key)) return;
+      if (!line?.speech || line.mascotId !== selectedMascot || !enabled || (resting && !launchCelebration?.key)) return;
       window.clearTimeout(spokenLineTimer.current);
       setSleeping(false);
       setSpokenLine(line);
       spokenLineTimer.current = window.setTimeout(() => setSpokenLine(null), Number(line.durationMs) || 3_800);
     };
-    window.addEventListener('neolib-fungist-speaking', showSpeech);
+    window.addEventListener('neolib-mascot-speaking', showSpeech);
     return () => {
-      window.removeEventListener('neolib-fungist-speaking', showSpeech);
+      window.removeEventListener('neolib-mascot-speaking', showSpeech);
       window.clearTimeout(spokenLineTimer.current);
     };
-  }, [enabled, resting, launchCelebration?.key]);
+  }, [enabled, resting, launchCelebration?.key, selectedMascot]);
 
   React.useEffect(() => {
     if (!enabled || resting || sleeping || notice || chatOpen) { setIdlePulse(false); setIdleMoment(''); return undefined; }
@@ -439,12 +320,14 @@ export default function FungistMascot({
 
   React.useEffect(() => {
     const completionKey = completion?.key || 0;
-    if (!completionKey || resting || !enabled || !notificationEnabled(notificationSettings, 'completion')) { setCompleting(false); return undefined; }
+    const isLibraryAddition = /^added\s*·/i.test(String(completion?.label || ''));
+    const preferenceKey = isLibraryAddition ? 'libraryAdditions' : 'completion';
+    if (!completionKey || resting || !enabled || !notificationEnabled(notificationSettings, preferenceKey)) { setCompleting(false); return undefined; }
     setCompleting(true);
     setCompletionMessage(String(completion?.label || 'Action completed'));
     if (soundsEnabled && voiceEnabled) {
       const label = String(completion?.label || '').toLowerCase();
-      playFungistVoice(/all|every|library-wide|bulk/.test(label) ? 'all-finished' : /easy|quick|simple/.test(label) ? 'easy' : 'nice-good-job', { volume: voiceVolume, cooldownMs: 10_000 });
+      playVoice(/all|every|library-wide|bulk/.test(label) ? 'all-finished' : /easy|quick|simple/.test(label) ? 'easy' : 'nice-good-job', { volume: voiceVolume, cooldownMs: 10_000 });
     } else if (soundsEnabled) playFungistCue('completed-ding');
     const timer = window.setTimeout(() => { setCompleting(false); setCompletionMessage(''); }, 1_850);
     return () => window.clearTimeout(timer);
@@ -454,7 +337,7 @@ export default function FungistMascot({
     window.clearTimeout(smileTimer.current);
     window.clearTimeout(chatThinkingTimer.current);
     window.clearTimeout(spokenLineTimer.current);
-    stopFungistVoice();
+    stopMascotVoice();
   }, []);
 
   React.useEffect(() => {
@@ -473,7 +356,7 @@ export default function FungistMascot({
     // with another voice or a generic cue through the alert pipeline.
     if (notice.kind === 'welcome') return;
     const voice = voiceForNotice(notice);
-    if (voice && voiceEnabled) playFungistVoice(voice, { volume: voiceVolume, priority: notice.level === 'major' || notice.kind === 'app-update' });
+    if (voice && voiceEnabled) playVoice(voice, { volume: voiceVolume, priority: notice.level === 'major' || notice.kind === 'app-update' });
     else playFungistCue(notice.level === 'major' ? 'warning' : notice.kind === 'health' ? 'attention' : 'hey');
   }, [notice?.key, notice?.kind, notice?.level, soundsEnabled, voiceEnabled, voiceVolume]);
 
@@ -500,11 +383,14 @@ export default function FungistMascot({
   const speaking = Boolean(spokenLine);
   const displayPose = major ? (!arrived ? 'fly' : 'shocked') : launching || spokenLine?.mood === 'celebrate' ? 'complete' : spokenLine?.mood === 'urgent' || spokenLine?.mood === 'concerned' ? 'shocked' : completing ? 'complete' : chatOpen || speaking ? 'smile' : smiling || idlePulse ? 'smile' : sleeping ? 'sleep' : blinking ? 'blink' : 'stand';
   const displayAsset = ASSETS[displayPose];
+  const fifiIdleMood = idleMoment === 'curious' ? 'curious' : idleMoment === 'greet' ? 'greeting' : idleMoment === 'smile' || idleMoment === 'sparkle' ? 'happy' : 'idle';
+  const fifiMood = sleeping ? 'sleep' : major ? (!arrived ? 'fly' : 'alert') : launching || completing ? 'celebrate' : spokenLine?.mood || (chatOpen ? 'listening' : fifiIdleMood);
+  const fifiParticles = spokenLine?.particles || (major ? 'beacon' : launching || completing ? 'burst' : idleMoment === 'sparkle' ? 'glint' : 'soft');
 
   const act = () => {
     if (!notice) {
       setChatOpen(true);
-      if (soundsEnabled && voiceEnabled && !chatHistory.length) playFungistVoice('chat-open', { volume: voiceVolume, cooldownMs: 12_000 });
+      if (soundsEnabled && voiceEnabled && !chatHistory.length) playVoice('chat-open', { volume: voiceVolume, cooldownMs: 12_000 });
       return;
     }
     if (notice.kind === 'health') onOpenHealth?.();
@@ -512,7 +398,7 @@ export default function FungistMascot({
     if (notice.kind === 'game-update') onOpenGame?.(favouriteUpdate?.id);
     if (notice.kind === 'app-update') onOpenAppUpdate?.();
     if (notice.kind === 'welcome') onOpenHome?.();
-    if (soundsEnabled && voiceEnabled) playFungistVoice('lets-do-this', { volume: voiceVolume, cooldownMs: 9_000 });
+    if (soundsEnabled && voiceEnabled) playVoice('lets-do-this', { volume: voiceVolume, cooldownMs: 9_000 });
     else if (soundsEnabled) playFungistCue('good-ding');
     setSmiling(true);
     window.clearTimeout(smileTimer.current);
@@ -528,7 +414,7 @@ export default function FungistMascot({
   const toggleWhy = () => {
     setShowWhy((value) => {
       const next = !value;
-      if (next && soundsEnabled && voiceEnabled) playFungistVoice('what-is-this', { volume: voiceVolume, cooldownMs: 10_000 });
+      if (next && soundsEnabled && voiceEnabled) playVoice('what-is-this', { volume: voiceVolume, cooldownMs: 10_000 });
       return next;
     });
   };
@@ -583,13 +469,13 @@ export default function FungistMascot({
     if (command) {
       const commandReply = { id: `fungist-${Date.now()}`, role: 'assistant', text: command.text, action: command.game ? { type: 'launch', gameId: command.game.id, label: command.actionLabel } : null, createdAt: Date.now() };
       onSaveChatHistory?.([...nextHistory, commandReply].slice(-80));
-      if (soundsEnabled && voiceEnabled) playFungistVoice(command.game ? 'sure-yeah' : 'ouff', { volume: voiceVolume, cooldownMs: 8_000 });
+      if (soundsEnabled && voiceEnabled) playVoice(command.game ? 'sure-yeah' : 'ouff', { volume: voiceVolume, cooldownMs: 8_000 });
       return;
     }
     setAsking(true);
-    if (soundsEnabled && voiceEnabled) playFungistVoice(fungistChatVoiceFor(text), { volume: voiceVolume, cooldownMs: 8_000 });
+    if (soundsEnabled && voiceEnabled) playVoice(fungistChatVoiceFor(text), { volume: voiceVolume, cooldownMs: 8_000 });
     chatThinkingTimer.current = window.setTimeout(() => {
-      if (soundsEnabled && voiceEnabled) playFungistVoice('thinking', { volume: voiceVolume, cooldownMs: 10_000 });
+      if (soundsEnabled && voiceEnabled) playVoice('thinking', { volume: voiceVolume, cooldownMs: 10_000 });
     }, 850);
     try {
       const result = await onAskAi?.(text, chatHistory, libraryGames);
@@ -605,7 +491,7 @@ export default function FungistMascot({
         createdAt: Date.now(),
       }].slice(-80));
     } catch {
-      if (soundsEnabled && voiceEnabled) playFungistVoice('more-drama', { volume: voiceVolume, priority: true, cooldownMs: 8_000 });
+      if (soundsEnabled && voiceEnabled) playVoice('more-drama', { volume: voiceVolume, priority: true, cooldownMs: 8_000 });
       onSaveChatHistory?.([...nextHistory, {
         id: `fungist-${Date.now()}`,
         role: 'assistant',
@@ -652,8 +538,8 @@ export default function FungistMascot({
                 style={{ borderColor: major ? 'rgb(251 75 92 / 0.85)' : 'rgb(var(--accent) / 0.62)', boxShadow: major ? '0 25px 90px -18px rgba(0,0,0,.9), 0 0 48px -14px rgba(251,75,92,.85)' : '0 18px 55px -20px rgba(0,0,0,.85), 0 0 26px -10px rgb(var(--accent)/.8)' }}
               >
                 <div className="flex items-start gap-2 px-3.5 pb-2 pt-3">
-                  <div className="min-w-0 flex-1"><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">{major ? 'Fungist needs you' : 'Fungist says hey'}</p><h2 className="mt-1 text-[13px] font-black leading-snug text-ink">{notice.title}</h2><p className="mt-1 text-[11px] leading-relaxed text-muted">{notice.body}</p>{showWhy && <p className="mt-2 rounded-lg border border-[rgb(var(--accent)/0.2)] bg-[rgb(var(--accent)/0.06)] px-2 py-1.5 text-[9.5px] leading-relaxed text-muted">{whyFor(notice)}</p>}</div>
-                  <button type="button" onClick={dismiss} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted hover:bg-white/10 hover:text-ink" aria-label="Dismiss Fungist"><X size={14} /></button>
+                  <div className="min-w-0 flex-1"><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">{major ? `${mascotName} needs you` : `${mascotName} says hey`}</p><h2 className="mt-1 text-[13px] font-black leading-snug text-ink">{notice.title}</h2><p className="mt-1 text-[11px] leading-relaxed text-muted">{notice.body}</p>{showWhy && <p className="mt-2 rounded-lg border border-[rgb(var(--accent)/0.2)] bg-[rgb(var(--accent)/0.06)] px-2 py-1.5 text-[9.5px] leading-relaxed text-muted">{whyFor(notice)}</p>}</div>
+                  <button type="button" onClick={dismiss} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted hover:bg-white/10 hover:text-ink" aria-label={`Dismiss ${mascotName}`}><X size={14} /></button>
                 </div>
                 {notice.kind === 'health' && (
                   <div className="border-t border-[rgb(var(--border)/0.56)] px-3.5 py-2.5">
@@ -683,7 +569,7 @@ export default function FungistMascot({
                     </div>
                   </div>
                 )}
-                <div className="flex items-center justify-between gap-2 border-t border-[rgb(var(--border)/0.7)] px-3.5 py-2.5"><div className="flex items-center gap-2"><button type="button" onClick={() => { setChatOpen(true); dismiss(); }} className="text-[10px] font-bold text-muted hover:text-ink">Talk to Fungist</button><button type="button" onClick={toggleWhy} className="text-[9px] font-bold text-[rgb(var(--accent-2))] hover:underline">{showWhy ? 'Hide reason' : 'Why am I seeing this?'}</button></div><button type="button" onClick={act} className="inline-flex items-center gap-1.5 rounded-lg bg-[rgb(var(--accent))] px-3 py-1.5 text-[10px] font-black text-[rgb(var(--surface))] shadow-lg"><span>{notice.action}</span><ChevronRight size={13} /></button></div>
+                <div className="flex items-center justify-between gap-2 border-t border-[rgb(var(--border)/0.7)] px-3.5 py-2.5"><div className="flex items-center gap-2"><button type="button" onClick={() => { setChatOpen(true); dismiss(); }} className="text-[10px] font-bold text-muted hover:text-ink">Talk to {mascotName}</button><button type="button" onClick={toggleWhy} className="text-[9px] font-bold text-[rgb(var(--accent-2))] hover:underline">{showWhy ? 'Hide reason' : 'Why am I seeing this?'}</button></div><button type="button" onClick={act} className="inline-flex items-center gap-1.5 rounded-lg bg-[rgb(var(--accent))] px-3 py-1.5 text-[10px] font-black text-[rgb(var(--surface))] shadow-lg"><span>{notice.action}</span><ChevronRight size={13} /></button></div>
               </motion.section>
             )}
           </AnimatePresence>
@@ -698,7 +584,7 @@ export default function FungistMascot({
                 className="relative mb-1 max-w-[min(190px,calc(100vw-28px))] rounded-lg border border-[rgb(var(--accent)/0.35)] bg-[rgb(var(--panel)/0.92)] px-2.5 py-1.5 text-right text-[10px] font-medium text-ink shadow-md backdrop-blur-md"
                 data-testid="fungist-hover-tip"
               >
-                Talk to Fungist
+                Talk to {mascotName}
                 <span aria-hidden="true" className="absolute -bottom-1 right-6 h-2 w-2 rotate-45 border-b border-r border-[rgb(var(--accent)/0.35)] bg-[rgb(var(--panel))]" />
               </motion.div>
             )}
@@ -738,7 +624,7 @@ export default function FungistMascot({
             onMouseEnter={() => { setSleeping(false); setHovering(true); }}
             onMouseLeave={() => setHovering(false)}
             onContextMenu={(event) => { event.preventDefault(); setSleeping(false); setChatOpen(false); setContextTab('inbox'); setContextOpen(true); }}
-            aria-label="Talk to Fungist"
+            aria-label={`Talk to ${mascotName}`}
             animate={launching || spokenLine?.mood === 'celebrate' ? { scale: [1, 1.14, 1.02, 1.12, 1], y: [0, -12, -3, -11, 0], rotate: [0, -6, 5, -4, 0] }
               : spokenLine?.mood === 'urgent' || spokenLine?.mood === 'concerned' ? { scale: [1, 1.08, 0.98, 1.06, 1], x: [0, -2, 2, -1, 0], rotate: [0, -2, 2, -1, 0] }
               : speaking ? { scale: [1, 1.065, 1.02, 1.06, 1], y: [0, -4, -1, -4, 0], rotate: [0, -1.2, 1.1, -0.8, 0] }
@@ -779,7 +665,18 @@ export default function FungistMascot({
             {major && !arrived && <motion.span aria-hidden="true" className="pointer-events-none absolute -inset-9 -z-10 rounded-full" style={{ background: `radial-gradient(circle, ${healthGlow} 0%, transparent 67%)` }} initial={{ opacity: 0.1, scale: 0.45 }} animate={{ opacity: [0.08, 0.62, 0], scale: [0.45, 1.45, 1.95] }} transition={{ duration: 0.72, repeat: 2, ease: 'easeOut' }} />}
             {notice?.level === 'minor' && <span className="absolute -left-1 -top-1 grid h-6 min-w-6 place-items-center rounded-full border border-white/30 bg-[rgb(var(--accent-2))] px-1 text-[9px] font-black text-[rgb(var(--surface))] shadow-lg">HEY</span>}
             {chatOpen && <span className="absolute -right-1 -top-1 rounded-full border border-white/30 bg-[rgb(var(--accent-2))] px-1.5 py-0.5 text-[8px] font-black tracking-[0.08em] text-[rgb(var(--surface))] shadow-lg">READY</span>}
-            <motion.img
+            {selectedMascot === 'fifi' ? <FifiAvatar
+              mood={fifiMood}
+              motion={effectsLevel <= 0 ? 'reduced' : effectsLevel >= 3 ? 'full' : 'balanced'}
+              rest={sleeping}
+              fx={Math.max(0.2, Math.min(1, Number(effectsLevel || 0) / 4))}
+              energy={major || launching || completing ? 1 : speaking || chatOpen ? 0.72 : 0.38}
+              particles={fifiParticles}
+              speaking={speaking}
+              gesture={spokenLine?.gesture}
+              size={166}
+              className="relative z-10"
+            /> : <motion.img
               // Pose changes are visual swaps, not entrances. Keeping the
               // image fully opaque prevents a blink/smile/speech change from
               // making Fungist flash transparent every few seconds.
@@ -787,11 +684,11 @@ export default function FungistMascot({
               animate={sleeping ? { opacity: 1, scale: [1, 1.012, 1], y: [0, 0.5, 0] } : major ? { opacity: 1, scale: 1 } : { opacity: 1, scale: [1, 1.008, 1], y: [0, -0.7, 0], rotate: [0, 0.25, -0.18, 0] }}
               transition={sleeping ? { duration: 3.8, repeat: Infinity, ease: 'easeInOut' } : major ? { duration: 0.11 } : { duration: 2.55, repeat: Infinity, ease: 'easeInOut' }}
               src={displayAsset}
-              alt="Fungist, the NEO-LIB mascot"
+              alt={`${mascotName}, the NEO-LIB mascot`}
               className="relative z-10 h-[166px] w-[160px] object-contain"
               style={{ transformOrigin: '50% 83%', filter: 'drop-shadow(0 3px 5px rgb(0 0 0 / 0.32))' }}
               draggable="false"
-            />
+            />}
           </motion.button>
         </div>
       </motion.div>
@@ -799,9 +696,9 @@ export default function FungistMascot({
       <AnimatePresence>
         {contextOpen && (
           <motion.aside initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.98 }} transition={{ duration: 0.17 }} className="fixed bottom-5 right-5 z-[87] w-[min(350px,calc(100vw-28px))] overflow-hidden rounded-2xl border border-[rgb(var(--accent)/0.58)] bg-[rgb(var(--panel)/0.97)] shadow-2xl backdrop-blur-xl" style={{ boxShadow: '0 25px 85px -25px rgba(0,0,0,.95), 0 0 38px -16px rgb(var(--accent)/.75)' }} data-testid="fungist-context">
-            <header className="flex items-center gap-2 border-b border-[rgb(var(--border)/0.72)] bg-[rgb(var(--accent)/0.08)] px-3.5 py-2.5"><img src={ASSETS.stand} alt="" className="h-8 w-8 object-contain" /><div className="min-w-0 flex-1"><h2 className="text-[12px] font-black">Fungist</h2><p className="text-[9.5px] text-muted">Inbox and quick settings</p></div><button type="button" onClick={() => setContextOpen(false)} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-white/10 hover:text-ink" aria-label="Close Fungist menu"><X size={14} /></button></header>
+            <header className="flex items-center gap-2 border-b border-[rgb(var(--border)/0.72)] bg-[rgb(var(--accent)/0.08)] px-3.5 py-2.5"><img src={mascotPortrait} alt="" className="h-8 w-8 object-contain" /><div className="min-w-0 flex-1"><h2 className="text-[12px] font-black">{mascotName}</h2><p className="text-[9.5px] text-muted">Inbox and quick settings</p></div><button type="button" onClick={() => setContextOpen(false)} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-white/10 hover:text-ink" aria-label={`Close ${mascotName} menu`}><X size={14} /></button></header>
             <div className="flex gap-1 border-b border-[rgb(var(--border)/0.72)] px-2.5 py-2"><button type="button" onClick={() => setContextTab('inbox')} className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[10px] font-bold ${contextTab === 'inbox' ? 'bg-[rgb(var(--accent)/0.14)] text-ink' : 'text-muted hover:text-ink'}`}><Archive size={12} />Inbox {inbox.length ? `(${inbox.length})` : ''}</button><button type="button" onClick={() => setContextTab('quick')} className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[10px] font-bold ${contextTab === 'quick' ? 'bg-[rgb(var(--accent)/0.14)] text-ink' : 'text-muted hover:text-ink'}`}><Settings2 size={12} />Quick settings</button></div>
-            {contextTab === 'inbox' ? <div className="max-h-[330px] overflow-y-auto p-2.5">{inbox.length ? <><div className="mb-2 flex items-center justify-between gap-2"><p className="text-[9.5px] text-muted">Recent Fungist notices. Newer events stay at the top.</p><button type="button" onClick={onClearInbox} className="shrink-0 text-[9px] font-bold text-[rgb(var(--accent-2))] hover:underline">Clear</button></div><div className="space-y-1.5">{inbox.slice(0, 30).map((item, index) => <article key={`${item.key}-${item.createdAt}-${index}`} className="rounded-xl border border-[rgb(var(--border)/0.68)] bg-[rgb(var(--surface)/0.42)] px-2.5 py-2"><div className="flex items-start gap-2"><BellRing size={12} className="mt-0.5 shrink-0 text-[rgb(var(--accent-2))]" /><div className="min-w-0 flex-1"><p className="text-[10px] font-bold text-ink">{item.title}</p><p className="mt-0.5 text-[9.5px] leading-relaxed text-muted">{item.body}</p><p className="mt-1 text-[8.5px] font-medium uppercase tracking-wide text-muted/75">{shortTime(item.createdAt)}</p></div></div></article>)}</div></> : <div className="grid min-h-36 place-items-center rounded-xl border border-dashed border-[rgb(var(--border)/0.75)] px-5 text-center"><div><Archive size={18} className="mx-auto text-[rgb(var(--accent-2))]" /><p className="mt-2 text-[11px] font-bold text-ink">Nothing missed</p><p className="mt-1 text-[9.5px] leading-relaxed text-muted">Fungist will keep a short history of the notices he shows you.</p></div></div>}</div> : <div className="space-y-2.5 p-2.5"><QuickSetting label="Show Fungist" value={enabled} onChange={(value) => onUpdatePreferences?.({ fungistEnabled: value })} /><QuickSetting label="PC alerts" value={notificationEnabled(notificationSettings, 'pcHigh') || notificationEnabled(notificationSettings, 'pcCheck')} onChange={(value) => updateQuickNotifications({ pcHigh: value, pcCheck: value })} /><QuickSetting label="News and updates" value={notificationEnabled(notificationSettings, 'favouriteNews') || notificationEnabled(notificationSettings, 'favouriteUpdates') || notificationEnabled(notificationSettings, 'appUpdates')} onChange={(value) => updateQuickNotifications({ favouriteNews: value, favouriteUpdates: value, appUpdates: value })} /><QuickSetting label="Completion celebrations" value={notificationEnabled(notificationSettings, 'completion')} onChange={(value) => updateQuickNotifications({ completion: value })} /><button type="button" onClick={() => { onUpdatePreferences?.({ fungistEnabled: true }); setContextOpen(false); onOpenSettings?.(); }} className="mt-1 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.42)] bg-[rgb(var(--accent)/0.08)] px-3 py-2 text-[10px] font-black text-[rgb(var(--accent))] hover:bg-[rgb(var(--accent)/0.15)]"><Settings2 size={12} />Open full NEO-LIB Mascot settings</button></div>}
+            {contextTab === 'inbox' ? <div className="max-h-[330px] overflow-y-auto p-2.5">{inbox.length ? <><div className="mb-2 flex items-center justify-between gap-2"><p className="text-[9.5px] text-muted">Recent {mascotName} notices. Newer events stay at the top.</p><button type="button" onClick={onClearInbox} className="shrink-0 text-[9px] font-bold text-[rgb(var(--accent-2))] hover:underline">Clear</button></div><div className="space-y-1.5">{inbox.slice(0, 30).map((item, index) => <article key={`${item.key}-${item.createdAt}-${index}`} className="rounded-xl border border-[rgb(var(--border)/0.68)] bg-[rgb(var(--surface)/0.42)] px-2.5 py-2"><div className="flex items-start gap-2"><BellRing size={12} className="mt-0.5 shrink-0 text-[rgb(var(--accent-2))]" /><div className="min-w-0 flex-1"><p className="text-[10px] font-bold text-ink">{item.title}</p><p className="mt-0.5 text-[9.5px] leading-relaxed text-muted">{item.body}</p><p className="mt-1 text-[8.5px] font-medium uppercase tracking-wide text-muted/75">{shortTime(item.createdAt)}</p></div></div></article>)}</div></> : <div className="grid min-h-36 place-items-center rounded-xl border border-dashed border-[rgb(var(--border)/0.75)] px-5 text-center"><div><Archive size={18} className="mx-auto text-[rgb(var(--accent-2))]" /><p className="mt-2 text-[11px] font-bold text-ink">Nothing missed</p><p className="mt-1 text-[9.5px] leading-relaxed text-muted">{mascotName} will keep a short history of the notices shown to you.</p></div></div>}</div> : <div className="space-y-2.5 p-2.5"><QuickSetting label={`Show ${mascotName}`} value={enabled} onChange={(value) => onUpdatePreferences?.({ fungistEnabled: value })} /><QuickSetting label="PC alerts" value={notificationEnabled(notificationSettings, 'pcHigh') || notificationEnabled(notificationSettings, 'pcCheck')} onChange={(value) => updateQuickNotifications({ pcHigh: value, pcCheck: value })} /><QuickSetting label="News and updates" value={notificationEnabled(notificationSettings, 'favouriteNews') || notificationEnabled(notificationSettings, 'favouriteUpdates') || notificationEnabled(notificationSettings, 'appUpdates')} onChange={(value) => updateQuickNotifications({ favouriteNews: value, favouriteUpdates: value, appUpdates: value })} /><QuickSetting label="Completion celebrations" value={notificationEnabled(notificationSettings, 'completion')} onChange={(value) => updateQuickNotifications({ completion: value })} /><button type="button" onClick={() => { onUpdatePreferences?.({ fungistEnabled: true }); setContextOpen(false); onOpenSettings?.(); }} className="mt-1 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.42)] bg-[rgb(var(--accent)/0.08)] px-3 py-2 text-[10px] font-black text-[rgb(var(--accent))] hover:bg-[rgb(var(--accent)/0.15)]"><Settings2 size={12} />Open full NEO-LIB Mascot settings</button></div>}
           </motion.aside>
         )}
       </AnimatePresence>
@@ -809,7 +706,7 @@ export default function FungistMascot({
       <AnimatePresence>
         {chatOpen && (
           <motion.aside initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.98 }} transition={{ duration: 0.18 }} className="fixed bottom-5 right-5 z-[86] w-[min(380px,calc(100vw-28px))] overflow-hidden rounded-2xl border border-[rgb(var(--accent)/0.62)] bg-[rgb(var(--panel)/0.96)] shadow-2xl backdrop-blur-xl" style={{ boxShadow: '0 25px 85px -25px rgba(0,0,0,.95), 0 0 38px -16px rgb(var(--accent)/.75)' }} data-testid="fungist-chat">
-            <header className="flex items-center gap-2 border-b border-[rgb(var(--border)/0.72)] bg-[rgb(var(--accent)/0.08)] px-3.5 py-2.5"><img src={ASSETS.stand} alt="" className="h-9 w-9 object-contain" /><div className="min-w-0 flex-1"><h2 className="text-[12px] font-black">Fungist, Oracle of NEO-LIB</h2><p className="text-[9.5px] text-muted">{aiModel} · {aiReady ? `${libraryGames.length} visible games known` : 'needs your API key'}</p></div>{chatHistory.length > 0 && <button type="button" onClick={onClearChatHistory} className="rounded-md px-1.5 py-1 text-[9px] font-bold text-muted hover:bg-white/10 hover:text-ink" title="Clear local Fungist chat history">Clear</button>}<button type="button" onClick={() => setChatOpen(false)} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-white/10 hover:text-ink" aria-label="Close Fungist chat"><X size={14} /></button></header>
+            <header className="flex items-center gap-2 border-b border-[rgb(var(--border)/0.72)] bg-[rgb(var(--accent)/0.08)] px-3.5 py-2.5"><img src={mascotPortrait} alt="" className="h-9 w-9 object-contain" /><div className="min-w-0 flex-1"><h2 className="text-[12px] font-black">{mascotName}, Oracle of NEO-LIB</h2><p className="text-[9.5px] text-muted">{aiModel} · {aiReady ? `${libraryGames.length} visible games known` : 'needs your API key'}</p></div>{chatHistory.length > 0 && <button type="button" onClick={onClearChatHistory} className="rounded-md px-1.5 py-1 text-[9px] font-bold text-muted hover:bg-white/10 hover:text-ink" title={`Clear local ${mascotName} chat history`}>Clear</button>}<button type="button" onClick={() => setChatOpen(false)} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-white/10 hover:text-ink" aria-label={`Close ${mascotName} chat`}><X size={14} /></button></header>
             <div ref={chatScrollRef} className="max-h-[340px] min-h-48 space-y-2.5 overflow-y-auto px-3.5 py-3" data-testid="fungist-chat-history">
               {!chatHistory.length && <div className="rounded-xl border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--surface)/0.45)] p-2.5 text-[11px] leading-relaxed text-muted"><p className="font-bold text-ink">The Oracle is awake.</p><p className="mt-1">Ask about a game, what to play, or something you want NEO-LIB to help with. I keep it short unless you ask for the deeper reading.</p></div>}
               {chatHistory.map((message) => <div key={message.id || `${message.role}-${message.createdAt}`} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[88%] rounded-2xl border px-3 py-2 text-[11px] leading-relaxed whitespace-pre-wrap ${message.role === 'user' ? 'border-[rgb(var(--accent)/0.42)] bg-[rgb(var(--accent)/0.14)] text-ink' : 'border-[rgb(var(--border)/0.72)] bg-[rgb(var(--surface)/0.48)] text-muted'}`}><p className={`mb-0.5 text-[8px] font-black uppercase tracking-[0.16em] ${message.role === 'user' ? 'text-[rgb(var(--accent-2))]' : 'text-[rgb(var(--accent))]'}`}>{message.role === 'user' ? 'You' : 'Fungist'}</p>{message.text}{message.action?.type === 'launch' && <button type="button" data-neolib-launch="true" onClick={(event) => launchFromChat(message, event)} className="mt-2 inline-flex items-center rounded-lg bg-[rgb(var(--accent))] px-2.5 py-1.5 text-[10px] font-black text-[rgb(var(--surface))] shadow-lg">{message.action.label || 'Launch game'}</button>}{message.action?.type === 'feedback' && <button type="button" onClick={() => { setChatOpen(false); onReportBug?.(); }} className="mt-2 inline-flex items-center rounded-lg border border-[rgb(var(--accent)/0.55)] bg-[rgb(var(--accent)/0.13)] px-2.5 py-1.5 text-[10px] font-black text-[rgb(var(--accent))] shadow-lg hover:bg-[rgb(var(--accent)/0.22)]">{message.action.label || 'Report a bug'}</button>}</div></div>)}

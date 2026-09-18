@@ -1,0 +1,483 @@
+{
+  "sharedHelpersSha256": "b0e9d6735c6edacf789be1b65c84f7c6c1e6c5c1575b1684d598e5d6912456d5",
+  "cases": {
+    "empty": {
+      "launcher:scan-steam": {
+        "result": {
+          "ok": false,
+          "error": "Steam install not found.",
+          "items": []
+        },
+        "ioSha256": "6bd7128eab49b3cae6ba0616095aa10080dd66c836ccb23236a3eed1302108e8"
+      },
+      "launcher:scan-epic": {
+        "result": {
+          "ok": false,
+          "error": "Epic Games Launcher manifests not found."
+        },
+        "ioSha256": "e350bd95c7495fd4a8015f3d4aebf84a70b6f987cd2a8d1c0bb94b458f2884ef"
+      },
+      "launcher:scan-gog": {
+        "result": {
+          "ok": false,
+          "items": [],
+          "error": "No installed GOG games found in the Windows registry."
+        },
+        "ioSha256": "c96fddd601606ae1b92a247faf9ab2d87357e466e9666c8d003fbf4ab2135df6"
+      },
+      "launcher:scan-ea": {
+        "result": {
+          "ok": false,
+          "items": [],
+          "error": "No installed EA/Origin games found in the Windows registry."
+        },
+        "ioSha256": "3b4c3c06639a112cb27736907192ad1bee620bfd8436a1710a6fc31a2c5d3ac3"
+      },
+      "launcher:scan-ubisoft": {
+        "result": {
+          "ok": false,
+          "items": [],
+          "error": "No installed Ubisoft Connect games found in the Windows registry."
+        },
+        "ioSha256": "3ae9c817a0f60b64e6074eb1db1c67f52453e6562028c97c2fc8382c4c415766"
+      },
+      "launcher:scan-battlenet": {
+        "result": {
+          "ok": false,
+          "items": [],
+          "error": "No installed Battle.net games found in Windows installation records."
+        },
+        "ioSha256": "badbed0503cfd3b7f6dd94e69d227a07946c4b9284db80d335849afb92f93107"
+      },
+      "launcher:scan-riot": {
+        "result": {
+          "ok": false,
+          "items": [],
+          "error": "Riot installed-game metadata was not found."
+        },
+        "ioSha256": "c6a40532a2a695adf69d8831b64f2daf3cf4662f4a1938c95c5d5fcfbe135411"
+      },
+      "launcher:scan-xbox": {
+        "result": {
+          "ok": false,
+          "items": [],
+          "error": "No Xbox/Game Pass installs with MicrosoftGame.config were found under local XboxGames roots."
+        },
+        "ioSha256": "57c9dddbbb07e8203492929b0317970733e8382f00ba6024a4ab7c0bbea1ebf1"
+      },
+      "launcher:scan-rockstar": {
+        "result": {
+          "ok": false,
+          "items": [],
+          "error": "No installed Rockstar games found in verified Windows installation records."
+        },
+        "ioSha256": "badbed0503cfd3b7f6dd94e69d227a07946c4b9284db80d335849afb92f93107"
+      },
+      "launcher:scan-itch": {
+        "result": {
+          "ok": false,
+          "items": [],
+          "error": "No itch.io install locations were found in the itch desktop app preferences."
+        },
+        "ioSha256": "e32fffd41eafffd2375db5f8be58899339da557c7c6d1b906ab82df0c955ab7c"
+      }
+    },
+    "installed": {
+      "launcher:scan-steam": {
+        "result": {
+          "ok": true,
+          "items": [
+            {
+              "appid": "10",
+              "name": "Steam Game",
+              "exe": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\SteamGame\\game.exe",
+              "installdir": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\SteamGame",
+              "buildid": "500",
+              "launchUrl": "steam://run/10",
+              "launcher": "steam",
+              "source": "steam"
+            },
+            {
+              "appid": "12",
+              "name": "Folder Only Game",
+              "exe": "D:\\SteamLibrary\\steamapps\\common\\FolderOnly",
+              "installdir": "D:\\SteamLibrary\\steamapps\\common\\FolderOnly",
+              "buildid": "500",
+              "launchUrl": "steam://run/12",
+              "launcher": "steam",
+              "source": "steam"
+            }
+          ],
+          "source": "steam"
+        },
+        "ioSha256": "ac8d6b06ba84ac3d224b4aeb580ed3f7314922fb90100e336ae1d4477eeee5ee"
+      },
+      "launcher:scan-epic": {
+        "result": {
+          "ok": true,
+          "items": [
+            {
+              "name": "Epic Game",
+              "installdir": "D:\\Games\\Epic",
+              "appid": "epic-id",
+              "launchUrl": "com.epicgames.launcher://apps/ns%3Acatalog%3Aepic-id?action=launch&silent=true",
+              "launchExe": "D:\\Games\\Epic\\bin\\game.exe"
+            }
+          ],
+          "source": "epic"
+        },
+        "ioSha256": "f7ea0a172d035f0470bc40ec709feec6725f2807f14a14e02b666d030be2265f"
+      },
+      "launcher:scan-gog": {
+        "result": {
+          "ok": true,
+          "items": [
+            {
+              "gogId": "gog-id",
+              "name": "GOG Game",
+              "exe": "D:\\Games\\Gog\\game.exe",
+              "installdir": "D:\\Games\\Gog",
+              "launcher": "gog",
+              "source": "gog",
+              "buildId": "45"
+            }
+          ],
+          "source": "gog"
+        },
+        "ioSha256": "141bc06bbf6e23e51f400eebf91385e222592c351d4707b42fbe4bba9aa9cc64"
+      },
+      "launcher:scan-ea": {
+        "result": {
+          "ok": true,
+          "items": [
+            {
+              "launcherProductId": "ea-id",
+              "name": "EA Game",
+              "exe": "D:\\Games\\EA\\game.exe",
+              "installdir": "D:\\Games\\EA",
+              "launcher": "ea",
+              "source": "ea",
+              "installedVersion": "1.2"
+            }
+          ],
+          "source": "ea"
+        },
+        "ioSha256": "923c9eb1319ff46c3bf1fdcf1e982d9ee0182039a309fe75808f7d13d40bae0e"
+      },
+      "launcher:scan-ubisoft": {
+        "result": {
+          "ok": true,
+          "items": [
+            {
+              "launcherProductId": "ubisoft:1800",
+              "name": "Ubisoft",
+              "exe": "D:\\Games\\Ubisoft\\game.exe",
+              "installdir": "D:\\Games\\Ubisoft",
+              "launcher": "ubisoft",
+              "source": "ubisoft",
+              "launchUrl": "uplay://launch/1800/0",
+              "nameEvidence": "install-folder"
+            }
+          ],
+          "source": "ubisoft"
+        },
+        "ioSha256": "48de8735ee8f146804bb2adf4294b4a8198f9bdb1deb5f96e8fd58aebefa1c25"
+      },
+      "launcher:scan-battlenet": {
+        "result": {
+          "ok": true,
+          "items": [
+            {
+              "launcherProductId": "battlenet:w3",
+              "name": "Warcraft III: Reforged",
+              "exe": "D:\\Games\\Warcraft\\game.exe",
+              "installdir": "D:\\Games\\Warcraft",
+              "launcher": "battlenet",
+              "source": "battlenet",
+              "installedVersion": "2.0",
+              "metadataHint": "official-battlenet-product"
+            }
+          ],
+          "source": "battlenet"
+        },
+        "ioSha256": "87538800d2ba4f4bd39a0c92c50cb74f57cda7b8bc732b84eac95849ef3c8a81"
+      },
+      "launcher:scan-riot": {
+        "result": {
+          "ok": true,
+          "items": [
+            {
+              "launcherProductId": "riot:riot-game",
+              "name": "Riot Game",
+              "exe": "D:\\Games\\Riot\\bin\\game.exe",
+              "installdir": "D:\\Games\\Riot",
+              "launcher": "riot",
+              "source": "riot",
+              "installedVersion": "8"
+            }
+          ],
+          "source": "riot"
+        },
+        "ioSha256": "b3cb345da27a6e7851d6aae3703758c54940df5238abf43c0b96fcbc635f62e5"
+      },
+      "launcher:scan-xbox": {
+        "result": {
+          "ok": true,
+          "items": [
+            {
+              "launcherProductId": "xbox:store-id",
+              "name": "Xbox Game",
+              "exe": "D:\\XboxGames\\Xbox Game\\Content\\bin\\game.exe",
+              "installdir": "D:\\XboxGames\\Xbox Game\\Content",
+              "launcher": "xbox",
+              "source": "xbox",
+              "storeId": "store-id"
+            },
+            {
+              "launcherProductId": "xbox:localized",
+              "name": "Localized Game",
+              "exe": "D:\\XboxGames\\Localized Game\\Content",
+              "installdir": "D:\\XboxGames\\Localized Game\\Content",
+              "launcher": "xbox",
+              "source": "xbox",
+              "storeId": "localized"
+            }
+          ],
+          "source": "xbox"
+        },
+        "ioSha256": "045ccb0891508c9a9eb565f689720c0c4718bae40b1121fa64bed5e5c29ba772"
+      },
+      "launcher:scan-rockstar": {
+        "result": {
+          "ok": true,
+          "items": [
+            {
+              "launcherProductId": "rockstar:Rockstar",
+              "name": "Rockstar Game",
+              "exe": "D:\\Games\\Rockstar\\game.exe",
+              "installdir": "D:\\Games\\Rockstar",
+              "launcher": "rockstar",
+              "source": "rockstar",
+              "installedVersion": "3.0"
+            }
+          ],
+          "source": "rockstar"
+        },
+        "ioSha256": "6ae1b5e9b0714c66fb71efef74808f0e01fdc81fb36666370d04a45b2e35e106"
+      },
+      "launcher:scan-itch": {
+        "result": {
+          "ok": true,
+          "items": [
+            {
+              "launcherProductId": "itch:d:\\itch games\\cozy-game 123",
+              "name": "Cozy Game",
+              "exe": "D:\\Itch Games\\cozy-game 123\\game.exe",
+              "installdir": "D:\\Itch Games\\cozy-game 123",
+              "launcher": "itch",
+              "source": "itch",
+              "nameEvidence": "itch-install-folder"
+            }
+          ],
+          "source": "itch"
+        },
+        "ioSha256": "6b237dcf9cbbc94fafd6149be8c90f5152870976719021990c47c058a47d0f6c"
+      }
+    },
+    "denied": {
+      "launcher:scan-steam": {
+        "result": {
+          "ok": true,
+          "items": [],
+          "source": "steam"
+        },
+        "ioSha256": "790552c70acdcf0d1a6996b324d580ac168eddaa404bcbeda8a99c7850bdaa8d"
+      },
+      "launcher:scan-epic": {
+        "result": {
+          "ok": true,
+          "items": [],
+          "source": "epic"
+        },
+        "ioSha256": "674f8bef5f04bc04591af4f2c3e2948a81404a12a85fdc3fbfbfdd342c86c722"
+      },
+      "launcher:scan-gog": {
+        "result": {
+          "ok": false,
+          "items": [],
+          "error": "No installed GOG games found in the Windows registry."
+        },
+        "ioSha256": "c96fddd601606ae1b92a247faf9ab2d87357e466e9666c8d003fbf4ab2135df6"
+      },
+      "launcher:scan-ea": {
+        "result": {
+          "ok": false,
+          "items": [],
+          "error": "No installed EA/Origin games found in the Windows registry."
+        },
+        "ioSha256": "3b4c3c06639a112cb27736907192ad1bee620bfd8436a1710a6fc31a2c5d3ac3"
+      },
+      "launcher:scan-ubisoft": {
+        "result": {
+          "ok": false,
+          "items": [],
+          "error": "No installed Ubisoft Connect games found in the Windows registry."
+        },
+        "ioSha256": "3ae9c817a0f60b64e6074eb1db1c67f52453e6562028c97c2fc8382c4c415766"
+      },
+      "launcher:scan-battlenet": {
+        "result": {
+          "ok": false,
+          "items": [],
+          "error": "No installed Battle.net games found in Windows installation records."
+        },
+        "ioSha256": "badbed0503cfd3b7f6dd94e69d227a07946c4b9284db80d335849afb92f93107"
+      },
+      "launcher:scan-riot": {
+        "result": {
+          "ok": false,
+          "items": [],
+          "error": "No installed Riot games were present in the local metadata."
+        },
+        "ioSha256": "d2d13bb2b4041f65745e257b075bc6d63107b5cd2ffb6e205400ec3d430c3aa7"
+      },
+      "launcher:scan-xbox": {
+        "result": {
+          "ok": false,
+          "items": [],
+          "error": "No Xbox/Game Pass installs with MicrosoftGame.config were found under local XboxGames roots."
+        },
+        "ioSha256": "2a3fbcf9038ca7ccbc3a827c6eec1eed014ad933b38a59c5d95fc6c0447e0211"
+      },
+      "launcher:scan-rockstar": {
+        "result": {
+          "ok": false,
+          "items": [],
+          "error": "No installed Rockstar games found in verified Windows installation records."
+        },
+        "ioSha256": "badbed0503cfd3b7f6dd94e69d227a07946c4b9284db80d335849afb92f93107"
+      },
+      "launcher:scan-itch": {
+        "result": {
+          "ok": false,
+          "items": [],
+          "error": "No itch.io install locations were found in the itch desktop app preferences."
+        },
+        "ioSha256": "0d3ccecebab6bf26e36d2c38bb29b671c8abf709aa186fc07bf9eb62b3c4d590"
+      }
+    },
+    "malformed": {
+      "launcher:scan-steam": {
+        "result": {
+          "ok": true,
+          "items": [],
+          "source": "steam"
+        },
+        "ioSha256": "c518370c58c925e4d55731f44d239f579ed99571d9f33851047adb7c23099577"
+      },
+      "launcher:scan-epic": {
+        "result": {
+          "ok": true,
+          "items": [],
+          "source": "epic"
+        },
+        "ioSha256": "f7ea0a172d035f0470bc40ec709feec6725f2807f14a14e02b666d030be2265f"
+      },
+      "launcher:scan-gog": {
+        "result": {
+          "ok": false,
+          "items": [],
+          "error": "No installed GOG games found in the Windows registry."
+        },
+        "ioSha256": "c96fddd601606ae1b92a247faf9ab2d87357e466e9666c8d003fbf4ab2135df6"
+      },
+      "launcher:scan-ea": {
+        "result": {
+          "ok": false,
+          "items": [],
+          "error": "No installed EA/Origin games found in the Windows registry."
+        },
+        "ioSha256": "3b4c3c06639a112cb27736907192ad1bee620bfd8436a1710a6fc31a2c5d3ac3"
+      },
+      "launcher:scan-ubisoft": {
+        "result": {
+          "ok": false,
+          "items": [],
+          "error": "No installed Ubisoft Connect games found in the Windows registry."
+        },
+        "ioSha256": "3ae9c817a0f60b64e6074eb1db1c67f52453e6562028c97c2fc8382c4c415766"
+      },
+      "launcher:scan-battlenet": {
+        "result": {
+          "ok": false,
+          "items": [],
+          "error": "No installed Battle.net games found in Windows installation records."
+        },
+        "ioSha256": "badbed0503cfd3b7f6dd94e69d227a07946c4b9284db80d335849afb92f93107"
+      },
+      "launcher:scan-riot": {
+        "result": {
+          "ok": false,
+          "items": [],
+          "error": "No installed Riot games were present in the local metadata."
+        },
+        "ioSha256": "ce26321a145da2e9f703ae0c05784e58af48f243334569f0f2c493f144cf5be6"
+      },
+      "launcher:scan-xbox": {
+        "result": {
+          "ok": true,
+          "items": [
+            {
+              "launcherProductId": "xbox:Xbox Game",
+              "name": "Xbox Game",
+              "exe": "D:\\XboxGames\\Xbox Game\\Content\\bin\\game.exe",
+              "installdir": "D:\\XboxGames\\Xbox Game\\Content",
+              "launcher": "xbox",
+              "source": "xbox",
+              "storeId": "Xbox Game"
+            },
+            {
+              "launcherProductId": "xbox:Localized Game",
+              "name": "Localized Game",
+              "exe": "D:\\XboxGames\\Localized Game\\Content",
+              "installdir": "D:\\XboxGames\\Localized Game\\Content",
+              "launcher": "xbox",
+              "source": "xbox",
+              "storeId": "Localized Game"
+            }
+          ],
+          "source": "xbox"
+        },
+        "ioSha256": "05f416d93ccc3769ae58c9404101586730316b2a38fe235bd3588f992bd9b16b"
+      },
+      "launcher:scan-rockstar": {
+        "result": {
+          "ok": false,
+          "items": [],
+          "error": "No installed Rockstar games found in verified Windows installation records."
+        },
+        "ioSha256": "badbed0503cfd3b7f6dd94e69d227a07946c4b9284db80d335849afb92f93107"
+      },
+      "launcher:scan-itch": {
+        "result": {
+          "ok": false,
+          "items": [],
+          "error": "No itch.io install locations were found in the itch desktop app preferences."
+        },
+        "ioSha256": "0d3ccecebab6bf26e36d2c38bb29b671c8abf709aa186fc07bf9eb62b3c4d590"
+      }
+    }
+  },
+  "handlerSha256": {
+    "launcher:scan-steam": "d2f65a1fc0a076236e226a4007e1759e49596f79a75f7bd2677528e19bf09a9b",
+    "launcher:scan-epic": "73b20bfd8509e66017d384a30da8a13d77ec60f150ace4bad2fd263125589c2c",
+    "launcher:scan-gog": "0f28496ed565f5bfa2f990f2786d2dc337a000b4b2f4cefc0ef388f0fc03f6cc",
+    "launcher:scan-ea": "8d48029a0a3784dddd86486f124d9798ce976e5efa83c917c66571b21c9f22f1",
+    "launcher:scan-ubisoft": "32b671359248c03d1514cfebbe2e2d2f9b7b38464ba2c4608cae41da38015acb",
+    "launcher:scan-battlenet": "0642c7d51bbd036e821938858fe422e7a76a0bf9db511f04df7980299cc24daf",
+    "launcher:scan-riot": "743eadee94a2909a71ad00676fe8099497f93848aa6b1541c7722c7cea752d02",
+    "launcher:scan-xbox": "41ab1186f432b39b6ae9e0e6305711c62881fa4121e9f3eba4567063ff92b2d7",
+    "launcher:scan-rockstar": "827b4478751e8edb9b375e2fcc93136bb3e74a4f912b62431fc4ad626a23e6cf",
+    "launcher:scan-itch": "9715ce3a18d522e878714a732991748a0436a6e8eaf20967371a2dcb8a66097b"
+  }
+}

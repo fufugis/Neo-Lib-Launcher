@@ -9,26 +9,11 @@
 const CACHE_KEY = 'neolib:updateCheck';
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
+import { isNewerVersion, normalizeVersion } from './update-version.mjs';
+
 const REPO = 'fufugis/Neo-Lib-Launcher';
 const API_URL = `https://api.github.com/repos/${REPO}/releases/latest`;
 const RELEASES_PAGE = `https://github.com/${REPO}/releases/latest`;
-
-function parseVersion(v) {
-  if (!v) return [0, 0, 0];
-  return String(v).replace(/^v/i, '').split('.').map((n) => parseInt(n, 10) || 0);
-}
-
-function isNewer(latest, current) {
-  const a = parseVersion(latest);
-  const b = parseVersion(current);
-  for (let i = 0; i < Math.max(a.length, b.length); i += 1) {
-    const x = a[i] || 0;
-    const y = b[i] || 0;
-    if (x > y) return true;
-    if (x < y) return false;
-  }
-  return false; // equal
-}
 
 export async function checkForUpdates(currentVersion, { force = false } = {}) {
   // Cached?
@@ -50,9 +35,9 @@ export async function checkForUpdates(currentVersion, { force = false } = {}) {
     });
     if (!res.ok) throw new Error('GitHub API ' + res.status);
     const data = await res.json();
-    const latestVersion = (data.tag_name || '').replace(/^v/i, '');
+    const latestVersion = normalizeVersion(data.tag_name);
     const result = {
-      available: isNewer(latestVersion, currentVersion),
+      available: isNewerVersion(latestVersion, currentVersion),
       latestVersion,
       currentVersion,
       releaseUrl: data.html_url || RELEASES_PAGE,

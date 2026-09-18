@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { renderForegroundPortal } from './ui/VisualBoundary';
 import {
   BarChart3, X, Trophy, Clock, CalendarDays, ExternalLink,
   GripVertical, RefreshCw,
@@ -490,7 +490,7 @@ export default function StatsPanel({ games = [], onClose, anchorSelector, onOpen
   );
 
   if (typeof document === 'undefined') return null;
-  return createPortal(body, document.body);
+  return renderForegroundPortal(body);
 }
 
 function SectionHeading({ icon, label, right }) {

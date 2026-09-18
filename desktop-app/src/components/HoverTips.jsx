@@ -3,6 +3,7 @@ import React from 'react';
 /** One-second, theme-aware explanations for the existing labelled controls. */
 export default function HoverTips() {
   const [tip, setTip] = React.useState(null);
+  const tipRef = React.useRef(null);
   React.useEffect(() => {
     let timer = null;
     let activeEl = null;
@@ -17,7 +18,7 @@ export default function HoverTips() {
       target.removeAttribute('title');
       timer = window.setTimeout(() => {
         const rect = target.getBoundingClientRect();
-        setTip({ label, x: Math.min(window.innerWidth - 18, Math.max(18, rect.left + rect.width / 2)), y: Math.min(window.innerHeight - 12, rect.bottom + 10) });
+        setTip({ label, x: rect.left + rect.width / 2, y: rect.bottom + 10, anchorTop: rect.top, anchorBottom: rect.bottom });
       }, 1000);
     };
     const leave = (event) => { if (activeEl?.contains(event.relatedTarget)) return; clear(); };
@@ -25,6 +26,15 @@ export default function HoverTips() {
     window.addEventListener('mouseout', leave);
     return () => { clear(); window.removeEventListener('mouseover', enter); window.removeEventListener('mouseout', leave); };
   }, []);
+  React.useLayoutEffect(() => {
+    if (!tip || !tipRef.current) return;
+    const rect = tipRef.current.getBoundingClientRect();
+    const edge = 12;
+    const nextX = Math.max(edge + rect.width / 2, Math.min(window.innerWidth - edge - rect.width / 2, tip.x));
+    const belowFits = tip.anchorBottom + 10 + rect.height <= window.innerHeight - edge;
+    const nextY = belowFits ? tip.anchorBottom + 10 : Math.max(edge, tip.anchorTop - rect.height - 10);
+    if (Math.abs(nextX - tip.x) > 0.5 || Math.abs(nextY - tip.y) > 0.5) setTip((current) => current && { ...current, x: nextX, y: nextY });
+  }, [tip]);
   if (!tip) return null;
-  return <div className="neolib-hover-tip" role="tooltip" style={{ left: tip.x, top: tip.y }}>{tip.label}</div>;
+  return <div ref={tipRef} className="neolib-hover-tip" role="tooltip" style={{ left: tip.x, top: tip.y }}>{tip.label}</div>;
 }

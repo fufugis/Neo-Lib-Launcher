@@ -42,9 +42,15 @@ same values:
 - `NEOLIB_FEEDBACK_RELAY_URL`
 - `NEOLIB_FEEDBACK_RELAY_KEY`
 
-`.github/workflows/build-windows.yml` writes them into `desktop-app/.env`
-right before the Vite renderer build step, so every CI-built binary gets a
-working (but never-exposed) feedback endpoint.
+`.github/workflows/build-windows.yml` runs the tested
+`scripts/prepare-release-config.cjs` helper immediately before the Vite build.
+It rejects missing or malformed values and writes the ignored `desktop-app/.env`,
+so CI cannot quietly ship a binary with a broken feedback button.
+
+The relay URL and shared signing key are client configuration and can be extracted
+from a shipped binary; they are not treated as server secrets. The protection is
+the fixed server-side destination, short replay window, rate limit and strict
+payload reshaping. The real Discord webhook remains only in Cloudflare.
 
 ## Rotating after abuse
 

@@ -1,14 +1,14 @@
 /*
  * Build-time Discord Rich Presence configuration.
  *
- * This file is OVERWRITTEN by the GitHub Actions Windows build using the
- * `NEOLIB_DISCORD_APP_ID` repository secret. On local dev builds the value
- * is empty by default, which disables Discord RPC silently.
+ * This checked-in fallback always remains empty. GitHub Actions validates the
+ * optional `NEOLIB_DISCORD_APP_ID` setting and writes the ignored sibling
+ * `discord-config.generated.js` before provenance/build. Packaged code prefers
+ * that generated file. Empty = Discord RPC disabled silently.
  *
- * To enable locally: paste your Discord Application ID below as a string.
- *   1. Go to https://discord.com/developers/applications -> New Application
- *   2. Copy the Application ID from "General Information"
- *   3. Paste between the quotes on the next line, save, restart NEO-LIB.
+ * To enable for a local release build, set the three NEOLIB release environment
+ * values and run `npm run prepare:release-config` before building. Never edit
+ * this tracked fallback or commit the generated sibling.
  */
 module.exports = {
   DISCORD_APP_ID: '',

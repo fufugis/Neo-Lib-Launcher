@@ -18,6 +18,7 @@ node_modules/
 
 # Testing
 /coverage
+/.diagnostics/
 
 # Next.js
 /.next/
@@ -91,3 +92,4 @@ desktop-app/dist/NEO-LIB/NEO-LIB.exe
 credentials.json
 *.key
 .credentials
+desktop-app/electron/discord-config.generated.js

@@ -28,6 +28,11 @@ contextBridge.exposeInMainWorld('api', {
   toggleMaximize: () => ipcRenderer.invoke('window:toggleMaximize'),
   close: () => ipcRenderer.invoke('window:close'),
   onMaximizeChange: (cb) => ipcRenderer.on('window:maximized', (_e, v) => cb(v)),
+  onWindowVisibility: (cb) => {
+    const listener = (_e, value) => cb(value || { visible: true });
+    ipcRenderer.on('window:visibility', listener);
+    return () => ipcRenderer.removeListener('window:visibility', listener);
+  },
 
   // library
   loadLibrary: () => ipcRenderer.invoke('library:load'),
@@ -80,8 +85,11 @@ contextBridge.exposeInMainWorld('api', {
   openPath: (p) => ipcRenderer.invoke('app:openPath', p),
   revealInFolder: (p) => ipcRenderer.invoke('app:revealInFolder', p),
   openContainingDir: (p) => ipcRenderer.invoke('app:openContainingDir', p),
+  getDiagnosticReport: () => ipcRenderer.invoke('diagnostics:getReport'),
+  openDiagnosticFolder: () => ipcRenderer.invoke('diagnostics:openFolder'),
   setAutoStart: (v) => ipcRenderer.invoke('app:setAutoStart', v),
   setMinimizeToTray: (v) => ipcRenderer.invoke('app:setMinimizeToTray', v),
+  quit: () => ipcRenderer.invoke('app:quit'),
   setDiscordRpc: (v) => ipcRenderer.invoke('app:setDiscordRpc', v),
   discordRpcStatus: () => ipcRenderer.invoke('app:discordRpcStatus'),
   getAutoStart: () => ipcRenderer.invoke('app:getAutoStart'),
@@ -136,5 +144,6 @@ contextBridge.exposeInMainWorld('api', {
   inspectSocialClients: (manualPaths) => ipcRenderer.invoke('launcher:inspectSocialClients', manualPaths),
   pickSocialClient: (platform) => ipcRenderer.invoke('launcher:pickSocialClient', platform),
   openLauncherSocial: (platform, manualPath) => ipcRenderer.invoke('launcher:openSocial', platform, manualPath),
+  openSteamController: () => ipcRenderer.invoke('launcher:openSteamController'),
   openLauncherDownloads: (platform) => ipcRenderer.invoke('launcher:openDownloads', platform),
 });

@@ -2,9 +2,11 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Archive, CalendarDays, ChevronLeft, ChevronRight, Clock3, Download, EyeOff, ExternalLink, FolderOpen, Gamepad2, GripVertical, HardDrive, LockKeyhole, Newspaper, RefreshCw, ShieldCheck, Sparkles, Star, Trophy, X } from 'lucide-react';
 import UpdateHistoryModal from './UpdateHistoryModal';
+import { PLATFORM, added, getChronicle, getLibraryHealth, getRecommendations, hours, maskHomeNews, maskHomeUpdates, normaliseGameUpdates, platformOf, relative } from './home/home-model.mjs';
+import { createBoundedOperation } from '../services/bounded-operation.mjs';
+import { OPERATION_STATUS } from '../state/operation-state.mjs';
 
 const RANGES = { today: { label: 'Today', days: 1 }, week: { label: 'This week', days: 7 }, month: { label: 'This month', days: 31 } };
-const PLATFORM = { steam: 'Steam', epic: 'Epic', gog: 'GOG', ea: 'EA app', ubisoft: 'Ubisoft', battlenet: 'Battle.net', riot: 'Riot', xbox: 'Xbox / Game Pass', rockstar: 'Rockstar', itch: 'itch.io', private: 'Protected', local: 'Local' };
 const HOME_SEGMENTS = [
   { id: 'play', label: 'Play & history', hint: 'Your sessions, favourites, ratings, and next adventure.', icon: Gamepad2, panes: ['play-next', 'recent', 'best-games', 'chronicle'] },
   { id: 'updates', label: 'News & updates', hint: 'Available game updates and what just released.', icon: Download, panes: ['updates', 'released-week'] },
@@ -25,57 +27,18 @@ const HALF_WIDTH_HOME_PANES = new Set(['play-next', 'recent', 'best-games', 'chr
 // scan so Storage Control does not look empty when the player comes back.
 let STORAGE_SESSION_CACHE = { loading: false, scannedAt: 0, results: [], skipped: [] };
 
-function platformOf(game) {
-  // Launcher ownership is deliberately separate from metadata provenance. A
-  // standalone/repack game may have Steam artwork or an appid without being
-  // owned or launched through Steam, so never infer its platform from those.
-  const launcher = (game?.launcher || '').toLowerCase();
-  if (PLATFORM[launcher]) return launcher;
-  if (/itch\.io/i.test(game?.website || '')) return 'itch';
-  return 'local';
-}
-function hours(minutes) { const value = Number(minutes || 0) / 60; return value ? `${value < 10 ? value.toFixed(1) : Math.round(value)}h` : '—'; }
-function relative(ms) { if (!ms) return 'Never'; const days = Math.floor((Date.now() - ms) / 86400000); return days === 0 ? 'Today' : days === 1 ? 'Yesterday' : days < 7 ? `${days}d ago` : days < 31 ? `${Math.floor(days / 7)}w ago` : `${Math.floor(days / 30)}mo ago`; }
-function added(ms) { return ms ? new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(ms)) : '—'; }
-
-const EMPTY_GAME_UPDATES = { loading: false, items: [], needsSetup: [], ledger: [], checked: 0, launcherManagedCount: 0, scannedAt: 0, error: '' };
-function normaliseGameUpdates(value) {
-  if (!value || typeof value !== 'object') return EMPTY_GAME_UPDATES;
-  return {
-    ...EMPTY_GAME_UPDATES,
-    items: Array.isArray(value.items) ? value.items : [],
-    needsSetup: Array.isArray(value.needsSetup) ? value.needsSetup : [],
-    ledger: Array.isArray(value.ledger) ? value.ledger : [],
-    checked: Number(value.checked || 0),
-    launcherManagedCount: Number(value.launcherManagedCount || 0),
-    scannedAt: Number(value.scannedAt || 0),
-    error: value.error || '',
-  };
-}
-
-function maskHomeNews(item, lockedGameCategories) {
-  const category = lockedGameCategories?.[item?.gameId];
-  return category ? { ...item, gameName: 'Locked game', title: 'Update from protected game', snippet: 'Unlock its category in Library to view the details.', appid: null, url: '', homeLocked: true, lockedCategoryName: category } : item;
-}
-function maskHomeUpdate(item, lockedGameCategories) {
-  const category = lockedGameCategories?.[item?.id];
-  return category ? { ...item, name: 'Locked game', platform: 'private', currentVersion: 'Protected', latestVersion: 'Protected', missing: 'Protected until unlock', sourceKind: 'private', homeLocked: true, lockedCategoryName: category } : item;
-}
-function maskHomeUpdates(value, lockedGameCategories) {
-  const updates = normaliseGameUpdates(value);
-  return {
-    ...updates,
-    items: updates.items.map((item) => maskHomeUpdate(item, lockedGameCategories)),
-    needsSetup: updates.needsSetup.map((item) => maskHomeUpdate(item, lockedGameCategories)),
-  };
+function operationFailure(operation, label) {
+  if (operation?.status === OPERATION_STATUS.TIMED_OUT) return `${label} timed out. Nothing is stuck; try again.`;
+  if (operation?.status === OPERATION_STATUS.CANCELLED) return `${label} cancelled.`;
+  return operation?.message || `${label} unavailable.`;
 }
 
 export default function HomeHub({ games = [], lockedGameCategories = {}, hasPrivateCategories = false, hasLockedPrivateCategories = false, onPanicLock, onSelect, onOpenPlaytimeImport, onOpenTidyUp, resting = false, homeLayout = {}, onUpdateHomeLayout, updatesCache, onUpdateUpdatesCache }) {
   const [range, setRange] = React.useState('week');
   const [rankingScope, setRankingScope] = React.useState('period');
-  const [news, setNews] = React.useState({ loading: false, items: [] });
+  const [news, setNews] = React.useState({ loading: false, items: [], error: '', operation: null });
   const [storage, setStorage] = React.useState(() => STORAGE_SESSION_CACHE);
-  const [weeklyReleases, setWeeklyReleases] = React.useState({ loading: false, items: [], criteria: '', tier: 'major', fetchedAt: 0, error: '' });
+  const [weeklyReleases, setWeeklyReleases] = React.useState({ loading: false, items: [], criteria: '', tier: 'major', fetchedAt: 0, error: '', operation: null });
   // Home unmounts while the user opens a game. Start from App's local cache so
   // the update pane does not look empty on return; only a completed scan may
   // replace this list.
@@ -89,6 +52,7 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
   const [dragSegmentPreviewOrder, setDragSegmentPreviewOrder] = React.useState(null);
   const [segmentDragInsertion, setSegmentDragInsertion] = React.useState(null);
   const railRef = React.useRef(null);
+  const operations = React.useRef({});
   const rangeMeta = RANGES[range];
   const visibleTrackableGames = React.useMemo(() => games.filter((game) => !game.homeLocked), [games]);
   const visibleNews = React.useMemo(() => ({ ...news, items: news.items.map((item) => maskHomeNews(item, lockedGameCategories)) }), [news, lockedGameCategories]);
@@ -219,39 +183,63 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
     // the main process gives their official site and web-discovery path a turn.
     const eligible = visibleTrackableGames.filter((game) => game && String(game.name || '').trim());
     if (!eligible.length) { setNews({ loading: false, items: [] }); return undefined; }
-    let cancelled = false;
-    setNews((value) => ({ ...value, loading: true }));
-    window.api.fetchAllNews({ games: eligible.map(({ id, appid, name, website, source, launcher, gogId }) => ({ id, appid, name, website, source, launcher, gogId })), days: rangeMeta.days, force: false })
-      .then((result) => { if (!cancelled) setNews({ loading: false, items: (result?.items || []).sort((a, b) => Number(b.date || 0) - Number(a.date || 0)) }); })
-      .catch(() => { if (!cancelled) setNews({ loading: false, items: [] }); });
-    return () => { cancelled = true; };
+    const payloadGames = eligible.map(({ id, appid, name, website, source, launcher, gogId }) => ({ id, appid, name, website, source, launcher, gogId }));
+    operations.current.news?.cancel('Replaced by a newer Home news request.');
+    const operation = createBoundedOperation({
+      domain: 'home-news', total: payloadGames.length, timeoutMs: 30_000,
+      task: async () => {
+        const result = await window.api.fetchAllNews({ games: payloadGames, days: rangeMeta.days, force: false });
+        if (!result?.ok) throw new Error(result?.error || 'Home news sources were unavailable.');
+        return { ...result, operationCompleted: payloadGames.length };
+      },
+      onState: (next) => setNews((value) => ({ ...value, operation: next, loading: next.status === OPERATION_STATUS.RUNNING, error: '' })),
+    });
+    operations.current.news = operation;
+    operation.promise.then((outcome) => {
+      if (operations.current.news?.id !== operation.id) return;
+      if (outcome.state.status === OPERATION_STATUS.SUCCEEDED) setNews({ loading: false, items: (outcome.value?.items || []).sort((a, b) => Number(b.date || 0) - Number(a.date || 0)), error: '', operation: outcome.state });
+      else setNews((value) => ({ ...value, loading: false, error: operationFailure(outcome.state, 'Game news'), operation: outcome.state }));
+    });
+    return () => operation.cancel('Home news request replaced or Home closed.');
   }, [rangeMeta.days, resting, visibleTrackableGames]);
 
   const refreshWeeklyReleases = React.useCallback(async (force = false) => {
     if (resting || !window.api?.fetchWeeklyReleases) return;
-    setWeeklyReleases((value) => ({ ...value, loading: true, error: '' }));
-    try {
+    operations.current.releases?.cancel('Replaced by a newer release request.');
+    const operation = createBoundedOperation({ domain: 'weekly-releases', total: 1, timeoutMs: 25_000, task: async () => {
       const result = await window.api.fetchWeeklyReleases({ force });
-      setWeeklyReleases({ loading: false, items: result?.items || [], criteria: result?.criteria || '', tier: result?.tier || 'major', fetchedAt: result?.fetchedAt || 0, error: result?.ok === false ? (result.error || 'Release feed unavailable.') : '' });
-    } catch {
-      setWeeklyReleases((value) => ({ ...value, loading: false, error: 'Release feed unavailable.' }));
-    }
+      if (result?.ok === false) throw new Error(result.error || 'Release feed unavailable.');
+      return { ...result, operationCompleted: 1 };
+    }, onState: (next) => setWeeklyReleases((value) => ({ ...value, operation: next, loading: next.status === OPERATION_STATUS.RUNNING, error: '' })) });
+    operations.current.releases = operation;
+    const outcome = await operation.promise;
+    if (operations.current.releases?.id !== operation.id) return;
+    if (outcome.state.status === OPERATION_STATUS.SUCCEEDED) {
+      const result = outcome.value || {};
+      setWeeklyReleases({ loading: false, items: result.items || [], criteria: result.criteria || '', tier: result.tier || 'major', fetchedAt: result.fetchedAt || 0, error: '', operation: outcome.state });
+    } else setWeeklyReleases((value) => ({ ...value, loading: false, error: operationFailure(outcome.state, 'Release discovery'), operation: outcome.state }));
   }, [resting]);
 
   React.useEffect(() => { refreshWeeklyReleases(false); }, [refreshWeeklyReleases]);
 
   const refreshGameUpdates = React.useCallback(async (gameIds = [], force = false) => {
     if (resting || !window.api?.scanGameUpdates) return;
-    setGameUpdates((value) => ({ ...value, loading: true, error: '' }));
-    try {
-      const scopedGames = (gameIds.length ? visibleTrackableGames.filter((game) => gameIds.includes(game.id)) : visibleTrackableGames);
+    const scopedGames = (gameIds.length ? visibleTrackableGames.filter((game) => gameIds.includes(game.id)) : visibleTrackableGames);
+    operations.current.updates?.cancel('Replaced by a newer update scan.');
+    const operation = createBoundedOperation({ domain: 'game-update-scan', total: scopedGames.length, timeoutMs: 45_000, task: async () => {
       const result = await window.api.scanGameUpdates({ games: scopedGames.map(({ id, name, appid, launcher, source, steamOwned, installedVersion, updateWatchUrl, website, exePath }) => ({ id, name, appid, launcher, source, steamOwned, installedVersion, updateWatchUrl, website, exePath })), force });
-      const next = { loading: false, items: result?.items || [], needsSetup: result?.needsSetup || [], ledger: result?.ledger || [], checked: result?.checked || 0, launcherManagedCount: result?.launcherManagedCount || 0, scannedAt: result?.scannedAt || Date.now(), error: result?.ok === false ? (result.error || 'Update scan unavailable.') : '' };
+      if (result?.ok === false) throw new Error(result.error || 'Update scan unavailable.');
+      return { ...result, operationCompleted: Number(result?.checked || scopedGames.length) };
+    }, onState: (next) => setGameUpdates((value) => ({ ...value, operation: next, loading: next.status === OPERATION_STATUS.RUNNING, error: '' })) });
+    operations.current.updates = operation;
+    const outcome = await operation.promise;
+    if (operations.current.updates?.id !== operation.id) return;
+    if (outcome.state.status === OPERATION_STATUS.SUCCEEDED) {
+      const result = outcome.value || {};
+      const next = { loading: false, items: result.items || [], needsSetup: result.needsSetup || [], ledger: result.ledger || [], checked: result.checked || 0, launcherManagedCount: result.launcherManagedCount || 0, scannedAt: result.scannedAt || Date.now(), error: '', operation: outcome.state };
       setGameUpdates(next);
       onUpdateUpdatesCache?.(next);
-    } catch {
-      setGameUpdates((value) => ({ ...value, loading: false, error: 'Update scan unavailable.' }));
-    }
+    } else setGameUpdates((value) => ({ ...value, loading: false, error: operationFailure(outcome.state, 'Update scan'), operation: outcome.state }));
   }, [onUpdateUpdatesCache, resting, visibleTrackableGames]);
   React.useEffect(() => {
     if (resting) return undefined;
@@ -264,19 +252,32 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
   const scrollNews = (direction) => railRef.current?.scrollBy({ left: direction * 420, behavior: 'smooth' });
   const scanStorage = async () => {
     if (!window.api?.scanGameStorage) return;
-    setStorage((value) => ({ ...value, loading: true }));
-    const result = await window.api.scanGameStorage({ games: visibleTrackableGames.map(({ id, name, exePath, launcher }) => ({ id, name, exePath, launcher })), force: Boolean(storage.scannedAt) });
-    const next = { loading: false, scannedAt: result?.scannedAt || 0, results: result?.results || [], skipped: result?.skipped || [] };
+    const payloadGames = visibleTrackableGames.map(({ id, name, exePath, launcher }) => ({ id, name, exePath, launcher }));
+    operations.current.storage?.cancel('Replaced by a newer storage scan.');
+    const operation = createBoundedOperation({ domain: 'storage-scan', total: payloadGames.length, timeoutMs: 45_000, task: async () => {
+      const result = await window.api.scanGameStorage({ games: payloadGames, force: Boolean(storage.scannedAt) });
+      if (result?.ok === false) throw new Error(result.error || 'Storage scan unavailable.');
+      return { ...result, operationCompleted: Number(result?.results?.length || 0), operationFailed: Number(result?.skipped?.length || 0) };
+    }, onState: (next) => setStorage((value) => ({ ...value, operation: next, loading: next.status === OPERATION_STATUS.RUNNING, error: '' })) });
+    operations.current.storage = operation;
+    const outcome = await operation.promise;
+    if (operations.current.storage?.id !== operation.id) return;
+    if (![OPERATION_STATUS.SUCCEEDED, OPERATION_STATUS.PARTIAL].includes(outcome.state.status)) {
+      setStorage((value) => ({ ...value, loading: false, error: operationFailure(outcome.state, 'Storage scan'), operation: outcome.state }));
+      return;
+    }
+    const result = outcome.value || {};
+    const next = { loading: false, scannedAt: result.scannedAt || 0, results: result.results || [], skipped: result.skipped || [], error: outcome.state.status === OPERATION_STATUS.PARTIAL ? 'Some configured targets were skipped safely.' : '', operation: outcome.state };
     STORAGE_SESSION_CACHE = next;
     setStorage(next);
   };
   const paneContent = {
     'play-next': <PlayNext recommendations={recommendations} onSelect={onSelect} />,
-    updates: <GameUpdates updates={visibleGameUpdates} onRefresh={() => refreshGameUpdates([], true)} onResolve={(ids) => refreshGameUpdates(ids, true)} onSelect={onSelect} />,
+    updates: <GameUpdates updates={visibleGameUpdates} onRefresh={() => refreshGameUpdates([], true)} onCancel={() => operations.current.updates?.cancel('Cancelled by the player.')} onResolve={(ids) => refreshGameUpdates(ids, true)} onSelect={onSelect} />,
     health: <LibraryHealth health={health} onOpenTidyUp={onOpenTidyUp} gameCount={games.length} />,
     'best-games': <MyBestGames games={bestGames} onSelect={onSelect} />,
-    'released-week': <ReleasedThisWeek releases={weeklyReleases} onRefresh={() => refreshWeeklyReleases(true)} />,
-    storage: <StorageCentre games={games} storage={visibleStorage} onScan={scanStorage} onSelect={onSelect} />,
+    'released-week': <ReleasedThisWeek releases={weeklyReleases} onRefresh={() => refreshWeeklyReleases(true)} onCancel={() => operations.current.releases?.cancel('Cancelled by the player.')} />,
+    storage: <StorageCentre games={games} storage={visibleStorage} onScan={scanStorage} onCancel={() => operations.current.storage?.cancel('Cancelled by the player.')} onSelect={onSelect} />,
     chronicle: <GamingChronicle entries={chronicle} onSelect={onSelect} />,
     recent: <section className="pb-1"><div className="mb-2 flex items-center gap-2"><Clock3 size={14} className="text-[rgb(var(--accent))]" /><h2 className="text-xs font-black uppercase tracking-[0.18em]">Recent sessions</h2><span className="text-[10px] text-muted">Latest plays · chronological</span></div><div className="overflow-hidden rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.3)]">{played.length ? played.slice(0, 5).map((game) => <button key={game.id} onClick={() => onSelect?.(game.id)} className="flex w-full items-center gap-3 border-b border-[rgb(var(--border)/0.55)] px-3 py-2.5 text-left last:border-b-0 hover:bg-[rgb(var(--accent)/0.07)]"><Cover game={game} /><span className="min-w-0 flex-1"><span className="block truncate text-xs font-bold">{game.name}</span><span className="mt-0.5 flex items-center gap-1 text-[10px] text-muted"><Gamepad2 size={10} />{PLATFORM[platformOf(game)]}</span></span><span className="hidden text-right text-[10px] text-muted sm:block">Played<br /><b className="text-ink">{relative(game.lastPlayedAt)}</b></span><span className="font-mono text-xs font-bold text-[rgb(var(--accent-2))]">{hours(game.playtime)}</span></button>) : <p className="p-5 text-center text-xs text-muted">Your latest sessions will appear here.</p>}</div></section>,
   };
@@ -314,13 +315,13 @@ function PinnedNews({ news, railRef, onScroll, onOpen, onHide, rangeLabel }) {
     <div className="mb-3.5 flex items-center justify-between gap-2"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl border border-[rgb(var(--accent-2)/0.46)] bg-[rgb(var(--accent-2)/0.14)] shadow-[0_0_18px_-4px_rgb(var(--accent-2))]"><Newspaper size={18} className="text-[rgb(var(--accent-2))]" /></span><div><p className="text-[10px] font-black uppercase tracking-[0.25em] text-[rgb(var(--accent-2))]">Weekly game news</p><h2 className="mt-0.5 text-base font-black tracking-wide">What changed in your library</h2><p className="mt-0.5 text-[10.5px] text-muted">Fresh patch notes, updates, and stories · {rangeLabel.toLowerCase()}</p></div></div><div className="flex items-center gap-1"><RailButton onClick={() => onScroll(-1)}><ChevronLeft size={13} /></RailButton><RailButton onClick={() => onScroll(1)}><ChevronRight size={13} /></RailButton><button onClick={onHide} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink" title="Hide This Week's News"><EyeOff size={13} /></button></div></div>
     <div ref={railRef} onWheel={(event) => { if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) { event.currentTarget.scrollLeft += event.deltaY; event.preventDefault(); } }} className="flex gap-3 overflow-x-auto pb-1 [scrollbar-color:rgb(var(--accent))_transparent] [scrollbar-width:thin]">
       {news.loading && <p className="px-1 py-3 text-xs text-muted">Loading this week’s game news…</p>}
-      {!news.loading && !news.items.length && <p className="px-1 py-3 text-xs text-muted">No game news in {rangeLabel.toLowerCase()} yet.</p>}
+      {!news.loading && !news.items.length && <p className={`px-1 py-3 text-xs ${news.error ? 'text-amber-200' : 'text-muted'}`}>{news.error || `No game news in ${rangeLabel.toLowerCase()} yet.`}</p>}
       {news.items.map((item) => <button key={item.id} onClick={() => !item.homeLocked && onOpen?.(item)} disabled={item.homeLocked} className={`group flex w-[min(430px,84vw)] shrink-0 gap-3.5 rounded-xl border border-[rgb(var(--border)/0.75)] bg-[rgb(var(--surface)/0.34)] p-3 text-left transition ${item.homeLocked ? 'cursor-default' : 'hover:-translate-y-0.5 hover:border-[rgb(var(--accent)/0.72)] hover:bg-[rgb(var(--surface)/0.58)]'}`}><NewsCover item={item} /><span className="min-w-0 flex-1"><p className="text-[10.5px] font-bold text-[rgb(var(--accent-2))]">{item.gameName || 'Game update'} · {relative(item.date)}</p><h3 className="mt-1 line-clamp-2 text-[14px] font-black leading-snug group-hover:text-[rgb(var(--accent))]">{item.title}</h3>{item.snippet && <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted">{item.snippet}</p>}</span></button>)}
     </div>
   </section>;
 }
 
-function GameUpdates({ updates, onRefresh, onResolve, onSelect }) {
+function GameUpdates({ updates, onRefresh, onCancel, onResolve, onSelect }) {
   const [historyItem, setHistoryItem] = React.useState(null);
   const [downloadError, setDownloadError] = React.useState('');
   const resolvableNeedsSetup = (updates.needsSetup || []).filter((item) => !item.homeLocked);
@@ -331,7 +332,7 @@ function GameUpdates({ updates, onRefresh, onResolve, onSelect }) {
   };
   const size = (bytes) => bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3).toFixed(1)} GB` : `${Math.max(1, Math.round(bytes / 1024 ** 2))} MB`;
   return <><section className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.34)] p-4" data-testid="home-game-updates">
-    <div className="flex items-start justify-between gap-3"><div className="flex items-center gap-2"><Download size={15} className="text-[rgb(var(--accent))]" /><div><h2 className="text-xs font-black uppercase tracking-[0.18em]">Game Updates</h2><p className="mt-1 text-[10px] text-muted">Launcher manifests plus safe local-version checks for independent games.</p></div></div><button onClick={onRefresh} disabled={updates.loading} className="inline-flex items-center gap-1.5 rounded-md border border-[rgb(var(--border))] px-2.5 py-1.5 text-[10px] font-bold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink disabled:opacity-50"><RefreshCw size={11} className={updates.loading ? 'animate-spin' : ''} />Refresh</button></div>
+    <div className="flex items-start justify-between gap-3"><div className="flex items-center gap-2"><Download size={15} className="text-[rgb(var(--accent))]" /><div><h2 className="text-xs font-black uppercase tracking-[0.18em]">Game Updates</h2><p className="mt-1 text-[10px] text-muted">Launcher manifests plus safe local-version checks for independent games.</p></div></div><button onClick={updates.loading ? onCancel : onRefresh} className="inline-flex items-center gap-1.5 rounded-md border border-[rgb(var(--border))] px-2.5 py-1.5 text-[10px] font-bold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink"><RefreshCw size={11} className={updates.loading ? 'animate-spin' : ''} />{updates.loading ? 'Cancel' : 'Refresh'}</button></div>
     {updates.items.length ? <><div className="mt-3 grid gap-2 md:grid-cols-2">{updates.items.map((item) => {
       const needsComparison = item.status === 'attention';
       const tone = needsComparison ? 'amber' : 'emerald';
@@ -407,7 +408,7 @@ function MyBestGames({ games, onSelect }) {
   return <section className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.34)] p-4"><div className="flex items-center gap-2"><Star size={15} className="fill-[rgb(var(--accent))] text-[rgb(var(--accent))]" /><div><h2 className="text-xs font-black uppercase tracking-[0.18em]">My Best Games</h2><p className="mt-1 text-[10px] text-muted">Your five highest personal ratings. Critic score is only context.</p></div></div>{games.length ? <ol className="mt-3 space-y-1.5">{games.map((game, index) => <li key={game.id}><button onClick={() => onSelect?.(game.id)} className="flex w-full items-center gap-2 rounded-lg border border-[rgb(var(--border)/0.75)] bg-[rgb(var(--surface)/0.28)] p-2 text-left hover:border-[rgb(var(--accent)/0.55)] hover:bg-[rgb(var(--accent)/0.07)]"><span className="w-4 font-mono text-[10px] text-[rgb(var(--accent-2))]">{index + 1}</span><Cover game={game} className="h-8 w-14" /><span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-bold">{game.name}</span><span className="mt-0.5 flex items-center gap-1.5 text-[10px]"><span className="text-[rgb(var(--accent))]">★ {Number(game.rating).toFixed(1)}/5</span>{game.metacritic ? <span className="text-muted">Metacritic {game.metacritic}</span> : null}</span></span></button></li>)}</ol> : <p className="mt-3 text-xs text-muted">Rate games from their preview page and your top five will appear here.</p>}</section>;
 }
 
-function ReleasedThisWeek({ releases, onRefresh }) {
+function ReleasedThisWeek({ releases, onRefresh, onCancel }) {
   const open = (release) => { if (window.api?.openExternal) window.api.openExternal(release.url); else window.open(release.url, '_blank'); };
   const usingFallback = releases.tier === 'semi-major';
   const usingPopularFallback = releases.tier === 'popular';
@@ -416,25 +417,7 @@ function ReleasedThisWeek({ releases, onRefresh }) {
     : usingPopularFallback
       ? 'No major launch this week — showing popular new releases instead.'
       : 'Not a release dump — only major games with real early momentum.';
-  return <section className="rounded-xl border border-[rgb(var(--border))] bg-[linear-gradient(130deg,rgb(var(--accent)/0.10),rgb(var(--panel)/0.35)_46%,rgb(var(--accent-2)/0.07))] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-2"><CalendarDays size={15} className="text-[rgb(var(--accent-2))]" /><div><h2 className="text-xs font-black uppercase tracking-[0.18em]">Released This Week</h2><p className="mt-1 text-[10px] text-muted">{subtitle}</p></div></div><button onClick={onRefresh} disabled={releases.loading} className="inline-flex items-center gap-1.5 rounded-md border border-[rgb(var(--border))] px-2.5 py-1.5 text-[10px] font-bold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink disabled:opacity-50" title="Refresh this week's discovery feed"><RefreshCw size={11} className={releases.loading ? 'animate-spin text-[rgb(var(--accent))]' : ''} />{releases.loading ? 'Checking…' : 'Refresh'}</button></div>{(usingFallback || usingPopularFallback) && releases.items.length > 0 && <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-[rgb(var(--accent-2)/0.35)] bg-[rgb(var(--accent-2)/0.10)] px-2.5 py-1 text-[9px] font-bold uppercase tracking-wide text-[rgb(var(--accent-2))]">{usingFallback ? 'Noteworthy picks · no major releases found' : 'Popular new releases · no major picks found'}</div>}{releases.loading && !releases.items.length ? <p className="mt-4 text-xs text-muted">Verifying notable new releases…</p> : releases.items.length ? <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{releases.items.map((release) => <button key={release.id} onClick={() => open(release)} className="group flex min-w-0 gap-3 rounded-lg border border-[rgb(var(--border)/0.75)] bg-[rgb(var(--surface)/0.34)] p-2.5 text-left hover:border-[rgb(var(--accent)/0.55)] hover:bg-[rgb(var(--surface)/0.60)]"><img src={release.image} alt="" className="h-14 w-24 shrink-0 rounded-md object-cover" onError={(event) => { event.currentTarget.style.opacity = '0.18'; }} /><span className="min-w-0 flex-1"><span className="flex items-start gap-1"><span className="line-clamp-2 flex-1 text-xs font-black leading-snug group-hover:text-[rgb(var(--accent))]">{release.title}</span><ExternalLink size={11} className="mt-0.5 shrink-0 text-muted" /></span><span className="mt-1 flex flex-wrap gap-x-2 text-[10px] text-muted"><span>{release.platform}</span><span>{release.releaseDate}</span></span><span className="mt-1 block truncate text-[10px] font-bold text-[rgb(var(--accent-2))]">{release.why}</span></span></button>)}</div> : <p className="mt-4 text-xs leading-relaxed text-muted">{releases.error || 'No recent popular releases surfaced through the current verified sources.'}</p>}<p className="mt-3 text-[9.5px] leading-relaxed text-muted/80">{releases.criteria || 'Discovery criteria appear after the first successful refresh.'}</p></section>;
-}
-
-function getLibraryHealth(games) {
-  // A protected placeholder deliberately has no art, description, or launch
-  // path. Do not turn privacy into a false Library Health problem.
-  const inspectableGames = games.filter((game) => !game.homeLocked);
-  const missingArt = inspectableGames.filter((g) => !(g.coverUrl || g.headerImage || g.background)).length;
-  // Metadata arrives from different sources under different fields. Treat a
-  // game as detailed when any user-facing description is present, otherwise a
-  // large imported library is incorrectly reported as entirely incomplete.
-  const missingDetails = inspectableGames.filter((g) => ![g.description, g.about, g.shortDescription].some((value) => String(value || '').trim())).length;
-  const noLaunchTarget = inspectableGames.filter((g) => !(g.exePath || g.launchUrl)).length;
-  const names = new Map();
-  for (const game of inspectableGames) { const key = String(game.name || '').toLowerCase().replace(/[^a-z0-9]/g, ''); if (key) names.set(key, (names.get(key) || 0) + 1); }
-  const duplicates = [...names.values()].reduce((total, count) => total + (count > 1 ? count - 1 : 0), 0);
-  const issues = missingArt + missingDetails + noLaunchTarget + duplicates;
-  const genreProfile = inspectableGames.filter((g) => Array.isArray(g.genreProfile?.rawTags) && g.genreProfile.rawTags.length > 0).length;
-  return { missingArt, missingDetails, noLaunchTarget, duplicates, genreProfile, score: Math.max(0, Math.round(100 - ((issues / Math.max(inspectableGames.length, 1)) * 35))) };
+  return <section className="rounded-xl border border-[rgb(var(--border))] bg-[linear-gradient(130deg,rgb(var(--accent)/0.10),rgb(var(--panel)/0.35)_46%,rgb(var(--accent-2)/0.07))] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-2"><CalendarDays size={15} className="text-[rgb(var(--accent-2))]" /><div><h2 className="text-xs font-black uppercase tracking-[0.18em]">Released This Week</h2><p className="mt-1 text-[10px] text-muted">{subtitle}</p></div></div><button onClick={releases.loading ? onCancel : onRefresh} className="inline-flex items-center gap-1.5 rounded-md border border-[rgb(var(--border))] px-2.5 py-1.5 text-[10px] font-bold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink" title={releases.loading ? 'Cancel release discovery' : "Refresh this week's discovery feed"}><RefreshCw size={11} className={releases.loading ? 'animate-spin text-[rgb(var(--accent))]' : ''} />{releases.loading ? 'Cancel' : 'Refresh'}</button></div>{(usingFallback || usingPopularFallback) && releases.items.length > 0 && <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-[rgb(var(--accent-2)/0.35)] bg-[rgb(var(--accent-2)/0.10)] px-2.5 py-1 text-[9px] font-bold uppercase tracking-wide text-[rgb(var(--accent-2))]">{usingFallback ? 'Noteworthy picks · no major releases found' : 'Popular new releases · no major picks found'}</div>}{releases.loading && !releases.items.length ? <p className="mt-4 text-xs text-muted">Verifying notable new releases…</p> : releases.items.length ? <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{releases.items.map((release) => <button key={release.id} onClick={() => open(release)} className="group flex min-w-0 gap-3 rounded-lg border border-[rgb(var(--border)/0.75)] bg-[rgb(var(--surface)/0.34)] p-2.5 text-left hover:border-[rgb(var(--accent)/0.55)] hover:bg-[rgb(var(--surface)/0.60)]"><img src={release.image} alt="" className="h-14 w-24 shrink-0 rounded-md object-cover" onError={(event) => { event.currentTarget.style.opacity = '0.18'; }} /><span className="min-w-0 flex-1"><span className="flex items-start gap-1"><span className="line-clamp-2 flex-1 text-xs font-black leading-snug group-hover:text-[rgb(var(--accent))]">{release.title}</span><ExternalLink size={11} className="mt-0.5 shrink-0 text-muted" /></span><span className="mt-1 flex flex-wrap gap-x-2 text-[10px] text-muted"><span>{release.platform}</span><span>{release.releaseDate}</span></span><span className="mt-1 block truncate text-[10px] font-bold text-[rgb(var(--accent-2))]">{release.why}</span></span></button>)}</div> : <p className="mt-4 text-xs leading-relaxed text-muted">{releases.error || 'No recent popular releases surfaced through the current verified sources.'}</p>}<p className="mt-3 text-[9.5px] leading-relaxed text-muted/80">{releases.criteria || 'Discovery criteria appear after the first successful refresh.'}</p></section>;
 }
 
 function LibraryHealth({ health, onOpenTidyUp, gameCount = 0 }) {
@@ -454,28 +437,13 @@ function LibraryHealthBlob({ health, onOpenTidyUp }) {
   return <button onClick={() => onOpenTidyUp?.()} className="mt-3 flex w-full items-center gap-2.5 rounded-lg border border-[rgb(var(--border)/0.8)] bg-[rgb(var(--surface)/0.28)] px-2.5 py-2 text-left transition hover:border-[rgb(var(--accent)/0.55)] hover:bg-[rgb(var(--accent)/0.07)]" title="Review Library Health"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color, boxShadow: `0 0 9px ${color}` }} /><span className="text-[10px] font-black uppercase tracking-[0.14em]">Library health</span><span className="min-w-0 flex-1"><span className="block h-1.5 overflow-hidden rounded-full bg-black/25"><span className="block h-full rounded-full" style={{ width: `${health.score}%`, background: color }} /></span></span><span className="text-[10px] font-bold" style={{ color }}>{health.score}%</span><span className="text-[9px] text-muted">{issues ? `${issues} to review` : 'All tidy'}</span></button>;
 }
 
-function getRecommendations(games, news) {
-  const now = Date.now();
-  const hasNews = (game) => news.find((item) => item.gameId === game.id || String(item.gameName || '').toLowerCase() === String(game.name || '').toLowerCase());
-  const installed = games.filter((game) => game.exePath || game.launchUrl);
-  const updated = installed.map((game) => ({ game, news: hasNews(game) })).filter((entry) => entry.news).sort((a, b) => Number(b.news.date || 0) - Number(a.news.date || 0))[0];
-  const rediscover = installed.filter((game) => Number(game.lastPlayedAt || 0) && now - Number(game.lastPlayedAt) > 21 * 86400000).sort((a, b) => (Number(b.rating || 0) * 10000000000 + Number(b.playtime || 0)) - (Number(a.rating || 0) * 10000000000 + Number(a.playtime || 0)))[0];
-  const fresh = installed.filter((game) => !Number(game.playtime || 0)).sort((a, b) => Number(b.addedAt || 0) - Number(a.addedAt || 0))[0];
-  const seen = new Set();
-  return [
-    updated && { game: updated.game, label: 'NEW UPDATE', reason: `New patch notes appeared ${relative(updated.news.date)}. ${updated.news.title ? `${updated.news.title} — ` : ''}a good reason to return and see what changed.`, action: 'Read update', update: true },
-    rediscover && { game: rediscover, label: 'Rediscover', reason: `You last played ${relative(rediscover.lastPlayedAt)}. ${rediscover.rating ? `Your ${Number(rediscover.rating).toFixed(1)}/5 rating` : `${hours(rediscover.playtime)} invested`} says this is worth another session.`, action: 'Open game' },
-    fresh && { game: fresh, label: 'Fresh start', reason: `Added ${added(fresh.addedAt)} and still unplayed. Its launch target is ready, so this is an easy first session from your own library.`, action: 'Explore' },
-  ].filter(Boolean).filter((entry) => { if (seen.has(entry.game.id)) return false; seen.add(entry.game.id); return true; }).slice(0, 3);
-}
-
 function PlayNext({ recommendations, onSelect }) {
   return <section className="rounded-xl border border-[rgb(var(--accent)/0.35)] bg-[linear-gradient(120deg,rgb(var(--accent)/0.12),rgb(var(--panel)/0.35)_48%,rgb(var(--accent-2)/0.08))] p-4 shadow-[0_0_32px_-20px_rgb(var(--accent))]"><div className="flex items-center gap-2.5"><Sparkles size={17} className="text-[rgb(var(--accent-2))]" /><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">What should I play?</p><h2 className="text-sm font-black">A useful nudge from your own library</h2></div></div>{recommendations.length ? <div className="mt-3 space-y-2">{recommendations.map(({ game, label, reason, action, update }) => <button key={game.id} onClick={() => onSelect?.(game.id)} className="group flex min-w-0 items-center gap-3 rounded-xl border border-[rgb(var(--border)/0.85)] bg-[rgb(var(--surface)/0.36)] p-2.5 text-left hover:border-[rgb(var(--accent)/0.55)] hover:bg-[rgb(var(--surface)/0.6)]"><Cover game={game} className="h-12 w-20" /><span className="min-w-0 flex-1"><span className={`block text-[9.5px] font-bold uppercase tracking-wider ${update ? 'new-update-reactive text-emerald-300' : 'text-[rgb(var(--accent-2))]'}`}>{label}</span><span className="block truncate text-[12px] font-black group-hover:text-[rgb(var(--accent))]">{game.name}</span><span className="mt-0.5 block line-clamp-2 text-[10.5px] leading-relaxed text-muted">{reason}</span></span><span className="shrink-0 text-[10px] font-bold text-[rgb(var(--accent))]">{action} ›</span></button>)}</div> : <p className="mt-3 text-xs text-muted">Add or import a few games and NEO-LIB will begin surfacing timely reasons to play them.</p>}</section>;
 }
 
 function readableBytes(bytes) { const value = Number(bytes || 0); if (value < 1024 ** 2) return `${Math.round(value / 1024)} KB`; if (value < 1024 ** 3) return `${(value / 1024 ** 2).toFixed(1)} MB`; return `${(value / 1024 ** 3).toFixed(1)} GB`; }
 
-function StorageCentre({ games, storage, onScan, onSelect }) {
+function StorageCentre({ games, storage, onScan, onCancel, onSelect }) {
   const [openError, setOpenError] = React.useState('');
   const results = storage.results.map((entry) => ({ ...entry, game: games.find((game) => game.id === entry.id) || { id: entry.id, name: entry.name || 'Unknown game' } })).sort((a, b) => Number(b.bytes) - Number(a.bytes));
   const total = results.reduce((sum, entry) => sum + Number(entry.bytes || 0), 0);
@@ -487,21 +455,7 @@ function StorageCentre({ games, storage, onScan, onSelect }) {
     const result = await window.api?.openPath?.(entry.root);
     if (!result?.ok) setOpenError(result?.error || `Could not open ${entry.root || 'this measured folder'}.`);
   };
-  return <section className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.34)] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-2"><HardDrive size={15} className="text-[rgb(var(--accent))]" /><div><h2 className="text-xs font-black uppercase tracking-[0.18em]">Storage control centre</h2><p className="mt-1 text-[10px] text-muted">Validated game folders and recognised mod folders only—read-only.</p></div></div><button onClick={onScan} disabled={storage.loading} className="inline-flex items-center gap-1.5 rounded-md border border-[rgb(var(--border))] px-2.5 py-1.5 text-[10px] font-bold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink disabled:opacity-50"><RefreshCw size={11} className={storage.loading ? 'animate-spin text-[rgb(var(--accent))]' : ''} />{storage.loading ? 'Scanning…' : storage.scannedAt ? 'Rescan' : 'Scan sizes'}</button></div>{storage.scannedAt ? <><div className="mt-3 flex flex-wrap gap-x-5 gap-y-2"><Stat label="Folders measured" value={results.length} /><Stat label="Total" value={`${hasEstimate ? '≥ ' : ''}${readableBytes(total)}`} /><Stat label="Mod content" value={readableBytes(mods)} /></div>{openError && <p className="mt-3 rounded-lg border border-red-400/30 bg-red-400/[0.07] px-3 py-2 text-[10px] text-red-200">{openError}</p>}{storage.skipped?.length > 0 && <div className="mt-3 rounded-lg border border-amber-300/25 bg-amber-300/[0.05] px-3 py-2"><p className="text-[10px] font-bold text-amber-200">{storage.skipped.length} launch target{storage.skipped.length === 1 ? '' : 's'} skipped instead of guessing.</p><p className="mt-0.5 truncate text-[9.5px] text-muted" title={storage.skipped.slice(0, 3).map((item) => `${item.name}: ${item.reason}`).join(' · ')}>{storage.skipped.slice(0, 3).map((item) => `${item.name}: ${item.reason}`).join(' · ')}</p></div>}<div className="mt-3 max-h-[430px] space-y-1.5 overflow-y-auto pr-1" data-testid="storage-results-list">{results.map((entry) => <div key={entry.id} className="flex items-center gap-2 rounded-lg border border-[rgb(var(--border)/0.68)] bg-[rgb(var(--surface)/0.23)] p-2 transition hover:border-[rgb(var(--accent)/0.45)]"><button onClick={() => onSelect?.(entry.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left"><Cover game={entry.game} className="h-8 w-14" /><span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-black text-ink">{entry.game.name}</span><span className="mt-0.5 block truncate font-mono text-[8.5px] text-muted" title={entry.game.homeLocked ? 'Protected folder' : entry.root}>{entry.game.homeLocked ? 'Protected folder' : entry.root}</span><span className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[8.5px] text-muted"><span>{Number(entry.files || 0).toLocaleString()} files</span>{entry.modBytes > 0 && <span className="text-[rgb(var(--accent-2))]">mods {readableBytes(entry.modBytes)}</span>}{entry.truncated && <span className="text-amber-200">partial scan</span>}</span></span></button><div className="flex shrink-0 items-center gap-2"><span className="font-mono text-[10px] font-bold text-ink">{entry.truncated ? '≥ ' : ''}{readableBytes(entry.bytes)}</span>{entry.game.homeLocked ? <span className="inline-flex h-7 items-center rounded-md border border-[rgb(var(--accent)/0.35)] px-2 text-[9px] font-bold text-[rgb(var(--accent-2))]">Locked</span> : <button onClick={() => openFolder(entry)} className="inline-flex h-7 items-center gap-1 rounded-md border border-[rgb(var(--border))] px-2 text-[9px] font-bold text-[rgb(var(--accent-2))] hover:border-[rgb(var(--accent)/0.55)] hover:text-ink" title={`Open measured folder: ${entry.root}`}><FolderOpen size={11} />Open</button>}</div></div>)}{!results.length && <p className="rounded-lg border border-dashed border-[rgb(var(--border))] p-4 text-center text-xs text-muted">No valid game folders were measured. Review the skipped launch targets above, then use Customize to correct a game’s executable.</p>}</div><p className="mt-2 text-[9px] leading-relaxed text-muted/85">Every size is tied to the shown folder. “Partial scan” means NEO-LIB stopped at its safety limit, so the displayed total is at least that large.</p></> : <p className="mt-4 text-xs leading-relaxed text-muted">Scan when you want a current view. NEO-LIB never crawls entire drives; it walks only validated configured game folders.</p>}</section>;
-}
-
-function getChronicle(games, news) {
-  const entries = [];
-  for (const game of games) {
-    if (game.addedAt) entries.push({ game, at: Number(game.addedAt), type: 'Added to NEO-LIB', detail: `via ${PLATFORM[platformOf(game)] || 'Local'}` });
-    if (game.lastPlayedAt) entries.push({ game, at: Number(game.lastPlayedAt), type: 'Played', detail: `${hours(game.playtime)} total` });
-    if (game.ratedAt) entries.push({ game, at: Number(game.ratedAt), type: 'Rated', detail: `${game.rating || 0}/5 personal rating` });
-  }
-  for (const item of news.slice(0, 12)) {
-    const game = games.find((entry) => entry.id === item.gameId || String(entry.name || '').toLowerCase() === String(item.gameName || '').toLowerCase());
-    if (game && item.date) entries.push({ game, at: Number(item.date), type: 'New update', detail: item.title || 'Patch notes available' });
-  }
-  return entries.sort((a, b) => b.at - a.at).slice(0, 24);
+  return <section className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.34)] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-2"><HardDrive size={15} className="text-[rgb(var(--accent))]" /><div><h2 className="text-xs font-black uppercase tracking-[0.18em]">Storage control centre</h2><p className="mt-1 text-[10px] text-muted">Validated game folders and recognised mod folders only—read-only.</p></div></div><button onClick={storage.loading ? onCancel : onScan} className="inline-flex items-center gap-1.5 rounded-md border border-[rgb(var(--border))] px-2.5 py-1.5 text-[10px] font-bold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink"><RefreshCw size={11} className={storage.loading ? 'animate-spin text-[rgb(var(--accent))]' : ''} />{storage.loading ? 'Cancel' : storage.scannedAt ? 'Rescan' : 'Scan sizes'}</button></div>{storage.error && <p className="mt-3 rounded-lg border border-amber-300/30 bg-amber-300/[0.07] px-3 py-2 text-[10px] text-amber-200">{storage.error}</p>}{storage.scannedAt ? <><div className="mt-3 flex flex-wrap gap-x-5 gap-y-2"><Stat label="Folders measured" value={results.length} /><Stat label="Total" value={`${hasEstimate ? '≥ ' : ''}${readableBytes(total)}`} /><Stat label="Mod content" value={readableBytes(mods)} /></div>{openError && <p className="mt-3 rounded-lg border border-red-400/30 bg-red-400/[0.07] px-3 py-2 text-[10px] text-red-200">{openError}</p>}{storage.skipped?.length > 0 && <div className="mt-3 rounded-lg border border-amber-300/25 bg-amber-300/[0.05] px-3 py-2"><p className="text-[10px] font-bold text-amber-200">{storage.skipped.length} launch target{storage.skipped.length === 1 ? '' : 's'} skipped instead of guessing.</p><p className="mt-0.5 truncate text-[9.5px] text-muted" title={storage.skipped.slice(0, 3).map((item) => `${item.name}: ${item.reason}`).join(' · ')}>{storage.skipped.slice(0, 3).map((item) => `${item.name}: ${item.reason}`).join(' · ')}</p></div>}<div className="mt-3 max-h-[430px] space-y-1.5 overflow-y-auto pr-1" data-testid="storage-results-list">{results.map((entry) => <div key={entry.id} className="flex items-center gap-2 rounded-lg border border-[rgb(var(--border)/0.68)] bg-[rgb(var(--surface)/0.23)] p-2 transition hover:border-[rgb(var(--accent)/0.45)]"><button onClick={() => onSelect?.(entry.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left"><Cover game={entry.game} className="h-8 w-14" /><span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-black text-ink">{entry.game.name}</span><span className="mt-0.5 block truncate font-mono text-[8.5px] text-muted" title={entry.game.homeLocked ? 'Protected folder' : entry.root}>{entry.game.homeLocked ? 'Protected folder' : entry.root}</span><span className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[8.5px] text-muted"><span>{Number(entry.files || 0).toLocaleString()} files</span>{entry.modBytes > 0 && <span className="text-[rgb(var(--accent-2))]">mods {readableBytes(entry.modBytes)}</span>}{entry.truncated && <span className="text-amber-200">partial scan</span>}</span></span></button><div className="flex shrink-0 items-center gap-2"><span className="font-mono text-[10px] font-bold text-ink">{entry.truncated ? '≥ ' : ''}{readableBytes(entry.bytes)}</span>{entry.game.homeLocked ? <span className="inline-flex h-7 items-center rounded-md border border-[rgb(var(--accent)/0.35)] px-2 text-[9px] font-bold text-[rgb(var(--accent-2))]">Locked</span> : <button onClick={() => openFolder(entry)} className="inline-flex h-7 items-center gap-1 rounded-md border border-[rgb(var(--border))] px-2 text-[9px] font-bold text-[rgb(var(--accent-2))] hover:border-[rgb(var(--accent)/0.55)] hover:text-ink" title={`Open measured folder: ${entry.root}`}><FolderOpen size={11} />Open</button>}</div></div>)}{!results.length && <p className="rounded-lg border border-dashed border-[rgb(var(--border))] p-4 text-center text-xs text-muted">No valid game folders were measured. Review the skipped launch targets above, then use Customize to correct a game’s executable.</p>}</div><p className="mt-2 text-[9px] leading-relaxed text-muted/85">Every size is tied to the shown folder. “Partial scan” means NEO-LIB stopped at its safety limit, so the displayed total is at least that large.</p></> : <p className="mt-4 text-xs leading-relaxed text-muted">Scan when you want a current view. NEO-LIB never crawls entire drives; it walks only validated configured game folders.</p>}</section>;
 }
 
 function GamingChronicle({ entries, onSelect }) {

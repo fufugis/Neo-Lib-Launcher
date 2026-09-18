@@ -1,0 +1,88 @@
+{
+  "sourceSha256": "225e947dbe0bfe481678a695c72469cc0c0e12b60420dde20d2747e72e55b441",
+  "snapshot": {
+    "paths": {
+      "dataDir": "C:\\Users\\Test\\AppData\\Roaming\\neo-lib",
+      "libraryFile": "C:\\Users\\Test\\AppData\\Roaming\\neo-lib\\library.json",
+      "settingsFile": "C:\\Users\\Test\\AppData\\Roaming\\neo-lib\\settings.json",
+      "coversDir": "C:\\Users\\Test\\AppData\\Roaming\\neo-lib\\covers",
+      "saveBackupsDir": "C:\\Users\\Test\\AppData\\Roaming\\neo-lib\\save-backups",
+      "managedToolsDir": "C:\\Users\\Test\\AppData\\Roaming\\neo-lib\\managed-tools",
+      "playtimeHistoryFile": "C:\\Users\\Test\\AppData\\Roaming\\neo-lib\\playtime-history.json"
+    },
+    "directoryTrace": [
+      [
+        "mkdir",
+        "C:\\Users\\Test\\AppData\\Roaming\\neo-lib\\covers",
+        {
+          "recursive": true
+        }
+      ],
+      [
+        "mkdir",
+        "C:\\Users\\Test\\AppData\\Roaming\\neo-lib\\save-backups",
+        {
+          "recursive": true
+        }
+      ],
+      [
+        "mkdir",
+        "C:\\Users\\Test\\AppData\\Roaming\\neo-lib\\managed-tools",
+        {
+          "recursive": true
+        }
+      ]
+    ],
+    "valid": {
+      "value": 7,
+      "nested": {
+        "keep": true
+      }
+    },
+    "malformed": {
+      "exact": "malformed fallback identity is not serialized"
+    },
+    "missing": {
+      "exact": "missing fallback identity is not serialized"
+    },
+    "readTrace": [
+      [
+        "readFile",
+        "C:\\Users\\Test\\AppData\\Roaming\\neo-lib\\valid.json",
+        "utf8"
+      ],
+      [
+        "readFile",
+        "C:\\Users\\Test\\AppData\\Roaming\\neo-lib\\broken.json",
+        "utf8"
+      ],
+      [
+        "readFile",
+        "C:\\Users\\Test\\AppData\\Roaming\\neo-lib\\missing.json",
+        "utf8"
+      ]
+    ],
+    "writeTrace": [
+      [
+        "mkdir",
+        "C:\\Users\\Test\\AppData\\Roaming\\neo-lib",
+        {
+          "recursive": true
+        }
+      ],
+      [
+        "writeFile",
+        "C:\\Users\\Test\\AppData\\Roaming\\neo-lib\\library.json.tmp",
+        "{\n  \"games\": [\n    {\n      \"id\": \"manual\",\n      \"name\": \"Keep me\",\n      \"categoryIds\": [\n        \"private\"\n      ]\n    }\n  ],\n  \"categories\": [\n    {\n      \"id\": \"private\",\n      \"pin\": \"1234\"\n    }\n  ]\n}",
+        "utf8"
+      ],
+      [
+        "rename",
+        "C:\\Users\\Test\\AppData\\Roaming\\neo-lib\\library.json.tmp",
+        "C:\\Users\\Test\\AppData\\Roaming\\neo-lib\\library.json"
+      ]
+    ],
+    "savedLibrary": "{\n  \"games\": [\n    {\n      \"id\": \"manual\",\n      \"name\": \"Keep me\",\n      \"categoryIds\": [\n        \"private\"\n      ]\n    }\n  ],\n  \"categories\": [\n    {\n      \"id\": \"private\",\n      \"pin\": \"1234\"\n    }\n  ]\n}",
+    "temporaryFileLeftBehind": false
+  }
+}
