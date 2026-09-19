@@ -402,6 +402,7 @@ export function LibraryGameRow({
   g, size, selected, onClick, onContext, fromCatId, indexInCat,
   sectionGames, onReorderInCat, onMoveBetween, categories,
   iconPosition = 'left', rowGap = 2, showCategoryDot = true, showSubcatStrip = true, isPinned = false, flatList = false,
+  iconOnly = false,
 }) {
   const [menu, setMenu] = React.useState({ open: false, x: 0, y: 0 });
   const ref = React.useRef(null);
@@ -488,20 +489,23 @@ export function LibraryGameRow({
       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); openMenuAt(e.clientX, e.clientY); }}
       onClick={onClick}
       data-testid={`game-row-${g.id}`}
+      title={iconOnly ? (g.name || 'Untitled') : undefined}
       className={cn(
         'group relative flex min-w-0 cursor-pointer items-center gap-2.5 overflow-hidden rounded-md transition-colors',
         selected ? 'bg-[rgb(var(--accent)/0.10)] text-ink' : 'text-muted hover:bg-panel/70 hover:text-ink',
         g.managedTool && g.availability !== 'installed' && 'opacity-60 grayscale-[0.3]',
-        isSmall ? 'px-1.5' : 'px-2',
+        iconOnly ? 'justify-center p-0' : isSmall ? 'px-1.5' : 'px-2',
         Number(g.rating) === 5 && 'row-5star-shimmer'
       )}
       style={{
-        minHeight: size.rowH,
-        marginBottom: rowGap,
+        minHeight: iconOnly ? size.icon : size.rowH,
+        width: iconOnly ? size.icon : undefined,
+        height: iconOnly ? size.icon : undefined,
+        marginBottom: iconOnly ? 0 : rowGap,
         '--ring-scale': ringScale,
         // Compress vertical padding aggressively when gap is small or negative
-        paddingTop: Math.max(0, 6 + Math.min(0, rowGap) + (isBig ? 2 : 0)),
-        paddingBottom: Math.max(0, 6 + Math.min(0, rowGap) + (isBig ? 2 : 0)),
+        paddingTop: iconOnly ? 0 : Math.max(0, 6 + Math.min(0, rowGap) + (isBig ? 2 : 0)),
+        paddingBottom: iconOnly ? 0 : Math.max(0, 6 + Math.min(0, rowGap) + (isBig ? 2 : 0)),
         // v1.4.0 — 5-star favorite games get a subtle warm-gold gradient wash
         // behind the row. Kept intentionally soft so it never overpowers the
         // selection highlight.
@@ -522,7 +526,7 @@ export function LibraryGameRow({
         )}
       />
 
-      {isNewToLibrary && (
+      {!iconOnly && isNewToLibrary && (
         <span
           className="pointer-events-none absolute right-5 top-1.5 rounded-sm border border-[rgb(var(--accent)/0.72)] bg-[rgb(var(--surface)/0.92)] px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.14em] text-[rgb(var(--accent-2))] shadow-[0_0_10px_rgb(var(--accent)/0.28)]"
           data-testid={`game-new-badge-${g.id}`}
@@ -533,9 +537,9 @@ export function LibraryGameRow({
       )}
 
       {/* Icon — position controlled by iconPosition setting (left | right | none) */}
-      {iconPosition !== 'none' && iconPosition !== 'right' && (
+      {(iconOnly || (iconPosition !== 'none' && iconPosition !== 'right')) && (
         <div
-          className="relative shrink-0 overflow-hidden rounded hairline bg-surface/70"
+          className={cn('relative shrink-0 overflow-hidden rounded hairline bg-surface/70', iconOnly && 'h-full w-full')}
           style={{ width: size.icon, height: size.icon }}
         >
           {g.icon ? (
@@ -551,7 +555,7 @@ export function LibraryGameRow({
       )}
 
       {/* Name + meta */}
-      <div className="flex min-w-0 flex-1 flex-col justify-end overflow-hidden">
+      {!iconOnly && <div className="flex min-w-0 flex-1 flex-col justify-end overflow-hidden">
         {/* Genre/meta strip — shown when the "Sub-category" toggle is on and
             row size is not the compact "small" preset (where there's no room).
             Category color dots hide when the "Category dot" toggle is off. */}
@@ -600,10 +604,10 @@ export function LibraryGameRow({
         <div className="game-row-nameplate" style={{ fontSize: size.font }} title={g.name || 'Untitled'}>
           {g.name || 'Untitled'}
         </div>
-      </div>
+      </div>}
 
       {/* Icon on right side */}
-      {iconPosition === 'right' && (
+      {!iconOnly && iconPosition === 'right' && (
         <div
           className="relative shrink-0 overflow-hidden rounded hairline bg-surface/70"
           style={{ width: size.icon, height: size.icon }}
@@ -620,10 +624,10 @@ export function LibraryGameRow({
         </div>
       )}
 
-      {g.managedTool && g.availability !== 'installed' && <Wrench size={12} className="shrink-0 text-[rgb(var(--accent-2))]" title="Select this tool to locate or install it" />}
+      {!iconOnly && g.managedTool && g.availability !== 'installed' && <Wrench size={12} className="shrink-0 text-[rgb(var(--accent-2))]" title="Select this tool to locate or install it" />}
 
       {/* Hover menu trigger */}
-      <button
+      {!iconOnly && <button
         data-testid={`game-row-menu-${g.id}`}
         onClick={(e) => {
           e.stopPropagation();
@@ -633,7 +637,7 @@ export function LibraryGameRow({
         className="opacity-0 group-hover:opacity-100 text-muted hover:text-ink transition-opacity"
       >
         <MoreVertical size={13} />
-      </button>
+      </button>}
 
       {menu.open && renderForegroundPortal(
         <motion.div

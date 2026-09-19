@@ -1484,6 +1484,14 @@ export default function App() {
           onAutoSort={() => setAutoSortOpen(true)}
           twoRow={!!settings.twoRow}
           onToggleTwoRow={(v) => updateSetting({ twoRow: v })}
+          libraryIconMode={settings.libraryIconMode === true}
+          libraryIconSize={settings.libraryIconSize ?? 48}
+          libraryIconSpacing={settings.libraryIconSpacing ?? 8}
+          libraryIconRows={settings.libraryIconRows ?? 3}
+          onToggleLibraryIconMode={(libraryIconMode) => updateSetting({ libraryIconMode })}
+          onChangeLibraryIconSize={(libraryIconSize) => updateSetting({ libraryIconSize })}
+          onChangeLibraryIconSpacing={(libraryIconSpacing) => updateSetting({ libraryIconSpacing })}
+          onChangeLibraryIconRows={(libraryIconRows) => updateSetting({ libraryIconRows })}
           sidebarWidth={sidebarWidth}
           onStartResize={startResize}
           onGameViewed={markGameSeenInLibrary}

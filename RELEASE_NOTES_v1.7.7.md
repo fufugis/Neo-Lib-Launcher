@@ -52,6 +52,10 @@ files.
   count and controls scale together from the Visuals setting.
 - Library-only typography now offers five normal system font choices plus optional
   Fat and Cursive styles.
+- Visual Tweaks now opens beside the Library and adds a separate icon-only view:
+  game names, category headers and the pinned strip disappear, while dedicated
+  controls set icon size, spacing and one-to-three compact lanes. Incompatible
+  text/category controls visibly disable until standard view returns.
 
 ### 🔍 Metadata you approve
 

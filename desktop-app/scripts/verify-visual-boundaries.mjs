@@ -82,6 +82,7 @@ const sidebarSource = read('src/components/Sidebar.jsx');
 const globalStylesSource = read('src/styles.css');
 const libraryVisualsSource = read('src/components/library/LibraryVisualsPopover.jsx');
 const libraryTreeSource = read('src/components/library/LibraryTree.jsx');
+const libraryIconGridSource = read('src/components/library/LibraryIconGrid.jsx');
 const libraryToolbarSource = read('src/components/library/LibraryToolbarControls.jsx');
 const controlMenuSource = read('src/components/library/AppControlMenu.jsx');
 const changelogModalSource = read('src/components/ChangelogModal.jsx');
@@ -90,6 +91,7 @@ const stylesSource = read('src/styles.css');
 assert.ok(lines('src/components/Sidebar.jsx') < 850, 'Library Visuals, live tree and reusable toolbar controls must remain outside the Sidebar composition root');
 assert.ok(lines('src/components/library/LibraryVisualsPopover.jsx') < 520, 'Library Visuals should remain a focused presentation boundary');
 assert.match(sidebarSource, /library\/LibraryVisualsPopover/);
+assert.match(sidebarSource, /library\/LibraryIconGrid/);
 assert.match(sidebarSource, /library\/LibraryTree/);
 assert.match(sidebarSource, /library\/LibraryToolbarControls/);
 assert.doesNotMatch(sidebarSource, /function LibrarySettingsPopover|function BgTexturePicker|function EffectsPopSlider|const BG_TEXTURES/);
@@ -105,9 +107,20 @@ for (const testId of [
   'pop-toggle-subcat-strip', 'pop-cat-glow', 'pop-effects-level', 'visual-motion-cadence',
   'pop-bg-texture', 'pop-bg-tex-opacity', 'visual-cursor-picker', 'visuals-feedback-bug', 'visuals-feedback-suggestion',
   'visuals-feedback-general',
+  'pop-library-view-mode', 'pop-icon-mode-controls', 'pop-library-icon-size',
+  'pop-library-icon-spacing', 'pop-library-icon-rows', 'pop-standard-library-controls',
+  'pop-text-category-controls',
 ]) {
   assert.match(libraryVisualsSource, new RegExp(testId), `Library Visuals lost ${testId}`);
 }
+assert.match(libraryVisualsSource, /sidebarWidth \+ 12/, 'Visual Tweaks should prefer opening beside the Library.');
+assert.match(libraryVisualsSource, /fieldset disabled=\{libraryIconMode\}/, 'Icon mode must disable incompatible standard Library controls.');
+assert.match(libraryVisualsSource, /fieldset disabled=\{!libraryIconMode\}/, 'Icon-only controls must stay inactive in standard mode.');
+assert.match(sidebarSource, /libraryIconMode \? \(/, 'Icon mode must replace category and pinned presentation, not layer over it.');
+assert.match(libraryIconGridSource, /data-testid="library-icon-grid"/);
+assert.match(libraryIconGridSource, /gridTemplateColumns: `repeat\(\$\{safeRows\}/, 'Icon rows must control the compact Library lanes.');
+assert.match(libraryIconGridSource, /iconOnly/);
+assert.match(libraryTreeSource, /!iconOnly && <div className="flex min-w-0 flex-1 flex-col/, 'Icon-only rows must omit game-name and metadata text.');
 assert.match(libraryVisualsSource, /CURSOR_OPTIONS/);
 for (const cursorName of ['windows', 'neon', 'petal', 'pixel']) assert.match(libraryVisualsSource, new RegExp(`id: '${cursorName}'`));
 assert.equal(LIBRARY_FONT_OPTIONS.length, 5);

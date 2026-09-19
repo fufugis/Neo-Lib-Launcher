@@ -1,5 +1,7 @@
 # NEO-LIB progress
 
+- **Library icon-only presentation is source-complete** — Visual Tweaks now prefers the main pane immediately to the right of the Library instead of covering the shelves it changes. A separate Icons only view removes game labels, category headers and the pinned shelf, preserves safe selection/context actions, and exposes dedicated icon-size, spacing and one-to-three lane controls. Standard row, typography, category and layout controls visibly disable in this mode, while locked private entries remain filtered out. Focused visual and renderer-state checks pass; rebuilt Windows visual/interaction acceptance remains required.
+
 This is the short, human-readable view of the active work. It is updated as features move from idea to verified work.
 
 The authoritative item-by-item status is maintained in [`WORK_QUEUE.md`](WORK_QUEUE.md). Open queue items must not be described as finished or release-ready.

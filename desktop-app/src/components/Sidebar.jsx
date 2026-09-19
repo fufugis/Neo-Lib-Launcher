@@ -7,6 +7,7 @@ import {
 import { cn } from '../lib/utils';
 import SystemHealthBar from './SystemHealthBar';
 import LibraryVisualsPopover from './library/LibraryVisualsPopover';
+import LibraryIconGrid from './library/LibraryIconGrid';
 import AppControlMenu from './library/AppControlMenu';
 import { libraryFontFamily } from './library/library-visual-model.mjs';
 import { LibraryGameRow, LibrarySection, PinnedStrip, TwoColumnSections } from './library/LibraryTree';
@@ -133,6 +134,8 @@ export default function Sidebar({
   onToggleCollapsed, onUnlockCategory,
   onAutoSort,
   twoRow = false, onToggleTwoRow,
+  libraryIconMode = false, libraryIconSize = 48, libraryIconSpacing = 8, libraryIconRows = 3,
+  onToggleLibraryIconMode, onChangeLibraryIconSize, onChangeLibraryIconSpacing, onChangeLibraryIconRows,
   showCategories = true, onToggleCategories, onManageCategories,
   librarySortMode = 'manual', onChangeLibrarySort,
   libraryViewMode = 'preview', onChangeLibraryViewMode,
@@ -285,6 +288,7 @@ export default function Sidebar({
   ];
   const lockedPrivateIds = new Set(categories.filter((category) => category.private && !unlockedCategories.includes(category.id)).map((category) => category.id));
   const flatGames = sortGames(searchFilter(games).filter((game) => !(game.categoryIds || []).some((categoryId) => lockedPrivateIds.has(categoryId)) && !pinnedIdsSet.has(game.id)));
+  const visibleIconGames = sortGames(searchFilter(games).filter((game) => !(game.categoryIds || []).some((categoryId) => lockedPrivateIds.has(categoryId))));
   const lockedPrivateSections = sections.filter((section) => section.category.private && section.isGhost);
   const visiblePinnedGames = games.filter((game) => pinnedIdsSet.has(game.id) && !(game.categoryIds || []).some((categoryId) => lockedPrivateIds.has(categoryId)));
 
@@ -485,6 +489,7 @@ export default function Sidebar({
           {libSettingsOpen && (
             <LibraryVisualsPopover
                 anchorEl={libSettingsBtnRef.current}
+                sidebarWidth={sidebarWidth}
                 rowSize={rowSize}
                 catTextSize={catTextSize}
                 catGlow={catGlow}
@@ -526,6 +531,14 @@ export default function Sidebar({
                 onOpenFeedback={onOpenFeedback}
                 twoRow={twoRow}
                 onToggleTwoRow={onToggleTwoRow}
+                libraryIconMode={libraryIconMode}
+                libraryIconSize={libraryIconSize}
+                libraryIconSpacing={libraryIconSpacing}
+                libraryIconRows={libraryIconRows}
+                onToggleLibraryIconMode={onToggleLibraryIconMode}
+                onChangeLibraryIconSize={onChangeLibraryIconSize}
+                onChangeLibraryIconSpacing={onChangeLibraryIconSpacing}
+                onChangeLibraryIconRows={onChangeLibraryIconRows}
               />
           )}
         </AnimatePresence>
@@ -680,6 +693,18 @@ export default function Sidebar({
           }
         }}
       >
+        {libraryIconMode ? (
+          <LibraryIconGrid
+            games={visibleIconGames}
+            selectedId={selectedId}
+            iconSize={libraryIconSize}
+            spacing={libraryIconSpacing}
+            rows={libraryIconRows}
+            categories={categories}
+            onSelect={selectGame}
+            onGameContext={onGameContext}
+          />
+        ) : <>
         {/* Pinned strip — full-width, sits above all categories in both single & two-row modes */}
         <PinnedStrip
           games={visiblePinnedGames}
@@ -786,6 +811,7 @@ export default function Sidebar({
             />
           ))
         )}
+        </>}
         {games.length === 0 && (
           <div className="mt-8 px-4 text-center text-xs text-muted">
             No games yet. Add one or run the Wizard.

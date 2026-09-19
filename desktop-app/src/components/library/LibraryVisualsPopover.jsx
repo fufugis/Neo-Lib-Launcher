@@ -8,6 +8,7 @@ import { LIBRARY_FONT_OPTIONS } from './library-visual-model.mjs';
 /* Library visuals popover owns only presentation controls; Sidebar supplies all state. */
 export default function LibraryVisualsPopover({
   anchorEl,
+  sidebarWidth = 320,
   rowSize = 44, catTextSize = 11, catGlow = 40, iconPosition = 'left',
   rowGap = 2, catGap = 8, catTopGap = 4, categoryMarkerMode = 'dot',
   showSubcatStrip = true, nameTextSize = null,
@@ -24,13 +25,17 @@ export default function LibraryVisualsPopover({
   onChangeCursorTheme,
   onOpenFeedback,
   twoRow = false, onToggleTwoRow,
+  libraryIconMode = false, libraryIconSize = 48, libraryIconSpacing = 8, libraryIconRows = 3,
+  onToggleLibraryIconMode, onChangeLibraryIconSize, onChangeLibraryIconSpacing, onChangeLibraryIconRows,
   onClose,
 }) {
   const ref = React.useRef(null);
   const dragControls = useDragControls();
   // Visuals now has three deliberate control lanes on a desktop-sized window.
   // Keep its dimensions in one place so anchoring and drag bounds agree.
-  const popoverWidth = Math.min(960, Math.max(420, window.innerWidth - 32));
+  const availableRight = Math.max(0, window.innerWidth - sidebarWidth - 24);
+  const opensBesideLibrary = availableRight >= 300;
+  const popoverWidth = Math.min(960, Math.max(280, opensBesideLibrary ? availableRight : window.innerWidth - 32));
   const clampPopoverPosition = (top, left) => ({
     top: Math.max(12, Math.min(top, window.innerHeight - 116)),
     left: Math.max(12, Math.min(left, window.innerWidth - popoverWidth - 12)),
@@ -38,15 +43,13 @@ export default function LibraryVisualsPopover({
   // Anchor the popover to the trigger button's rect (portaled to body so no
   // parent stacking context can hide it under the game preview).
   const [pos, setPos] = React.useState(() => {
-    if (!anchorEl) return clampPopoverPosition(80, 12);
-    const r = anchorEl.getBoundingClientRect();
-    return clampPopoverPosition(r.bottom + 6, r.left);
+    const anchorTop = anchorEl ? anchorEl.getBoundingClientRect().bottom + 6 : 80;
+    return clampPopoverPosition(anchorTop, opensBesideLibrary ? sidebarWidth + 12 : 12);
   });
   React.useEffect(() => {
-    if (!anchorEl) return;
-    const r = anchorEl.getBoundingClientRect();
-    setPos(clampPopoverPosition(r.bottom + 6, r.left));
-  }, [anchorEl]);
+    const anchorTop = anchorEl ? anchorEl.getBoundingClientRect().bottom + 6 : 80;
+    setPos(clampPopoverPosition(anchorTop, opensBesideLibrary ? sidebarWidth + 12 : 12));
+  }, [anchorEl, sidebarWidth, opensBesideLibrary, popoverWidth]);
   React.useEffect(() => {
     const h = (e) => {
       if (ref.current && !ref.current.contains(e.target)
@@ -83,8 +86,9 @@ export default function LibraryVisualsPopover({
         // sidebar (which has its own glass) or over the game preview area
         // (which doesn't). No transparency at all here — this is a tool panel.
         backgroundColor: 'rgb(var(--surface))',
+        width: popoverWidth,
       }}
-      className="z-[9999] w-[960px] max-w-[calc(100vw-32px)] max-h-[80vh] overflow-y-auto rounded-lg hairline shadow-2xl p-3"
+      className="z-[9999] max-w-[calc(100vw-32px)] max-h-[80vh] overflow-y-auto rounded-lg hairline shadow-2xl p-3"
       data-testid="library-settings-popover"
     >
       <div
@@ -98,6 +102,29 @@ export default function LibraryVisualsPopover({
           each group makes the current control family obvious at a glance. */}
       <div className="visuals-grid">
       <div className="space-y-3">
+        <VisualGroup title="Library view">
+          <div className="grid grid-cols-2 gap-1" data-testid="pop-library-view-mode">
+            {[
+              { active: !libraryIconMode, label: 'Standard' },
+              { active: libraryIconMode, label: 'Icons only' },
+            ].map((option) => (
+              <button
+                type="button"
+                key={option.label}
+                onClick={() => onToggleLibraryIconMode?.(option.label === 'Icons only')}
+                className={cn('rounded-md hairline py-1.5 text-[11px] font-bold transition-colors', option.active ? 'border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.12)] text-ink' : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]')}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <fieldset disabled={!libraryIconMode} className={cn('space-y-2 transition-opacity', !libraryIconMode && 'opacity-35 grayscale')} data-testid="pop-icon-mode-controls">
+            <PopSlider label="Icon size" value={libraryIconSize} min={24} max={96} suffix="px" onChange={onChangeLibraryIconSize} testid="pop-library-icon-size" />
+            <PopSlider label="Icon spacing" value={libraryIconSpacing} min={0} max={24} suffix="px" onChange={onChangeLibraryIconSpacing} testid="pop-library-icon-spacing" />
+            <DiscretePopSlider label="Icon rows" labels={['1', '2', '3']} value={Math.max(0, Math.min(2, Number(libraryIconRows || 1) - 1))} onChange={(value) => onChangeLibraryIconRows?.(value + 1)} testid="pop-library-icon-rows" />
+          </fieldset>
+        </VisualGroup>
+        <fieldset disabled={libraryIconMode} className={cn('space-y-3 transition-opacity', libraryIconMode && 'opacity-35 grayscale')} data-testid="pop-standard-library-controls">
         <VisualGroup title="Object sizes">
         <PopSlider
           label="Row size"
@@ -138,9 +165,11 @@ export default function LibraryVisualsPopover({
             </div>
           </div>
         </VisualGroup>
+        </fieldset>
       </div>
 
       <div className="space-y-3">
+      <fieldset disabled={libraryIconMode} className={cn('transition-opacity', libraryIconMode && 'opacity-35 grayscale')} data-testid="pop-text-category-controls">
       <VisualGroup title="Text & category">
       <PopSlider
         label="Game name text size"
@@ -172,10 +201,12 @@ export default function LibraryVisualsPopover({
       <DiscretePopSlider label="Category marker" labels={['Dot', 'Backdrop', 'None']} value={['dot', 'background', 'none'].indexOf(categoryMarkerMode)} onChange={(value) => onChangeCategoryMarkerMode?.(['dot', 'background', 'none'][value])} testid="pop-category-marker" />
       <button data-testid="pop-toggle-subcat-strip" onClick={() => onToggleSubcatStrip && onToggleSubcatStrip(!showSubcatStrip)} className={cn('flex w-full items-center justify-between rounded-md hairline px-2.5 py-2 text-[11px] transition-colors', showSubcatStrip ? 'border-[rgb(var(--accent)/0.5)] bg-[rgb(var(--accent)/0.08)] text-ink' : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]')} title="Toggle the genre/playtime strip shown under each game name"><span>Sub-category strip</span><span className="text-[10px] uppercase tracking-wider">{showSubcatStrip ? 'shown' : 'hidden'}</span></button>
       </VisualGroup>
+      </fieldset>
       </div>
 
       <div className="space-y-3">
       <VisualGroup title="FX">
+      <fieldset disabled={libraryIconMode} className={cn('transition-opacity', libraryIconMode && 'opacity-35 grayscale')}>
       <PopSlider
         label="Category glow"
         value={catGlow}
@@ -185,6 +216,7 @@ export default function LibraryVisualsPopover({
         onChange={onChangeCatGlow}
         testid="pop-cat-glow"
       />
+      </fieldset>
       <div className="rounded-md hairline bg-panel/40 p-2.5" data-testid="visual-performance-controls"><EffectsPopSlider theme={currentTheme} value={effectsLevel} onChange={onChangeEffectsLevel} /><div className="my-2 border-t border-[rgb(var(--border))]/70" /><MotionCadenceSlider value={motionCadence} onChange={onChangeMotionCadence} /><p className="mt-2 rounded-md border border-[rgb(var(--accent)/0.22)] bg-[rgb(var(--accent)/0.06)] px-2 py-1.5 text-[10px] leading-relaxed text-muted"><b className="text-ink">Performance tip:</b> lowering Effects intensity reduces visual layers; lowering Visual motion rate makes the same FX update less often. Lower both if NEO-LIB feels heavy.</p></div>
       <BgTexturePicker textureId={bgTextureId} opacity={bgTextureOpacity} onChange={onChangeBgTextureId} onChangeOpacity={onChangeBgTextureOpacity} />
       <CursorPicker value={cursorTheme} onChange={onChangeCursorTheme} />

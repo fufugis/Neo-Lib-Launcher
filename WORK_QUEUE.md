@@ -4,6 +4,8 @@ This is the authoritative live queue. New user requests are appended here and re
 
 ## In progress
 
+- [x] **Library icon-only mode + Visuals placement** — Visual Tweaks now opens beside the resizable Library whenever the viewport has room. Its separate Icons only mode removes visible game names, category headers and the pinned strip while retaining selection, hover identification and right-click actions. Dedicated controls adjust 24–96px icons, 0–24px spacing and one-to-three compact lanes; incompatible standard text/category/layout controls visibly disable. Locked PIN-category games remain excluded through the existing privacy filter. Focused renderer-state and visual-boundary verification passes; rebuilt Windows visual/interaction acceptance remains required.
+
 - [x] **Cover Wall personal-rating tags** — every currently visible/unlocked game with a personal rating now carries a yellow upper-right artwork tag showing its exact one-decimal score (`★ 4.5`). The tag scales its padding/text for Wall densities 3–10, stays above cover gradients and hover art, and is absent for unrated or still-locked games. Source verification passes; rebuilt Windows Wall review remains required.
 
 - [x] **Mascot-only resizing boundary** — mascot size now changes only the FiFi/Fungist artwork, glow and immediate character effects. Speech bubbles, hover text, completion/launch messages, quick settings, chat and centre-screen major notices retain their full readable interface size. The layout reserves the mascot’s scaled footprint so a larger companion does not grow through its bubble. Source verification passes; rebuilt Windows checks at 70%, 100% and 145% remain required.

@@ -84,6 +84,10 @@ const settings = hydrateSettings({ theme: 'anime', mode: 'wall', collapsed: { x:
 assert.equal(settings.mode, 'home'); assert.deepEqual(settings.collapsed, {}); assert.equal(settings.ratingSystemVersion, 2);
 assert.equal(mergeSettings(settings, { theme: 'pro' }).theme, 'pro');
 assert.deepEqual(DEFAULT_SETTINGS.collapsed, {});
+assert.equal(DEFAULT_SETTINGS.libraryIconMode, false);
+assert.equal(DEFAULT_SETTINGS.libraryIconSize, 48);
+assert.equal(DEFAULT_SETTINGS.libraryIconSpacing, 8);
+assert.equal(DEFAULT_SETTINGS.libraryIconRows, 3);
 const visuals = visualState({ theme: 'anime', specialDecorationOpacity: 50, effectsLevel: 2, motionCadence: 'calm' });
 assert.equal(visuals.decorationOpacity, 0.425); assert.equal(visuals.navigationDecorationOpacity, 0.5); assert.equal(visuals.motionCadence, 'calm');
 assert.equal(visualState({ theme: 'anime' }, true).decorationOpacity, 0);

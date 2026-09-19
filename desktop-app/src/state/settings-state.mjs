@@ -2,6 +2,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   theme: 'synthwave', firstRun: true, geminiKey: '', aiModel: 'gemini-2.5-flash',
   fungistNotifications: {}, librarySize: 'medium', showcaseMode: 'recent_added', collapsed: {},
   interfaceMode: 'default', presentationMode: 'desktop', preferredControllerFingerprint: '',
+  libraryIconMode: false, libraryIconSize: 48, libraryIconSpacing: 8, libraryIconRows: 3,
 });
 
 export function hydrateSettings(raw = {}, { resetRatings = false } = {}) {
