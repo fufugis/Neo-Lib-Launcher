@@ -166,6 +166,7 @@ files.
 
 ## Notable fixes and polish
 
+- External library games such as Valheim now enter Rest Mode automatically after a confident local match. A large centre-screen FiFi/Fungist notice explains what was detected, what paused and that NEO-LIB wakes when the game closes. Serious PC alerts share this major-event surface; ordinary mascot bubbles are larger, calmer and easier to read.
 - Fixed FiFi/Fungist quick-setting switch knobs protruding beyond their tracks. The complete Home Game Updates body—including stronger-evidence notices—now stays inside one compact scrolling area without removing its explanatory text.
 - Fixed the left-side Control Center gear being blocked by layered Library artwork, and keep delayed hover explanations inside the visible window at every edge.
 - Fixed false Steam “update available” cards caused by old completed-manifest byte counters. NEO-LIB now requires Steam’s live update/download state as well as remaining bytes, and **Open downloads** uses Steam’s documented Downloads route.

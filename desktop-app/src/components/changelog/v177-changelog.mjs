@@ -60,6 +60,7 @@ export const V177_CHANGELOG = {
     },
   ],
   fixes: [
+    'External library games such as Valheim now start Rest Mode automatically instead of hiding the choice in a tiny mascot button. A large centre-screen mascot notice explains the detection, pause and automatic wake-up; serious PC alerts share it, while ordinary mascot bubbles are larger and less cluttered.',
     'Fixed FiFi/Fungist quick-setting switch knobs protruding beyond their tracks, and bounded the complete Home Game Updates body—including evidence warnings—inside one compact scrolling area without removing its text.',
     'Fixed the Control Center gear ignoring clicks under layered Library artwork, and kept every delayed hover explanation fully inside the app window.',
     'Fixed false Steam update cards caused by stale completed-manifest byte counters; the Downloads action now opens Steam’s documented Downloads route.',

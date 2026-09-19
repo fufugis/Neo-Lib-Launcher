@@ -146,6 +146,11 @@ assert.match(homeHubSource, /max-h-\[320px\][^\n]*overflow-y-auto[^\n]*data-test
 const mascotSource = read('src/components/FungistMascot.jsx');
 assert.match(mascotSource, /data-testid="mascot-quick-toggle"[^\n]*overflow-hidden/, 'Mascot quick-setting switches must clip their thumb inside the track.');
 assert.match(mascotSource, /absolute left-0 top-\[3px\][^\n]*translate-x-5/, 'Mascot quick-setting switch thumbs need an explicit left anchor.');
+const majorMascotNoticeSource = read('src/components/MajorMascotNotice.jsx');
+assert.match(majorMascotNoticeSource, /data-testid="major-mascot-notice"/, 'Major mascot events need a dedicated readable centre-screen notice.');
+assert.match(majorMascotNoticeSource, /text-\[14px\]/, 'Major mascot event text must remain readable.');
+assert.match(appSource, /onExternalGameState[\s\S]{0,900}setExternalRestOverride\(true\)[\s\S]{0,900}showMajorMascotNotice/, 'A detected external library game must automatically enter Rest Mode and explain the transition.');
+assert.match(mascotSource, /candidate\.level === 'major'[\s\S]{0,260}onMajorNotice\(candidate\)/, 'Major mascot events must use the dedicated centre-screen surface.');
 assert.match(read('electron/preload.js'), /onWindowVisibility/);
 assert.match(read('electron/main.js'), /window:visibility/);
 assert.match(globalStylesSource, /\.font-black \{ font-weight: 700; \}/, 'Ordinary heavy text must keep the calmer application-wide weight.');

@@ -7,6 +7,7 @@ import DealsBar from './components/DealsBar';
 import ToolDetail from './components/ToolDetail';
 import HoverTips from './components/HoverTips';
 import FungistMascot from './components/FungistMascot';
+import MajorMascotNotice from './components/MajorMascotNotice';
 import HomeHub from './components/HomeHub';
 import CoverWall from './components/CoverWall';
 import { BgAmbience, WorkspaceEmpty } from './components/ThemeVisuals';
@@ -58,8 +59,8 @@ export default function App() {
   // Rest Mode uses this to pause every non-essential bit of background work.
   const [runningGame, setRunningGame] = React.useState(null);
   // A game started through Steam, Battle.net, or another client is discovered
-  // separately. Fungist can offer the player a clear one-click Rest Mode
-  // choice instead of silently hiding the launcher at an awkward moment.
+  // separately. A confident library match enters Rest Mode automatically and
+  // explains the transition in the dedicated major-event notice.
   const [externalRunningGame, setExternalRunningGame] = React.useState(null);
   const [externalRestOverride, setExternalRestOverride] = React.useState(false);
   // Rest Mode can also be a deliberate player choice. Keep manual and tray
@@ -69,6 +70,14 @@ export default function App() {
   const [trayRestActive, setTrayRestActive] = React.useState(false);
   const [wakeTransitionActive, setWakeTransitionActive] = React.useState(false);
   const wakeTransitionTimer = React.useRef(null);
+  const [majorMascotNotice, setMajorMascotNotice] = React.useState(null);
+  const majorMascotNoticeTimer = React.useRef(null);
+  const showMajorMascotNotice = React.useCallback((notice) => {
+    if (!notice?.title || !notice?.body) return;
+    window.clearTimeout(majorMascotNoticeTimer.current);
+    setMajorMascotNotice({ ...notice, key: notice.key || `major-${Date.now()}` });
+    majorMascotNoticeTimer.current = window.setTimeout(() => setMajorMascotNotice(null), 7_500);
+  }, []);
   const [ratingPromptGame, setRatingPromptGame] = React.useState(null);
   const [managedToolInstallId, setManagedToolInstallId] = React.useState('');
   const automaticGameRestActive = !!runningGame && (
@@ -436,7 +445,16 @@ export default function App() {
         });
         nativeApi.onExternalGameState?.(({ active, gameId, name }) => {
           if (active) {
-            setExternalRunningGame({ id: gameId, name: name || 'External game', source: 'external' });
+            const game = { id: gameId, name: name || 'External game', source: 'external' };
+            setExternalRunningGame(game);
+            setExternalRestOverride(true);
+            setRunningGame(game);
+            showMajorMascotNotice({
+              key: `external-rest-${game.id}-${Date.now()}`,
+              kind: 'external-rest',
+              title: `${game.name} was detected`,
+              body: `It is running outside NEO-LIB, so I automatically put the launcher into Rest Mode. Background effects and non-essential checks are paused, and NEO-LIB will wake again when the game closes.`,
+            });
             return;
           }
           setExternalRunningGame(null);
@@ -585,6 +603,8 @@ export default function App() {
       return next;
     });
   }, []);
+
+  React.useEffect(() => () => window.clearTimeout(majorMascotNoticeTimer.current), []);
 
   // Close-to-tray is intentionally low-usage. The native shell reports the
   // actual hidden/shown transition so this remains correct for the X button,
@@ -803,13 +823,21 @@ export default function App() {
     if (!result.active) return { ok: true, active: false, message: 'I could not match a running game to a NEO-LIB library entry.' };
     const game = { id: result.gameId, name: result.name || 'A library game', source: 'external' };
     setExternalRunningGame(game);
+    setExternalRestOverride(true);
+    setRunningGame(game);
+    showMajorMascotNotice({
+      key: `external-rest-${game.id}-${Date.now()}`,
+      kind: 'external-rest',
+      title: `${game.name} was detected`,
+      body: 'It is running outside NEO-LIB, so I automatically put the launcher into Rest Mode. Background effects and non-essential checks are paused, and NEO-LIB will wake again when the game closes.',
+    });
     return { ok: true, active: true, game };
-  }, []);
+  }, [showMajorMascotNotice]);
   const enableExternalRestMode = React.useCallback((game) => {
     const active = game || externalRunningGame;
     if (!active?.id) return { ok: false, message: 'I need to identify the running game first.' };
-    // This is a one-game opt-in even when the player keeps the global default
-    // off. The override clears automatically when the exact process exits.
+    // Retained as a safe idempotent fallback for any older/manual caller. The
+    // normal watcher now enters this state automatically after a confident match.
     setExternalRestOverride(true);
     setRunningGame({ ...active, source: 'external' });
     notify(`${active.name} is running from another launcher. NEO-LIB is now resting.`);
@@ -1526,6 +1554,7 @@ export default function App() {
         favouriteUpdate={favouriteUpdate}
         appUpdate={updateInfo?.available ? updateInfo : null}
         activity={mascotActivity}
+        onMajorNotice={(notice) => showMajorMascotNotice({ ...notice, status: notice.status || 'Needs attention' })}
         onOpenHealth={openMascotHealth}
         externalRunningGame={externalRunningGame}
         onScanRunningGame={scanForExternalRunningGame}
@@ -1563,6 +1592,8 @@ export default function App() {
         onLaunchRequested={(game, token, origin) => { launchOriginRef.current = origin || null; return launchGame(game, token); }}
         onReportBug={() => openFeedback('bug')}
       />
+
+      <MajorMascotNotice notice={majorMascotNotice} mascotId={settings.mascotId || 'fungist'} onClose={() => setMajorMascotNotice(null)} />
 
       <AnimatePresence>
         {wakeTransitionActive && (

@@ -56,6 +56,7 @@ export default function FungistMascot({
   favouriteUpdate = null,
   appUpdate = null,
   activity = null,
+  onMajorNotice,
   notificationSettings = {},
   onOpenHealth,
   externalRunningGame = null,
@@ -214,6 +215,12 @@ export default function FungistMascot({
     if (now - lastShown < noticeCooldownMs(candidate)) return;
     lastNoticeAt.current.set(candidate.key, now);
     setShowWhy(false);
+    if (candidate.level === 'major' && onMajorNotice) {
+      setNotice(null);
+      onRecordNotice?.({ ...candidate, createdAt: now });
+      onMajorNotice(candidate);
+      return;
+    }
     setNotice(candidate);
     onRecordNotice?.({ ...candidate, createdAt: now });
   }, [candidate?.key, enabled, resting]);
@@ -550,12 +557,12 @@ export default function FungistMascot({
               <motion.section
                 initial={{ opacity: 0, y: 8, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6, scale: 0.97 }}
                 transition={{ duration: 0.18, ease: 'easeOut' }}
-                className={`mb-1 w-[min(330px,calc(100vw-32px))] overflow-hidden rounded-2xl border shadow-2xl ${major ? 'bg-[rgb(var(--panel)/0.97)]' : 'bg-[rgb(var(--panel)/0.91)] backdrop-blur-xl'}`}
+                className={`mb-2 w-[min(390px,calc(100vw-32px))] overflow-hidden rounded-2xl border shadow-2xl ${major ? 'bg-[rgb(var(--panel)/0.98)]' : 'bg-[rgb(var(--panel)/0.95)] backdrop-blur-xl'}`}
                 style={{ borderColor: major ? 'rgb(251 75 92 / 0.85)' : 'rgb(var(--accent) / 0.62)', boxShadow: major ? '0 25px 90px -18px rgba(0,0,0,.9), 0 0 48px -14px rgba(251,75,92,.85)' : '0 18px 55px -20px rgba(0,0,0,.85), 0 0 26px -10px rgb(var(--accent)/.8)' }}
               >
-                <div className="flex items-start gap-2 px-3.5 pb-2 pt-3">
-                  <div className="min-w-0 flex-1"><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">{major ? `${mascotName} needs you` : `${mascotName} says hey`}</p><h2 className="mt-1 text-[13px] font-black leading-snug text-ink">{notice.title}</h2><p className="mt-1 text-[11px] leading-relaxed text-muted">{notice.body}</p>{showWhy && <p className="mt-2 rounded-lg border border-[rgb(var(--accent)/0.2)] bg-[rgb(var(--accent)/0.06)] px-2 py-1.5 text-[9.5px] leading-relaxed text-muted">{whyFor(notice)}</p>}</div>
-                  <button type="button" onClick={dismiss} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted hover:bg-white/10 hover:text-ink" aria-label={`Dismiss ${mascotName}`}><X size={14} /></button>
+                <div className="flex items-start gap-3 px-4 pb-3 pt-4">
+                  <div className="min-w-0 flex-1"><p className="text-[10.5px] font-bold uppercase tracking-[0.18em] text-[rgb(var(--accent-2))]">{major ? `${mascotName} needs you` : `A note from ${mascotName}`}</p><h2 className="mt-1.5 text-[16px] font-black leading-snug text-ink">{notice.title}</h2><p className="mt-1.5 text-[13px] leading-relaxed text-muted">{notice.body}</p>{showWhy && <p className="mt-2.5 rounded-lg border border-[rgb(var(--accent)/0.2)] bg-[rgb(var(--accent)/0.06)] px-3 py-2 text-[11.5px] leading-relaxed text-muted">{whyFor(notice)}</p>}</div>
+                  <button type="button" onClick={dismiss} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-muted hover:bg-white/10 hover:text-ink" aria-label={`Dismiss ${mascotName}`}><X size={16} /></button>
                 </div>
                 {notice.kind === 'health' && (
                   <div className="border-t border-[rgb(var(--border)/0.56)] px-3.5 py-2.5">
@@ -585,7 +592,7 @@ export default function FungistMascot({
                     </div>
                   </div>
                 )}
-                <div className="flex items-center justify-between gap-2 border-t border-[rgb(var(--border)/0.7)] px-3.5 py-2.5"><div className="flex items-center gap-2"><button type="button" onClick={() => { setChatOpen(true); dismiss(); }} className="text-[10px] font-bold text-muted hover:text-ink">Talk to {mascotName}</button><button type="button" onClick={toggleWhy} className="text-[9px] font-bold text-[rgb(var(--accent-2))] hover:underline">{showWhy ? 'Hide reason' : 'Why am I seeing this?'}</button></div><button type="button" onClick={act} className="inline-flex items-center gap-1.5 rounded-lg bg-[rgb(var(--accent))] px-3 py-1.5 text-[10px] font-black text-[rgb(var(--surface))] shadow-lg"><span>{notice.action}</span><ChevronRight size={13} /></button></div>
+                <div className="flex items-center justify-between gap-3 border-t border-[rgb(var(--border)/0.7)] px-4 py-3"><button type="button" onClick={toggleWhy} className="text-[11px] font-bold text-[rgb(var(--accent-2))] hover:underline">{showWhy ? 'Hide explanation' : 'Why this appeared'}</button><button type="button" onClick={act} className="inline-flex min-h-9 items-center gap-2 rounded-xl bg-[rgb(var(--accent))] px-4 py-2 text-[12px] font-black text-[rgb(var(--surface))] shadow-lg"><span>{notice.action}</span><ChevronRight size={14} /></button></div>
               </motion.section>
             )}
           </AnimatePresence>
@@ -611,11 +618,11 @@ export default function FungistMascot({
               <motion.div
                 initial={{ opacity: 0, y: 8, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 4, scale: 0.97 }}
                 transition={{ duration: 0.18, ease: 'easeOut' }}
-                className="relative mb-1 w-fit max-w-[230px] rounded-xl border border-[rgb(var(--accent)/0.42)] bg-[rgb(var(--panel)/0.90)] px-3 py-1.5 text-right shadow-md backdrop-blur-md"
+                className="relative mb-2 w-fit max-w-[310px] rounded-2xl border border-[rgb(var(--accent)/0.42)] bg-[rgb(var(--panel)/0.95)] px-4 py-2.5 text-left shadow-lg backdrop-blur-md"
                 style={{ boxShadow: '0 8px 20px -14px rgba(0,0,0,.82)' }}
                 data-testid="fungist-speech"
               >
-                <p className="text-[11px] font-medium leading-snug text-ink">{spokenLine.speech}</p>
+                <p className="text-[13px] font-medium leading-relaxed text-ink">{spokenLine.speech}</p>
                 <span aria-hidden="true" className="absolute -bottom-1 right-6 h-2 w-2 rotate-45 border-b border-r border-[rgb(var(--accent)/0.42)] bg-[rgb(var(--panel))]" />
               </motion.div>
             )}
