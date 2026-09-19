@@ -545,13 +545,13 @@ export default function FungistMascot({
       <motion.div
         className={`pointer-events-none fixed ${chatOpen || launching ? 'z-[88]' : 'z-[85]'}`}
         initial={false}
-        animate={major ? { x: dock.x + flyX, y: dock.y + flyY, scale: 1.24 } : launching ? { x: dock.x + launchFlyX, y: dock.y + launchFlyY, scale: 1.18, rotate: [0, -8, 7, 0] } : chatOpen ? { x: dock.x + chatFlyX, y: dock.y + chatFlyY, scale: 1.08 } : { x: dock.x, y: dock.y, scale: 1 }}
+        animate={major ? { x: dock.x + flyX, y: dock.y + flyY } : launching ? { x: dock.x + launchFlyX, y: dock.y + launchFlyY } : chatOpen ? { x: dock.x + chatFlyX, y: dock.y + chatFlyY } : { x: dock.x, y: dock.y }}
         transition={{ type: 'spring', stiffness: 210, damping: 22, mass: 0.72 }}
         data-testid="fungist-mascot"
         // Keep the companion clear of the permanent Friends / sponsored rail.
         style={{ right: 18, bottom: 116 }}
       >
-        <div className="pointer-events-auto relative flex flex-col items-end" style={{ transform: `scale(${mascotScale})`, transformOrigin: 'right bottom' }}>
+        <div className="pointer-events-auto relative flex flex-col items-end">
           <AnimatePresence>
             {notice && (
               <motion.section
@@ -636,6 +636,12 @@ export default function FungistMascot({
             {launching && <motion.div initial={{ opacity: 0, y: 8, scale: 0.85 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 4, scale: 0.9 }} className="mb-1 max-w-[220px] rounded-xl border border-emerald-300/40 bg-[rgb(var(--panel)/0.94)] px-3 py-2 text-right shadow-xl backdrop-blur-lg"><p className="text-[9px] font-black uppercase tracking-[0.16em] text-emerald-300">Time to play!</p><p className="mt-0.5 text-[10px] font-bold text-ink">{launchCelebration?.gameName || 'Your game'} is launching</p></motion.div>}
           </AnimatePresence>
 
+          <div
+            className="relative shrink-0"
+            style={{ width: `${160 * mascotScale}px`, height: `${172 * mascotScale}px` }}
+            data-testid="mascot-scaled-body"
+          >
+          <div className="absolute bottom-0 right-0" style={{ transform: `scale(${mascotScale})`, transformOrigin: 'right bottom' }}>
           <motion.button
             type="button"
             onPointerDown={beginDockDrag}
@@ -713,6 +719,8 @@ export default function FungistMascot({
               draggable="false"
             />}
           </motion.button>
+          </div>
+          </div>
         </div>
       </motion.div>
 

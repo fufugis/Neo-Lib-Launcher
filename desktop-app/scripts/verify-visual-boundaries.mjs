@@ -146,6 +146,8 @@ assert.match(homeHubSource, /max-h-\[320px\][^\n]*overflow-y-auto[^\n]*data-test
 const mascotSource = read('src/components/FungistMascot.jsx');
 assert.match(mascotSource, /data-testid="mascot-quick-toggle"[^\n]*overflow-hidden/, 'Mascot quick-setting switches must clip their thumb inside the track.');
 assert.match(mascotSource, /absolute left-0 top-\[3px\][^\n]*translate-x-5/, 'Mascot quick-setting switch thumbs need an explicit left anchor.');
+assert.match(mascotSource, /data-testid="mascot-scaled-body"/, 'Mascot resizing needs a dedicated artwork-only boundary.');
+assert.doesNotMatch(mascotSource, /flex flex-col items-end" style=\{\{ transform: `scale\(\$\{mascotScale\}\)`/, 'Mascot resizing must not scale speech, notices or other interface text.');
 const majorMascotNoticeSource = read('src/components/MajorMascotNotice.jsx');
 assert.match(majorMascotNoticeSource, /data-testid="major-mascot-notice"/, 'Major mascot events need a dedicated readable centre-screen notice.');
 assert.match(majorMascotNoticeSource, /text-\[14px\]/, 'Major mascot event text must remain readable.');
