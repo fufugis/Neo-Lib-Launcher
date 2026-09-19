@@ -68,6 +68,7 @@ assert.match(read('src/components/HomeHub.jsx'), /home\/home-model\.mjs/);
 assert.match(read('src/components/FungistMascot.jsx'), /mascot\/fungist-model\.mjs/);
 
 const sidebarSource = read('src/components/Sidebar.jsx');
+const globalStylesSource = read('src/styles.css');
 const libraryVisualsSource = read('src/components/library/LibraryVisualsPopover.jsx');
 const libraryTreeSource = read('src/components/library/LibraryTree.jsx');
 const libraryToolbarSource = read('src/components/library/LibraryToolbarControls.jsx');
@@ -91,11 +92,13 @@ for (const testId of [
   'pop-icon-position', 'pop-two-row-', 'pop-name-text-size', 'pop-library-font',
   'pop-library-font-fat', 'pop-library-font-cursive', 'pop-cat-text-size', 'pop-category-marker',
   'pop-toggle-subcat-strip', 'pop-cat-glow', 'pop-effects-level', 'visual-motion-cadence',
-  'pop-bg-texture', 'pop-bg-tex-opacity', 'visuals-feedback-bug', 'visuals-feedback-suggestion',
+  'pop-bg-texture', 'pop-bg-tex-opacity', 'visual-cursor-picker', 'visuals-feedback-bug', 'visuals-feedback-suggestion',
   'visuals-feedback-general',
 ]) {
   assert.match(libraryVisualsSource, new RegExp(testId), `Library Visuals lost ${testId}`);
 }
+assert.match(libraryVisualsSource, /CURSOR_OPTIONS/);
+for (const cursorName of ['windows', 'neon', 'petal', 'pixel']) assert.match(libraryVisualsSource, new RegExp(`id: '${cursorName}'`));
 assert.equal(LIBRARY_FONT_OPTIONS.length, 5);
 assert.equal(libraryFontFamily('georgia'), 'Georgia, "Times New Roman", serif');
 assert.equal(libraryFontFamily('unknown'), LIBRARY_FONT_OPTIONS[0].family);
@@ -125,8 +128,15 @@ assert.match(sidebarSource, /manualResting/);
 assert.match(appSource, /onWindowVisibility/, 'Tray/background Rest Mode needs the native visibility bridge.');
 assert.match(appSource, /manualRestActive/);
 assert.match(appSource, /trayRestActive/);
+assert.match(appSource, /data-testid="rest-wake-overlay"/, 'Tray wake needs a visible confirmation transition.');
+assert.match(appSource, /cursorTheme/, 'The cursor theme needs to be persisted at the app shell.');
+assert.match(read('src/components/HomeHub.jsx'), /data-testid="home-game-update-list"/, 'Game updates need their own compact scrolling region.');
 assert.match(read('electron/preload.js'), /onWindowVisibility/);
 assert.match(read('electron/main.js'), /window:visibility/);
+assert.match(globalStylesSource, /\.font-black \{ font-weight: 700; \}/, 'Ordinary heavy text must keep the calmer application-wide weight.');
+assert.match(globalStylesSource, /\.font-display\.font-black,/);
+assert.match(globalStylesSource, /\.text-4xl\.font-black,/);
+assert.match(globalStylesSource, /\[data-testid='mascot-center-modal'\] input\[type='range'\]/, 'Every Mascot Center range control must use the corrected themed slider treatment.');
 assert.match(controlMenuSource, /data-testid="app-control-menu-toggle"/);
 assert.match(controlMenuSource, /pointer-events-auto/);
 assert.match(controlMenuSource, /h-9 w-9/, 'Control Center gear must match the standard navigation-button height.');

@@ -24,7 +24,7 @@ jobs:
       run:
         working-directory: desktop-app
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
 
@@ -40,7 +40,7 @@ jobs:
           }
           Write-Host "Release tag $expectedTag matches package version and the legacy update contract."
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           # NOTE: caching intentionally disabled — works whether or not yarn.lock is present
@@ -132,7 +132,7 @@ jobs:
       # Always upload artifacts (visible on every workflow run, even if a later step fails)
       - name: Upload artifacts (Actions tab)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: NEO-LIB-Windows
           path: |

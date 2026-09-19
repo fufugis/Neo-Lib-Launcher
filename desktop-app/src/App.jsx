@@ -1,5 +1,5 @@
 import React from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import TitleBar from './components/TitleBar';
 import Sidebar from './components/Sidebar';
 import GameDetail from './components/GameDetail';
@@ -67,6 +67,8 @@ export default function App() {
   // play session or pretends a game is running.
   const [manualRestActive, setManualRestActive] = React.useState(false);
   const [trayRestActive, setTrayRestActive] = React.useState(false);
+  const [wakeTransitionActive, setWakeTransitionActive] = React.useState(false);
+  const wakeTransitionTimer = React.useRef(null);
   const [ratingPromptGame, setRatingPromptGame] = React.useState(null);
   const [managedToolInstallId, setManagedToolInstallId] = React.useState('');
   const automaticGameRestActive = !!runningGame && (
@@ -463,6 +465,12 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', settings.theme || 'synthwave');
   }, [settings.theme]);
   React.useEffect(() => {
+    const cursor = ['windows', 'neon', 'petal', 'pixel'].includes(settings.cursorTheme)
+      ? settings.cursorTheme
+      : 'windows';
+    document.documentElement.setAttribute('data-neolib-cursor', cursor);
+  }, [settings.cursorTheme]);
+  React.useEffect(() => {
     const cadence = ['full', 'balanced', 'calm'].includes(settings.motionCadence)
       ? settings.motionCadence
       : 'full';
@@ -584,10 +592,28 @@ export default function App() {
   React.useEffect(() => {
     if (!nativeApi?.onWindowVisibility) return undefined;
     return nativeApi.onWindowVisibility(({ visible }) => {
-      setTrayRestActive(!visible);
-      if (visible) notify('NEO-LIB is awake again.');
+      if (!visible) {
+        window.clearTimeout(wakeTransitionTimer.current);
+        setWakeTransitionActive(false);
+        setTrayRestActive(true);
+        return;
+      }
+      // Manual rest remains deliberate. Tray rest gets a visible wake sequence
+      // so background work only resumes after the app is fully back on screen.
+      if (manualRestActive) {
+        setTrayRestActive(false);
+        return;
+      }
+      setWakeTransitionActive(true);
+      window.clearTimeout(wakeTransitionTimer.current);
+      wakeTransitionTimer.current = window.setTimeout(() => {
+        setTrayRestActive(false);
+        setWakeTransitionActive(false);
+        notify('NEO-LIB is awake again.');
+      }, 1500);
     });
-  }, []);
+  }, [manualRestActive]);
+  React.useEffect(() => () => window.clearTimeout(wakeTransitionTimer.current), []);
 
   /* --- Mode-aware slice keys (library vs tools) --- */
   const isTools = settings.mode === 'tools';
@@ -1409,6 +1435,8 @@ export default function App() {
           bgTextureOpacity={Number.isFinite(settings.bgTextureOpacity) ? settings.bgTextureOpacity : 40}
           onChangeBgTextureId={(v) => updateSetting({ bgTextureId: v })}
           onChangeBgTextureOpacity={(v) => updateSetting({ bgTextureOpacity: v })}
+          cursorTheme={settings.cursorTheme || 'windows'}
+          onChangeCursorTheme={(cursorTheme) => updateSetting({ cursorTheme })}
           mode={settings.mode || 'library'}
           onSetMode={(nextMode) => {
             if (nextMode === 'library') openLibraryDefault();
@@ -1524,15 +1552,44 @@ export default function App() {
         soundsEnabled={settings.fungistEnabled !== false && settings.soundsEnabled !== false && (settings.soundPack || 'synthwave') !== 'none'}
         voiceEnabled={settings.fungistEnabled !== false && settings.fungistVoiceEnabled !== false}
         voiceVolume={settings.fungistVoiceVolume ?? 72}
+        mascotSize={settings.fungistSize ?? 100}
         completion={fungistCompletion}
         launchCelebration={fungistLaunchCelebration}
         welcomeKey={fungistWelcomeKey}
         dockPosition={settings.fungistDockPosition || null}
+        contextPosition={settings.fungistContextPosition || null}
         onOpenHome={() => { setCurrentSelectedId(null); setMode('home'); }}
         libraryGames={coverWallGames}
         onLaunchRequested={(game, token, origin) => { launchOriginRef.current = origin || null; return launchGame(game, token); }}
         onReportBug={() => openFeedback('bug')}
       />
+
+      <AnimatePresence>
+        {wakeTransitionActive && (
+          <motion.div
+            key="wake-transition"
+            initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+            animate={{ opacity: 1, backdropFilter: 'blur(12px)' }}
+            exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+            transition={{ duration: 0.28, ease: 'easeOut' }}
+            className="fixed inset-0 z-[9998] grid place-items-center bg-[rgb(var(--surface)/0.48)]"
+            data-testid="rest-wake-overlay"
+            aria-live="polite"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -4, scale: 0.98 }}
+              transition={{ duration: 0.32, ease: 'easeOut' }}
+              className="rounded-2xl border border-[rgb(var(--accent)/0.72)] bg-[rgb(var(--panel)/0.92)] px-7 py-5 text-center shadow-[0_0_46px_-8px_rgb(var(--accent)/0.8)]"
+            >
+              <div className="mx-auto mb-2 h-2 w-2 rounded-full bg-[rgb(var(--accent))] shadow-[0_0_18px_rgb(var(--accent))]" />
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-ink">Waking up</p>
+              <p className="mt-1 text-[10px] text-muted">Rest Mode is ending…</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AppModalLayer
         context={{

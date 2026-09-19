@@ -124,6 +124,7 @@ export default function Sidebar({
   onChangeLibraryFont, onChangeLibraryFontWeight, onChangeLibraryFontCursive,
   bgTextureId, bgTextureOpacity,
   onChangeBgTextureId, onChangeBgTextureOpacity,
+  cursorTheme = 'windows', onChangeCursorTheme,
   onSelect, onGameViewed,
   onAddManual, onOpenWizard, manualResting = false, onToggleManualRest, onOpenFeedback, onUpdateAll, onTidyUp,
   onCreateCategory, onCategoryContext, onGameContext,
@@ -519,6 +520,8 @@ export default function Sidebar({
                 bgTextureOpacity={bgTextureOpacity}
                 onChangeBgTextureId={onChangeBgTextureId}
                 onChangeBgTextureOpacity={onChangeBgTextureOpacity}
+                cursorTheme={cursorTheme}
+                onChangeCursorTheme={onChangeCursorTheme}
                 onClose={() => setLibSettingsOpen(false)}
                 onOpenFeedback={onOpenFeedback}
                 twoRow={twoRow}

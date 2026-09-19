@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Typography comfort hierarchy: compact labels and ordinary section titles
+   keep a confident 700 weight instead of the harsh 900 default. Large titles,
+   numerical callouts and display-font heroes retain an 800-weight presence. */
+.font-black { font-weight: 700; }
+.font-display.font-black,
+.text-2xl.font-black,
+.text-3xl.font-black,
+.text-4xl.font-black,
+.text-5xl.font-black,
+.text-6xl.font-black { font-weight: 800; }
+
 /* ========== Themes ========== */
 
 /* Normal ink stays clean and unoutlined. Readability treatment belongs only
@@ -183,15 +194,30 @@
    the old blue/green mix. The warmth keeps it clearly separate from Midnight. */
 [data-theme='anime'] {
   --ink: 255 238 251;
-  --muted: 214 167 205;
+  --muted: 230 187 218;
   --surface: 40 22 43;
   --panel: 57 31 60;
-  --border: 154 72 144;
-  --accent: 255 99 184;
-  --accent-2: 178 104 255;
-  --accent-soft: 255 184 221;
-  --hairline-glow: 255 99 184;
+  --border: 190 112 176;
+  --accent: 255 151 207;
+  --accent-2: 211 157 255;
+  --accent-soft: 255 213 236;
+  --hairline-glow: 255 151 207;
 }
+
+/* Cursor choices are local to NEO-LIB. Text fields retain the familiar I-beam
+   and inputs remain obviously interactive, while ordinary app chrome gets a
+   small themed pointer that does not depend on external image files. */
+[data-neolib-cursor='neon'], [data-neolib-cursor='neon'] * { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath d='M4 3l19 14-9 2 5 9-4 2-5-9-6 7z' fill='%2313192a' stroke='%2365e7ff' stroke-width='2'/%3E%3Cpath d='M6 5l14 11' stroke='%23e9fbff' stroke-width='1.3'/%3E%3C/svg%3E") 4 3, auto; }
+[data-neolib-cursor='petal'], [data-neolib-cursor='petal'] * { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath d='M5 4l18 13-9 2 5 9-4 2-5-9-6 7z' fill='%23fff5fa' stroke='%23ff89c5' stroke-width='2'/%3E%3Cpath d='M23 5c5 1 5 8 0 9-5-1-5-8 0-9z' fill='%23ffc8e4' stroke='%23ff76b9'/%3E%3C/svg%3E") 4 3, auto; }
+[data-neolib-cursor='pixel'], [data-neolib-cursor='pixel'] * { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath d='M4 3h4v4h4v4h4v4h4v4h-4v4h-4v4H8v-4H4z' fill='%23fff7b0' stroke='%235d4b13' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E") 4 3, auto; }
+[data-neolib-cursor] :is(input:not([type='range']), textarea, [contenteditable='true']) { cursor: text; }
+
+.neo-range,
+[data-testid='mascot-center-modal'] input[type='range'] { accent-color: rgb(var(--accent)); }
+.neo-range::-webkit-slider-runnable-track,
+[data-testid='mascot-center-modal'] input[type='range']::-webkit-slider-runnable-track { height: 6px; border-radius: 999px; background: rgb(var(--surface) / 0.9); border: 1px solid rgb(var(--border) / 0.8); }
+.neo-range::-webkit-slider-thumb,
+[data-testid='mascot-center-modal'] input[type='range']::-webkit-slider-thumb { margin-top: -5px; height: 15px; width: 15px; border-radius: 999px; border: 2px solid rgb(var(--panel)); background: rgb(var(--accent)); box-shadow: 0 0 10px rgb(var(--accent) / 0.7); }
 
 /* ========== SPECIAL THEMES (extra eye-candy, sparkles + shooting stars + neon bloom) ========== */
 

@@ -14,12 +14,14 @@ export default function LibraryVisualsPopover({
   libraryFont = 'system', libraryFontWeight = 'regular', libraryFontCursive = false,
   effectsLevel = 2, currentTheme = 'synthwave', motionCadence = 'full',
   bgTextureId = 'none', bgTextureOpacity = 12,
+  cursorTheme = 'windows',
   onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
   onChangeRowGap, onChangeCatGap, onChangeCatTopGap, onChangeCategoryMarkerMode,
   onToggleSubcatStrip, onChangeNameTextSize,
   onChangeLibraryFont, onChangeLibraryFontWeight, onChangeLibraryFontCursive,
   onChangeEffectsLevel, onChangeMotionCadence,
   onChangeBgTextureId, onChangeBgTextureOpacity,
+  onChangeCursorTheme,
   onOpenFeedback,
   twoRow = false, onToggleTwoRow,
   onClose,
@@ -185,6 +187,7 @@ export default function LibraryVisualsPopover({
       />
       <div className="rounded-md hairline bg-panel/40 p-2.5" data-testid="visual-performance-controls"><EffectsPopSlider theme={currentTheme} value={effectsLevel} onChange={onChangeEffectsLevel} /><div className="my-2 border-t border-[rgb(var(--border))]/70" /><MotionCadenceSlider value={motionCadence} onChange={onChangeMotionCadence} /><p className="mt-2 rounded-md border border-[rgb(var(--accent)/0.22)] bg-[rgb(var(--accent)/0.06)] px-2 py-1.5 text-[10px] leading-relaxed text-muted"><b className="text-ink">Performance tip:</b> lowering Effects intensity reduces visual layers; lowering Visual motion rate makes the same FX update less often. Lower both if NEO-LIB feels heavy.</p></div>
       <BgTexturePicker textureId={bgTextureId} opacity={bgTextureOpacity} onChange={onChangeBgTextureId} onChangeOpacity={onChangeBgTextureOpacity} />
+      <CursorPicker value={cursorTheme} onChange={onChangeCursorTheme} />
       </VisualGroup>
       </div>
       </div>
@@ -262,6 +265,22 @@ function VisualGroup({ title, children }) {
 function DiscretePopSlider({ label, labels, value, onChange, testid }) {
   const safeValue = Math.max(0, Math.min(labels.length - 1, Number.isFinite(value) ? value : 0));
   return <div className="rounded-md hairline bg-surface/40 px-2.5 py-2"><div className="mb-1 flex items-center justify-between"><div className="text-[11px] text-ink/90">{label}</div><div className="text-[10.5px] font-bold text-[rgb(var(--accent-2))]">{labels[safeValue]}</div></div><input type="range" data-testid={testid} min={0} max={labels.length - 1} step={1} value={safeValue} onChange={(event) => onChange?.(Number(event.target.value))} className="w-full accent-[rgb(var(--accent))]" /><div className="mt-1 flex justify-between text-[8px] uppercase tracking-wider text-muted/75">{labels.map((item) => <span key={item}>{item}</span>)}</div></div>;
+}
+
+const CURSOR_OPTIONS = [
+  { id: 'windows', label: 'Windows' },
+  { id: 'neon', label: 'Neon' },
+  { id: 'petal', label: 'Petal' },
+  { id: 'pixel', label: 'Pixel' },
+];
+function CursorPicker({ value = 'windows', onChange }) {
+  return <div className="rounded-md hairline bg-panel/40 p-2.5" data-testid="visual-cursor-picker">
+    <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-muted">App cursor</div>
+    <p className="mb-2 text-[9.5px] leading-relaxed text-muted">Choose a cursor for NEO-LIB only. Windows keeps the familiar system pointer.</p>
+    <div className="grid grid-cols-2 gap-1">
+      {CURSOR_OPTIONS.map((option) => <button key={option.id} type="button" data-testid={`visual-cursor-${option.id}`} onClick={() => onChange?.(option.id)} className={cn('rounded-md hairline px-2 py-1.5 text-[10px] font-bold transition-colors', value === option.id ? 'border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.12)] text-ink' : 'text-muted hover:border-[rgb(var(--accent)/0.42)] hover:text-ink')}>{option.label}</button>)}
+    </div>
+  </div>;
 }
 
 /* v1.4.0 — Background texture picker (5 built-ins + None) with transparency dial. */

@@ -1,6 +1,6 @@
 import React from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Activity, Archive, BellRing, Bot, ChevronRight, Send, Settings2, X } from 'lucide-react';
+import { AnimatePresence, motion, useDragControls } from 'framer-motion';
+import { Activity, Archive, BellRing, Bot, ChevronRight, GripVertical, Send, Settings2, X } from 'lucide-react';
 import { playFungistCue } from '../lib/sound';
 import { fungistChatVoiceFor, playMascotVoice, stopMascotVoice } from '../lib/mascotVoice';
 import { isLikelyGameProcess, libraryCommandFor, messageFor, noticeCooldownMs, notificationEnabled, shortMemory, shortTime, voiceForNotice, whyFor } from './mascot/fungist-model.mjs';
@@ -38,7 +38,7 @@ const FIREWORKS = [
 ];
 
 function QuickSetting({ label, value, onChange }) {
-  return <div className="flex items-center gap-2 rounded-xl border border-[rgb(var(--border)/0.68)] bg-[rgb(var(--surface)/0.42)] px-2.5 py-2"><span className="min-w-0 flex-1 text-[10px] font-bold text-ink">{label}</span><button type="button" role="switch" aria-label={label} aria-checked={value} onClick={() => onChange?.(!value)} className={`relative h-5 w-9 rounded-full transition-colors ${value ? 'bg-[rgb(var(--accent))]' : 'bg-[rgb(var(--border)/0.8)]'}`}><span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${value ? 'translate-x-4' : 'translate-x-0.5'}`} /></button></div>;
+  return <div className="flex items-center gap-2 rounded-xl border border-[rgb(var(--border)/0.68)] bg-[rgb(var(--surface)/0.42)] px-2.5 py-2"><span className="min-w-0 flex-1 text-[10px] font-bold text-ink">{label}</span><button type="button" role="switch" aria-label={label} aria-checked={value} onClick={() => onChange?.(!value)} className={`relative h-6 w-11 shrink-0 rounded-full border border-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--accent-2))] ${value ? 'bg-[rgb(var(--accent))]' : 'bg-[rgb(var(--border)/0.8)]'}`}><span className={`absolute top-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-[0_1px_4px_rgba(0,0,0,.42)] transition-transform ${value ? 'translate-x-5' : 'translate-x-[3px]'}`} /></button></div>;
 }
 
 /**
@@ -79,16 +79,19 @@ export default function FungistMascot({
   soundsEnabled = true,
   voiceEnabled = true,
   voiceVolume = 72,
+  mascotSize = 100,
   completion = null,
   launchCelebration = null,
   welcomeKey = 0,
   dockPosition = null,
+  contextPosition = null,
   onOpenHome,
   libraryGames = [],
   onLaunchRequested,
   onReportBug,
 }) {
   const selectedMascot = mascotId === 'fifi' ? 'fifi' : 'fungist';
+  const mascotScale = Math.max(0.7, Math.min(1.45, Number(mascotSize || 100) / 100));
   const mascotName = selectedMascot === 'fifi' ? 'FiFi' : 'Fungist';
   const mascotPortrait = selectedMascot === 'fifi' ? `${import.meta.env.BASE_URL}mascot/fifi/poses/fifi-idle-v1.png` : ASSETS.stand;
   const playVoice = React.useCallback((id, options = {}) => playMascotVoice(id, { ...options, mascotId: selectedMascot }), [selectedMascot]);
@@ -127,6 +130,16 @@ export default function FungistMascot({
     };
   }, [viewport.height, viewport.width]);
   const [dock, setDock] = React.useState(() => clampDockPosition(dockPosition));
+  const clampContextPosition = React.useCallback((value) => {
+    const maxLeft = Math.max(0, viewport.width - 378);
+    const maxUp = Math.max(0, viewport.height - 250);
+    return {
+      x: Math.max(-maxLeft, Math.min(0, Math.round(Number(value?.x) || 0))),
+      y: Math.max(-maxUp, Math.min(0, Math.round(Number(value?.y) || 0))),
+    };
+  }, [viewport.height, viewport.width]);
+  const [contextDock, setContextDock] = React.useState(() => clampContextPosition(contextPosition));
+  const contextDragControls = useDragControls();
   const lastNoticeAt = React.useRef(new Map());
   const smileTimer = React.useRef(null);
   const chatScrollRef = React.useRef(null);
@@ -140,6 +153,9 @@ export default function FungistMascot({
   React.useEffect(() => {
     if (!dockDrag.current) setDock(clampDockPosition(dockPosition));
   }, [dockPosition?.x, dockPosition?.y, clampDockPosition]);
+  React.useEffect(() => {
+    setContextDock(clampContextPosition(contextPosition));
+  }, [contextPosition?.x, contextPosition?.y, clampContextPosition]);
 
   React.useEffect(() => () => dockDragCleanup.current?.(), []);
 
@@ -528,7 +544,7 @@ export default function FungistMascot({
         // Keep the companion clear of the permanent Friends / sponsored rail.
         style={{ right: 18, bottom: 116 }}
       >
-        <div className="pointer-events-auto relative flex flex-col items-end">
+        <div className="pointer-events-auto relative flex flex-col items-end" style={{ transform: `scale(${mascotScale})`, transformOrigin: 'right bottom' }}>
           <AnimatePresence>
             {notice && (
               <motion.section
@@ -695,8 +711,8 @@ export default function FungistMascot({
 
       <AnimatePresence>
         {contextOpen && (
-          <motion.aside initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.98 }} transition={{ duration: 0.17 }} className="fixed bottom-5 right-5 z-[87] w-[min(350px,calc(100vw-28px))] overflow-hidden rounded-2xl border border-[rgb(var(--accent)/0.58)] bg-[rgb(var(--panel)/0.97)] shadow-2xl backdrop-blur-xl" style={{ boxShadow: '0 25px 85px -25px rgba(0,0,0,.95), 0 0 38px -16px rgb(var(--accent)/.75)' }} data-testid="fungist-context">
-            <header className="flex items-center gap-2 border-b border-[rgb(var(--border)/0.72)] bg-[rgb(var(--accent)/0.08)] px-3.5 py-2.5"><img src={mascotPortrait} alt="" className="h-8 w-8 object-contain" /><div className="min-w-0 flex-1"><h2 className="text-[12px] font-black">{mascotName}</h2><p className="text-[9.5px] text-muted">Inbox and quick settings</p></div><button type="button" onClick={() => setContextOpen(false)} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-white/10 hover:text-ink" aria-label={`Close ${mascotName} menu`}><X size={14} /></button></header>
+          <motion.aside drag dragListener={false} dragControls={contextDragControls} dragMomentum={false} dragElastic={0} dragConstraints={{ left: Math.min(0, -Math.max(0, viewport.width - 378) - contextDock.x), right: Math.max(0, -contextDock.x), top: Math.min(0, -Math.max(0, viewport.height - 250) - contextDock.y), bottom: Math.max(0, -contextDock.y) }} onDragEnd={(_event, info) => setContextDock((current) => { const saved = clampContextPosition({ x: current.x + info.offset.x, y: current.y + info.offset.y }); onUpdatePreferences?.({ fungistContextPosition: saved }); return saved; })} initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.17 }} className="fixed bottom-5 right-5 z-[87] w-[min(350px,calc(100vw-28px))] overflow-hidden rounded-2xl border border-[rgb(var(--accent)/0.58)] bg-[rgb(var(--panel)/0.97)] shadow-2xl backdrop-blur-xl" style={{ x: contextDock.x, y: contextDock.y, boxShadow: '0 25px 85px -25px rgba(0,0,0,.95), 0 0 38px -16px rgb(var(--accent)/.75)' }} data-testid="fungist-context">
+            <header onPointerDown={(event) => contextDragControls.start(event)} className="flex cursor-move items-center gap-2 border-b border-[rgb(var(--border)/0.72)] bg-[rgb(var(--accent)/0.08)] px-3.5 py-2.5"><GripVertical size={14} className="shrink-0 text-[rgb(var(--accent-2))]" /><img src={mascotPortrait} alt="" className="h-8 w-8 object-contain" /><div className="min-w-0 flex-1"><h2 className="text-[12px] font-black">{mascotName}</h2><p className="text-[9.5px] text-muted">Inbox and quick settings · drag to move</p></div><button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={() => setContextOpen(false)} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-white/10 hover:text-ink" aria-label={`Close ${mascotName} menu`}><X size={14} /></button></header>
             <div className="flex gap-1 border-b border-[rgb(var(--border)/0.72)] px-2.5 py-2"><button type="button" onClick={() => setContextTab('inbox')} className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[10px] font-bold ${contextTab === 'inbox' ? 'bg-[rgb(var(--accent)/0.14)] text-ink' : 'text-muted hover:text-ink'}`}><Archive size={12} />Inbox {inbox.length ? `(${inbox.length})` : ''}</button><button type="button" onClick={() => setContextTab('quick')} className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[10px] font-bold ${contextTab === 'quick' ? 'bg-[rgb(var(--accent)/0.14)] text-ink' : 'text-muted hover:text-ink'}`}><Settings2 size={12} />Quick settings</button></div>
             {contextTab === 'inbox' ? <div className="max-h-[330px] overflow-y-auto p-2.5">{inbox.length ? <><div className="mb-2 flex items-center justify-between gap-2"><p className="text-[9.5px] text-muted">Recent {mascotName} notices. Newer events stay at the top.</p><button type="button" onClick={onClearInbox} className="shrink-0 text-[9px] font-bold text-[rgb(var(--accent-2))] hover:underline">Clear</button></div><div className="space-y-1.5">{inbox.slice(0, 30).map((item, index) => <article key={`${item.key}-${item.createdAt}-${index}`} className="rounded-xl border border-[rgb(var(--border)/0.68)] bg-[rgb(var(--surface)/0.42)] px-2.5 py-2"><div className="flex items-start gap-2"><BellRing size={12} className="mt-0.5 shrink-0 text-[rgb(var(--accent-2))]" /><div className="min-w-0 flex-1"><p className="text-[10px] font-bold text-ink">{item.title}</p><p className="mt-0.5 text-[9.5px] leading-relaxed text-muted">{item.body}</p><p className="mt-1 text-[8.5px] font-medium uppercase tracking-wide text-muted/75">{shortTime(item.createdAt)}</p></div></div></article>)}</div></> : <div className="grid min-h-36 place-items-center rounded-xl border border-dashed border-[rgb(var(--border)/0.75)] px-5 text-center"><div><Archive size={18} className="mx-auto text-[rgb(var(--accent-2))]" /><p className="mt-2 text-[11px] font-bold text-ink">Nothing missed</p><p className="mt-1 text-[9.5px] leading-relaxed text-muted">{mascotName} will keep a short history of the notices shown to you.</p></div></div>}</div> : <div className="space-y-2.5 p-2.5"><QuickSetting label={`Show ${mascotName}`} value={enabled} onChange={(value) => onUpdatePreferences?.({ fungistEnabled: value })} /><QuickSetting label="PC alerts" value={notificationEnabled(notificationSettings, 'pcHigh') || notificationEnabled(notificationSettings, 'pcCheck')} onChange={(value) => updateQuickNotifications({ pcHigh: value, pcCheck: value })} /><QuickSetting label="News and updates" value={notificationEnabled(notificationSettings, 'favouriteNews') || notificationEnabled(notificationSettings, 'favouriteUpdates') || notificationEnabled(notificationSettings, 'appUpdates')} onChange={(value) => updateQuickNotifications({ favouriteNews: value, favouriteUpdates: value, appUpdates: value })} /><QuickSetting label="Completion celebrations" value={notificationEnabled(notificationSettings, 'completion')} onChange={(value) => updateQuickNotifications({ completion: value })} /><button type="button" onClick={() => { onUpdatePreferences?.({ fungistEnabled: true }); setContextOpen(false); onOpenSettings?.(); }} className="mt-1 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.42)] bg-[rgb(var(--accent)/0.08)] px-3 py-2 text-[10px] font-black text-[rgb(var(--accent))] hover:bg-[rgb(var(--accent)/0.15)]"><Settings2 size={12} />Open full NEO-LIB Mascot settings</button></div>}
           </motion.aside>
