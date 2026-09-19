@@ -12,6 +12,8 @@ The authoritative item-by-item status is maintained in [`WORK_QUEUE.md`](WORK_QU
 
 ## Release status
 
+- **Cover Wall now exposes personal ratings in source** — rated visible games have a yellow upper-right cover tag with the player’s one-decimal score. It remains legible across every Wall density, sits above artwork/hover layers, and never appears for unrated or locked games. Source checks pass; rebuilt Windows review remains required.
+
 - **Mascot resizing is isolated from interface text in source** — the 70–145% Mascot Center slider now resizes only FiFi/Fungist and character-owned glow/effects. Docked speech, alerts, completion/launch messages, hover help, chat, quick settings and major centre notices stay at their readable UI dimensions. The dock reserves the scaled character footprint to prevent a large mascot from overlapping the fixed-size bubble. Source checks pass; rebuilt Windows review at minimum/default/maximum size remains required.
 
 - **Mascot alerts are readable and external-game Rest Mode is automatic in source** — when the local watcher confidently matches Valheim or another library game running outside NEO-LIB, the app now enters Rest Mode immediately instead of asking through a tiny button. A large centre-screen FiFi/Fungist notice states what was detected, what paused and that NEO-LIB wakes when the process closes. Serious PC alerts use the same major-event surface; routine mascot cards and speech remain docked but are wider, simpler and more readable. Focused source checks pass; rebuilt Windows visual and live-process acceptance remains required.

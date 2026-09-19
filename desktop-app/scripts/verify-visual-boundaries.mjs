@@ -153,6 +153,10 @@ assert.match(majorMascotNoticeSource, /data-testid="major-mascot-notice"/, 'Majo
 assert.match(majorMascotNoticeSource, /text-\[14px\]/, 'Major mascot event text must remain readable.');
 assert.match(appSource, /onExternalGameState[\s\S]{0,900}setExternalRestOverride\(true\)[\s\S]{0,900}showMajorMascotNotice/, 'A detected external library game must automatically enter Rest Mode and explain the transition.');
 assert.match(mascotSource, /candidate\.level === 'major'[\s\S]{0,260}onMajorNotice\(candidate\)/, 'Major mascot events must use the dedicated centre-screen surface.');
+const coverWallSource = read('src/components/CoverWall.jsx');
+assert.match(coverWallSource, /function personalRating/, 'Cover Wall rating tags need a bounded personal-rating formatter.');
+assert.match(coverWallSource, /data-testid=\{`cover-wall-rating-\$\{game\.id\}`\}/, 'Rated Cover Wall games need a visible personal-rating tag.');
+assert.match(coverWallSource, /absolute right-0 top-0 z-10[^\n]*bg-amber-300/, 'Cover Wall rating tags must stay yellow and above cover artwork in the upper-right corner.');
 assert.match(read('electron/preload.js'), /onWindowVisibility/);
 assert.match(read('electron/main.js'), /window:visibility/);
 assert.match(globalStylesSource, /\.font-black \{ font-weight: 700; \}/, 'Ordinary heavy text must keep the calmer application-wide weight.');

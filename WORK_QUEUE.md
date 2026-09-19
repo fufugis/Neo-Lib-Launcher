@@ -4,6 +4,8 @@ This is the authoritative live queue. New user requests are appended here and re
 
 ## In progress
 
+- [x] **Cover Wall personal-rating tags** — every currently visible/unlocked game with a personal rating now carries a yellow upper-right artwork tag showing its exact one-decimal score (`★ 4.5`). The tag scales its padding/text for Wall densities 3–10, stays above cover gradients and hover art, and is absent for unrated or still-locked games. Source verification passes; rebuilt Windows Wall review remains required.
+
 - [x] **Mascot-only resizing boundary** — mascot size now changes only the FiFi/Fungist artwork, glow and immediate character effects. Speech bubbles, hover text, completion/launch messages, quick settings, chat and centre-screen major notices retain their full readable interface size. The layout reserves the mascot’s scaled footprint so a larger companion does not grow through its bubble. Source verification passes; rebuilt Windows checks at 70%, 100% and 145% remain required.
 
 - [x] **Readable mascot notices + automatic external-game rest** — a confidently matched library game running through another launcher now enters Rest Mode immediately, pauses non-essential work and wakes automatically when that exact process closes. A large, calm, dismissible centre-screen mascot notice explains what happened for 7.5 seconds; major PC alerts share that surface. Ordinary mascot cards and voice bubbles are wider, less crowded and use larger text/actions. Focused renderer, watcher and visual-boundary checks pass; rebuilt Windows visual and live Valheim round-trip acceptance remains required.

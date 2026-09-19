@@ -166,6 +166,7 @@ files.
 
 ## Notable fixes and polish
 
+- Cover Wall now marks every visible personally rated game with a yellow upper-right cover tag showing its exact one-decimal score. Unrated and still-locked games receive no tag.
 - Mascot resizing now affects only FiFi/Fungist and immediate character effects. Speech bubbles, alerts, hover text, completion messages, chat, quick settings and major centre notices remain at their full readable interface size.
 - External library games such as Valheim now enter Rest Mode automatically after a confident local match. A large centre-screen FiFi/Fungist notice explains what was detected, what paused and that NEO-LIB wakes when the game closes. Serious PC alerts share this major-event surface; ordinary mascot bubbles are larger, calmer and easier to read.
 - Fixed FiFi/Fungist quick-setting switch knobs protruding beyond their tracks. The complete Home Game Updates body—including stronger-evidence notices—now stays inside one compact scrolling area without removing its explanatory text.
