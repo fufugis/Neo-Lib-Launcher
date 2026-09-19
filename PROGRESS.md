@@ -1,5 +1,7 @@
 # NEO-LIB progress
 
+- **Monochrome Bright theme is source-complete** — the Bright group now contains four themes. Monochrome uses a true white/pale-gray canvas, crisp black ink and controls, neutral borders, geometric grayscale ambience and quiet black particle marks. The Library receives the same atmosphere, while Effects intensity, motion cadence, Rest Mode and light-theme edge-glow limits retain their established behavior. Focused visual-boundary verification passes; rebuilt Windows contrast and visual acceptance remains required.
+
 - **Library icon-only presentation is source-complete** — Visual Tweaks now prefers the main pane immediately to the right of the Library instead of covering the shelves it changes. A separate Icons only view removes game labels, category headers and the pinned shelf, preserves safe selection/context actions, and exposes dedicated icon-size, spacing and one-to-three lane controls. Standard row, typography, category and layout controls visibly disable in this mode, while locked private entries remain filtered out. Focused visual and renderer-state checks pass; rebuilt Windows visual/interaction acceptance remains required.
 
 This is the short, human-readable view of the active work. It is updated as features move from idea to verified work.

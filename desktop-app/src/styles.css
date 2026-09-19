@@ -137,6 +137,26 @@
   --accent-2-text: 8 102 148;
 }
 
+/* MONOCHROME — a true bright neutral theme. White and pale-gray surfaces keep
+   the workspace airy; black is reserved for ink, selected controls and crisp
+   geometry so the result feels editorial rather than unfinished. */
+[data-theme='monochrome'] {
+  --ink: 18 19 21;
+  --muted: 88 91 96;
+  --surface: 239 240 242;
+  --panel: 252 252 253;
+  --border: 174 177 182;
+  --accent: 24 25 27;
+  --accent-2: 104 107 112;
+  --accent-soft: 211 213 217;
+  --hairline-glow: 72 74 78;
+  --accent-text: 10 11 12;
+  --accent-2-text: 69 72 77;
+  --grad-1: 255 255 255;
+  --grad-2: 203 206 211;
+  --sidebar-tint: 128 131 136;
+}
+
 /* GAMING — a luminous esports navy midpoint. The lifted lavender and ice-blue
    accents make it clearly brighter than the Dark group without becoming a light theme. */
 [data-theme='gaming'] {
@@ -279,7 +299,7 @@
   --sidebar-tint: 65 108 178;
 }
 
-.amb-generic-gray, .amb-generic-blue, .amb-home { position: absolute; inset: 0; pointer-events: none; }
+.amb-generic-gray, .amb-generic-blue, .amb-home, .amb-monochrome { position: absolute; inset: 0; pointer-events: none; }
 .theme-artwork {
   position: absolute;
   inset: -2.5%;
@@ -307,6 +327,7 @@
 .theme-artwork-pro { filter: saturate(0.9) contrast(0.92) brightness(0.8); mix-blend-mode: screen; }
 .theme-artwork-generic-gray { mix-blend-mode: luminosity; filter: contrast(0.84) brightness(0.84); }
 .theme-artwork-generic-blue { filter: saturate(0.84) contrast(0.92) brightness(0.86); }
+.theme-artwork-monochrome { mix-blend-mode: multiply; filter: grayscale(1) contrast(0.72) brightness(1.18); opacity: 0.18 !important; }
 @keyframes theme-artwork-drift {
   0%, 100% { transform: scale(1.02) translate3d(0, 0, 0); }
   50% { transform: scale(1.05) translate3d(-0.35%, -0.2%, 0); }
@@ -317,6 +338,13 @@
 }
 .amb-generic-blue {
   background: radial-gradient(ellipse at 78% 10%, rgb(60 125 255 / 0.16), transparent 48%), linear-gradient(135deg, transparent 0 48%, rgb(120 165 255 / 0.045) 48.1% 48.3%, transparent 48.4% 100%);
+}
+.amb-monochrome {
+  background:
+    linear-gradient(118deg, transparent 0 46%, rgb(10 10 12 / 0.055) 46.1% 46.22%, transparent 46.35% 100%),
+    radial-gradient(ellipse 52vw 48vh at 84% 5%, rgb(255 255 255 / 0.92), transparent 72%),
+    radial-gradient(ellipse 44vw 38vh at 8% 96%, rgb(92 94 98 / 0.12), transparent 76%),
+    repeating-linear-gradient(90deg, transparent 0 79px, rgb(20 21 23 / 0.026) 80px, transparent 81px);
 }
 .amb-home {
   background:
@@ -336,10 +364,10 @@
 /* Visual cadence affects ambient decoration only. Balanced stays smooth;
    its CPU/GPU saving comes from the React ambient layer using fewer costly
    particles, glows and blur actors—not from visibly choppy stepping. */
-[data-motion-cadence='balanced'] .fx-cadence-layer :is(.particles span, .sakura span, .synth-grid, .vapor-clouds, .vapor-floor, .amb-midnight, .amb-ocean, .amb-crimson, .amb-mint, .amb-gaming, .amb-modern, .amb-home, .amb-colorful, .amb-pro, .amb-generic-gray, .amb-generic-blue, .theme-artwork, .theme-illustration, .shooting-stars span) {
+[data-motion-cadence='balanced'] .fx-cadence-layer :is(.particles span, .sakura span, .synth-grid, .vapor-clouds, .vapor-floor, .amb-midnight, .amb-ocean, .amb-crimson, .amb-mint, .amb-gaming, .amb-modern, .amb-home, .amb-colorful, .amb-pro, .amb-generic-gray, .amb-generic-blue, .amb-monochrome, .theme-artwork, .theme-illustration, .shooting-stars span) {
   animation-timing-function: linear !important;
 }
-[data-motion-cadence='calm'] .fx-cadence-layer :is(.particles span, .sakura span, .synth-grid, .vapor-clouds, .vapor-floor, .amb-midnight, .amb-ocean, .amb-crimson, .amb-mint, .amb-gaming, .amb-modern, .amb-home, .amb-colorful, .amb-pro, .amb-generic-gray, .amb-generic-blue, .theme-artwork, .theme-illustration, .shooting-stars span) {
+[data-motion-cadence='calm'] .fx-cadence-layer :is(.particles span, .sakura span, .synth-grid, .vapor-clouds, .vapor-floor, .amb-midnight, .amb-ocean, .amb-crimson, .amb-mint, .amb-gaming, .amb-modern, .amb-home, .amb-colorful, .amb-pro, .amb-generic-gray, .amb-generic-blue, .amb-monochrome, .theme-artwork, .theme-illustration, .shooting-stars span) {
   animation-timing-function: steps(28, end) !important;
 }
 
@@ -1272,6 +1300,7 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
 .theme-illustration--modern { color: rgba(247, 187, 128, 0.34); }
 .theme-illustration--colorful { color: rgba(255, 238, 248, 0.58); }
 .theme-illustration--pro { color: rgba(255, 145, 59, 0.42); }
+.theme-illustration--monochrome { color: rgba(12, 13, 15, 0.34); mix-blend-mode: multiply; }
 @keyframes themeIllustrationFloat {
   from { transform: translate3d(-0.5%, 0.4%, 0) scale(1.012); }
   to { transform: translate3d(0.75%, -0.45%, 0) scale(1.038); }
@@ -1601,6 +1630,7 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
 .particles--mint span { width: 4px; height: 8px; border-radius: 100% 0 100% 0; background: rgb(var(--accent)); box-shadow: 0 0 5px rgb(var(--accent-2)); animation-name: pollenDrift; }
 .particles--daybreak span { width: 1px; height: 14px; border-radius: 0; background: rgb(var(--accent)); box-shadow: none; animation-name: sunRayFall; }
 .particles--synthwave-day span { width: 5px; height: 2px; border-radius: 999px; background: rgb(var(--accent-2)); box-shadow: 0 0 6px rgb(var(--accent)); animation-name: cloudGlide; }
+.particles--monochrome span { width: 5px; height: 1px; border-radius: 0; background: rgb(var(--accent)); box-shadow: none; opacity: .28; animation-name: dustSlide; }
 .particles--anime span { width: 2px; height: 7px; border-radius: 999px; background: rgb(var(--accent-2)); animation-name: inkFall; }
 .particles--colorful span { width: 4px; height: 4px; border-radius: 0; background: rgb(var(--accent-2)); box-shadow: 0 0 8px rgb(var(--accent)); animation-name: prismTwinkle; }
 .particles--pro span { width: 2px; height: 10px; border-radius: 0; background: rgb(var(--accent)); box-shadow: 0 0 6px rgb(var(--accent)); animation-name: metalFall; }
@@ -1715,6 +1745,7 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
 }
 [data-theme='synthwave-day'] .window-edge-glow,
 [data-theme='daybreak'] .window-edge-glow,
+[data-theme='monochrome'] .window-edge-glow,
 [data-theme='home'] .window-edge-glow {
   /* Light themes — drop intensity so it doesn't wash out */
   box-shadow:
@@ -1740,7 +1771,7 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 }
 /* Ambient backgrounds fade smoothly too */
 .amb-synthwave, .amb-midnight, .amb-ocean, .amb-crimson, .amb-anime,
-.amb-synthwave-day, .amb-daybreak, .amb-vaporwave, .amb-mint {
+.amb-synthwave-day, .amb-daybreak, .amb-vaporwave, .amb-mint, .amb-monochrome {
   transition: opacity 560ms ease, filter 560ms ease;
 }
 

@@ -52,6 +52,8 @@ export const THEMES = [
     gradient: 'linear-gradient(135deg, #fff6e7 0%, #ffc36c 52%, #8ccbf0 100%)' },
   { id: 'mint',          label: 'Mint Garden',    swatch: '#34c98a', tone: 'bright',
     gradient: 'linear-gradient(135deg, #f4fcf6 0%, #34c98a 55%, #128ec8 100%)' },
+  { id: 'monochrome',    label: 'Monochrome',     swatch: '#202124', tone: 'bright',
+    gradient: 'linear-gradient(135deg, #ffffff 0%, #c8cbd0 52%, #111214 100%)' },
 ];
 
 export const CATEGORY_COLORS = [

@@ -8,6 +8,10 @@ files.
 
 ## Highlights
 
+- **Monochrome** joins the Bright theme group: a crisp white, gray and black
+  workspace with high-contrast controls, restrained geometric linework and
+  grayscale ambient motion that still follows Effects intensity and Rest Mode.
+
 ### 🧠 A rebuilt foundation
 
 - The architecture is now separated across Library state, metadata, providers,

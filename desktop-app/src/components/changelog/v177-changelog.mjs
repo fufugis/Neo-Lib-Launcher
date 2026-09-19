@@ -60,6 +60,7 @@ export const V177_CHANGELOG = {
     },
   ],
   fixes: [
+    'Theme Studio now has a fourth Bright theme: Monochrome. It combines white and pale-gray surfaces with black controls, geometric grayscale atmosphere and restrained neutral particles that still respect Effects intensity and Rest Mode.',
     'Visual Tweaks now opens beside the Library. A separate Icons only mode removes game text, categories and the pinned strip, with its own icon-size, spacing and one-to-three lane controls; incompatible standard sliders visibly disable while it is active.',
     'Cover Wall now places a yellow upper-right tag on every visible game you personally rated, showing the exact one-decimal score while keeping locked and unrated games private/clean.',
     'Mascot size now changes only FiFi/Fungist and character effects. Speech bubbles, alerts, hover text, completion messages, chat, quick settings and major notices keep their full readable interface size.',

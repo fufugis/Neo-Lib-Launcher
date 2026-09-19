@@ -161,6 +161,7 @@ export function BgAmbience({ theme, settings = {}, game = null, resting = false 
     pro:      'amb-pro',
     'generic-gray': 'amb-generic-gray',
     'generic-blue': 'amb-generic-blue',
+    monochrome: 'amb-monochrome',
   }[theme];
   const isSpecial = ['anime', 'colorful', 'pro'].includes(theme);
   const specialDecorationOpacity = Math.max(0, Math.min(100, Number(settings.specialDecorationOpacity ?? 46))) / 100;
@@ -222,6 +223,7 @@ function ThemeArtwork({ theme, level = 2, cadence = 'full' }) {
     home: 'home-atmosphere.png',
     'generic-gray': 'generic-gray-atmosphere.png',
     'generic-blue': 'generic-blue-atmosphere.png',
+    monochrome: 'generic-gray-atmosphere.png',
   }[theme];
   if (!filename) return null;
   const motionClass = cadence === 'calm' ? '' : 'theme-artwork-drift';
@@ -286,6 +288,7 @@ function ThemeIllustration({ theme, level = 2 }) {
     modern: <><path d="M1042 736V240h154v496M1218 736V382h128v354M1370 736V172h170v564M92 736V454h244v282M362 736V292h196v444M590 736V510h176v226" /><path d="M54 146h526M54 190h404M1008 112h532M1170 764h370" /></>,
     colorful: <><path d="M1210 128l42 116 120 4-94 76 32 118-100-62-102 62 34-118-96-76 122-4z" /><path d="M144 716l192-120 178 110 190-220 192 212 194-130 170 150 178-106" /><circle cx="418" cy="214" r="64" /><circle cx="630" cy="330" r="28" /><circle cx="1468" cy="620" r="52" /></>,
     pro: <><path d="M1030 178h378l118 116v378l-118 116h-378l-118-116V294zM1110 258h218l78 78v294l-78 78h-218l-78-78V336z" /><path d="M0 704h900M0 750h900M100 704l72 46 72-46 72 46 72-46 72 46 72-46 72 46 72-46 72 46 72-46" /></>,
+    monochrome: <><path d="M86 160h430v430H86zM168 242h266v266H168zM1080 126h364v364h-364zM1162 208h200v200h-200z" /><circle cx="790" cy="448" r="188" /><circle cx="790" cy="448" r="116" /><path d="M0 730h1600M616 90v720M964 90v720" /></>,
   }[theme];
   if (!art) return null;
   return (

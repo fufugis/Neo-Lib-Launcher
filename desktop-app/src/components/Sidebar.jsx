@@ -91,6 +91,7 @@ const SIDEBAR_THEME_ART = {
   anime: 'anime-atmosphere.png', gaming: 'gaming-atmosphere.png', modern: 'modern-atmosphere.png',
   colorful: 'colorful-atmosphere.png', pro: 'industrial-atmosphere.png', home: 'home-atmosphere.png',
   'generic-gray': 'generic-gray-atmosphere.png', 'generic-blue': 'generic-blue-atmosphere.png',
+  monochrome: 'generic-gray-atmosphere.png',
 };
 
 /**
