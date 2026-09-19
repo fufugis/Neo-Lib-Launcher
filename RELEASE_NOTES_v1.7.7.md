@@ -166,6 +166,7 @@ files.
 
 ## Notable fixes and polish
 
+- Fixed FiFi/Fungist quick-setting switch knobs protruding beyond their tracks. The complete Home Game Updates body—including stronger-evidence notices—now stays inside one compact scrolling area without removing its explanatory text.
 - Fixed the left-side Control Center gear being blocked by layered Library artwork, and keep delayed hover explanations inside the visible window at every edge.
 - Fixed false Steam “update available” cards caused by old completed-manifest byte counters. NEO-LIB now requires Steam’s live update/download state as well as remaining bytes, and **Open downloads** uses Steam’s documented Downloads route.
 - Repaired the blank-window startup regression and added a visible recovery screen.

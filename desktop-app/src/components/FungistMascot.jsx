@@ -38,7 +38,7 @@ const FIREWORKS = [
 ];
 
 function QuickSetting({ label, value, onChange }) {
-  return <div className="flex items-center gap-2 rounded-xl border border-[rgb(var(--border)/0.68)] bg-[rgb(var(--surface)/0.42)] px-2.5 py-2"><span className="min-w-0 flex-1 text-[10px] font-bold text-ink">{label}</span><button type="button" role="switch" aria-label={label} aria-checked={value} onClick={() => onChange?.(!value)} className={`relative h-6 w-11 shrink-0 rounded-full border border-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--accent-2))] ${value ? 'bg-[rgb(var(--accent))]' : 'bg-[rgb(var(--border)/0.8)]'}`}><span className={`absolute top-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-[0_1px_4px_rgba(0,0,0,.42)] transition-transform ${value ? 'translate-x-5' : 'translate-x-[3px]'}`} /></button></div>;
+  return <div className="flex items-center gap-2 rounded-xl border border-[rgb(var(--border)/0.68)] bg-[rgb(var(--surface)/0.42)] px-2.5 py-2"><span className="min-w-0 flex-1 text-[10px] font-bold text-ink">{label}</span><button type="button" role="switch" aria-label={label} aria-checked={value} data-testid="mascot-quick-toggle" onClick={() => onChange?.(!value)} className={`relative h-6 w-11 shrink-0 overflow-hidden rounded-full border border-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--accent-2))] ${value ? 'bg-[rgb(var(--accent))]' : 'bg-[rgb(var(--border)/0.8)]'}`}><span className={`absolute left-0 top-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-[0_1px_4px_rgba(0,0,0,.42)] transition-transform ${value ? 'translate-x-5' : 'translate-x-[3px]'}`} /></button></div>;
 }
 
 /**

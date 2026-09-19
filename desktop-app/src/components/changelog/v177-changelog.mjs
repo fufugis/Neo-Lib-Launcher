@@ -60,6 +60,7 @@ export const V177_CHANGELOG = {
     },
   ],
   fixes: [
+    'Fixed FiFi/Fungist quick-setting switch knobs protruding beyond their tracks, and bounded the complete Home Game Updates body—including evidence warnings—inside one compact scrolling area without removing its text.',
     'Fixed the Control Center gear ignoring clicks under layered Library artwork, and kept every delayed hover explanation fully inside the app window.',
     'Fixed false Steam update cards caused by stale completed-manifest byte counters; the Downloads action now opens Steam’s documented Downloads route.',
     'Fixed Wizard folder scans and metadata review getting stuck: every scan, lookup and optional artwork cache now has a visible recovery path, firm time limit and late-result protection.',
