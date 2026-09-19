@@ -12,9 +12,20 @@ import { createDemoLibrary } from '../src/state/demo-library.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const components = path.join(root, 'src', 'components');
-const parserPackage = fs.readdirSync(path.join(root, 'node_modules', '.pnpm')).find((name) => name.startsWith('@babel+parser@'));
-assert.ok(parserPackage, 'The renderer verification needs the Babel parser already bundled with Vite React');
-const parser = await import(pathToFileURL(path.join(root, 'node_modules', '.pnpm', parserPackage, 'node_modules', '@babel', 'parser', 'lib', 'index.js')).href);
+// Yarn/npm hoist Babel to node_modules, while pnpm keeps it in its content store.
+// Accept both layouts so the same verification runs locally and in GitHub Actions.
+const flatParser = path.join(root, 'node_modules', '@babel', 'parser', 'lib', 'index.js');
+const pnpmStore = path.join(root, 'node_modules', '.pnpm');
+const pnpmParserPackage = fs.existsSync(pnpmStore)
+  ? fs.readdirSync(pnpmStore).find((name) => name.startsWith('@babel+parser@'))
+  : '';
+const parserPath = fs.existsSync(flatParser)
+  ? flatParser
+  : pnpmParserPackage
+    ? path.join(pnpmStore, pnpmParserPackage, 'node_modules', '@babel', 'parser', 'lib', 'index.js')
+    : '';
+assert.ok(parserPath && fs.existsSync(parserPath), 'The renderer verification needs the Babel parser bundled with Vite React');
+const parser = await import(pathToFileURL(parserPath).href);
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 const lines = (relative) => read(relative).split(/\r?\n/).length;
 

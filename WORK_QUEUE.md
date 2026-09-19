@@ -4,9 +4,11 @@ This is the authoritative live queue. New user requests are appended here and re
 
 ## In progress
 
+- [x] **GitHub EXE build portability repair** — the failed v1.7.7 run was traced to the visual-boundary verifier reading pnpm's private `node_modules/.pnpm` store even though GitHub installs dependencies with Yarn. The verifier now resolves Babel from Yarn/npm's normal hoisted location first and retains a pnpm fallback for local development. The complete pre-build suite passes locally. Artifact upload now uses the current Node 24 action runtime. The real renderer/package build still needs the unrestricted GitHub runner because this managed session blocks esbuild child-process creation with `spawn EPERM`. Release tags must use exact clean form `v1.7.7`; the pushed `v.1.7.7` tag is intentionally rejected by the update-safety gate.
+
 - [x] **Visual polish batch** — added four selectable global cursors (Windows default, Neon, Petal and Pixel), a visible 1.5-second wake transition after tray rest, draggable FiFi/Fungist quick settings with saved placement and mascot sizing, a compact internally scrolling Home game-update list that keeps its full text, and a lighter pink Anime theme. Full source gate passes; rebuilt Windows visual acceptance remains required.
 
-- [x] **GitHub Actions runtime maintenance** — updated the three core GitHub Actions from v4 to v5 so the runner no longer has to force their deprecated Node 20 action runtime onto Node 24. The failed build’s missing artifacts are a downstream result of its earlier Build renderer failure, not an upload fault; protected feedback relay secrets must remain valid for a release build.
+- [x] **GitHub Actions runtime maintenance** — checkout and Node setup use v5, while artifact upload uses v7, so GitHub no longer needs to force their deprecated Node 20 action runtime onto Node 24. A missing-artifact message is downstream of an earlier build failure, not an upload fault; protected feedback relay secrets must remain valid for a release build.
 
 - [x] **Manual + tray Rest Mode** — added Rest Zzz beside Add/Wizard. It pauses the same non-essential work as game Rest Mode, changes to a glowing theme-accent Wake up action, and clearly confirms the transition. When close-to-tray hides NEO-LIB, native visibility events automatically enter Rest Mode; reopening wakes the app without altering game tracking. Source-verified; a rebuilt Windows tray round-trip remains required.
 
