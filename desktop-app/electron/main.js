@@ -1383,6 +1383,11 @@ function cleanTitle(t) {
     .trim();
 }
 
+function cleanPublicGameTitle(title, url = '') {
+  const cleaned = cleanTitle(title);
+  return /\.itch\.io(?:\/|$)/i.test(String(url || '')) ? cleaned.replace(/\s+by\s+.+$/i, '').trim() : cleaned;
+}
+
 // ---------------- Tool / software metadata ---------------- //
 // Tools have a different identity problem from games. Their best source is
 // normally the selected Windows executable, then its vendor—not a game store.
@@ -1582,7 +1587,7 @@ remainingIpcServices["gemini:assistant"] = async (_e, { apiKey, message, model, 
 };
 
 // ---------------- Unified metadata pipeline ---------------- //
-// Tries Hardcoded → Steam → Epic → GOG → Gemini (if key) → Web scrape.
+// Tries Hardcoded → Steam → Epic → GOG → exact public evidence → Gemini (if key) → broader web recovery.
 
 /* Hardcoded entries for popular launcher-exclusives that Steam search misses.
    Keys are normalized (lowercased, alphanumeric only). */
@@ -2168,12 +2173,11 @@ async function expandF95(c) {
 
 async function listGoogleCandidates(term) {
   try {
-    let results = await ddgSearch(term);
-    if (!results.length) results = await googleScrape(term);
+    const results = await publicWebProvider.searchGameMetadata(term);
     return (results || []).slice(0, 8).map((r) => ({
       source: 'google',
       id: r.url,
-      name: cleanTitle(r.title || ''),
+      name: cleanPublicGameTitle(r.title || '', r.url),
       image: '',
       year: ((r.snippet + ' ' + r.title).match(/\b(19|20)\d{2}\b/) || [])[0] || '',
       shortDescription: r.snippet || '',
@@ -2183,21 +2187,59 @@ async function listGoogleCandidates(term) {
 }
 async function expandGoogle(c) {
   const r = c.raw || {};
+  const url = r.url || c.id || '';
+  let page = {};
+  if (/^https?:\/\/[^/]*\.itch\.io\//i.test(url)) {
+    const itch = await itchDetails(url);
+    if (itch) page = {
+      title: String(itch.title || '').replace(/\s+by\s+.+$/i, '').trim(),
+      description: itch.desc || '', image: itch.cover || '', screenshots: itch.shots || [],
+      developer: itch.developer || '', source: 'itch',
+    };
+  } else if (/^https?:\/\//i.test(url)) {
+    try {
+      const html = await httpGetText(url, 9_000);
+      page = {
+        title: metaTag(html, 'og:title') || metaTag(html, 'twitter:title'),
+        description: metaTag(html, 'og:description') || metaTag(html, 'description'),
+        image: metaTag(html, 'og:image') || metaTag(html, 'twitter:image'), screenshots: [], source: 'web',
+      };
+    } catch { /* The reviewed search snippet remains usable. */ }
+  }
+  const description = page.description || r.snippet || '';
+  const identityText = `${description} ${r.title || ''}`.toLowerCase();
+  const genres = [
+    ['Adult', /\b(?:adult|nsfw|erotic)\b/], ['Adventure', /\badventure\b/], ['Dating Sim', /\b(?:dating sim|dating adventure)\b/],
+    ['Open World', /\bopen[- ]world\b/], ['Visual Novel', /\bvisual novel\b/], ['Simulation', /\bsimulation\b/], ['Indie', /\bindie\b/],
+  ].filter(([, pattern]) => pattern.test(identityText)).map(([genre]) => genre);
   return {
-    source: 'web',
-    name: c.name || 'Unknown',
-    shortDescription: r.snippet || '',
-    about: r.snippet || '',
-    headerImage: '',
-    capsuleImage: '',
-    background: '',
-    screenshots: [],
-    genres: [],
-    developers: [],
-    publishers: [],
+    source: page.source || 'web',
+    name: page.title || c.name || 'Unknown',
+    shortDescription: description.slice(0, 320),
+    about: description,
+    headerImage: page.image || '',
+    capsuleImage: page.image || '',
+    background: page.image || '',
+    screenshots: page.screenshots || [],
+    genres,
+    developers: page.developer ? [page.developer] : [],
+    publishers: page.developer ? [page.developer] : [],
     releaseDate: c.year || '',
-    website: r.url || '',
+    website: url,
   };
+}
+
+async function metadataFromPublicResult(top, fallbackName) {
+  const year = (`${top?.snippet || ''} ${top?.title || ''}`.match(/\b(19|20)\d{2}\b/) || [])[0] || '';
+  const text = `${top?.snippet || ''} ${top?.title || ''}`.toLowerCase();
+  const genreKeywords = [
+    'RPG', 'action', 'adventure', 'puzzle', 'platformer', 'shooter', 'strategy',
+    'simulation', 'roguelike', 'rogue-like', 'horror', 'survival', 'racing', 'sports',
+    'fighting', 'metroidvania', 'visual novel', 'sandbox', 'open-world', 'indie',
+  ];
+  const inferredGenres = [...new Set(genreKeywords.filter(keyword => text.includes(keyword.toLowerCase())).map(genre => genre.replace(/\b\w/g, character => character.toUpperCase())))];
+  const expanded = await expandGoogle({ source: 'google', id: top?.url, name: cleanPublicGameTitle(top?.title, top?.url) || fallbackName, year, raw: top });
+  return enrichMetadataArtwork({ ...expanded, genres: [...new Set([...(expanded.genres || []), ...inferredGenres])] });
 }
 
 async function listAiCandidates(term, geminiKey, aiModel) {
@@ -2411,19 +2453,28 @@ remainingIpcServices["metadata:auto"] = async (_e, { query, skipSources = [], ge
     if (hit) return hit;
   }
 
-  // 4. Gemini (if user key provided)
+  // 4. Exact public-title recovery comes before AI. Delisted adult/indie games
+  // often retain an official product page that normal storefront APIs hide.
+  if (!skipSources.includes('google') && !skipSources.includes('web')) {
+    try {
+      const exactResults = await publicWebProvider.searchGameMetadata(term);
+      if (exactResults.length) return await metadataFromPublicResult(exactResults[0], term);
+    } catch { /* Continue through specialist and optional AI fallbacks. */ }
+  }
+
+  // 5. Gemini (if user key provided)
   if (!skipSources.includes('gemini') && geminiKey) {
     try { return await enrichMetadataArtwork(await requestGeminiGameMetadata(geminiKey, term, aiModel)); } catch { /* continue with non-AI sources */ }
   }
 
-  // 5. Ryuugames — adult-VN repackager. Sometimes the only place an obscure
+  // 6. Ryuugames — adult-VN repackager. Sometimes the only place an obscure
   //    indie game has a clean cover + description findable on the open web.
   if (!skipSources.includes('ryuugames')) {
     const hit = await ryuugamesSearch(term);
     if (hit) return hit;
   }
 
-  // 6. Web fallback (DuckDuckGo → Google) — tries the full term first, then
+  // 7. Web fallback (DuckDuckGo → Google) — tries the full term first, then
   //    progressively simplified variants. Many indie games have parenthetical
   //    version tags / build numbers in their folder names that throw off search.
   const variants = [term];
@@ -2446,31 +2497,9 @@ remainingIpcServices["metadata:auto"] = async (_e, { query, skipSources = [], ge
 
   for (const v of variants) {
     try {
-      let webResults = await ddgSearch(v);
-      if (webResults.length === 0) webResults = await googleScrape(v);
+      const webResults = await publicWebProvider.searchGameMetadata(v);
       if (webResults.length > 0) {
-        const top = webResults[0];
-        const yearMatch = (top.snippet + ' ' + top.title).match(/\b(19|20)\d{2}\b/);
-        const text = (top.snippet + ' ' + top.title).toLowerCase();
-        const genreKeywords = [
-          'RPG', 'action', 'adventure', 'puzzle', 'platformer', 'shooter', 'strategy',
-          'simulation', 'roguelike', 'rogue-like', 'horror', 'survival', 'racing', 'sports',
-          'fighting', 'metroidvania', 'visual novel', 'sandbox', 'open-world', 'indie',
-        ];
-        const genres = Array.from(new Set(genreKeywords.filter((k) => text.includes(k.toLowerCase()))))
-          .map((g) => g.replace(/\b\w/g, (c) => c.toUpperCase()));
-        return enrichMetadataArtwork({
-          source: 'web',
-          name: cleanTitle(top.title) || v,
-          shortDescription: top.snippet,
-          about: top.snippet,
-          screenshots: [],
-          genres,
-          developers: [],
-          publishers: [],
-          releaseDate: yearMatch ? yearMatch[0] : '',
-          website: top.url || '',
-        });
+        return await metadataFromPublicResult(webResults[0], v);
       }
     } catch {}
   }

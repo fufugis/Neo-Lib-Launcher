@@ -66,6 +66,10 @@ files.
 - Refresh actions now show candidate icons, banners, screenshots, descriptions and
   complete metadata before anything is replaced.
 - The picker shows five candidates first and can expand with **Show more**.
+- Difficult indie titles now get an exact-title public recovery pass before AI:
+  joined names such as `MonolithBay` are expanded, changing search layouts are
+  tolerated, and a surviving official itch creator page can supply its real title,
+  description, creator, cover and screenshots even when catalogue search omits it.
 - Steam identity remains locked to the correct app; Battle.net product identity is
   kept separate; uncertain matches require review.
 - Tools now have their own Windows-software metadata path using executable identity,

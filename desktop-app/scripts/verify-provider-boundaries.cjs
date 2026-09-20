@@ -40,6 +40,9 @@ assert.equal((main.match(/remainingIpcServices\["releases:weekly"\]/g) || []).le
 assert.equal((main.match(/remainingIpcServices\["updates:scan"\]/g) || []).length, 1);
 assert(main.includes('independentUpdateAssessment.assess(game)'), 'independent update scans delegate per-game assessment');
 assert(refreshTest.includes("!bulk.includes('autoApply: true')"), 'bulk refresh must retain the no-auto-apply guard');
+assert(main.includes('publicWebProvider.searchGameMetadata(term)'), 'automatic metadata must retain exact-title public recovery');
+assert(main.indexOf('const exactResults = await publicWebProvider.searchGameMetadata(term)') < main.indexOf('// 5. Gemini'), 'exact public-title recovery must run before optional AI');
+assert.match(main, /if \(\/\^https\?:\\\/\\\/\[\^\/\]\*\\\.itch\\\.io/, 'reviewed delisted itch pages must expand through their surviving official page');
 
 const providerCommand = pkg.scripts['test:providers'] || '';
 for (const verifier of [

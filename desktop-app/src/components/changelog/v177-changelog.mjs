@@ -60,6 +60,7 @@ export const V177_CHANGELOG = {
     },
   ],
   fixes: [
+    'Hard-to-find indie games now receive exact-title public recovery before optional AI. Joined names such as MonolithBay are expanded, changing search-result layouts are tolerated, and official itch creator pages can provide reviewed title, description, creator, cover and screenshots even when catalogue search omits the game.',
     'Theme Studio now has a fourth Bright theme: Monochrome. It combines white and pale-gray surfaces with black controls, geometric grayscale atmosphere and restrained neutral particles that still respect Effects intensity and Rest Mode.',
     'Game descriptions now clean store markup, entities, broken spacing and obvious cut-off tails automatically. Embedded all-caps sections become compact themed headings and prose is grouped into calmer paragraphs without requiring AI to rewrite the source text.',
     'Developer, publisher, release date and official website now form the first compact information row in Preview, with About this game immediately underneath instead of those basic facts sitting below the full description.',

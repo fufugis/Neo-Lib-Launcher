@@ -4,6 +4,8 @@ This is the authoritative live queue. New user requests are appended here and re
 
 ## In progress
 
+- [x] **Hard-to-find indie metadata recovery** — refresh now tries the player's exact title before AI or broad store guesses, expands joined names such as `MonolithBay` to `Monolith Bay`, uses resilient Google/DuckDuckGo result parsing with adult-result filtering disabled for this reviewed lookup, and opens a matched official itch page for its real title, description, creator, cover and screenshots even when the title is delisted from itch catalogue search. Results still require player review before saving. Focused provider checks and the complete pre-build source gate pass; rebuilt Windows/live-network acceptance remains required.
+
 - [x] **Visible, colorful Preview hero banners** — the heavy theme-colored veil no longer dominates every hero; Preview analyses luminance and saturation, recovers dark/washed artwork proportionally, preserves already-vivid banners, prefers player-selected hero art and concentrates readability protection behind the title. The complete pre-build source gate passes; rebuilt Windows comparison across muted and vivid games remains required.
 
 - [x] **Preview information order and compact details row** — developer, publisher, release date and official-site information now appears above About this game in one compact responsive row instead of a tall table at the bottom. The complete pre-build source gate passes; rebuilt Windows visual acceptance remains required.
