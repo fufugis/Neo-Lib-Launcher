@@ -157,28 +157,28 @@
   --sidebar-tint: 128 131 136;
 }
 
-/* GAMING — a luminous esports navy midpoint. The lifted lavender and ice-blue
-   accents make it clearly brighter than the Dark group without becoming a light theme. */
+/* GAMING — a luminous esports navy midpoint. Raised indigo surfaces make the
+   whole workspace read as Mid, not as another near-black Dark theme. */
 [data-theme='gaming'] {
   --ink: 240 245 255;
-  --muted: 175 188 220;
-  --surface: 20 22 48;
-  --panel: 30 34 72;
-  --border: 60 72 132;
+  --muted: 190 201 229;
+  --surface: 47 51 93;
+  --panel: 65 71 121;
+  --border: 107 120 183;
   --accent: 184 137 255;           /* lifted lavender */
   --accent-2: 114 214 255;         /* brighter ice blue */
   --accent-soft: 169 135 236;
   --hairline-glow: 184 137 255;
 }
 
-/* MODERN — a warm, polished midpoint: the amber and sky accents are bright enough
-   to sit between the Dark and Bright groups while the surface remains comfortably dark. */
+/* MODERN — a warm, polished midpoint. Soft graphite-blue surfaces now carry
+   enough daylight to sit beside Gray and Home rather than the Dark group. */
 [data-theme='modern'] {
   --ink: 239 243 248;
-  --muted: 166 178 194;
-  --surface: 18 23 33;
-  --panel: 35 43 57;
-  --border: 72 85 104;
+  --muted: 187 197 211;
+  --surface: 53 62 78;
+  --panel: 75 86 104;
+  --border: 120 133 153;
   --accent: 184 58 69;
   --accent-2: 145 177 217;
   --accent-soft: 75 87 105;
@@ -285,13 +285,14 @@
   --sidebar-tint: 185 190 198;
 }
 
-/* GENERIC BLUE — a classic navy application shell with no extra colour story. */
+/* GENERIC BLUE — a classic navy application shell. Its surfaces deliberately
+   sit at a calm mid-blue rather than reading as a fifth dark theme. */
 [data-theme='generic-blue'] {
   --ink: 238 246 255;
-  --muted: 168 191 228;
-  --surface: 16 28 54;
-  --panel: 30 53 94;
-  --border: 69 108 170;
+  --muted: 190 209 237;
+  --surface: 46 70 108;
+  --panel: 65 91 133;
+  --border: 107 143 198;
   --accent: 107 165 255;
   --accent-2: 88 139 220;
   --accent-soft: 50 83 141;

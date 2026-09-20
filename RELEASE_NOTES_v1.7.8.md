@@ -16,6 +16,9 @@ then adds the following hotfixes and polish completed after that release.
 - Expanded Recent Game Releases across every supported launcher, prioritising major
   launches for 14 days while limiting smaller Steam-heavy catalogue entries to 5 days.
 - Added the Monochrome white/gray/black Bright theme.
+- Rebalanced the Mid theme group so Generic Blue, Gaming and Modern use lifted
+  medium-tone workspaces beside Generic Gray and Home, instead of reading as
+  extra Dark themes.
 - Added Library icon-only mode, adjustable icon spacing/size/rows and a Visual Tweaks
   panel that opens beside the Library.
 - Added personal-rating tags to Cover Wall.
