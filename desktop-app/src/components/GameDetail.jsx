@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
-import { DetailList, GameMediaGallery, GameStory } from './preview/PreviewInformationPanels';
+import { DetailList, GameCapabilities, GameMediaGallery, GameStory } from './preview/PreviewInformationPanels';
 import PreviewActionBar from './preview/PreviewActionBar';
 import PreviewHeroTitle from './preview/PreviewHeroTitle';
 import { LatestNewsPill, ManagedToolSetup, SteamManifestLine, UpdateAvailablePill } from './preview/PreviewStatusCards';
@@ -191,6 +191,7 @@ export default function GameDetail({
           <UpdateAvailablePill game={game} />
           <LatestNewsPill game={game} />
           <DetailList game={game} />
+          <GameCapabilities game={game} />
           <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(460px,560px)]">
             <div className="min-w-0">
               <GameStory game={game} profile={game.genreProfile} />

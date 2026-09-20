@@ -26,6 +26,7 @@ function createStoreProviderService({ httpGetJson, cleanSearchTerm, stripHtml, s
       if (!entry || !entry.success) return null;
       const details = entry.data;
       const genreTags = await steamGenreEvidence(appid, details);
+      const capabilities = steamCapabilities(details);
       return {
         appid,
         name: details.name,
@@ -43,6 +44,8 @@ function createStoreProviderService({ httpGetJson, cleanSearchTerm, stripHtml, s
         releaseDate: details.release_date ? details.release_date.date : '',
         metacritic: details.metacritic ? details.metacritic.score : null,
         website: details.website || '',
+        capabilities,
+        achievementSummary: steamAchievementSummary(details, capabilities),
       };
     } catch { return null; }
   }
@@ -72,6 +75,45 @@ function createStoreProviderService({ httpGetJson, cleanSearchTerm, stripHtml, s
   }
 
   return Object.freeze({ searchSteam, getSteamDetails, searchGog });
+}
+
+function steamCapabilities(details = {}) {
+  const entries = Array.isArray(details.categories) ? details.categories : [];
+  const output = [];
+  const add = (id, label, detail) => {
+    if (!output.some((item) => item.id === id)) output.push({ id, label, source: 'steam', detail });
+  };
+  for (const entry of entries) {
+    const label = String(entry?.description || '').trim();
+    const key = label.toLowerCase();
+    if (key === 'single-player') add('single-player', 'Single-player', label);
+    else if (key === 'multi-player' || key === 'multiplayer' || key === 'online multiplayer') add('online-multiplayer', 'Online multiplayer', label);
+    else if (key === 'local multiplayer') add('local-multiplayer', 'Local multiplayer', label);
+    else if (key === 'co-op' || key === 'online co-op' || key === 'local co-op') add('co-op', 'Co-op', label);
+    else if (key === 'online pvp') add('pvp', 'PvP', label);
+    else if (key === 'steam achievements') add('achievements', 'Achievements', label);
+    else if (key === 'steam cloud') add('cloud-saves', 'Cloud saves', label);
+    else if (key === 'steam workshop') add('workshop', 'Workshop', label);
+    else if (/^remote play/.test(key)) add('remote-play', 'Remote play', label);
+    else if (key === 'full controller support') add('controller-full', 'Full controller support', label);
+    else if (key === 'partial controller support') add('controller-partial', 'Partial controller support', label);
+  }
+  if (details.controller_support === 'full') add('controller-full', 'Full controller support', 'Steam controller support');
+  if (details.controller_support === 'partial') add('controller-partial', 'Partial controller support', 'Steam controller support');
+  return output;
+}
+
+function steamAchievementSummary(details = {}, capabilities = []) {
+  if (!capabilities.some((item) => item.id === 'achievements')) return null;
+  const total = Number(details?.achievements?.total);
+  return {
+    source: 'steam',
+    supported: true,
+    total: Number.isFinite(total) && total >= 0 ? total : null,
+    // Store metadata can confirm support/count, not player-earned progress.
+    // Progress is deliberately held for the future opt-in account connector.
+    syncState: 'not-linked',
+  };
 }
 
 module.exports = { createStoreProviderService };

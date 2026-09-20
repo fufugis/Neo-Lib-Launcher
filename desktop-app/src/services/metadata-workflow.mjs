@@ -128,6 +128,8 @@ export function createMetadataWorkflow({
       metacritic: result.metacritic ?? g.metacritic,
       screenshots: result.screenshots?.length ? result.screenshots : g.screenshots || [],
       website: result.website || g.website || '',
+      capabilities: result.capabilities?.length ? result.capabilities : g.capabilities || [],
+      achievementSummary: result.achievementSummary?.supported ? result.achievementSummary : g.achievementSummary || null,
       metadataFetchedAt: Date.now(),
     });
     setFetching(false);

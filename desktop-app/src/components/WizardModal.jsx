@@ -402,6 +402,8 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
       metacritic: result?.metacritic,
       screenshots: result?.screenshots || [],
       website: result?.website || '',
+      capabilities: result?.capabilities || [],
+      achievementSummary: result?.achievementSummary || null,
     };
     // CRITICAL: persist immediately so games are saved even if the wizard is closed mid-flow.
     if (onAccept) onAccept(entry);

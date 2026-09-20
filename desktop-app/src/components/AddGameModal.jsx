@@ -71,6 +71,8 @@ export default function AddGameModal({ open, onClose, onCreate }) {
       metacritic: details?.metacritic,
       screenshots: details?.screenshots || [],
       website: details?.website || '',
+      capabilities: details?.capabilities || [],
+      achievementSummary: details?.achievementSummary || null,
     };
     setLoading(false);
     // New games use the same explicit review surface as refreshes. The

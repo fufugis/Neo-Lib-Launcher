@@ -1,8 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Award, Building2, Calendar, Globe, ImageIcon } from 'lucide-react';
+import { Award, Building2, Calendar, Cloud, Gamepad2, Globe, ImageIcon, Radio, Trophy, UserRound, Users, Wrench } from 'lucide-react';
 import { genreDisplayGroups } from '../../lib/genreTaxonomy';
 import { PREVIEW_DESCRIPTION_FALLBACK, previewIdentityGroups, previewMedia, previewStoryBlocks } from './preview-information-model.mjs';
+import { achievementAvailability, gameCapabilities } from '../../lib/game-capabilities-model.mjs';
 
 /** Source-owned description and identity. Text never flows behind the identity panel. */
 export function GameStory({ game, profile }) {
@@ -77,6 +78,42 @@ export function DetailList({ game }) {
     </section>
   );
 }
+
+/** Provider-declared platform/features only. Never inferred from prose or AI copy. */
+export function GameCapabilities({ game }) {
+  const capabilities = gameCapabilities(game);
+  const achievement = achievementAvailability(game);
+  if (!capabilities.length && !achievement) return null;
+  return (
+    <section className="mb-5 overflow-hidden rounded-xl border border-[rgb(var(--border)/0.7)] bg-[rgb(var(--surface)/0.16)]" data-testid="game-capabilities">
+      <div className="flex items-center justify-between gap-3 border-b border-[rgb(var(--border)/0.55)] px-3.5 py-2">
+        <div><h3 className="text-[9px] font-bold uppercase tracking-[0.24em] text-muted">Capabilities</h3><p className="mt-0.5 text-[9px] text-muted/75">Reported by the selected game source</p></div>
+        {achievement && <span className="inline-flex items-center gap-1 rounded-full border border-[rgb(var(--accent)/0.28)] bg-[rgb(var(--accent)/0.08)] px-2 py-1 text-[8.5px] font-bold text-[rgb(var(--accent-2))]" title={`${achievement.source} achievement source`}><Trophy size={10} />{achievement.total == null ? 'Achievements' : `${achievement.total} achievements`}</span>}
+      </div>
+      <div className="flex flex-wrap gap-2 px-3.5 py-3">
+        {capabilities.map((item) => {
+          const Icon = CAPABILITY_ICONS[item.id] || Radio;
+          return <span key={item.id} title={`${item.label} · ${item.source}${item.detail ? ` · ${item.detail}` : ''}`} className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--border)/0.62)] bg-[rgb(var(--panel)/0.35)] px-2 py-1.5 text-[10px] font-semibold text-ink"><Icon size={13} className="text-[rgb(var(--accent-2))]" />{item.label}</span>;
+        })}
+      </div>
+      {achievement?.syncState !== 'linked' && <p className="border-t border-[rgb(var(--border)/0.45)] px-3.5 py-2 text-[9px] leading-relaxed text-muted"><Trophy size={10} className="mr-1 inline text-[rgb(var(--accent-2))]" />{achievement.source} confirms achievement support{achievement.total == null ? '' : ` (${achievement.total} available)`}. Earned progress will appear only after the future opt-in {achievement.source} connection—NEO-LIB does not guess it.</p>}
+    </section>
+  );
+}
+
+const CAPABILITY_ICONS = Object.freeze({
+  'single-player': UserRound,
+  'online-multiplayer': Users,
+  'local-multiplayer': Users,
+  'co-op': Users,
+  pvp: Users,
+  'controller-full': Gamepad2,
+  'controller-partial': Gamepad2,
+  achievements: Trophy,
+  'cloud-saves': Cloud,
+  workshop: Wrench,
+  'remote-play': Radio,
+});
 
 function GenreProfile({ profile, fallbackGenres = [] }) {
   const shownGroups = previewIdentityGroups(genreDisplayGroups(profile), fallbackGenres);

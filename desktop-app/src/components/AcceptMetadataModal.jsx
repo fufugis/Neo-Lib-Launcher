@@ -31,7 +31,7 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
   // want to keep from the existing game. Only checked fields are written on Accept.
   const [pick, setPick] = React.useState({
     name: true, image: true, description: true, genres: true,
-    developer: true, publisher: true, release: true, screenshots: true,
+    developer: true, publisher: true, release: true, screenshots: true, features: true,
   });
   const dragControls = useDragControls();
   const dragBoundsRef = React.useRef(null);
@@ -41,7 +41,7 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
       setRename(game?.name || '');
       setPick({
         name: true, image: true, description: true, genres: true,
-        developer: true, publisher: true, release: true, screenshots: true,
+        developer: true, publisher: true, release: true, screenshots: true, features: true,
       });
     }
   }, [open, game?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -58,7 +58,7 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
   // Quick helpers — "Select all" / "Only changed" / "None"
   const setAllPick = (val) => setPick({
     name: val, image: val, description: val, genres: val,
-    developer: val, publisher: val, release: val, screenshots: val,
+    developer: val, publisher: val, release: val, screenshots: val, features: val,
   });
   const pickOnlyChanged = () => setPick({
     name: !!(p.name && p.name !== game.name),
@@ -69,6 +69,7 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
     publisher: !!(p.publishers?.length),
     release: !!(p.releaseDate && p.releaseDate !== game.releaseDate),
     screenshots: !!(p.screenshots?.length),
+    features: !!(p.capabilities?.length),
   });
 
   const accept = () => {
@@ -94,6 +95,10 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
     if (pick.developer)   patch.developers = p.developers || [];
     if (pick.publisher)   patch.publishers = p.publishers || [];
     if (pick.release)     patch.releaseDate = p.releaseDate || '';
+    if (pick.features && p.capabilities?.length) {
+      patch.capabilities = p.capabilities;
+      if (p.achievementSummary?.supported) patch.achievementSummary = p.achievementSummary;
+    }
     if (p.website) patch.website = p.website;
     if (p.metacritic != null) patch.metacritic = p.metacritic;
     onAccept(patch);
@@ -242,6 +247,13 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
                 full
                 checked={pick.genres} onToggle={(v) => setPick((s) => ({ ...s, genres: v }))} testid="accept-pick-genres"
               />
+              {p.capabilities?.length > 0 && <DiffField
+                label="Capabilities"
+                current={(game.capabilities || []).map((item) => item.label || item.id).join(', ') || '—'}
+                proposed={p.capabilities.map((item) => item.label || item.id).join(', ')}
+                full
+                checked={pick.features} onToggle={(v) => setPick((s) => ({ ...s, features: v }))} testid="accept-pick-features"
+              />}
               <DiffField
                 label="Detected identity"
                 current={currentIdentity}
