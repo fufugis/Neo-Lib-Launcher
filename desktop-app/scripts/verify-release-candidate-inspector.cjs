@@ -7,6 +7,7 @@ const { sourceFingerprint } = require('./build-provenance.cjs');
 const { checksumManifest, inspectReleaseCandidate } = require('./release-candidate-inspector.cjs');
 
 const workflow = fs.readFileSync(path.resolve(__dirname, '..', '..', '.github', 'workflows', 'build-windows.yml'), 'utf8');
+const releaseVersion = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8')).version;
 assert(workflow.includes('yarn inspect:release'), 'GitHub Windows build must inspect the packaged candidate');
 assert(workflow.includes('yarn package:portable'), 'GitHub and local builds must share the portable packaging owner');
 assert(workflow.includes('release-candidate-v*.json'), 'GitHub artifacts must retain candidate evidence');
@@ -29,7 +30,7 @@ const asar = builderRequire('@electron/asar');
       'package-input/build', 'dist/win-unpacked/resources',
     ]) fs.mkdirSync(path.join(sandbox, directory), { recursive: true });
 
-    const packageJson = { name: 'neo-lib-fixture', version: '1.7.7', main: 'electron/main.js' };
+    const packageJson = { name: 'neo-lib-fixture', version: releaseVersion, main: 'electron/main.js' };
     fs.writeFileSync(path.join(sandbox, 'package.json'), JSON.stringify(packageJson));
     fs.writeFileSync(path.join(sandbox, 'vite.config.js'), 'export default {};');
     fs.writeFileSync(path.join(sandbox, 'electron/main.js'), 'module.exports = "fixture-main";');
@@ -58,7 +59,7 @@ const asar = builderRequire('@electron/asar');
     await asar.createPackage(input, path.join(sandbox, 'dist/win-unpacked/resources/app.asar'));
     const fixtureEntries = asar.listPackage(path.join(sandbox, 'dist/win-unpacked/resources/app.asar'));
     assert(fixtureEntries.some(entry => /app\.js$/i.test(entry)), `fixture archive must contain renderer script: ${fixtureEntries.join(', ')}`);
-    fs.writeFileSync(path.join(sandbox, 'dist/NEO-LIB-Setup-1.7.7.exe'), 'fixture-installer');
+    fs.writeFileSync(path.join(sandbox, `dist/NEO-LIB-Setup-${releaseVersion}.exe`), 'fixture-installer');
     fs.writeFileSync(path.join(sandbox, 'dist/NEO-LIB-windows-portable.zip'), 'fixture-portable');
 
     const accepted = inspectReleaseCandidate({
@@ -70,18 +71,18 @@ const asar = builderRequire('@electron/asar');
       expectedFeedbackRelayKey: feedbackKey,
       expectedDiscordAppId: discordAppId,
     });
-    assert.equal(accepted.version, '1.7.7');
-    assert.equal(accepted.expectedTag, 'v1.7.7');
+    assert.equal(accepted.version, releaseVersion);
+    assert.equal(accepted.expectedTag, `v${releaseVersion}`);
     assert.equal(accepted.architecture, 'Stage 9B source-frozen');
     assert.equal(accepted.mascotAssets, 2);
     assert.equal(accepted.feedbackRelayConfigured, true);
     assert.equal(accepted.discordRichPresenceConfigured, true);
-    assert.equal(accepted.installer.path, 'dist/NEO-LIB-Setup-1.7.7.exe');
+    assert.equal(accepted.installer.path, `dist/NEO-LIB-Setup-${releaseVersion}.exe`);
     assert.equal(accepted.portable.path, 'dist/NEO-LIB-windows-portable.zip');
     assert.equal(accepted.archive.path, 'dist/win-unpacked/resources/app.asar');
     assert(!JSON.stringify(accepted).includes(sandbox), 'candidate evidence must not expose the local build path');
     const checksumText = checksumManifest(accepted);
-    assert(checksumText.includes('NEO-LIB-Setup-1.7.7.exe'));
+    assert(checksumText.includes(`NEO-LIB-Setup-${releaseVersion}.exe`));
     assert(checksumText.includes('NEO-LIB-windows-portable.zip'));
     assert(!checksumText.includes('app.asar'), 'public checksums should list only released download artifacts');
     assert.throws(
@@ -103,7 +104,7 @@ const asar = builderRequire('@electron/asar');
       /packaged electron\/main\.js differs|packaged renderer is stale/,
       'source changes after packaging must reject the candidate',
     );
-    console.log('PASS: release inspector accepts one coherent v1.7.7 fixture and rejects source/package drift. Temporary files only.');
+    console.log(`PASS: release inspector accepts one coherent v${releaseVersion} fixture and rejects source/package drift. Temporary files only.`);
   } finally {
     fs.rmSync(sandbox, { recursive: true, force: true });
   }

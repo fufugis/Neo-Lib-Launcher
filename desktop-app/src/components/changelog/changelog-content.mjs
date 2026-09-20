@@ -1,3 +1,4 @@
+import { V178_CHANGELOG } from './v178-changelog.mjs';
 import { V177_CHANGELOG } from './v177-changelog.mjs';
 
 const ARCHIVE_CHANGELOG = [
@@ -1104,10 +1105,11 @@ const ARCHIVE_CHANGELOG = [
 ];
 
 // Keep the exhaustive development ledger above for traceability, while the
-// player-facing modal uses one concise, curated v1.7.7 overview.
+// player-facing modal uses concise curated release entries.
 export const CHANGELOG = [
+  V178_CHANGELOG,
   V177_CHANGELOG,
-  ...ARCHIVE_CHANGELOG.filter((entry) => entry.version !== V177_CHANGELOG.version),
+  ...ARCHIVE_CHANGELOG.filter((entry) => ![V178_CHANGELOG.version, V177_CHANGELOG.version].includes(entry.version)),
 ];
 
 export function getChangesSince(lastSeen) {
