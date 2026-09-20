@@ -4,6 +4,8 @@ This is the authoritative live queue. New user requests are appended here and re
 
 ## In progress
 
+- [x] **Visible, colorful Preview hero banners** — the heavy theme-colored veil no longer dominates every hero; Preview analyses luminance and saturation, recovers dark/washed artwork proportionally, preserves already-vivid banners, prefers player-selected hero art and concentrates readability protection behind the title. The complete pre-build source gate passes; rebuilt Windows comparison across muted and vivid games remains required.
+
 - [x] **Preview information order and compact details row** — developer, publisher, release date and official-site information now appears above About this game in one compact responsive row instead of a tall table at the bottom. The complete pre-build source gate passes; rebuilt Windows visual acceptance remains required.
 
 - [x] **Automatic description cleanup and readable structure** — provider HTML/BBCode/entities, invisible characters and broken spacing are cleaned without rewriting source copy; obvious cut-off tails are discarded; embedded store headings such as `EXPLORE THE TENTH WORLD` become real accent headings; and prose renders as calmer grouped paragraphs. Reviewed metadata receives the same cleanup before saving while manually authored descriptions remain player-controlled. The complete pre-build source gate passes; rebuilt Windows visual acceptance remains required.

@@ -120,6 +120,9 @@ files.
 - Developer, publisher, release date and official website now appear in a compact
   first row, with About this game directly underneath instead of basic facts being
   hidden below the full description.
+- Preview hero banners now recover dark or washed-out source art using measured
+  brightness and colour, while already-vivid banners remain natural. Heavy global
+  tinting, fades and scanlines are reduced, with contrast focused behind the title.
 
 ### 🎨 Stronger themes without covering the interface
 

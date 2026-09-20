@@ -5,6 +5,7 @@ import { DetailList, GameMediaGallery, GameStory } from './preview/PreviewInform
 import PreviewActionBar from './preview/PreviewActionBar';
 import PreviewHeroTitle from './preview/PreviewHeroTitle';
 import { LatestNewsPill, ManagedToolSetup, SteamManifestLine, UpdateAvailablePill } from './preview/PreviewStatusCards';
+import { DEFAULT_HERO_FILTER, heroImageFilter } from './preview/hero-treatment-model.mjs';
 
 /**
  * GameDetail — fully horizontal, "seamless" layout:
@@ -18,14 +19,15 @@ export default function GameDetail({
   onToggleCategory, onCustomize, onUpdateGame, onOpenSaveManager, onLocateManagedTool, onInstallManagedTool, managedToolInstalling = false, fetching, settings = {},
 }) {
   if (!game) return <EmptyState />;
-  const bg = game.background || game.headerImage || game.coverUrl;
+  const bg = game.hero || game.background || game.headerImage || game.coverUrl;
   // Hero parallax — subtle 3D tilt as mouse moves over the hero. CSS-only, no rerenders.
   const heroRef = React.useRef(null);
   // Hero auto-brighten — sample the loaded image's average luminance. If it's
   // too dark to read text against, apply a CSS brightness/contrast lift on the
   // <img> AND a darker scrim on top. Avoids the "Cyberpunk poster" problem
   // where a near-black banner makes the title invisible.
-  const [heroFilter, setHeroFilter] = React.useState(null);
+  const [heroFilter, setHeroFilter] = React.useState(DEFAULT_HERO_FILTER);
+  React.useEffect(() => setHeroFilter(DEFAULT_HERO_FILTER), [bg]);
   const onHeroLoad = React.useCallback((e) => {
     const img = e.currentTarget;
     try {
@@ -37,18 +39,18 @@ export default function GameDetail({
       ctx.drawImage(img, 0, 0, W, H);
       const d = ctx.getImageData(0, 0, W, H).data;
       let sum = 0;
+      let saturationSum = 0;
       for (let i = 0; i < d.length; i += 4) {
         // Rec. 709 luminance
         sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+        const high = Math.max(d[i], d[i + 1], d[i + 2]);
+        const low = Math.min(d[i], d[i + 1], d[i + 2]);
+        saturationSum += high ? (high - low) / high : 0;
       }
       const avg = sum / (W * H); // 0..255
-      // Below 70 → too dark; lift brightness/contrast.
-      // Below 45 → very dark; stronger lift.
-      if (avg < 45) setHeroFilter('brightness(1.45) contrast(1.08) saturate(1.1)');
-      else if (avg < 70) setHeroFilter('brightness(1.22) contrast(1.05)');
-      else if (avg > 200) setHeroFilter('brightness(0.92) contrast(1.04)'); // ultra-bright covers (white anime keyart) get a tiny dim so text reads
-      else setHeroFilter(null);
-    } catch { /* CORS or tainted canvas — skip silently */ }
+      const saturation = saturationSum / (W * H); // 0..1
+      setHeroFilter(heroImageFilter({ luminance: avg, saturation }));
+    } catch { setHeroFilter(DEFAULT_HERO_FILTER); /* CORS or tainted canvas: use safe recovery. */ }
   }, []);
   const onHeroMove = React.useCallback((e) => {
     const el = heroRef.current;
@@ -120,21 +122,21 @@ export default function GameDetail({
         {/* Top cutoff fade — image starts cleanly below titlebar */}
         <div
           className="pointer-events-none absolute inset-x-0 top-0 h-14"
-          style={{ background: 'linear-gradient(to bottom, rgb(var(--surface)) 0%, rgb(var(--surface)/0.6) 40%, transparent 100%)' }}
+          style={{ background: 'linear-gradient(to bottom, rgb(var(--surface)/0.72) 0%, rgb(var(--surface)/0.22) 42%, transparent 100%)' }}
         />
         {/* Left vignette so title text is readable — darker, more focused */}
         <div
           className="pointer-events-none absolute inset-0"
-          style={{ background: 'linear-gradient(to right, rgb(var(--surface)/0.92) 0%, rgb(var(--surface)/0.55) 30%, transparent 65%)' }}
+          style={{ background: 'linear-gradient(to right, rgb(var(--surface)/0.76) 0%, rgb(var(--surface)/0.38) 24%, rgb(var(--surface)/0.10) 46%, transparent 62%)' }}
         />
         {/* Bottom fade — image dissolves into ActionBar/MetaStrip+About below it */}
         <div
           className="pointer-events-none absolute inset-x-0 bottom-0 h-24"
-          style={{ background: 'linear-gradient(to bottom, transparent 0%, rgb(var(--surface)/0.78) 55%, rgb(var(--surface)) 100%)' }}
+          style={{ background: 'linear-gradient(to bottom, transparent 0%, rgb(var(--surface)/0.18) 58%, rgb(var(--surface)/0.64) 100%)' }}
         />
         {/* Accent glow corner */}
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgb(var(--accent)/0.18),transparent_55%)]" />
-        {settings.scanlinesEnabled !== false && <div className="scanlines pointer-events-none absolute inset-0 opacity-30" />}
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgb(var(--accent)/0.10),transparent_48%)]" />
+        {settings.scanlinesEnabled !== false && <div className="scanlines pointer-events-none absolute inset-0 opacity-[0.12]" />}
 
         {/* Hero text block */}
         <PreviewHeroTitle game={game} onUpdateGame={onUpdateGame} />

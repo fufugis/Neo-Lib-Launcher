@@ -8,6 +8,7 @@ import { splitLibrarySections } from '../src/components/library/library-tree-mod
 import { appendMascotNotice, libraryCommandFor, messageFor, noticeCooldownMs, voiceForNotice } from '../src/components/mascot/fungist-model.mjs';
 import { previewIdentityGroups, previewMedia, previewStoryBlocks, previewStoryParagraphs } from '../src/components/preview/preview-information-model.mjs';
 import { cleanDescriptionText, formatDescription } from '../src/lib/descriptionFormatting.mjs';
+import { DEFAULT_HERO_FILTER, heroImageFilter } from '../src/components/preview/hero-treatment-model.mjs';
 import { manifestPresentation, newsAgeLabel, updatePresentation } from '../src/components/preview/preview-status-model.mjs';
 import { createDemoLibrary } from '../src/state/demo-library.mjs';
 
@@ -213,6 +214,13 @@ assert.match(gameDetailSource, /preview\/PreviewInformationPanels/);
 assert.match(gameDetailSource, /preview\/PreviewHeroTitle/);
 assert.match(gameDetailSource, /preview\/PreviewActionBar/);
 assert.match(gameDetailSource, /preview\/PreviewStatusCards/);
+assert.match(gameDetailSource, /game\.hero \|\| game\.background \|\| game\.headerImage/, 'A player-selected hero must outrank provider fallbacks.');
+assert.match(gameDetailSource, /saturationSum/, 'Hero analysis must measure colour as well as brightness.');
+assert.match(gameDetailSource, /opacity-\[0\.12\]/, 'Hero scanlines must remain subtle enough to preserve artwork.');
+assert.equal(heroImageFilter({ luminance: 60, saturation: 0.1 }), 'brightness(1.38) contrast(1.12) saturate(1.58)');
+assert.equal(heroImageFilter({ luminance: 130, saturation: 0.6 }), 'brightness(1.04) contrast(1.06) saturate(1.14)');
+assert.equal(heroImageFilter({ luminance: 220, saturation: 0.5 }), 'brightness(0.98) contrast(1.06) saturate(1.08)');
+assert.equal(heroImageFilter({}), DEFAULT_HERO_FILTER);
 assert.ok(gameDetailSource.indexOf('<DetailList game={game} />') < gameDetailSource.indexOf('<GameStory game={game}'), 'Game Details must be the first information row above About this game.');
 assert.doesNotMatch(gameDetailSource, /function GameStory|function GameMediaGallery|function DetailList|function GenreProfile|function HeroTitle|function StarRating|function ActionBar|function ManagedToolMenu|function SteamManifestLine|function LatestNewsPill|function ManagedToolSetup|function UpdateAvailablePill/);
 assert.doesNotMatch(gameDetailSource, /function GalleryBox|function MetaStrip|function ScreenshotStrip/, 'Retired Preview renderers must not return');
