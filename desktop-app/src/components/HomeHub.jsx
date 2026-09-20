@@ -5,19 +5,15 @@ import UpdateHistoryModal from './UpdateHistoryModal';
 import { PLATFORM, added, getChronicle, getLibraryHealth, getRecommendations, hours, maskHomeNews, maskHomeUpdates, normaliseGameUpdates, platformOf, relative } from './home/home-model.mjs';
 import { createBoundedOperation } from '../services/bounded-operation.mjs';
 import { OPERATION_STATUS } from '../state/operation-state.mjs';
+import { HOME_WIDGET_BY_ID, homeWidgetLabel, widgetsForSegment } from './home/home-widget-registry.mjs';
 
 const RANGES = { today: { label: 'Today', days: 1 }, week: { label: 'This week', days: 7 }, month: { label: 'This month', days: 31 } };
 const HOME_SEGMENTS = [
-  { id: 'play', label: 'Play & history', hint: 'Your sessions, favourites, ratings, and next adventure.', icon: Gamepad2, panes: ['play-next', 'recent', 'best-games', 'chronicle'] },
-  { id: 'updates', label: 'News & updates', hint: 'Available game updates and what just released.', icon: Download, panes: ['updates', 'released-week'] },
-  { id: 'system', label: 'Library & PC care', hint: 'Library health, storage, and the things worth checking.', icon: HardDrive, panes: ['health', 'storage'] },
+  { id: 'play', label: 'Play & history', hint: 'Your sessions, favourites, ratings, and next adventure.', icon: Gamepad2, panes: widgetsForSegment('play').map((widget) => widget.id) },
+  { id: 'updates', label: 'News & updates', hint: 'Available game updates and what just released.', icon: Download, panes: widgetsForSegment('updates').map((widget) => widget.id) },
+  { id: 'system', label: 'Library & PC care', hint: 'Library health, storage, and the things worth checking.', icon: HardDrive, panes: widgetsForSegment('system').map((widget) => widget.id) },
 ];
-const HOME_PANES = [
-  ['news', 'News'], ['play-next', 'What should I play?'], ['updates', 'Game Updates'],
-  ['health', 'Library Health'], ['best-games', 'My Best Games'], ['released-week', 'Recent Game Releases'], ['storage', 'Storage Control'], ['chronicle', 'Gaming Chronicle'], ['recent', 'Recently active'],
-];
-const FIXED_HOME_PANES = [['top-played', 'Top 5 played']];
-const homePaneLabel = (id) => [...FIXED_HOME_PANES, ...HOME_PANES].find(([known]) => known === id)?.[1] || 'pane';
+const HOME_PANE_IDS = Object.keys(HOME_WIDGET_BY_ID);
 // These pairs deliberately save vertical space while keeping their contents
 // readable: the dashboard becomes one column again automatically on compact
 // windows. All items remain individual panes, so they keep the existing
@@ -90,7 +86,7 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
     // player's old hide choice when that pane becomes two properly grouped
     // cards, rather than unexpectedly restoring both pieces.
     return [...new Set([
-      ...saved.filter((id) => HOME_PANES.some(([known]) => known === id)),
+      ...saved.filter((id) => HOME_PANE_IDS.includes(id)),
       ...(saved.includes('library-tools') ? ['storage', 'chronicle'] : []),
     ])];
   }, [homeLayout.hidden]);
@@ -284,7 +280,7 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
   return <section className="flex h-full flex-col overflow-y-auto px-6 py-6 lg:px-9" data-testid="home-hub">
     <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div><p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[rgb(var(--accent-2))]">Your NEO-LIB</p><h1 className="font-display text-4xl font-black tracking-tight">Home</h1><p className="mt-1.5 text-[13px] text-muted">Your games, your time, and the updates that matter.</p></div>
-      <div className="flex flex-wrap justify-end gap-2">{hasPrivateCategories && <button type="button" onClick={onPanicLock} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-400/60 bg-red-400/[0.09] px-3 text-xs font-bold text-red-200 shadow-[0_0_16px_-7px_rgba(248,113,113,.95)] transition hover:bg-red-400/[0.18] hover:text-red-100" title="Lock every private category and return to a safe Library view" aria-label="Lock private categories"><ShieldCheck size={15} />Lock private</button>}<div className="flex rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] p-1">{Object.entries(RANGES).map(([key, meta]) => <button key={key} onClick={() => setRange(key)} className={`rounded-md px-3 py-1.5 text-[11px] font-bold transition ${range === key ? 'bg-[rgb(var(--accent)/0.22)] text-ink shadow-[0_0_12px_-4px_rgb(var(--accent))]' : 'text-muted hover:text-ink'}`}>{meta.label}</button>)}</div>{hiddenPanes.length > 0 && <div className="flex items-center gap-1 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] p-1">{hiddenPanes.map((id) => <button key={id} onClick={() => togglePane(id, false)} className="rounded px-2 py-1.5 text-[10px] font-bold text-muted hover:bg-[rgb(var(--accent)/0.14)] hover:text-ink">Show {homePaneLabel(id)}</button>)}</div>}</div>
+      <div className="flex flex-wrap justify-end gap-2">{hasPrivateCategories && <button type="button" onClick={onPanicLock} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-400/60 bg-red-400/[0.09] px-3 text-xs font-bold text-red-200 shadow-[0_0_16px_-7px_rgba(248,113,113,.95)] transition hover:bg-red-400/[0.18] hover:text-red-100" title="Lock every private category and return to a safe Library view" aria-label="Lock private categories"><ShieldCheck size={15} />Lock private</button>}<div className="flex rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] p-1">{Object.entries(RANGES).map(([key, meta]) => <button key={key} onClick={() => setRange(key)} className={`rounded-md px-3 py-1.5 text-[11px] font-bold transition ${range === key ? 'bg-[rgb(var(--accent)/0.22)] text-ink shadow-[0_0_12px_-4px_rgb(var(--accent))]' : 'text-muted hover:text-ink'}`}>{meta.label}</button>)}</div>{hiddenPanes.length > 0 && <div className="flex items-center gap-1 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] p-1">{hiddenPanes.map((id) => <button key={id} onClick={() => togglePane(id, false)} className="rounded px-2 py-1.5 text-[10px] font-bold text-muted hover:bg-[rgb(var(--accent)/0.14)] hover:text-ink">Show {homeWidgetLabel(id)}</button>)}</div>}</div>
     </header>
 
     {hasLockedPrivateCategories && <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-400/35 bg-red-400/[0.065] px-4 py-3 shadow-[0_12px_28px_-22px_rgba(248,113,113,.9)]" data-testid="home-private-categories-locked-notice"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-red-400/40 bg-red-400/[0.10] text-red-200"><LockKeyhole size={15} /></span><span className="min-w-0"><span className="block text-[11px] font-black uppercase tracking-[0.16em] text-red-200">Private categories are locked</span><span className="mt-1 block text-[11px] leading-relaxed text-ink/90">Please unlock them in Library to view stats and news from these games.</span></span></div>}
