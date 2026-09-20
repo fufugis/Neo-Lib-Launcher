@@ -47,6 +47,7 @@ contextBridge.exposeInMainWorld('api', {
   pickDirectory: () => ipcRenderer.invoke('dialog:pickDirectory'),
   pickSaveFolder: () => ipcRenderer.invoke('dialog:pickSaveFolder'),
   pickImage: () => ipcRenderer.invoke('dialog:pickImage'),
+  pickWidgetManifest: () => ipcRenderer.invoke('dialog:pickWidgetManifest'),
 
   // shortcuts
   resolveLnk: (lnkPath) => ipcRenderer.invoke('shell:resolveLnk', lnkPath),
@@ -146,4 +147,9 @@ contextBridge.exposeInMainWorld('api', {
   openLauncherSocial: (platform, manualPath) => ipcRenderer.invoke('launcher:openSocial', platform, manualPath),
   openSteamController: () => ipcRenderer.invoke('launcher:openSteamController'),
   openLauncherDownloads: (platform) => ipcRenderer.invoke('launcher:openDownloads', platform),
+
+  // Community widget packages are installed as data only. No widget code is
+  // exposed to this preload or executed in the main NEO-LIB renderer.
+  importWidget: (manifestPath) => ipcRenderer.invoke('widgets:import', manifestPath),
+  listWidgets: () => ipcRenderer.invoke('widgets:list'),
 });

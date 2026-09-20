@@ -485,12 +485,14 @@ async function main() {
   dialogResult = { canceled: false, filePaths: ['C:\\Games'] };
   assert.equal(await dialogHandlers['dialog:pickDirectory']({}), 'C:\\Games');
   assert.equal(await dialogHandlers['dialog:pickSaveFolder']({}), 'C:\\Games');
+  assert.equal(await dialogHandlers['dialog:pickWidgetManifest']({}), 'C:\\Games');
   dialogResult = { canceled: false, filePaths: ['C:\\Images\\cover.png'] };
   assert.deepEqual(await dialogHandlers['dialog:pickImage']({}), { path: 'C:\\Images\\cover.png', url: 'file://C:/Images/cover.png' });
   dialogResult = { canceled: false, filePaths: [42] };
   assert.equal(await dialogHandlers['dialog:pickExe']({}), null);
   assert.equal(await dialogHandlers['dialog:pickDirectory']({}), null);
   assert.equal(await dialogHandlers['dialog:pickSaveFolder']({}), null);
+  assert.equal(await dialogHandlers['dialog:pickWidgetManifest']({}), null);
   dialogResult = { canceled: false, filePaths: [{ replace: () => '' }] };
   assert.equal(await dialogHandlers['dialog:pickImage']({}), null);
 
@@ -501,7 +503,7 @@ async function main() {
   healthResult = { cpuPercent: 120, ramPercent: 50, memoryUsedGb: 8, memoryFreeGb: 8, memoryTotalGb: 16 };
   assert.deepEqual(await systemHandlers['system:health']({}), { cpuPercent: null, ramPercent: null, memoryUsedGb: 0, memoryFreeGb: 0, memoryTotalGb: 0, code: 'INVALID_RESPONSE' });
 
-  console.log('PASS: all 53 renderer payload contracts reject malformed input before native services, and all 85 native commands enforce response contracts while preserving valid success and failure results. The other 32 native commands are intentionally no-payload.');
+  console.log('PASS: all 53 renderer payload contracts reject malformed input before native services, and all 88 native commands enforce response contracts while preserving valid success and failure results. The other 35 native commands are intentionally no-payload.');
 }
 
 main().catch(error => {

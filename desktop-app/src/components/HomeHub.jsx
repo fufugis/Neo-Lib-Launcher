@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Archive, CalendarDays, ChevronLeft, ChevronRight, Clock3, Download, EyeOff, ExternalLink, FolderOpen, Gamepad2, GripVertical, HardDrive, LockKeyhole, Newspaper, RefreshCw, ShieldCheck, Sparkles, Star, Trophy, X } from 'lucide-react';
+import { Archive, CalendarDays, ChevronLeft, ChevronRight, Clock3, Download, EyeOff, ExternalLink, FileUp, FolderOpen, Gamepad2, GripVertical, HardDrive, LockKeyhole, Newspaper, Puzzle, RefreshCw, ShieldCheck, Sparkles, Star, Trophy, X } from 'lucide-react';
 import UpdateHistoryModal from './UpdateHistoryModal';
 import { PLATFORM, added, getChronicle, getLibraryHealth, getRecommendations, hours, maskHomeNews, maskHomeUpdates, normaliseGameUpdates, platformOf, relative } from './home/home-model.mjs';
 import { createBoundedOperation } from '../services/bounded-operation.mjs';
 import { OPERATION_STATUS } from '../state/operation-state.mjs';
 import { HOME_WIDGET_BY_ID, homeWidgetLabel, widgetsForSegment } from './home/home-widget-registry.mjs';
+import WidgetManagerModal from './home/WidgetManagerModal';
 
 const RANGES = { today: { label: 'Today', days: 1 }, week: { label: 'This week', days: 7 }, month: { label: 'This month', days: 31 } };
 const HOME_SEGMENTS = [
@@ -47,6 +48,9 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
   const [draggedSegment, setDraggedSegment] = React.useState(null);
   const [dragSegmentPreviewOrder, setDragSegmentPreviewOrder] = React.useState(null);
   const [segmentDragInsertion, setSegmentDragInsertion] = React.useState(null);
+  const [widgetManagerOpen, setWidgetManagerOpen] = React.useState(false);
+  const [communityWidgets, setCommunityWidgets] = React.useState([]);
+  const [widgetImportNotice, setWidgetImportNotice] = React.useState('');
   const railRef = React.useRef(null);
   const operations = React.useRef({});
   const rangeMeta = RANGES[range];
@@ -91,6 +95,25 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
     ])];
   }, [homeLayout.hidden]);
   const updateLayout = (patch) => onUpdateHomeLayout?.({ ...homeLayout, ...patch });
+  const loadCommunityWidgets = React.useCallback(async () => {
+    const result = await window.api?.listWidgets?.();
+    setCommunityWidgets(result?.ok && Array.isArray(result.widgets) ? result.widgets : []);
+  }, []);
+  React.useEffect(() => { if (widgetManagerOpen) loadCommunityWidgets(); }, [widgetManagerOpen, loadCommunityWidgets]);
+  const importWidget = React.useCallback(async () => {
+    if (!window.api?.pickWidgetManifest || !window.api?.importWidget) return { message: 'Widget import is available in the installed desktop app.' };
+    const manifestPath = await window.api.pickWidgetManifest();
+    if (!manifestPath) return { message: 'Widget import cancelled.' };
+    const result = await window.api.importWidget(manifestPath);
+    if (!result?.ok) return { message: result?.error || 'Widget package could not be imported.' };
+    await loadCommunityWidgets();
+    return { message: `${result.widget?.name || 'Widget'} imported safely. It will become available when the isolated community host is ready.` };
+  }, [loadCommunityWidgets]);
+  const startWidgetImport = React.useCallback(async () => {
+    setWidgetManagerOpen(true);
+    const result = await importWidget();
+    setWidgetImportNotice(result?.message || 'Widget import cancelled.');
+  }, [importWidget]);
   const reorderPane = React.useCallback((order, source, target, after = false) => {
     if (!source || !target || source === target) return order;
     const next = order.filter((id) => id !== source);
@@ -280,7 +303,7 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
   return <section className="flex h-full flex-col overflow-y-auto px-6 py-6 lg:px-9" data-testid="home-hub">
     <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div><p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[rgb(var(--accent-2))]">Your NEO-LIB</p><h1 className="font-display text-4xl font-black tracking-tight">Home</h1><p className="mt-1.5 text-[13px] text-muted">Your games, your time, and the updates that matter.</p></div>
-      <div className="flex flex-wrap justify-end gap-2">{hasPrivateCategories && <button type="button" onClick={onPanicLock} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-400/60 bg-red-400/[0.09] px-3 text-xs font-bold text-red-200 shadow-[0_0_16px_-7px_rgba(248,113,113,.95)] transition hover:bg-red-400/[0.18] hover:text-red-100" title="Lock every private category and return to a safe Library view" aria-label="Lock private categories"><ShieldCheck size={15} />Lock private</button>}<div className="flex rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] p-1">{Object.entries(RANGES).map(([key, meta]) => <button key={key} onClick={() => setRange(key)} className={`rounded-md px-3 py-1.5 text-[11px] font-bold transition ${range === key ? 'bg-[rgb(var(--accent)/0.22)] text-ink shadow-[0_0_12px_-4px_rgb(var(--accent))]' : 'text-muted hover:text-ink'}`}>{meta.label}</button>)}</div>{hiddenPanes.length > 0 && <div className="flex items-center gap-1 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] p-1">{hiddenPanes.map((id) => <button key={id} onClick={() => togglePane(id, false)} className="rounded px-2 py-1.5 text-[10px] font-bold text-muted hover:bg-[rgb(var(--accent)/0.14)] hover:text-ink">Show {homeWidgetLabel(id)}</button>)}</div>}</div>
+      <div className="flex flex-wrap justify-end gap-2">{hasPrivateCategories && <button type="button" onClick={onPanicLock} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-400/60 bg-red-400/[0.09] px-3 text-xs font-bold text-red-200 shadow-[0_0_16px_-7px_rgba(248,113,113,.95)] transition hover:bg-red-400/[0.18] hover:text-red-100" title="Lock every private category and return to a safe Library view" aria-label="Lock private categories"><ShieldCheck size={15} />Lock private</button>}<button type="button" onClick={() => setWidgetManagerOpen(true)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] px-3 text-xs font-bold text-ink transition hover:border-[rgb(var(--accent)/0.65)] hover:bg-[rgb(var(--accent)/0.10)]" title="Inspect and manage Home widgets"><Puzzle size={14} />Widgets</button><button type="button" onClick={startWidgetImport} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.62)] bg-[rgb(var(--accent)/0.10)] px-3 text-xs font-bold text-ink transition hover:bg-[rgb(var(--accent)/0.18)]" title="Choose a widget.json package to import"><FileUp size={14} />Import widget</button><div className="flex rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] p-1">{Object.entries(RANGES).map(([key, meta]) => <button key={key} onClick={() => setRange(key)} className={`rounded-md px-3 py-1.5 text-[11px] font-bold transition ${range === key ? 'bg-[rgb(var(--accent)/0.22)] text-ink shadow-[0_0_12px_-4px_rgb(var(--accent))]' : 'text-muted hover:text-ink'}`}>{meta.label}</button>)}</div>{hiddenPanes.length > 0 && <div className="flex items-center gap-1 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] p-1">{hiddenPanes.map((id) => <button key={id} onClick={() => togglePane(id, false)} className="rounded px-2 py-1.5 text-[10px] font-bold text-muted hover:bg-[rgb(var(--accent)/0.14)] hover:text-ink">Show {homeWidgetLabel(id)}</button>)}</div>}</div>
     </header>
 
     {hasLockedPrivateCategories && <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-400/35 bg-red-400/[0.065] px-4 py-3 shadow-[0_12px_28px_-22px_rgba(248,113,113,.9)]" data-testid="home-private-categories-locked-notice"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-red-400/40 bg-red-400/[0.10] text-red-200"><LockKeyhole size={15} /></span><span className="min-w-0"><span className="block text-[11px] font-black uppercase tracking-[0.16em] text-red-200">Private categories are locked</span><span className="mt-1 block text-[11px] leading-relaxed text-ink/90">Please unlock them in Library to view stats and news from these games.</span></span></div>}
@@ -299,6 +322,7 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
       })}
     </div>
     {newsDetail && <NewsDetail item={newsDetail} onClose={() => setNewsDetail(null)} />}
+    <WidgetManagerModal open={widgetManagerOpen} onClose={() => setWidgetManagerOpen(false)} communityWidgets={communityWidgets} hiddenIds={hiddenPanes} onToggleBuiltin={togglePane} onImport={importWidget} externalNotice={widgetImportNotice} />
   </section>;
 }
 function RailButton({ children, onClick }) { return <button onClick={onClick} className="grid h-7 w-7 place-items-center rounded-md border border-[rgb(var(--border))] text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink">{children}</button>; }

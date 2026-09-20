@@ -14,13 +14,39 @@ Widgets will be web packages, not DLL files. A package will contain a versioned 
 
 The first distribution path will be a manually installed `.neolib-widget` package or folder shared through [r/NeoLibLauncher](https://www.reddit.com/r/NeoLibLauncher/) and Discord. A marketplace is deliberately later work, after ownership, trust and update policy are clear.
 
-## Planned package contract
+## Package folder structure
+
+An author shares one folder or archive with this exact root file:
+
+```text
+my-widget/
+├─ widget.json       # required manifest, selected by Import widget
+├─ index.html        # future isolated widget entry point
+├─ widget.js          # optional future code
+├─ style.css          # optional styling
+└─ assets/            # optional images, audio, WASM and local data
+```
+
+When a player selects `widget.json`, NEO-LIB validates it, checks the entry file exists, then copies the whole package into its own local application-data folder:
+
+```text
+NEO-LIB user data/
+└─ widgets/
+   └─ author.widget-id/
+      └─ widget.json
+```
+
+The original folder is never run in place. The app rejects symbolic links, packages over 500 files or 64 MB, invalid IDs, invalid manifests and duplicate widget IDs. The same package can later be distributed as a `.neolib-widget` archive; archive support will be added only once its extraction rules receive the same validation.
+
+## Manifest contract
 
 ```json
 {
   "formatVersion": 1,
   "id": "example.play-log",
   "name": "Play Log",
+  "description": "A compact history dashboard for your recent sessions.",
+  "author": { "name": "Widget Author", "url": "https://example.com" },
   "version": "1.0.0",
   "entry": "index.html",
   "layout": { "minCols": 4, "minRows": 2, "defaultCols": 6, "defaultRows": 3 },
@@ -28,7 +54,7 @@ The first distribution path will be a manually installed `.neolib-widget` packag
 }
 ```
 
-The host will validate the manifest before showing anything. It will clamp size to the declared minimum/maximum and disable broken widgets without preventing NEO-LIB itself from opening.
+The author field, description, version, requested permissions and dimensions appear in the Home **Widgets** list. The host validates the manifest before showing anything. It will clamp size to the declared minimum/maximum and disable broken widgets without preventing NEO-LIB itself from opening.
 
 ## Safety boundary
 

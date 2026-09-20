@@ -38,6 +38,14 @@ function registerDialogIpc({ registerIpc, dialog, getMainWindow }) {
     title: 'Select this game\'s save folder',
     properties: ['openDirectory'],
   }), value => value === null || isPath(value), null));
+
+  // A widget is selected through its explicit manifest, never by executing a
+  // dropped script or DLL. The native widget service validates/copies it next.
+  registerIpc('dialog:pickWidgetManifest', guardResult(() => pickFirst({
+    title: 'Import NEO-LIB widget',
+    properties: ['openFile'],
+    filters: [{ name: 'NEO-LIB widget manifest', extensions: ['json'] }],
+  }), value => value === null || isPath(value), null));
 }
 
 module.exports = { registerDialogIpc };

@@ -10,7 +10,7 @@
   },
   "scripts": {
     "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && cross-env NODE_ENV=development electron .\"",
-    "prebuild:renderer": "node scripts/verify-launch-safety.cjs && npm run test:release-config && npm run test:feedback-relay && npm run test:feedback-fallback && npm run test:secrets && npm run test:fifi && npm run test:diagnostics && npm run test:renderer-bindings && npm run test:storage && npm run test:saves && npm run test:playtime && npm run test:storage-scan && npm run test:optimize && npm run test:game-watch && npm run test:game-launch && npm run test:providers && npm run test:ipc && npm run test:launchers && npm run test:renderer-state && npm run test:home-widgets && npm run test:metadata-workflow && npm run test:category-privacy && npm run test:auto-sort && npm run test:update-discovery && npm run test:visual-boundaries && npm run test:operations && npm run test:release-hardening && npm run test:build-provenance && npm run test:release-candidate-inspector",
+    "prebuild:renderer": "node scripts/verify-launch-safety.cjs && npm run test:release-config && npm run test:feedback-relay && npm run test:feedback-fallback && npm run test:secrets && npm run test:fifi && npm run test:diagnostics && npm run test:renderer-bindings && npm run test:storage && npm run test:saves && npm run test:playtime && npm run test:storage-scan && npm run test:optimize && npm run test:game-watch && npm run test:game-launch && npm run test:providers && npm run test:ipc && npm run test:launchers && npm run test:renderer-state && npm run test:home-widgets && npm run test:widgets && npm run test:metadata-workflow && npm run test:category-privacy && npm run test:auto-sort && npm run test:update-discovery && npm run test:visual-boundaries && npm run test:operations && npm run test:release-hardening && npm run test:build-provenance && npm run test:release-candidate-inspector",
     "test:release-config": "node scripts/verify-release-config.cjs",
     "prepare:release-config": "node scripts/prepare-release-config.cjs",
     "cleanup:release-config": "node scripts/cleanup-release-config.cjs",
@@ -33,6 +33,7 @@
     "test:launchers": "node scripts/verify-launcher-scanners.cjs && node scripts/verify-launcher-import.mjs",
     "test:renderer-state": "node scripts/verify-renderer-state.mjs && node scripts/verify-experience-foundation.mjs",
     "test:home-widgets": "node scripts/verify-home-widget-registry.mjs",
+    "test:widgets": "node scripts/verify-widget-package-service.cjs",
     "test:metadata-workflow": "node scripts/verify-metadata-workflow.mjs",
     "test:category-privacy": "node scripts/verify-category-privacy-workflow.mjs",
     "test:auto-sort": "node scripts/verify-auto-sort-workflow.mjs",

@@ -47,6 +47,7 @@ const { registerStorageIpc } = require('./ipc/storage-ipc.cjs');
 const { registerToolsIpc } = require('./ipc/tools-ipc.cjs');
 const { registerUpdatesIpc } = require('./ipc/updates-ipc.cjs');
 const { registerWebIpc } = require('./ipc/web-ipc.cjs');
+const { registerWidgetsIpc } = require('./ipc/widgets-ipc.cjs');
 const { createSystemHealthService } = require('./system/system-health-service.cjs');
 const { createPlaytimeHistoryService, localDayKey } = require('./playtime/playtime-history-service.cjs');
 const { createImageCacheService } = require('./images/image-cache-service.cjs');
@@ -76,6 +77,7 @@ const { createUpdateSourceDiscoveryService } = require('./providers/update-sourc
 const { createInstalledVersionEvidenceService } = require('./providers/installed-version-evidence-service.cjs');
 const { createUpdatePageVersionService } = require('./providers/update-page-version-service.cjs');
 const { createIndependentUpdateAssessmentService } = require('./providers/independent-update-assessment-service.cjs');
+const { createWidgetPackageService } = require('./widgets/widget-package-service.cjs');
 
 // ---- Optional Discord Rich Presence (native IPC, no third-party deps) ----
 // Talks to the local Discord client over a named pipe (Windows) or Unix
@@ -146,6 +148,7 @@ const documents = createDocumentStore({ storage: appStorage });
 const systemHealth = createSystemHealthService({ os });
 const playtimeHistory = createPlaytimeHistoryService({ documents });
 const imageCache = createImageCacheService({ path, coversDir, download: httpDownload });
+const widgetPackages = createWidgetPackageService({ fsp, path, widgetsDir: () => path.join(dataDir(), 'widgets') });
 const appOs = createAppOsService({ app, shell, fsp, path, execPath: process.execPath, recordLaunchSafety });
 const appLifecycle = createAppLifecycleService({
   buildTray,
@@ -3321,3 +3324,4 @@ registerStorageIpc({ registerIpc, services: remainingIpcServices });
 registerToolsIpc({ registerIpc, services: remainingIpcServices });
 registerUpdatesIpc({ registerIpc, services: remainingIpcServices });
 registerWebIpc({ registerIpc, services: remainingIpcServices });
+registerWidgetsIpc({ registerIpc, widgets: widgetPackages });

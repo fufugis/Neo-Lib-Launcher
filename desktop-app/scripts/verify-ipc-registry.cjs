@@ -106,7 +106,7 @@ async function main() {
   const registrationSource = ipcSources.join('\n');
 const staticChannels = Array.from(registrationSource.matchAll(/registerIpc\(['"]([^'"]+)['"]/g), match => match[1]);
 const nativeChannels = staticChannels;
-assert.equal(nativeChannels.length, 85, 'known native command count changed; review the contract intentionally');
+assert.equal(nativeChannels.length, 88, 'known native command count changed; review the contract intentionally');
 assert.equal(new Set(nativeChannels).size, nativeChannels.length, 'source contains a duplicate channel');
 
 const rendererChannels = Array.from(new Set(Array.from(preload.matchAll(/ipcRenderer\.invoke\(['"]([^'"]+)['"]/g), match => match[1])));
@@ -116,7 +116,7 @@ const nativeOnly = nativeChannels.filter(channel => !rendererChannels.includes(c
 assert.deepEqual(nativeOnly, ['gemini:metadata'], 'review internal-only/dead native commands intentionally');
 
 const groups = Object.groupBy(nativeChannels, channel => channel.split(':', 1)[0]);
-assert.equal(Object.keys(groups).length, 28, 'domain inventory changed; document the new boundary');
+assert.equal(Object.keys(groups).length, 29, 'domain inventory changed; document the new boundary');
 
 const persistenceHandlers = {};
 const documentCalls = [];
@@ -171,6 +171,7 @@ assert.deepEqual(documentCalls, [
     'Select folder to scan for games': 'D:\\Games',
     'Pick an image (icon / cover / hero)': 'C:\\Art\\cover.png',
     "Select this game's save folder": 'C:\\Saves\\One',
+    'Import NEO-LIB widget': 'C:\\Widgets\\example\\widget.json',
   };
   registerDialogIpc({
     registerIpc(channel, fn) { assert(!dialogHandlers[channel]); dialogHandlers[channel] = fn; },
@@ -180,17 +181,19 @@ assert.deepEqual(documentCalls, [
     } },
     getMainWindow: () => pickerWindow,
   });
-  assert.deepEqual(Object.keys(dialogHandlers), ['dialog:pickExe', 'dialog:pickDirectory', 'dialog:pickImage', 'dialog:pickSaveFolder']);
+  assert.deepEqual(Object.keys(dialogHandlers), ['dialog:pickExe', 'dialog:pickDirectory', 'dialog:pickImage', 'dialog:pickSaveFolder', 'dialog:pickWidgetManifest']);
   assert.equal(await dialogHandlers['dialog:pickExe'](), 'C:\\Games\\One.exe');
   pickerWindow = { id: 'replacement-window' };
   assert.equal(await dialogHandlers['dialog:pickDirectory'](), 'D:\\Games');
   assert.deepEqual(await dialogHandlers['dialog:pickImage'](), { path: 'C:\\Art\\cover.png', url: 'file://C:/Art/cover.png' });
   assert.equal(await dialogHandlers['dialog:pickSaveFolder'](), 'C:\\Saves\\One');
+  assert.equal(await dialogHandlers['dialog:pickWidgetManifest'](), 'C:\\Widgets\\example\\widget.json');
   assert.equal(dialogCalls[0].parent, firstWindow);
   assert.equal(dialogCalls[1].parent, pickerWindow, 'picker must resolve the current window for every call');
-  assert.deepEqual(dialogCalls.map(call => call.options.properties), [['openFile'], ['openDirectory'], ['openFile'], ['openDirectory']]);
+  assert.deepEqual(dialogCalls.map(call => call.options.properties), [['openFile'], ['openDirectory'], ['openFile'], ['openDirectory'], ['openFile']]);
   assert.deepEqual(dialogCalls[0].options.filters[0].extensions, ['exe', 'lnk', 'bat', 'cmd']);
   assert.deepEqual(dialogCalls[2].options.filters[0].extensions, ['png', 'jpg', 'jpeg', 'webp', 'gif', 'ico']);
+  assert.deepEqual(dialogCalls[4].options.filters[0].extensions, ['json']);
 
   const cancelledHandlers = {};
   registerDialogIpc({
