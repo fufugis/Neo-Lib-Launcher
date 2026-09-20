@@ -53,5 +53,9 @@ const { createGameLaunchService } = require('../electron/game/game-launch-servic
   assert(safetyEvents.some(([name]) => name === 'blocked-missing-launch-authorization'));
   assert(safetyEvents.some(([name]) => name === 'blocked-local-rapid-repeat'));
   assert.equal(spawnCalls.length, 1, 'only one authorized non-cooled-down launch may spawn');
+  clock += 12000;
+  assert.deepEqual(service.arm(event), { ok: true, token: 'token-5' });
+  assert.deepEqual(await service.launch(event, { exePath: 'C:\\Emulators\\RetroArch.exe', launchArgs: '--fullscreen "D:\\ROM Library\\Mario World.sfc"', gameId: 'rom-1', name: 'Super Mario World', launchToken: 'token-5' }), { ok: true });
+  assert.deepEqual(spawnCalls.at(-1).args, ['--fullscreen', 'D:\\ROM Library\\Mario World.sfc'], 'Quoted ROM paths must remain one spawn argument.');
   console.log('PASS: extracted launch service enforces startup quarantine, one-use expiry, local/shared cooldown state, exact spawn arguments, running-game lifecycle and exit reporting. URI settings remain explicit. No process launched.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

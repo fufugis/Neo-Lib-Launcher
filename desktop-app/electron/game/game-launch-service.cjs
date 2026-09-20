@@ -69,7 +69,7 @@ function createGameLaunchService({
       safety.lastAt = now;
       writeSharedSafety({ lastAt: now, lockedUntil: 0 });
       recordSafety('accepted', { gameId, name: safeName });
-      const argv = (launchArgs || '').trim() ? (launchArgs || '').trim().split(/\s+/) : [];
+      const argv = parseLaunchArguments(launchArgs || '');
       if (platform === 'win32') {
         const child = spawn(exePath, argv, { detached: true, stdio: 'ignore', cwd: path.dirname(exePath) });
         const startedAt = nowMs();
@@ -97,3 +97,31 @@ function createGameLaunchService({
 }
 
 module.exports = { createGameLaunchService };
+
+// Spawn receives an argument array, never a shell command. This small parser
+// supports the quoted path arguments used by an emulator profile (for example
+// `--fullscreen "D:\\ROM Library\\Mario.nes"`) while keeping the current
+// plain `--safe windowed` behavior. It deliberately has no variable, command,
+// environment or shell expansion.
+function parseLaunchArguments(value) {
+  const input = String(value || '').trim();
+  if (!input) return [];
+  const args = [];
+  let current = '';
+  let quote = '';
+  const push = () => { if (current) { args.push(current); current = ''; } };
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input[index];
+    const next = input[index + 1] || '';
+    // A Windows path uses ordinary backslashes. Only consume a slash when it
+    // explicitly escapes a quote or another slash inside a quoted argument.
+    if (char === '\\' && (next === '"' || next === "'" || next === '\\')) { current += next; index += 1; continue; }
+    if ((char === '"' || char === "'") && (!quote || quote === char)) { quote = quote ? '' : char; continue; }
+    if (/\s/.test(char) && !quote) { push(); continue; }
+    current += char;
+  }
+  if (quote) throw new Error('Launch arguments contain an unmatched quote.');
+  push();
+  if (args.length > 128 || args.some((arg) => arg.length > 4096 || /[\0\r\n]/.test(arg))) throw new Error('Launch arguments are outside the allowed bounds.');
+  return args;
+}
