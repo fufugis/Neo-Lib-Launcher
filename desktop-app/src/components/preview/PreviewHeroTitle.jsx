@@ -1,9 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Star } from 'lucide-react';
+import { Clock3, HardDrive, Loader2, Star } from 'lucide-react';
 
 /** Title, release date and player-owned rating layered over GameDetail's hero art. */
-export default function PreviewHeroTitle({ game, onUpdateGame }) {
+export default function PreviewHeroTitle({ game, onUpdateGame, installSize, measuringSize, onMeasureSize }) {
   return (
     <div className="relative aspect-[16/2.1] w-full">
       <div className="absolute inset-0 flex items-end px-8 pb-3">
@@ -28,10 +28,24 @@ export default function PreviewHeroTitle({ game, onUpdateGame }) {
             {game.name}
           </motion.h1>
           {game.releaseDate && <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.18 }} className="mt-2 text-[10px] font-medium uppercase tracking-[0.18em] text-muted">Released · {game.releaseDate}</motion.div>}
+          <GameFacts game={game} installSize={installSize} measuringSize={measuringSize} onMeasureSize={onMeasureSize} />
         </div>
       </div>
     </div>
   );
+}
+
+function GameFacts({ game, installSize, measuringSize, onMeasureSize }) {
+  const minutes = Math.max(0, Number(game.playtime || 0));
+  const time = minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60 ? `${minutes % 60}m` : ''}`.trim() : `${minutes}m`;
+  const bytes = Number(installSize?.bytes ?? game.installSizeBytes);
+  const hasSize = Number.isFinite(bytes) && bytes >= 0;
+  const readable = hasSize ? `${installSize?.truncated || game.installSizePartial ? '≥ ' : ''}${bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3).toFixed(bytes >= 10 * 1024 ** 3 ? 0 : 1)} GB` : `${Math.max(0, Math.round(bytes / 1024 ** 2))} MB`}` : 'Not measured';
+  return <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.22 }} className="mt-3 flex flex-wrap gap-x-5 gap-y-2 border-t border-[rgb(var(--border)/0.48)] pt-2.5 text-[10px] text-muted" data-testid="preview-game-facts">
+    <span className="inline-flex items-center gap-1.5"><Clock3 size={13} className="text-[rgb(var(--accent-2))]" /><span><b className="block text-[8px] uppercase tracking-[0.14em] text-muted">Time played</b><strong className="font-mono text-[11px] text-ink">{time}</strong></span></span>
+    <span className="inline-flex items-center gap-1.5"><HardDrive size={13} className="text-[rgb(var(--accent-2))]" /><span><b className="block text-[8px] uppercase tracking-[0.14em] text-muted">Install size</b><strong className="font-mono text-[11px] text-ink">{readable}</strong></span></span>
+    {!hasSize && game.exePath && <button type="button" disabled={measuringSize} onClick={onMeasureSize} className="inline-flex items-center gap-1 rounded-md border border-[rgb(var(--border)/0.7)] px-2 py-1 text-[9px] font-bold text-ink hover:border-[rgb(var(--accent)/0.65)] disabled:opacity-60">{measuringSize ? <Loader2 size={11} className="animate-spin" /> : <HardDrive size={11} />}Scan size</button>}
+  </motion.div>;
 }
 
 function StarRating({ value = 0, onChange }) {

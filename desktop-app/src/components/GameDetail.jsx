@@ -18,6 +18,25 @@ export default function GameDetail({
   game, categories, onLaunch, onLaunchError, onRefetch, onRevealFolder,
   onToggleCategory, onCustomize, onUpdateGame, onOpenSaveManager, onLocateManagedTool, onInstallManagedTool, managedToolInstalling = false, fetching, settings = {},
 }) {
+  const [installSize, setInstallSize] = React.useState(null);
+  const [measuringSize, setMeasuringSize] = React.useState(false);
+  React.useEffect(() => {
+    setInstallSize(game && Number.isFinite(Number(game.installSizeBytes))
+      ? { bytes: Number(game.installSizeBytes), truncated: Boolean(game.installSizePartial) }
+      : null);
+  }, [game?.id, game?.installSizeBytes, game?.installSizePartial]);
+  const measureInstallSize = React.useCallback(async () => {
+    if (!game?.exePath || !window.api?.scanGameStorage || measuringSize) return;
+    setMeasuringSize(true);
+    try {
+      const result = await window.api.scanGameStorage({ games: [{ id: game.id, name: game.name, exePath: game.exePath, launcher: game.launcher }], force: true });
+      const found = result?.results?.[0];
+      if (!result?.ok || !found || !Number.isFinite(Number(found.bytes))) return;
+      const next = { bytes: Number(found.bytes), truncated: Boolean(found.truncated) };
+      setInstallSize(next);
+      onUpdateGame?.(game.id, { installSizeBytes: next.bytes, installSizeMeasuredAt: Date.now(), installSizePartial: next.truncated });
+    } finally { setMeasuringSize(false); }
+  }, [game, measuringSize, onUpdateGame]);
   if (!game) return <EmptyState />;
   const bg = game.hero || game.background || game.headerImage || game.coverUrl;
   // Hero parallax — subtle 3D tilt as mouse moves over the hero. CSS-only, no rerenders.
@@ -139,7 +158,7 @@ export default function GameDetail({
         {settings.scanlinesEnabled !== false && <div className="scanlines pointer-events-none absolute inset-0 opacity-[0.12]" />}
 
         {/* Hero text block */}
-        <PreviewHeroTitle game={game} onUpdateGame={onUpdateGame} />
+        <PreviewHeroTitle game={game} onUpdateGame={onUpdateGame} installSize={installSize} measuringSize={measuringSize} onMeasureSize={measureInstallSize} />
 
         {/* Action bar — sits over backdrop, glass blur */}
         <PreviewActionBar
