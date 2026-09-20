@@ -13,6 +13,7 @@ const OFFICIAL_RELEASE_SOURCES = Object.freeze([
   { id: 'riot', platform: 'Riot', domains: ['riotgames.com'], query: 'site:riotgames.com game "available now" OR "launches" OR "now live"' },
   { id: 'rockstar', platform: 'Rockstar', domains: ['rockstargames.com'], query: 'site:rockstargames.com game "available now" OR "launches" OR "out now"' },
   { id: 'gog', platform: 'GOG', domains: ['gog.com'], query: 'site:gog.com game "release" "available now" OR "out now"' },
+  { id: 'itch', platform: 'itch.io', domains: ['itch.io'], query: 'site:itch.io game "available now" OR "released today" OR "out now"' },
 ]);
 
 const MAJOR_LANGUAGE = /\b(?:worldwide|global launch|blockbuster|flagship|highly anticipated|all[- ]new|new era|major release|launches worldwide)\b/i;
@@ -156,7 +157,7 @@ function createWeeklyReleaseProviderService({ httpGetJson, searchDuckDuckGo, sea
       const majorCount = items.filter(item => item.tier === 'major').length;
       const tier = majorCount ? 'major' : items.some(item => item.tier === 'noteworthy') ? 'semi-major' : items.length ? 'popular' : 'none';
       const criteria = majorCount
-        ? `${majorCount} major release${majorCount === 1 ? '' : 's'} kept for up to 14 days and ranked first across official EA, Ubisoft, Battle.net, Xbox, Epic, Riot, Rockstar and GOG sources plus Steam. Up to four smaller verified releases may follow and expire after 5 days.`
+        ? `${majorCount} major release${majorCount === 1 ? '' : 's'} kept for up to 14 days and ranked first across Steam, Epic, EA, GOG, Ubisoft, Battle.net, Riot, Xbox, Rockstar and itch.io sources. Up to four smaller verified releases may follow and expire after 5 days.`
         : items.length
           ? 'No major launch is currently verified. Showing a small set of noteworthy or popular releases from the last 5 days; Steam volume cannot override official publisher evidence.'
           : 'No qualifying release was verified through the current official publisher and Steam sources. Try Refresh later.';

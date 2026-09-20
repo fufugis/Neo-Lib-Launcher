@@ -4,6 +4,8 @@ This is the authoritative live queue. New user requests are appended here and re
 
 ## In progress
 
+- [x] **Complete supported-launcher release coverage** — Recent Game Releases now includes the final missing imported launcher, itch.io, and permanently asserts the full Steam, Epic, EA, GOG, Ubisoft, Battle.net, Riot, Xbox, Rockstar and itch.io source set. Standalone entries remain on their existing per-game official news/update route because they have no common store catalogue. The focused fixture and complete pre-build source gate pass; rebuilt Windows/live-network acceptance remains required.
+
 - [x] **All-launcher recent-release priority** — the Steam-dominated Released This Week feed is now Recent Game Releases, combining official publisher discovery across EA, Ubisoft, Battle.net, Xbox, Epic, Riot, Rockstar and GOG with verified Steam evidence. Major launches rank first and remain for 14 days; smaller verified releases expire after 5 days and are capped at four so catalogue volume cannot bury a major non-Steam title. Full pre-build source verification passes; rebuilt Windows/live-network acceptance remains required.
 
 - [x] **Fourth Bright theme — Monochrome** — Theme Studio now offers a white, gray and black Bright option with its own high-contrast palette, geometric linework, grayscale atmosphere and restrained neutral particles. Library ambience, Effects intensity, motion cadence, Rest Mode and light-theme edge treatment all recognise it. Source verification passes; rebuilt Windows visual acceptance remains required.

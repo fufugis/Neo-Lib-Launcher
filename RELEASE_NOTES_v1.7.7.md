@@ -82,8 +82,8 @@ files.
   saved official pages and carefully ranked public sources.
 - Weak or missing evidence is described honestly instead of silently claiming a game
   is current.
-- **Recent Game Releases** now checks official EA, Ubisoft, Battle.net, Xbox, Epic,
-  Riot, Rockstar and GOG announcements alongside Steam instead of letting Steam's
+- **Recent Game Releases** now checks Steam, Epic, EA, GOG, Ubisoft, Battle.net,
+  Riot, Xbox, Rockstar and itch.io sources instead of letting Steam's
   catalogue dominate the card. Major launches stay visible for 14 days and always
   rank first; a maximum of four smaller verified releases may follow and expire
   after 5 days.

@@ -42,6 +42,9 @@ const service = createWeeklyReleaseProviderService({
       { title: 'Old EA Original is now available - Electronic Arts', snippet: 'September 13, 2026. Play the full game today.', url: 'https://www.ea.com/news/old-original-release' },
       { title: 'The Sims 5 is coming soon - Electronic Arts', snippet: 'September 20, 2026. Pre-order today.', url: 'https://www.ea.com/news/sims-preview' },
     ];
+    if (query.includes('site:itch.io')) return [
+      { title: 'Handmade Adventure is now available', snippet: 'September 19, 2026. The full game is out now.', url: 'https://small-studio.itch.io/handmade-adventure' },
+    ];
     return [];
   },
   async searchGoogle() { return []; },
@@ -53,7 +56,7 @@ const service = createWeeklyReleaseProviderService({
   assert.equal(service.ownerFloor('20,000 .. 50,000'), 20000);
   assert.equal(service.retention.major, 14 * DAY_MS);
   assert.equal(service.retention.small, 5 * DAY_MS);
-  assert.equal(service.officialSources.length, 8);
+  assert.deepEqual(service.officialSources.map(source => source.platform).sort(), ['Battle.net', 'EA', 'Epic Games', 'GOG', 'Riot', 'Rockstar', 'Ubisoft', 'Xbox', 'itch.io'].sort());
 
   const result = await service.fetch();
   assert.equal(result.ok, true);
@@ -65,6 +68,7 @@ const service = createWeeklyReleaseProviderService({
   assert.ok(result.items.some(item => item.title === 'Major Steam Game'), 'A 12-day-old major Steam game should remain');
   assert.ok(result.items.some(item => item.title === 'Tiny EA Original'), 'A fresh smaller official release should remain');
   assert.ok(result.items.some(item => item.title === 'Fresh Small Steam Game'), 'A fresh smaller Steam release should remain');
+  assert.ok(result.items.some(item => item.title === 'Handmade Adventure'), 'A fresh itch.io release should remain');
   assert.ok(!result.items.some(item => item.title === 'Stale Small Steam Game'), 'A six-day-old smaller Steam release should expire');
   assert.ok(!result.items.some(item => item.title === 'Old EA Original'), 'A seven-day-old smaller official release should expire');
   assert.ok(!result.items.some(item => /Sims 5/i.test(item.title)), 'Coming-soon and pre-order news must not be treated as a release');

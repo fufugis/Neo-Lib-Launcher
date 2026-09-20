@@ -2642,8 +2642,8 @@ remainingIpcServices["deals:fetch"] = () => dealsProvider.fetch();
 // ---------------- Recent Game Releases ---------------- //
 // This is intentionally a selective discovery feed, not an exhaustive calendar.
 // Official publisher announcements prevent Steam's volume from crowding out major
-// EA, Ubisoft, Battle.net, Xbox, Epic, Riot, Rockstar or GOG launches. Steam titles
-// still require verified store dates and meaningful player/review momentum.
+// EA, Ubisoft, Battle.net, Xbox, Epic, Riot, Rockstar, GOG or itch.io launches.
+// Steam titles still require verified store dates and meaningful player/review momentum.
 const weeklyReleaseProvider = createWeeklyReleaseProviderService({
   httpGetJson,
   searchDuckDuckGo: ddgSearchRaw,
