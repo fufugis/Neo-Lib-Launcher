@@ -60,6 +60,7 @@ export const V177_CHANGELOG = {
     },
   ],
   fixes: [
+    'Optimize no longer runs a broad encoded PowerShell probe when Speed Up Gaming opens. It now reads aggregate CPU/RAM only, never lists or closes other programs, delegates per-process detail to Windows Task Manager, and keeps Windows Settings links without pretending their state was inspected.',
     'Hard-to-find indie games now receive exact-title public recovery before optional AI. Joined names such as MonolithBay are expanded, changing search-result layouts are tolerated, and official itch creator pages can provide reviewed title, description, creator, cover and screenshots even when catalogue search omits the game.',
     'Theme Studio now has a fourth Bright theme: Monochrome. It combines white and pale-gray surfaces with black controls, geometric grayscale atmosphere and restrained neutral particles that still respect Effects intensity and Rest Mode.',
     'Game descriptions now clean store markup, entities, broken spacing and obvious cut-off tails automatically. Embedded all-caps sections become compact themed headings and prose is grouped into calmer paragraphs without requiring AI to rewrite the source text.',

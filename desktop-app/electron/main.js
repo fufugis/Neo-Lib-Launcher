@@ -1209,10 +1209,10 @@ registerDoctorIpc({ registerIpc, launchDoctor });
 registerSystemIpc({ registerIpc, systemHealth });
 
 // ---------------- Optimize Center ---------------- //
-// These tools are deliberately on-demand. The process view uses ordinary
-// Windows performance/process APIs and never inspects process memory. Cleanup
-// only returns exact file candidates from bounded roots and moves confirmed
-// files to the Recycle Bin; it never recursively deletes a directory.
+// These tools are deliberately on-demand. Performance uses the same aggregate
+// Node OS counters as the footer and delegates per-process inspection to Task
+// Manager. Cleanup only returns exact file candidates from bounded roots and
+// moves confirmed files to the Recycle Bin; it never recursively deletes a directory.
 
 function runPowerShellJson(script, timeout = 20_000) {
   return new Promise((resolve) => {
@@ -1227,74 +1227,10 @@ function runPowerShellJson(script, timeout = 20_000) {
   });
 }
 
-const GAMING_INSPECT_SCRIPT = String.raw`
-$ErrorActionPreference = 'SilentlyContinue'
-$cores = [Math]::Max(1, [Environment]::ProcessorCount)
-$before = @{}
-Get-Process | ForEach-Object { $before[[int]$_.Id] = [double]($_.CPU) }
-Start-Sleep -Milliseconds 650
-$processes = Get-Process | ForEach-Object {
-  $pidValue = [int]$_.Id
-  $previous = $before[$pidValue]
-  $current = [double]($_.CPU)
-  $cpu = if ($null -ne $previous -and $current -ge $previous) { [Math]::Round((($current - $previous) / 0.65 / $cores) * 100, 1) } else { 0 }
-  $filePath = $null
-  try { $filePath = $_.Path } catch {}
-  [pscustomobject]@{ pid=$pidValue; name=$_.ProcessName; cpuPercent=[Math]::Min(100,$cpu); memoryBytes=[double]$_.WorkingSet64; path=$filePath }
-}
-$gpuByPid = @{}
-$gpuCounterAvailable = $false
-try {
-  $samples = (Get-Counter '\GPU Engine(*)\Utilization Percentage').CounterSamples
-  $gpuCounterAvailable = $true
-  foreach ($sample in $samples) {
-    if ($sample.InstanceName -match 'pid_(\d+)' -and [double]$sample.CookedValue -gt 0.05) {
-      $gpuPid = [int]$Matches[1]
-      if (-not $gpuByPid.ContainsKey($gpuPid)) { $gpuByPid[$gpuPid] = 0.0 }
-      $gpuByPid[$gpuPid] += [double]$sample.CookedValue
-    }
-  }
-} catch {}
-$gpu = @($gpuByPid.GetEnumerator() | ForEach-Object {
-  $proc = Get-Process -Id $_.Key -ErrorAction SilentlyContinue
-  [pscustomobject]@{ pid=[int]$_.Key; name=if($proc){$proc.ProcessName}else{'Unknown'}; percent=[Math]::Round([Math]::Min(100,[double]$_.Value),1) }
-} | Sort-Object percent -Descending | Select-Object -First 8)
-$gameBar = Get-ItemProperty 'HKCU:\Software\Microsoft\GameBar'
-$gameConfig = Get-ItemProperty 'HKCU:\System\GameConfigStore'
-$graphics = Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers'
-$capture = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR'
-$operatingSystem = Get-CimInstance Win32_OperatingSystem
-$windowsVersion = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
-$buildNumber = 0
-if ($operatingSystem -and $operatingSystem.BuildNumber) { $buildNumber = [int]$operatingSystem.BuildNumber } elseif ($windowsVersion -and $windowsVersion.CurrentBuildNumber) { $buildNumber = [int]$windowsVersion.CurrentBuildNumber }
-$osCaption = if ($operatingSystem) { [string]$operatingSystem.Caption } elseif ($windowsVersion -and $windowsVersion.ProductName) { [string]$windowsVersion.ProductName } else { 'Windows' }
-$osFamily = if ($osCaption -match 'Windows 11' -or $buildNumber -ge 22000) { 'Windows 11' } elseif ($osCaption -match 'Windows 10') { 'Windows 10' } else { 'Windows' }
-$powerText = (powercfg /getactivescheme | Out-String).Trim()
-$pendingRestart = (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending') -or (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired')
-$topProcesses = @($processes | Sort-Object cpuPercent -Descending | Select-Object -First 30) + @($processes | Sort-Object memoryBytes -Descending | Select-Object -First 30)
-[pscustomobject]@{
-  processes=@($topProcesses | Sort-Object pid -Unique)
-  gpu=@($gpu)
-  gpuAvailable=[bool]$gpuCounterAvailable
-  os=[pscustomobject]@{
-    family=$osFamily
-    caption=$osCaption
-    build=$buildNumber
-    release=if($windowsVersion){[string]$windowsVersion.DisplayVersion}else{''}
-    supportsHags=($buildNumber -ge 19041)
-  }
-  settings=[pscustomobject]@{
-    gameMode=if($null -eq $gameBar.AutoGameModeEnabled){'system default'}elseif([int]$gameBar.AutoGameModeEnabled -eq 1){'on'}else{'off'}
-    hags=if($null -eq $graphics.HwSchMode){'system default'}elseif([int]$graphics.HwSchMode -eq 2){'on'}elseif([int]$graphics.HwSchMode -eq 1){'off'}else{'system default'}
-    backgroundCapture=if(($null -ne $capture.AppCaptureEnabled -and [int]$capture.AppCaptureEnabled -eq 0) -or ($null -ne $gameConfig.GameDVR_Enabled -and [int]$gameConfig.GameDVR_Enabled -eq 0)){'off'}else{'on'}
-    powerPlan=$powerText
-    pendingRestart=[bool]$pendingRestart
-  }
-} | ConvertTo-Json -Depth 6 -Compress
-`;
-
 const optimizeProcessService = createOptimizeProcessService({
-  runPowerShellJson, inspectScript: GAMING_INSPECT_SCRIPT, execFile, normalWinPath,
+  readSystemHealth: () => systemHealth.read(),
+  os,
+  taskManagerPath: path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'Taskmgr.exe'),
 });
 remainingIpcServices["optimize:inspectGaming"] = async () => {
   return optimizeProcessService.inspectGaming();

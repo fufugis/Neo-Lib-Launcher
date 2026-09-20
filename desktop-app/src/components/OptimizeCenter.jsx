@@ -1,7 +1,7 @@
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  AlertTriangle, ArrowLeft, CheckCircle2, Cpu, Eye, FolderOpen, Gauge,
+  AlertTriangle, ArrowLeft, CheckCircle2, Cpu, Eye, FolderOpen,
   Gamepad2, HardDrive, MemoryStick, MonitorCog, Power, RefreshCw, Rocket,
   Settings2, ShieldCheck, Sparkles, Trash2, X,
 } from 'lucide-react';
@@ -113,57 +113,39 @@ function SpeedUpView({ onBack, onSummary }) {
   const [data, setData] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
-  const [closing, setClosing] = React.useState(null);
   const inspect = React.useCallback(async () => {
     setLoading(true); setError('');
     try {
       const result = await window.api?.inspectGamingPerformance?.();
       if (!result?.ok) throw new Error(result?.error || 'Performance inspection failed.');
       setData(result);
-      const cpuLeader = [...(result.processes || [])].sort((a, b) => b.cpuPercent - a.cpuPercent)[0];
-      onSummary(`Inspected · ${cpuLeader?.name || 'no heavy process'} was highest CPU`);
+      onSummary(`Safe overview · CPU ${result.health?.cpuPercent ?? 'unknown'}% · RAM ${result.health?.ramPercent ?? 'unknown'}%`);
     } catch (e) { setError(e?.message || 'Performance inspection failed.'); }
     finally { setLoading(false); }
   }, [onSummary]);
   React.useEffect(() => { inspect(); }, [inspect]);
-  const closeProcess = async () => {
-    if (!closing) return;
-    const result = await window.api?.closeOptimizableProcess?.({ pid: closing.pid, name: closing.name });
-    if (result?.ok) { onSummary(`Closed ${closing.name} after confirmation`); setClosing(null); inspect(); }
-    else setClosing((current) => ({ ...current, error: result?.error || 'Could not close process.' }));
-  };
-  const processes = data?.processes || [];
-  const cpuTop = [...processes].sort((a, b) => b.cpuPercent - a.cpuPercent).slice(0, 5);
-  const ramTop = [...processes].sort((a, b) => b.memoryBytes - a.memoryBytes).slice(0, 5);
-  const neoLibListed = processes.some(isNeoLibProcess);
-  const gpuTotal = Math.min(100, (data?.gpu || []).reduce((sum, item) => sum + Number(item.percent || 0), 0));
   return <motion.div initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }}>
-    <SubHeader icon={<Rocket size={18} />} title="Speed up gaming" subtitle="On-demand Windows performance snapshot" onBack={onBack} action={<button onClick={inspect} disabled={loading} className="grid h-9 w-9 place-items-center rounded-lg hairline text-muted hover:text-ink" title="Refresh analysis"><RefreshCw size={15} className={loading ? 'animate-spin' : ''} /></button>} />
+    <SubHeader icon={<Rocket size={18} />} title="Speed up gaming" subtitle="Antivirus-friendly system overview" onBack={onBack} action={<button onClick={inspect} disabled={loading} className="grid h-9 w-9 place-items-center rounded-lg hairline text-muted hover:text-ink" title="Refresh overview"><RefreshCw size={15} className={loading ? 'animate-spin' : ''} /></button>} />
     <div className="space-y-5 p-5">
       {error && <Notice tone="danger">{error}</Notice>}
-      {loading && !data ? <LoadingPower text="Sampling real CPU use and Windows gaming status…" /> : <>
+      {loading && !data ? <LoadingPower text="Sampling total CPU and memory use…" /> : <>
+        <Notice tone="safe"><ShieldCheck size={14} /> NEO-LIB now reads aggregate CPU and memory only. It does not enumerate other programs, inspect their paths, query GPU processes, or close them. Use Windows Task Manager when you need per-program detail.</Notice>
         <div className="grid gap-4 min-[760px]:grid-cols-2">
-          <ProcessList title="Top CPU use" icon={<Cpu size={15} />} entries={cpuTop} metric={(item) => `${item.cpuPercent.toFixed(1)}%`} warn={(item) => item.cpuPercent > 10} onClose={setClosing} />
-          <ProcessList title="Top memory use" icon={<MemoryStick size={15} />} entries={ramTop} metric={(item) => formatBytes(item.memoryBytes)} warn={(item) => item.memoryBytes > 2 * 1024 ** 3} onClose={setClosing} />
+          <SafeMetric icon={<Cpu size={17} />} title="Total CPU use" value={Number.isFinite(data?.health?.cpuPercent) ? `${data.health.cpuPercent}%` : 'Unknown'} detail="A fresh one-second whole-PC sample; no process list is read." />
+          <SafeMetric icon={<MemoryStick size={17} />} title="Total memory use" value={Number.isFinite(data?.health?.ramPercent) ? `${data.health.ramPercent}%` : 'Unknown'} detail={`${data?.health?.memoryUsedGb ?? 0} GB used · ${data?.health?.memoryFreeGb ?? 0} GB free`} />
         </div>
-        {neoLibListed && <section className="flex items-start gap-2 rounded-xl border border-sky-300/25 bg-sky-300/[0.07] p-3 text-[10.5px] leading-relaxed text-muted" data-testid="optimize-rest-mode-note"><ShieldCheck size={15} className="mt-0.5 shrink-0 text-sky-300" /><p><b className="text-sky-200">NEO-LIB is safe to leave open.</b> It can appear in this snapshot while you browse. Once you launch a tracked game, Rest Mode pauses its effects, animations, sound, health polling, launcher/news/social checks, and other background work until the game closes.</p></section>}
-        <section className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.28)] p-4">
-          <div className="flex items-center justify-between gap-3"><span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.14em]"><Gauge size={15} className="text-[rgb(var(--accent))]" /> GPU activity</span><span className={`text-sm font-black ${gpuTotal > 10 ? 'text-amber-300' : 'text-emerald-300'}`}>{data?.gpuAvailable ? `${gpuTotal.toFixed(1)}%` : 'Unavailable'}</span></div>
-          {data?.gpuAvailable ? <div className="mt-3 grid gap-1.5 sm:grid-cols-2">{(data.gpu || []).slice(0, 6).map((entry) => <div key={`${entry.pid}-${entry.name}`} className={`flex items-center justify-between rounded-lg px-3 py-2 text-[10.5px] ${entry.percent > 10 ? 'border border-amber-300/25 bg-amber-300/[0.08]' : 'bg-[rgb(var(--panel)/0.45)]'}`}><span className="truncate">{entry.name}</span><span className={entry.percent > 10 ? 'font-black text-amber-300' : 'text-muted'}>{entry.percent.toFixed(1)}%</span></div>)}</div> : <p className="mt-2 text-[10.5px] text-muted">Windows did not expose GPU engine counters on this PC. NEO-LIB leaves the value unknown instead of guessing.</p>}
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.28)] p-4">
+          <div><p className="text-[11px] font-black">Need per-program CPU, RAM or GPU details?</p><p className="mt-1 text-[10px] text-muted">Open Microsoft’s Task Manager. NEO-LIB will not recreate its privileged process inspection.</p></div>
+          <button onClick={() => data?.taskManagerPath && window.api?.openPath?.(data.taskManagerPath)} disabled={!data?.taskManagerPath} className="rounded-lg hairline px-3 py-2 text-[10px] font-black text-[rgb(var(--accent-2))] disabled:opacity-40">Open Task Manager</button>
         </section>
         <WindowsGamingSettings settings={data?.settings || {}} os={data?.os || {}} />
       </>}
     </div>
-    {closing && <ConfirmProcess process={closing} onCancel={() => setClosing(null)} onConfirm={closeProcess} />}
   </motion.div>;
 }
 
-function ProcessList({ title, icon, entries, metric, warn, onClose }) {
-  return <section className="overflow-hidden rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.28)]"><header className="flex items-center gap-2 border-b border-[rgb(var(--border)/0.7)] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.16em] text-muted">{icon}{title}</header><div className="divide-y divide-[rgb(var(--border)/0.45)]">{entries.map((item) => <div key={`${title}-${item.pid}`} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 px-3 py-2"><div className="min-w-0"><p className="truncate text-[11px] font-bold" title={item.path || item.name}>{item.name}</p><p className="text-[8.5px] text-muted">PID {item.pid}{item.protected ? ' · Windows protected' : ''}{isNeoLibProcess(item) ? ' · rests when a game runs' : ''}</p></div><span className={`text-[10.5px] font-black ${warn(item) ? 'text-amber-300' : 'text-emerald-300'}`}>{metric(item)}</span>{item.protected ? <ShieldCheck size={13} className="text-muted" /> : <button onClick={() => onClose(item)} className="rounded-md border border-red-400/20 px-2 py-1 text-[9px] font-bold text-red-300 hover:bg-red-400/10">Exit</button>}</div>)}{!entries.length && <p className="p-3 text-[10px] text-muted">No process data available.</p>}</div></section>;
-}
-
-function isNeoLibProcess(item) {
-  return /neo[\s_-]*lib/i.test(`${item?.name || ''} ${item?.path || ''}`);
+function SafeMetric({ icon, title, value, detail }) {
+  return <section className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.28)] p-4"><div className="flex items-center justify-between gap-3"><span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.14em] text-muted">{icon}{title}</span><span className="text-lg font-black text-[rgb(var(--accent))]">{value}</span></div><p className="mt-2 text-[9.5px] text-muted">{detail}</p></section>;
 }
 
 function WindowsGamingSettings({ settings, os }) {
@@ -182,7 +164,7 @@ function WindowsGamingSettings({ settings, os }) {
     { label: 'Game Mode', status: settings.gameMode || 'unknown', good: settings.gameMode !== 'off', route: 'ms-settings:gaming-gamemode', path: 'Settings → Gaming → Game Mode', pro: 'Prioritizes game responsiveness and reduces disruptive background activity.', con: 'Usually beneficial; rare older games or capture setups may prefer it off.' },
     { label: 'GPU scheduling', status: hagsSupported ? (settings.hags || 'unknown') : 'not supported', good: hagsSupported && settings.hags === 'on', route: 'ms-settings:display-advancedgraphics', path: 'Settings → System → Display → Graphics → Default graphics settings', pro: 'Can reduce scheduling overhead and latency on supported GPUs.', con: hagsSupported ? 'Results vary by driver and game; a restart is required after changing it.' : 'This Windows build predates Hardware-accelerated GPU scheduling, so no setting is available.' },
     { label: 'Background capture', status: settings.backgroundCapture || 'unknown', good: settings.backgroundCapture === 'off', route: 'ms-settings:gaming-gamedvr', path: capturePath, pro: 'Turning background recording off can save disk writes and some GPU/CPU time.', con: 'You lose automatic recording of the previous moments of gameplay.' },
-    { label: 'Power plan', status: /high performance|ultimate performance/i.test(plan) ? 'performance' : /power saver/i.test(plan) ? 'power saver' : 'balanced', good: !/power saver/i.test(plan), route: 'ms-settings:powersleep', path: powerPath, pro: 'Balanced is sensible for most desktops; performance plans reduce aggressive power saving.', con: 'Performance modes use more electricity, create heat, and reduce laptop battery life.' },
+    { label: 'Power plan', status: /check in windows/i.test(plan) ? 'check in Windows' : /high performance|ultimate performance/i.test(plan) ? 'performance' : /power saver/i.test(plan) ? 'power saver' : 'balanced', good: !/check in windows|power saver/i.test(plan), route: 'ms-settings:powersleep', path: powerPath, pro: 'Balanced is sensible for most desktops; performance plans reduce aggressive power saving.', con: 'Performance modes use more electricity, create heat, and reduce laptop battery life.' },
   ];
   return <section>
     <div className="mb-2 flex items-end justify-between gap-3">
@@ -202,10 +184,6 @@ function WindowsGamingSettings({ settings, os }) {
       </div>)}
     </div>
   </section>;
-}
-
-function ConfirmProcess({ process: item, onCancel, onConfirm }) {
-  return <div className="absolute inset-0 z-40 grid place-items-center bg-black/70 p-5 backdrop-blur-sm"><div className="w-full max-w-sm rounded-2xl border border-red-400/30 bg-[rgb(var(--panel))] p-5 shadow-2xl"><AlertTriangle size={24} className="text-amber-300" /><h3 className="mt-3 text-base font-black">Exit {item.name}?</h3><p className="mt-2 text-[11px] leading-relaxed text-muted">Unsaved work in this program may be lost. NEO-LIB sends a normal close request for the exact process from the fresh scan and will not force-kill it if Windows refuses.</p>{item.error && <p className="mt-2 text-[10px] text-red-300">{item.error}</p>}<div className="mt-4 flex justify-end gap-2"><button onClick={onCancel} className="rounded-lg hairline px-3 py-2 text-[10px] text-muted">Cancel</button><button onClick={onConfirm} className="rounded-lg bg-red-500 px-3 py-2 text-[10px] font-black text-white">Exit program</button></div></div></div>;
 }
 
 function JunkView({ games, onBack, onSummary }) {

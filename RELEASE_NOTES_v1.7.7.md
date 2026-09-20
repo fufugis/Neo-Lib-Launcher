@@ -25,6 +25,10 @@ files.
   unavailable and failed states instead of leaving unexplained endless spinners.
 - A complete offline source gate checks 181 runtime files and 113 renderer modules
   before a release build can proceed.
+- Optimize no longer launches an encoded PowerShell probe across processes, paths,
+  GPU counters, WMI and gaming registry values. It now shows aggregate CPU/RAM only
+  and sends per-program investigation to Windows Task Manager, avoiding the
+  behaviour pattern reported by Bitdefender Advanced Threat Defense.
 
 ### 👾 Meet FiFi
 
