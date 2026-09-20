@@ -109,6 +109,15 @@ files.
 - Cards reorder inside their own section while whole sections can be reordered
   independently.
 
+### 📖 Cleaner game descriptions
+
+- Store HTML, BBCode, entities, invisible characters and broken spacing are cleaned
+  automatically without rewriting the source text through AI.
+- Embedded store headings such as **Explore the Tenth World** become compact themed
+  section headings, while prose is grouped into readable paragraphs.
+- Obvious cut-off provider fragments are removed, and reviewed descriptions are
+  normalised before saving. Player-written descriptions remain player-controlled.
+
 ### 🎨 Stronger themes without covering the interface
 
 - Anime, Industrial and Magical themes have purpose-built transparent button frames:

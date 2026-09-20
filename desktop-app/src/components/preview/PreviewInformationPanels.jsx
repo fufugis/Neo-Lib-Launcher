@@ -2,11 +2,11 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Award, Building2, Calendar, Globe, ImageIcon } from 'lucide-react';
 import { genreDisplayGroups } from '../../lib/genreTaxonomy';
-import { PREVIEW_DESCRIPTION_FALLBACK, previewIdentityGroups, previewMedia, previewStoryParagraphs } from './preview-information-model.mjs';
+import { PREVIEW_DESCRIPTION_FALLBACK, previewIdentityGroups, previewMedia, previewStoryBlocks } from './preview-information-model.mjs';
 
 /** Source-owned description and identity. Text never flows behind the identity panel. */
 export function GameStory({ game, profile }) {
-  const paragraphs = previewStoryParagraphs(game);
+  const story = previewStoryBlocks(game);
 
   return (
     <section className="overflow-hidden rounded-xl border border-[rgb(var(--border)/0.72)] bg-[linear-gradient(145deg,rgb(var(--panel)/0.27),rgb(var(--surface)/0.11))]" data-testid="game-story-panel">
@@ -20,8 +20,10 @@ export function GameStory({ game, profile }) {
 
       <div className="grid items-start gap-4 px-3.5 py-3.5 sm:grid-cols-[minmax(0,1fr)_190px]">
         <div className="min-w-0 space-y-3">
-          {paragraphs.length ? paragraphs.map((paragraph, index) => (
-            <p key={`${game.id}-story-${index}`} className="whitespace-pre-line text-[13.5px] leading-7 text-muted [text-wrap:pretty]">{paragraph}</p>
+          {story.length ? story.map((block, index) => block.type === 'heading' ? (
+            <h4 key={`${game.id}-story-${index}`} className="pt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[rgb(var(--accent-2))]">{block.text}</h4>
+          ) : (
+            <p key={`${game.id}-story-${index}`} className="text-[13.5px] leading-7 text-muted [text-wrap:pretty]">{block.text}</p>
           )) : <p className="text-[13px] leading-7 text-muted/80">{PREVIEW_DESCRIPTION_FALLBACK}</p>}
         </div>
         <GenreProfile profile={profile} fallbackGenres={game.genres || []} />

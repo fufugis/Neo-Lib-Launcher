@@ -6,7 +6,8 @@ import { getChronicle, getLibraryHealth, getRecommendations, maskHomeNews, maskH
 import { LIBRARY_FONT_OPTIONS, libraryFontFamily } from '../src/components/library/library-visual-model.mjs';
 import { splitLibrarySections } from '../src/components/library/library-tree-model.mjs';
 import { appendMascotNotice, libraryCommandFor, messageFor, noticeCooldownMs, voiceForNotice } from '../src/components/mascot/fungist-model.mjs';
-import { previewIdentityGroups, previewMedia, previewStoryParagraphs } from '../src/components/preview/preview-information-model.mjs';
+import { previewIdentityGroups, previewMedia, previewStoryBlocks, previewStoryParagraphs } from '../src/components/preview/preview-information-model.mjs';
+import { cleanDescriptionText, formatDescription } from '../src/lib/descriptionFormatting.mjs';
 import { manifestPresentation, newsAgeLabel, updatePresentation } from '../src/components/preview/preview-status-model.mjs';
 import { createDemoLibrary } from '../src/state/demo-library.mjs';
 
@@ -218,6 +219,19 @@ for (const testId of ['game-story-panel', 'game-genre-profile', 'game-media-gall
   assert.match(previewInformationSource, new RegExp(testId), `Preview information lost ${testId}`);
 }
 assert.deepEqual(previewStoryParagraphs({ about: 'First paragraph.\n\nSecond paragraph.' }), ['First paragraph.', 'Second paragraph.']);
+const messyDescription = '<h2>EXPLORE THE TENTH WORLD</h2><p>Explore a world shrouded in mystery.</p><h2>BUILD MIGHTY HALLS</h2><p>Raise longhouses &amp; defend your base.</p><p>Play together across dangerous lands. This unfinished source fragment that</p>';
+assert.equal(cleanDescriptionText(messyDescription).endsWith('lands.'), true, 'An obviously truncated provider tail must not leak into Preview.');
+assert.deepEqual(formatDescription(messyDescription), [
+  { type: 'heading', text: 'Explore the Tenth World' },
+  { type: 'paragraph', text: 'Explore a world shrouded in mystery.' },
+  { type: 'heading', text: 'Build Mighty Halls' },
+  { type: 'paragraph', text: 'Raise longhouses & defend your base.' },
+  { type: 'paragraph', text: 'Play together across dangerous lands.' },
+]);
+assert.deepEqual(previewStoryBlocks({ about: 'KEY FEATURES: Build freely. Explore together.' }).slice(0, 2), [
+  { type: 'heading', text: 'Key Features' },
+  { type: 'paragraph', text: 'Build freely. Explore together.' },
+]);
 const mediaFixture = Array.from({ length: 10 }, (_, index) => `image-${index}`);
 assert.deepEqual(previewMedia({ headerImage: 'image-0', screenshots: mediaFixture }), mediaFixture.slice(0, 8));
 assert.deepEqual(previewMedia({ screenshots: null }), []);

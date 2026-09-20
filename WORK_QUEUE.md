@@ -4,6 +4,8 @@ This is the authoritative live queue. New user requests are appended here and re
 
 ## In progress
 
+- [x] **Automatic description cleanup and readable structure** — provider HTML/BBCode/entities, invisible characters and broken spacing are cleaned without rewriting source copy; obvious cut-off tails are discarded; embedded store headings such as `EXPLORE THE TENTH WORLD` become real accent headings; and prose renders as calmer grouped paragraphs. Reviewed metadata receives the same cleanup before saving while manually authored descriptions remain player-controlled. The complete pre-build source gate passes; rebuilt Windows visual acceptance remains required.
+
 - [x] **Complete supported-launcher release coverage** — Recent Game Releases now includes the final missing imported launcher, itch.io, and permanently asserts the full Steam, Epic, EA, GOG, Ubisoft, Battle.net, Riot, Xbox, Rockstar and itch.io source set. Standalone entries remain on their existing per-game official news/update route because they have no common store catalogue. The focused fixture and complete pre-build source gate pass; rebuilt Windows/live-network acceptance remains required.
 
 - [x] **All-launcher recent-release priority** — the Steam-dominated Released This Week feed is now Recent Game Releases, combining official publisher discovery across EA, Ubisoft, Battle.net, Xbox, Epic, Riot, Rockstar and GOG with verified Steam evidence. Major launches rank first and remain for 14 days; smaller verified releases expire after 5 days and are capped at four so catalogue volume cannot bury a major non-Steam title. Full pre-build source verification passes; rebuilt Windows/live-network acceptance remains required.

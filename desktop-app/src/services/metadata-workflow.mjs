@@ -5,6 +5,7 @@ import {
   stopRefreshQueue,
 } from '../state/metadata-refresh-state.mjs';
 import { recordOperationDiagnostic } from './operation-journal.mjs';
+import { cleanDescriptionText } from '../lib/descriptionFormatting.mjs';
 
 export function createMetadataWorkflow({
   isElectron,
@@ -117,8 +118,8 @@ export function createMetadataWorkflow({
       icon: g.icon || coverUrl || result.capsuleImage || result.headerImage || null,
       headerImage: result.headerImage || g.headerImage,
       background: result.background || g.background,
-      shortDescription: result.shortDescription || g.shortDescription,
-      about: result.about || g.about,
+      shortDescription: result.shortDescription ? cleanDescriptionText(result.shortDescription) : g.shortDescription,
+      about: result.about ? cleanDescriptionText(result.about) : g.about,
       genres: result.genres?.length ? result.genres : g.genres || [],
       genreTags: result.genreTags?.length ? result.genreTags : g.genreTags || [],
       developers: result.developers?.length ? result.developers : g.developers || [],
@@ -142,6 +143,8 @@ export function createMetadataWorkflow({
     }
     updateGame(g.id, {
       ...patch,
+      ...(patch.shortDescription != null ? { shortDescription: cleanDescriptionText(patch.shortDescription) } : {}),
+      ...(patch.about != null ? { about: cleanDescriptionText(patch.about) } : {}),
       coverUrl: coverUrl || g.coverUrl,
       icon: g.icon || coverUrl || patch.headerImage || null,
     });

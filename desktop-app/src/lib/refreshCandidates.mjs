@@ -1,4 +1,6 @@
 // Pure helpers shared by the refresh picker and its regression tests.
+import { cleanDescriptionText } from './descriptionFormatting.mjs';
+
 const imageUrl = (value) => typeof value === 'string' && /^(https?:|file:|data:image\/)/i.test(value);
 export function fieldCandidates(record, field) {
   if (!record) return [];
@@ -18,12 +20,12 @@ export function selectedRefreshPatch(field, candidates) {
   const { value, record } = candidates[0];
   if (field === 'icon') return { icon: value, coverUrl: value };
   if (field === 'banner') return { headerImage: value, background: value };
-  if (field === 'description') return { about: value, shortDescription: record.shortDescription || value };
+  if (field === 'description') return { about: cleanDescriptionText(value), shortDescription: cleanDescriptionText(record.shortDescription || value) };
   if (field === 'screenshots') return { screenshots: candidates.map(c => c.value) };
   // A normal refresh never changes the installed game's identity or launch data.
   const patch = {};
   for (const key of ['about', 'shortDescription', 'headerImage', 'background', 'screenshots', 'genres', 'genreTags', 'developers', 'publishers', 'releaseDate', 'website', 'metacritic']) {
-    const v = record[key];
+    const v = key === 'about' || key === 'shortDescription' ? cleanDescriptionText(record[key]) : record[key];
     if (v != null && v !== '' && (!Array.isArray(v) || v.length)) patch[key] = v;
   }
   const cover = record.capsuleImage || record.headerImage || record.icon;

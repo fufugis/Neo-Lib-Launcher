@@ -3,6 +3,7 @@ import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { Check, X, GripVertical, RefreshCw, ExternalLink } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { genreDisplayGroups, normalizeGenreProfile } from '../lib/genreTaxonomy';
+import { cleanDescriptionText } from '../lib/descriptionFormatting.mjs';
 
 const isElectron = typeof window !== 'undefined' && !!window.api;
 
@@ -76,8 +77,8 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
     const patch = { manualOverride: false, source: p.source || 'web' };
     if (pick.name)        patch.name = p.name || game.name;
     if (pick.description) {
-      patch.shortDescription = p.shortDescription || '';
-      patch.about = p.about || p.shortDescription || '';
+      patch.shortDescription = cleanDescriptionText(p.shortDescription || '');
+      patch.about = cleanDescriptionText(p.about || p.shortDescription || '');
     }
     if (pick.image) {
       patch.headerImage = p.headerImage || game.headerImage;
