@@ -4,6 +4,8 @@ This is the authoritative live queue. New user requests are appended here and re
 
 ## In progress
 
+- [x] **All-launcher recent-release priority** — the Steam-dominated Released This Week feed is now Recent Game Releases, combining official publisher discovery across EA, Ubisoft, Battle.net, Xbox, Epic, Riot, Rockstar and GOG with verified Steam evidence. Major launches rank first and remain for 14 days; smaller verified releases expire after 5 days and are capped at four so catalogue volume cannot bury a major non-Steam title. Full pre-build source verification passes; rebuilt Windows/live-network acceptance remains required.
+
 - [x] **Fourth Bright theme — Monochrome** — Theme Studio now offers a white, gray and black Bright option with its own high-contrast palette, geometric linework, grayscale atmosphere and restrained neutral particles. Library ambience, Effects intensity, motion cadence, Rest Mode and light-theme edge treatment all recognise it. Source verification passes; rebuilt Windows visual acceptance remains required.
 
 - [x] **Library icon-only mode + Visuals placement** — Visual Tweaks now opens beside the resizable Library whenever the viewport has room. Its separate Icons only mode removes visible game names, category headers and the pinned strip while retaining selection, hover identification and right-click actions. Dedicated controls adjust 24–96px icons, 0–24px spacing and one-to-three compact lanes; incompatible standard text/category/layout controls visibly disable. Locked PIN-category games remain excluded through the existing privacy filter. Focused renderer-state and visual-boundary verification passes; rebuilt Windows visual/interaction acceptance remains required.

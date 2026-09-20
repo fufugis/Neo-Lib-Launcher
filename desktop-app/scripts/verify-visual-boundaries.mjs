@@ -164,6 +164,9 @@ assert.match(appSource, /data-testid="rest-wake-overlay"/, 'Tray wake needs a vi
 assert.match(appSource, /cursorTheme/, 'The cursor theme needs to be persisted at the app shell.');
 const homeHubSource = read('src/components/HomeHub.jsx');
 assert.match(homeHubSource, /max-h-\[320px\][^\n]*overflow-y-auto[^\n]*data-testid="home-game-update-list"/, 'The complete Home update body must stay inside one compact scrolling region.');
+assert.match(homeHubSource, /Recent Game Releases/, 'Home must label the longer major-title window honestly.');
+assert.match(homeHubSource, /Major launches stay for 14 days; smaller verified releases expire after 5/, 'The release card must explain its retention policy.');
+assert.match(homeHubSource, /function ReleaseArtwork/, 'Official publisher releases need a readable fallback when they do not provide Steam-style artwork.');
 const mascotSource = read('src/components/FungistMascot.jsx');
 assert.match(mascotSource, /data-testid="mascot-quick-toggle"[^\n]*overflow-hidden/, 'Mascot quick-setting switches must clip their thumb inside the track.');
 assert.match(mascotSource, /absolute left-0 top-\[3px\][^\n]*translate-x-5/, 'Mascot quick-setting switch thumbs need an explicit left anchor.');

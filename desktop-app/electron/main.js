@@ -2639,13 +2639,17 @@ remainingIpcServices["launcher:openDownloads"] = async (_event, platform) => {
 const dealsProvider = createDealsProviderService({ httpGetJson, httpGetText, now: Date.now });
 remainingIpcServices["deals:fetch"] = () => dealsProvider.fetch();
 
-// ---------------- Released This Week ---------------- //
-// This is intentionally a discovery feed, not an exhaustive release calendar.
-// SteamSpy gives us a small set of titles receiving real recent player interest;
-// we then verify each title's store type and actual release date through Steam's
-// public store details response. That protects Home from filling with tiny,
-// low-visibility uploads while keeping the criteria understandable.
-const weeklyReleaseProvider = createWeeklyReleaseProviderService({ httpGetJson, now: Date.now });
+// ---------------- Recent Game Releases ---------------- //
+// This is intentionally a selective discovery feed, not an exhaustive calendar.
+// Official publisher announcements prevent Steam's volume from crowding out major
+// EA, Ubisoft, Battle.net, Xbox, Epic, Riot, Rockstar or GOG launches. Steam titles
+// still require verified store dates and meaningful player/review momentum.
+const weeklyReleaseProvider = createWeeklyReleaseProviderService({
+  httpGetJson,
+  searchDuckDuckGo: ddgSearchRaw,
+  searchGoogle: googleScrapeRaw,
+  now: Date.now,
+});
 remainingIpcServices["releases:weekly"] = (_event, { force = false } = {}) => weeklyReleaseProvider.fetch({ force });
 
 // ---------------- Steam News (per-appid, cached 30 min) ---------------- //

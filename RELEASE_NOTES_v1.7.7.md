@@ -82,8 +82,11 @@ files.
   saved official pages and carefully ranked public sources.
 - Weak or missing evidence is described honestly instead of silently claiming a game
   is current.
-- **Released This Week** falls back to noteworthy and popular current releases when
-  no major launch is detected.
+- **Recent Game Releases** now checks official EA, Ubisoft, Battle.net, Xbox, Epic,
+  Riot, Rockstar and GOG announcements alongside Steam instead of letting Steam's
+  catalogue dominate the card. Major launches stay visible for 14 days and always
+  rank first; a maximum of four smaller verified releases may follow and expire
+  after 5 days.
 
 ### 🔒 Private games stay private everywhere
 
