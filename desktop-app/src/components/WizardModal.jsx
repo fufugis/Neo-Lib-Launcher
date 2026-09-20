@@ -363,7 +363,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
   const acceptCurrent = async () => {
     const run = ++acceptRun.current;
     setBusy(true);
-    let coverUrl = result?.capsuleImage || result?.headerImage || null;
+    let coverUrl = result?.portraitImage || result?.capsuleImage || result?.headerImage || null;
     if (coverUrl && coverUrl.startsWith('http')) {
       imageBoundedOperation.current?.cancel('Replaced by a newer image cache request.');
       const operation = createBoundedOperation({
@@ -390,6 +390,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
       source: result?.source,
       appid: result?.appid,
       coverUrl: coverUrl || result?.headerImage,
+      portraitImage: result?.portraitImage || '',
       headerImage: result?.headerImage,
       background: result?.background,
       shortDescription: result?.shortDescription,

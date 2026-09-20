@@ -84,7 +84,8 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
     if (pick.image) {
       patch.headerImage = p.headerImage || game.headerImage;
       patch.capsuleImage = p.capsuleImage || p.headerImage || game.coverUrl;
-      patch.coverUrl = p.capsuleImage || p.headerImage || game.coverUrl;
+      patch.portraitImage = p.portraitImage || game.portraitImage || '';
+      patch.coverUrl = p.portraitImage || p.capsuleImage || p.headerImage || game.coverUrl;
       patch.background = p.background || p.headerImage || game.background;
     }
     if (pick.screenshots) patch.screenshots = p.screenshots || [];

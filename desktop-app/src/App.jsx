@@ -893,7 +893,7 @@ export default function App() {
   const addToGames = (data) => {
     // FALLBACK: when the local .exe icon couldn't be extracted (common for sub-folder
     // launchers like Cyberpunk's REDLauncher), use the fetched online artwork instead.
-    const onlineFallback = data.capsuleImage || data.headerImage || data.coverUrl || data.background || null;
+    const onlineFallback = data.portraitImage || data.capsuleImage || data.headerImage || data.coverUrl || data.background || null;
     const icon = data.icon || onlineFallback;
     const g = { id: uid(), categoryIds: [], addedAt: Date.now(), librarySeenAt: null, ...withGenreProfile(data), icon };
     g.categoryIds = assignLauncherCategory(g.categoryIds, data.launcher);

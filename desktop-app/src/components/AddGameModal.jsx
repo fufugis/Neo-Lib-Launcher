@@ -60,6 +60,7 @@ export default function AddGameModal({ open, onClose, onCreate }) {
       source: match ? 'steam' : 'manual',
       headerImage: details?.headerImage,
       capsuleImage: details?.capsuleImage,
+      portraitImage: details?.portraitImage,
       background: details?.background,
       shortDescription: details?.shortDescription,
       about: details?.aboutTheGame,
@@ -196,7 +197,7 @@ export default function AddGameModal({ open, onClose, onCreate }) {
         onClose={() => setReview({ open: false, game: null, proposed: null })}
         onTryAgain={() => setReview({ open: false, game: null, proposed: null })}
         onAccept={async (patch) => {
-          let coverUrl = patch.capsuleImage || patch.headerImage || patch.coverUrl || null;
+          let coverUrl = patch.portraitImage || patch.capsuleImage || patch.headerImage || patch.coverUrl || null;
           if (coverUrl?.startsWith('http')) coverUrl = (await window.api?.cacheImage?.(coverUrl, patch.name)) || coverUrl;
           const { id: _previewId, ...newGame } = { ...review.game, ...patch, coverUrl, icon };
           onCreate(newGame);

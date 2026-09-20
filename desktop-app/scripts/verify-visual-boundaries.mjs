@@ -181,6 +181,9 @@ assert.match(appSource, /onExternalGameState[\s\S]{0,900}setExternalRestOverride
 assert.match(mascotSource, /candidate\.level === 'major'[\s\S]{0,260}onMajorNotice\(candidate\)/, 'Major mascot events must use the dedicated centre-screen surface.');
 const coverWallSource = read('src/components/CoverWall.jsx');
 assert.match(coverWallSource, /function personalRating/, 'Cover Wall rating tags need a bounded personal-rating formatter.');
+assert.match(coverWallSource, /portraitArtwork/, 'Cover Wall must prefer a true portrait cover over landscape banner art.');
+assert.match(coverWallSource, /aspect-\[2\/3\]/, 'Cover Wall must present games as portrait covers.');
+assert.match(coverWallSource, /Original cover unavailable/, 'Missing portrait art must have an honest readable fallback card.');
 assert.match(coverWallSource, /data-testid=\{`cover-wall-rating-\$\{game\.id\}`\}/, 'Rated Cover Wall games need a visible personal-rating tag.');
 assert.match(coverWallSource, /absolute right-0 top-0 z-10[^\n]*bg-amber-300/, 'Cover Wall rating tags must stay yellow and above cover artwork in the upper-right corner.');
 assert.match(read('electron/preload.js'), /onWindowVisibility/);

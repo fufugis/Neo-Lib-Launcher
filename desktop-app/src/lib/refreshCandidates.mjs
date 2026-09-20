@@ -10,7 +10,7 @@ export function fieldCandidates(record, field) {
     const value = record.about || record.shortDescription;
     return value ? [{ ...base, value, key: value }] : [];
   }
-  const values = field === 'icon' ? [record.icon, record.capsuleImage, record.headerImage]
+  const values = field === 'icon' ? [record.icon, record.portraitImage, record.capsuleImage, record.headerImage]
     : field === 'banner' ? [record.background, record.headerImage, record.capsuleImage]
     : (record.screenshots || []);
   return [...new Set(values.filter(imageUrl))].map(value => ({ ...base, value, key: value }));
@@ -28,7 +28,8 @@ export function selectedRefreshPatch(field, candidates) {
     const v = key === 'about' || key === 'shortDescription' ? cleanDescriptionText(record[key]) : record[key];
     if (v != null && v !== '' && (!Array.isArray(v) || v.length)) patch[key] = v;
   }
-  const cover = record.capsuleImage || record.headerImage || record.icon;
+  const cover = record.portraitImage || record.capsuleImage || record.headerImage || record.icon;
+  if (record.portraitImage) patch.portraitImage = record.portraitImage;
   if (cover) { patch.coverUrl = cover; patch.icon = record.icon || cover; }
   return patch;
 }

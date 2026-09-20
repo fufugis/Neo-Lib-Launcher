@@ -28,6 +28,7 @@ const { createStoreProviderService } = require('../electron/providers/store-prov
   assert.deepEqual(details.genreTags, ['Puzzle', 'Co-op']);
   assert.deepEqual(details.capabilities.map((item) => item.id), ['single-player', 'co-op', 'controller-full', 'achievements', 'cloud-saves']);
   assert.deepEqual(details.achievementSummary, { source: 'steam', supported: true, total: 51, syncState: 'not-linked' });
+  assert.equal(details.portraitImage, 'https://cdn.cloudflare.steamstatic.com/steam/apps/620/library_600x900.jpg');
   const gog = await service.searchGog('Game');
   assert.equal(gog[0].releaseDate, '2026-09-16');
   assert.deepEqual(gog[0].genres, ['RPG', 'Indie']);

@@ -2229,6 +2229,7 @@ remainingIpcServices["metadata:auto"] = async (_e, { query, skipSources = [], ge
           about: stripHtml(d.about_the_game || '').slice(0, 1400),
           headerImage: d.header_image,
           capsuleImage: d.capsule_imagev5 || d.capsule_image,
+          portraitImage: `https://cdn.cloudflare.steamstatic.com/steam/apps/${lockedAppid}/library_600x900.jpg`,
           background: d.background_raw || d.background,
           screenshots: (d.screenshots || []).slice(0, 6).map((s) => s.path_full),
           genres: (d.genres || []).map((g) => g.description),
@@ -2293,6 +2294,7 @@ remainingIpcServices["metadata:auto"] = async (_e, { query, skipSources = [], ge
             about: stripHtml(d.about_the_game || '').slice(0, 1400),
             headerImage: d.header_image,
             capsuleImage: d.capsule_imagev5 || d.capsule_image,
+            portraitImage: `https://cdn.cloudflare.steamstatic.com/steam/apps/${top.id}/library_600x900.jpg`,
             background: d.background_raw || d.background,
             screenshots: (d.screenshots || []).slice(0, 6).map((s) => s.path_full),
             genres: (d.genres || []).map((g) => g.description),
@@ -2324,6 +2326,7 @@ remainingIpcServices["metadata:auto"] = async (_e, { query, skipSources = [], ge
           about: '',
           headerImage: top.coverHorizontal,
           capsuleImage: top.coverVertical,
+          portraitImage: top.coverVertical,
           background: top.coverHorizontal,
           screenshots: (top.screenshots || [])
             .map((s) => (typeof s === 'string' ? s : s.url || ''))

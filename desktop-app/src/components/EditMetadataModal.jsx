@@ -54,6 +54,7 @@ export default function EditMetadataModal({ open, game, onClose, onSave }) {
       name: form.name.trim() || game.name,
       icon: form.icon.trim() || null,
       coverUrl: form.coverUrl.trim() || null,
+      portraitImage: form.coverUrl.trim() || null,
       headerImage: form.headerImage.trim() || null,
       background: form.background.trim() || null,
       shortDescription: form.shortDescription.trim(),

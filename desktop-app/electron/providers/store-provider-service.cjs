@@ -44,6 +44,7 @@ function createStoreProviderService({ httpGetJson, cleanSearchTerm, stripHtml, s
         releaseDate: details.release_date ? details.release_date.date : '',
         metacritic: details.metacritic ? details.metacritic.score : null,
         website: details.website || '',
+        portraitImage: steamPortraitImage(appid),
         capabilities,
         achievementSummary: steamAchievementSummary(details, capabilities),
       };
@@ -75,6 +76,11 @@ function createStoreProviderService({ httpGetJson, cleanSearchTerm, stripHtml, s
   }
 
   return Object.freeze({ searchSteam, getSteamDetails, searchGog });
+}
+
+function steamPortraitImage(appid) {
+  const key = String(appid || '').trim();
+  return /^\d+$/.test(key) ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${key}/library_600x900.jpg` : '';
 }
 
 function steamCapabilities(details = {}) {

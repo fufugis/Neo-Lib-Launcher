@@ -6,6 +6,7 @@ import {
 } from '../state/metadata-refresh-state.mjs';
 import { recordOperationDiagnostic } from './operation-journal.mjs';
 import { cleanDescriptionText } from '../lib/descriptionFormatting.mjs';
+import { portraitArtwork } from '../lib/game-artwork-model.mjs';
 
 export function createMetadataWorkflow({
   isElectron,
@@ -106,7 +107,8 @@ export function createMetadataWorkflow({
       }
       return null;
     }
-    let coverUrl = result.capsuleImage || result.headerImage || null;
+    const portrait = portraitArtwork(result);
+    let coverUrl = portrait || result.capsuleImage || result.headerImage || null;
     if (coverUrl && coverUrl.startsWith('http')) {
       coverUrl = (await nativeApi.cacheImage(coverUrl, result.name)) || coverUrl;
     }
@@ -116,6 +118,7 @@ export function createMetadataWorkflow({
       source: result.source,
       coverUrl: coverUrl || g.coverUrl,
       icon: g.icon || coverUrl || result.capsuleImage || result.headerImage || null,
+      portraitImage: portrait || g.portraitImage || '',
       headerImage: result.headerImage || g.headerImage,
       background: result.background || g.background,
       shortDescription: result.shortDescription ? cleanDescriptionText(result.shortDescription) : g.shortDescription,
@@ -139,7 +142,8 @@ export function createMetadataWorkflow({
   
   // Apply a previewed metadata patch (called from AcceptMetadataModal).
   const applyAcceptedMetadata = async (g, patch) => {
-    let coverUrl = patch.capsuleImage || patch.headerImage || patch.coverUrl || null;
+    const portrait = portraitArtwork(patch);
+    let coverUrl = portrait || patch.capsuleImage || patch.headerImage || patch.coverUrl || null;
     if (coverUrl && coverUrl.startsWith('http')) {
       coverUrl = (await nativeApi.cacheImage(coverUrl, patch.name)) || coverUrl;
     }
@@ -149,6 +153,7 @@ export function createMetadataWorkflow({
       ...(patch.about != null ? { about: cleanDescriptionText(patch.about) } : {}),
       coverUrl: coverUrl || g.coverUrl,
       icon: g.icon || coverUrl || patch.headerImage || null,
+      portraitImage: portrait || g.portraitImage || '',
     });
     notify(`Updated · ${patch.name || g.name} (via ${patch.source || 'manual'})`);
   };
