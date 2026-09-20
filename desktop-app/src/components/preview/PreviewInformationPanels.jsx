@@ -61,16 +61,16 @@ export function DetailList({ game }) {
   if (game.website) rows.push({ icon: <Globe size={13} />, label: 'Website', value: 'Open official site', action: () => window.api?.openExternal(game.website) });
   if (!rows.length) return null;
   return (
-    <section className="mt-5 overflow-hidden rounded-xl border border-[rgb(var(--border)/0.7)] bg-[rgb(var(--surface)/0.16)]" data-testid="game-detail-list">
+    <section className="mb-5 overflow-hidden rounded-xl border border-[rgb(var(--border)/0.7)] bg-[rgb(var(--surface)/0.16)]" data-testid="game-detail-list">
       <div className="border-b border-[rgb(var(--border)/0.55)] px-3.5 py-2 text-[9px] font-bold uppercase tracking-[0.24em] text-muted">Game details</div>
-      <div className="divide-y divide-[rgb(var(--border)/0.45)]">
+      <div className="grid grid-cols-1 divide-y divide-[rgb(var(--border)/0.45)] sm:grid-cols-2 sm:divide-y-0 xl:grid-cols-4">
         {rows.map((row) => (
-          <div key={row.label} className="grid grid-cols-[22px_92px_minmax(0,1fr)] items-center gap-2 px-3.5 py-2.5 text-[11.5px]">
+          <div key={row.label} className="grid min-w-0 grid-cols-[18px_minmax(0,1fr)] items-center gap-x-2 border-[rgb(var(--border)/0.45)] px-3.5 py-2.5 text-[11px] sm:border-r sm:last:border-r-0">
             <span className="text-[rgb(var(--accent))]">{row.icon}</span>
-            <span className="font-semibold text-muted">{row.label}</span>
+            <span className="text-[8.5px] font-bold uppercase tracking-[0.12em] text-muted">{row.label}</span>
             {row.action ? (
-              <button onClick={row.action} className="justify-self-start text-[rgb(var(--accent-2))] hover:underline">{row.value} ↗</button>
-            ) : <span className="truncate text-ink" title={row.value}>{row.value}</span>}
+              <button onClick={row.action} className="col-start-2 min-w-0 justify-self-start truncate text-[rgb(var(--accent-2))] hover:underline">{row.value} ↗</button>
+            ) : <span className="col-start-2 truncate font-semibold text-ink" title={row.value}>{row.value}</span>}
           </div>
         ))}
       </div>

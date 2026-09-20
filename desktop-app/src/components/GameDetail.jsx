@@ -169,10 +169,10 @@ export default function GameDetail({
           <ManagedToolSetup game={game} onLocate={onLocateManagedTool} onInstall={onInstallManagedTool} installing={managedToolInstalling} />
           <UpdateAvailablePill game={game} />
           <LatestNewsPill game={game} />
-           <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(460px,560px)]">
+          <DetailList game={game} />
+          <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(460px,560px)]">
             <div className="min-w-0">
               <GameStory game={game} profile={game.genreProfile} />
-              <DetailList game={game} />
               <div className="mt-5 rounded-xl border border-[rgb(var(--border)/0.56)] bg-[rgb(var(--surface)/0.30)] px-3 py-2.5 text-[10.5px] text-muted/75 break-all font-mono">
                 {game.exePath}
                 {game.appid && <span className="block mt-0.5">Steam App ID · {game.appid}</span>}

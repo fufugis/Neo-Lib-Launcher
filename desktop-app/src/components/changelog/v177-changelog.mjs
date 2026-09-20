@@ -62,6 +62,7 @@ export const V177_CHANGELOG = {
   fixes: [
     'Theme Studio now has a fourth Bright theme: Monochrome. It combines white and pale-gray surfaces with black controls, geometric grayscale atmosphere and restrained neutral particles that still respect Effects intensity and Rest Mode.',
     'Game descriptions now clean store markup, entities, broken spacing and obvious cut-off tails automatically. Embedded all-caps sections become compact themed headings and prose is grouped into calmer paragraphs without requiring AI to rewrite the source text.',
+    'Developer, publisher, release date and official website now form the first compact information row in Preview, with About this game immediately underneath instead of those basic facts sitting below the full description.',
     'Recent Game Releases now watches every supported launcher source: Steam, Epic, EA, GOG, Ubisoft, Battle.net, Riot, Xbox, Rockstar and itch.io. Major titles stay for 14 days and rank first; smaller verified launches expire after 5 days and are limited so Steam volume cannot bury a major non-Steam release.',
     'Visual Tweaks now opens beside the Library. A separate Icons only mode removes game text, categories and the pinned strip, with its own icon-size, spacing and one-to-three lane controls; incompatible standard sliders visibly disable while it is active.',
     'Cover Wall now places a yellow upper-right tag on every visible game you personally rated, showing the exact one-decimal score while keeping locked and unrated games private/clean.',

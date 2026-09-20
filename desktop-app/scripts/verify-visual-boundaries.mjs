@@ -213,11 +213,13 @@ assert.match(gameDetailSource, /preview\/PreviewInformationPanels/);
 assert.match(gameDetailSource, /preview\/PreviewHeroTitle/);
 assert.match(gameDetailSource, /preview\/PreviewActionBar/);
 assert.match(gameDetailSource, /preview\/PreviewStatusCards/);
+assert.ok(gameDetailSource.indexOf('<DetailList game={game} />') < gameDetailSource.indexOf('<GameStory game={game}'), 'Game Details must be the first information row above About this game.');
 assert.doesNotMatch(gameDetailSource, /function GameStory|function GameMediaGallery|function DetailList|function GenreProfile|function HeroTitle|function StarRating|function ActionBar|function ManagedToolMenu|function SteamManifestLine|function LatestNewsPill|function ManagedToolSetup|function UpdateAvailablePill/);
 assert.doesNotMatch(gameDetailSource, /function GalleryBox|function MetaStrip|function ScreenshotStrip/, 'Retired Preview renderers must not return');
 for (const testId of ['game-story-panel', 'game-genre-profile', 'game-media-gallery', 'game-detail-list']) {
   assert.match(previewInformationSource, new RegExp(testId), `Preview information lost ${testId}`);
 }
+assert.match(previewInformationSource, /xl:grid-cols-4/, 'Game Details must use one compact responsive row on wide windows.');
 assert.deepEqual(previewStoryParagraphs({ about: 'First paragraph.\n\nSecond paragraph.' }), ['First paragraph.', 'Second paragraph.']);
 const messyDescription = '<h2>EXPLORE THE TENTH WORLD</h2><p>Explore a world shrouded in mystery.</p><h2>BUILD MIGHTY HALLS</h2><p>Raise longhouses &amp; defend your base.</p><p>Play together across dangerous lands. This unfinished source fragment that</p>';
 assert.equal(cleanDescriptionText(messyDescription).endsWith('lands.'), true, 'An obviously truncated provider tail must not leak into Preview.');

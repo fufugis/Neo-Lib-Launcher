@@ -4,6 +4,8 @@ This is the authoritative live queue. New user requests are appended here and re
 
 ## In progress
 
+- [x] **Preview information order and compact details row** — developer, publisher, release date and official-site information now appears above About this game in one compact responsive row instead of a tall table at the bottom. The complete pre-build source gate passes; rebuilt Windows visual acceptance remains required.
+
 - [x] **Automatic description cleanup and readable structure** — provider HTML/BBCode/entities, invisible characters and broken spacing are cleaned without rewriting source copy; obvious cut-off tails are discarded; embedded store headings such as `EXPLORE THE TENTH WORLD` become real accent headings; and prose renders as calmer grouped paragraphs. Reviewed metadata receives the same cleanup before saving while manually authored descriptions remain player-controlled. The complete pre-build source gate passes; rebuilt Windows visual acceptance remains required.
 
 - [x] **Complete supported-launcher release coverage** — Recent Game Releases now includes the final missing imported launcher, itch.io, and permanently asserts the full Steam, Epic, EA, GOG, Ubisoft, Battle.net, Riot, Xbox, Rockstar and itch.io source set. Standalone entries remain on their existing per-game official news/update route because they have no common store catalogue. The focused fixture and complete pre-build source gate pass; rebuilt Windows/live-network acceptance remains required.

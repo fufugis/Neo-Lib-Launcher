@@ -117,6 +117,9 @@ files.
   section headings, while prose is grouped into readable paragraphs.
 - Obvious cut-off provider fragments are removed, and reviewed descriptions are
   normalised before saving. Player-written descriptions remain player-controlled.
+- Developer, publisher, release date and official website now appear in a compact
+  first row, with About this game directly underneath instead of basic facts being
+  hidden below the full description.
 
 ### 🎨 Stronger themes without covering the interface
 
