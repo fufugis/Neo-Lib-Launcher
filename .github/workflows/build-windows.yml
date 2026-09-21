@@ -2,7 +2,8 @@ name: build-windows
 
 on:
   push:
-    branches: [main]
+    # Full installer builds are deliberately release-only. Ordinary source
+    # commits stay quiet; push an exact vX.Y.Z tag when a candidate is ready.
     tags: ['v*']
   workflow_dispatch:
 
