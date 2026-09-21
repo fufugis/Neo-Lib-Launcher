@@ -49,6 +49,8 @@ export default function AppModalLayer({ context }) {
     setShowWizard,
     setWizardPrefillRoot,
     setWizardAutoScan,
+    requestMetadataRefresh,
+    openTidyUp,
     addToGames,
     library,
     wizardPrefillRoot,
@@ -166,6 +168,8 @@ export default function AppModalLayer({ context }) {
         onClose={() => { setShowWizard(false); setWizardPrefillRoot(''); setWizardAutoScan(false); }}
         onAccept={addToGames}
         onAddManual={() => setShowAdd(true)}
+        onRefreshLibrary={requestMetadataRefresh}
+        onTidyLibrary={openTidyUp}
         existingExePaths={(library.games || []).map((g) => g.exePath).filter(Boolean)}
         existingGames={library.games || []}
         prefilledRoot={wizardPrefillRoot}

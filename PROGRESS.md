@@ -1,6 +1,6 @@
 # NEO-LIB progress
 
-- **One place to add games is source-complete** — Library now begins with Wizard only. Its first page clearly offers Add game manually alongside folder scans and installed-launcher imports, so every game route starts from one dependable place. Categories remain in Library’s Categories control, and Tools keeps its separate Add tool workflow. Focused source checks pass; rebuilt Windows interaction acceptance remains required.
+- **One Wizard for Library work is source-complete** — Library now begins with Wizard only. Its first page clearly offers manual game add, folder scans, installed-launcher imports, metadata refresh and library tidy-up, so core library work begins from one dependable place. Categories remain in Library’s Categories control, and Tools keeps its separate Add tool workflow. Focused source checks pass; rebuilt Windows interaction acceptance remains required.
 
 - **Reddit community shortcut is source-complete** — the official r/NeoLibLauncher button now sits beside Discord in the title bar and opens through the same normal-browser handoff. It remains icon-compact at narrow widths. Focused source checks pass; rebuilt Windows interaction acceptance remains required.
 

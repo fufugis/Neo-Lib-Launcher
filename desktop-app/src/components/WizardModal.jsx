@@ -3,7 +3,7 @@ import { renderForegroundPortal } from './ui/VisualBoundary';
 import { launcherEntry, boundedLauncherScan } from '../lib/launcherImport.mjs';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  FolderSearch, Loader2, Check, X as XIcon, RefreshCw, ChevronRight, Sparkles,
+  FolderSearch, Loader2, Check, X as XIcon, ChevronRight, Sparkles,
   Search, ArrowRight, ArrowLeft, PlusCircle, FolderOpen, Gamepad2,
 } from 'lucide-react';
 import Modal from './Modal';
@@ -41,7 +41,7 @@ function operationFailureMessage(operation, label) {
   return operation?.message || `${label} failed.`;
 }
 
-export default function WizardModal({ open, onClose, onImport, onAccept, onAddManual, geminiKey, aiModel = 'gemini-2.5-flash', existingExePaths = [], existingGames = [], prefilledRoot = '', autoScan = false }) {
+export default function WizardModal({ open, onClose, onImport, onAccept, onAddManual, onRefreshLibrary, onTidyLibrary, geminiKey, aiModel = 'gemini-2.5-flash', existingExePaths = [], existingGames = [], prefilledRoot = '', autoScan = false }) {
   const [step, setStep] = React.useState(1);
   const [root, setRoot] = React.useState('');
   const [candidates, setCandidates] = React.useState([]);
@@ -484,6 +484,37 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
                 className="inline-flex shrink-0 items-center gap-2 rounded-full hairline px-4 py-2 text-xs font-semibold text-ink hover:border-[rgb(var(--accent)/0.6)] hover:bg-[rgb(var(--accent)/0.10)]"
               >
                 <PlusCircle size={13} className="text-[rgb(var(--accent))]" /> Add game manually
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-lg hairline bg-surface/50 p-4" data-testid="wizard-library-care-section">
+            <div className="mb-2 text-[10px] uppercase tracking-wider text-muted">Existing library care</div>
+            <p className="mb-3 text-xs text-muted">Refresh existing game information or check your library for duplicates and missing details.</p>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <button
+                data-testid="wizard-refresh-missing-btn"
+                onClick={() => { onClose(); onRefreshLibrary?.('missing'); }}
+                className="flex flex-col items-start rounded-md hairline px-3 py-2 text-left hover:border-[rgb(var(--accent)/0.55)] hover:bg-[rgb(var(--accent)/0.07)]"
+              >
+                <span className="text-xs font-semibold text-ink">Refresh missing info</span>
+                <span className="mt-0.5 text-[10.5px] leading-snug text-muted">Updates incomplete or older metadata first.</span>
+              </button>
+              <button
+                data-testid="wizard-refresh-full-btn"
+                onClick={() => { onClose(); onRefreshLibrary?.('full'); }}
+                className="flex flex-col items-start rounded-md hairline px-3 py-2 text-left hover:border-[rgb(var(--accent-2)/0.55)] hover:bg-[rgb(var(--accent-2)/0.07)]"
+              >
+                <span className="text-xs font-semibold text-ink">Full metadata refresh</span>
+                <span className="mt-0.5 text-[10.5px] leading-snug text-muted">Shows the affected count before it starts.</span>
+              </button>
+              <button
+                data-testid="wizard-tidy-library-btn"
+                onClick={() => { onClose(); onTidyLibrary?.(); }}
+                className="flex flex-col items-start rounded-md hairline px-3 py-2 text-left hover:border-[rgb(var(--accent-2)/0.55)] hover:bg-[rgb(var(--accent-2)/0.07)]"
+              >
+                <span className="text-xs font-semibold text-ink">Tidy up library</span>
+                <span className="mt-0.5 text-[10.5px] leading-snug text-muted">Review duplicates and entries needing attention.</span>
               </button>
             </div>
           </div>

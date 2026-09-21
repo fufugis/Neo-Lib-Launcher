@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Wand2, RefreshCw, Sparkles, ChevronDown, Tag, ArrowDownUp, Moon, Sun,
+  Wand2, ChevronDown, Tag, ArrowDownUp, Moon, Sun,
   Library as LibIcon, Boxes, Columns, Home, Check, ListTree,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -96,7 +96,7 @@ const SIDEBAR_THEME_ART = {
 
 /**
  * Sidebar (tree view)
- * - Top toolbar: Wizard · Refresh-all · Library settings (size, etc.) · App settings
+ * - Top toolbar: Wizard · Library settings (size, etc.) · App settings
  * - Tree:
  *    ▸ [colored chip] CATEGORY NAME (count)
  *        indented game rows…
@@ -128,7 +128,7 @@ export default function Sidebar({
   onChangeBgTextureId, onChangeBgTextureOpacity,
   cursorTheme = 'windows', onChangeCursorTheme,
   onSelect, onGameViewed,
-  onAddManual, onOpenWizard, manualResting = false, onToggleManualRest, onOpenFeedback, onUpdateAll, onTidyUp,
+  onAddManual, onOpenWizard, manualResting = false, onToggleManualRest, onOpenFeedback,
   onCreateCategory, onCategoryContext, onGameContext,
   onMoveGameToCategory,
   onReorderGameInCategory, onReorderCategory,
@@ -171,10 +171,8 @@ export default function Sidebar({
   };
   const [libSettingsOpen, setLibSettingsOpen] = React.useState(false);
   const libSettingsBtnRef = React.useRef(null);
-  const [refreshMenuOpen, setRefreshMenuOpen] = React.useState(false);
   const [categoriesMenuOpen, setCategoriesMenuOpen] = React.useState(false);
   const [sortMenuOpen, setSortMenuOpen] = React.useState(false);
-  const refreshMenuRef = React.useRef(null);
   const categoriesMenuRef = React.useRef(null);
   const sortMenuRef = React.useRef(null);
   const treeScrollRef = React.useRef(null);
@@ -198,17 +196,16 @@ export default function Sidebar({
   // Every small Library popover follows the same simple escape hatch: click
   // anywhere outside it (or press Escape) and it goes away.
   React.useEffect(() => {
-    if (!refreshMenuOpen && !categoriesMenuOpen && !sortMenuOpen) return undefined;
+    if (!categoriesMenuOpen && !sortMenuOpen) return undefined;
     const close = (event) => {
-      if (refreshMenuRef.current && !refreshMenuRef.current.contains(event.target)) setRefreshMenuOpen(false);
       if (categoriesMenuRef.current && !categoriesMenuRef.current.contains(event.target)) setCategoriesMenuOpen(false);
       if (sortMenuRef.current && !sortMenuRef.current.contains(event.target)) setSortMenuOpen(false);
     };
-    const escape = (event) => { if (event.key === 'Escape') { setRefreshMenuOpen(false); setCategoriesMenuOpen(false); setSortMenuOpen(false); } };
+    const escape = (event) => { if (event.key === 'Escape') { setCategoriesMenuOpen(false); setSortMenuOpen(false); } };
     document.addEventListener('mousedown', close);
     document.addEventListener('keydown', escape);
     return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', escape); };
-  }, [refreshMenuOpen, categoriesMenuOpen, sortMenuOpen]);
+  }, [categoriesMenuOpen, sortMenuOpen]);
 
   // Tutorial controls Visuals directly, rather than synthetically clicking
   // the toggle. That avoids a timer race which used to leave it flickering or
@@ -399,7 +396,7 @@ export default function Sidebar({
       {/* Secondary launcher filter row moved BELOW the Add/Wizard toolbar
           in v1.3.1 — see the combined row below. */}
 
-      {/* Toolbar row 2 — Wizard / (flex) / Refresh / Visuals / TwoRow.
+      {/* Toolbar row 2 — Wizard / (flex) / Visuals / TwoRow.
           Labels collapse to icon-only when the sidebar is especially narrow so the
           row stays tidy without wrapping or truncating. */}
       {(() => {
@@ -591,25 +588,6 @@ export default function Sidebar({
               <Wand2 size={10} /> Auto-sort
             </button>
           )}
-          <div ref={refreshMenuRef} className="relative">
-            <button
-              data-testid="sidebar-refresh-menu-btn"
-              onClick={() => setRefreshMenuOpen((v) => !v)}
-              title="Refresh metadata or tidy up your library"
-              className="library-toolbar-control inline-flex shrink-0 items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] text-ink/85 hover:text-ink hover:border-[rgb(var(--accent)/0.62)]"
-            >
-              <RefreshCw size={10} /> Refresh
-            </button>
-            <AnimatePresence>
-              {refreshMenuOpen && (
-                <motion.div initial={{ opacity: 0, y: -6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }} onClick={(e) => e.stopPropagation()} className="library-toolbar-popover absolute right-0 z-30 mt-1 w-64 rounded-lg hairline shadow-2xl p-1.5">
-                  <button data-testid="refresh-menu-refresh" onClick={() => { setRefreshMenuOpen(false); onUpdateAll?.('missing'); }} className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left hover:bg-[rgb(var(--accent)/0.08)] transition-colors"><span className="flex items-center gap-2 text-[12px] font-semibold text-ink"><RefreshCw size={12} className="text-[rgb(var(--accent))]" />Refresh missing metadata</span><span className="text-[10.5px] text-muted">Targets incomplete or older metadata first. Manual edits stay protected.</span></button>
-                  <button data-testid="refresh-menu-full" onClick={() => { setRefreshMenuOpen(false); onUpdateAll?.('full'); }} className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left hover:bg-[rgb(var(--accent-2)/0.08)] transition-colors"><span className="flex items-center gap-2 text-[12px] font-semibold text-ink"><RefreshCw size={12} className="text-[rgb(var(--accent-2))]" />Full metadata refresh…</span><span className="text-[10.5px] text-muted">Shows the affected count and needs confirmation before it starts.</span></button>
-                  <button data-testid="refresh-menu-tidy" onClick={() => { setRefreshMenuOpen(false); onTidyUp?.(); }} className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left hover:bg-[rgb(var(--accent-2)/0.08)] transition-colors"><span className="flex items-center gap-2 text-[12px] font-semibold text-ink"><Sparkles size={12} className="text-[rgb(var(--accent-2))]" />Tidy up library</span><span className="text-[10.5px] text-muted">Review duplicates and games needing attention.</span></button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
         </div>
       )}
 

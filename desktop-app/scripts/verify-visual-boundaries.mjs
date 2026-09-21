@@ -110,6 +110,11 @@ assert.match(sidebarSource, /testid="sidebar-wizard-btn"/, 'Library must retain 
 assert.doesNotMatch(sidebarSource, /testid="sidebar-add-btn"|data-testid="add-menu-game"/, 'Library must not restore a duplicate Add-game control outside Wizard.');
 assert.match(wizardSource, /data-testid="wizard-manual-add-section"/, 'Wizard must visibly own the manual add route.');
 assert.match(wizardSource, /data-testid="wizard-add-manual-start-btn"/, 'Wizard manual add needs a direct action.');
+assert.match(wizardSource, /data-testid="wizard-library-care-section"/, 'Wizard must visibly own Library-wide refresh and tidy actions.');
+for (const testId of ['wizard-refresh-missing-btn', 'wizard-refresh-full-btn', 'wizard-tidy-library-btn']) {
+  assert.match(wizardSource, new RegExp(testId), `Wizard lost ${testId}`);
+}
+assert.doesNotMatch(sidebarSource, /sidebar-refresh-menu-btn|refresh-menu-refresh|refresh-menu-full|refresh-menu-tidy/, 'Library Refresh must not be duplicated outside Wizard.');
 assert.doesNotMatch(sidebarSource, /function LibrarySettingsPopover|function BgTexturePicker|function EffectsPopSlider|const BG_TEXTURES/);
 assert.doesNotMatch(sidebarSource, /function TwoColumnSections|function SectionWrap|function LibrarySection|function LibraryGameRow|function GameRow|function PinnedStrip|function CategoryContextMenu/);
 assert.doesNotMatch(sidebarSource, /function SideBtn|function TabPill|function LauncherDropdown|function LauncherPill/);

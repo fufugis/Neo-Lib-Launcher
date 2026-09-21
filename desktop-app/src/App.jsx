@@ -1501,8 +1501,6 @@ export default function App() {
           manualResting={manualRestActive}
           onToggleManualRest={toggleManualRest}
           onOpenFeedback={openFeedback}
-          onUpdateAll={requestMetadataRefresh}
-          onTidyUp={() => setTidyOpen(true)}
           onCreateCategory={() => setCatModal({ open: true, initial: null })}
           onCategoryContext={(category, anchor) => setCatCtx({ open: true, category, anchor })}
           onGameContext={handleGameContext}
@@ -1645,6 +1643,8 @@ export default function App() {
           setShowWizard,
           setWizardPrefillRoot,
           setWizardAutoScan,
+          requestMetadataRefresh,
+          openTidyUp: () => setTidyOpen(true),
           setMascotActivity,
           addToGames,
           library,
