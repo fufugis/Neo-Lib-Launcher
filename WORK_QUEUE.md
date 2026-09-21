@@ -6,6 +6,8 @@ This is the authoritative live queue. New user requests are appended here and re
 
 - [x] **Quiet release workflow** — GitHub Actions no longer runs the expensive Windows package build for every push to `main`. Builds now start only for an exact version tag or a deliberate manual dispatch, eliminating ordinary development-run spam while preserving release-candidate builds.
 
+- [x] **v1.7.9 GitHub renderer gate repair** — the launcher-isolation verifier now recognizes the already-audited widget package service added by the Home extension foundation. The stale allowlist no longer stops the release before Vite and Windows packaging can begin.
+
 - [x] **v1.7.9 quick hotfix notes and identity** — added concise player-facing notes for the Wizard-first Library workflow, full-workspace Wall, detailed list, and readability fixes; aligned package/About/in-app changelog/README/workflow/update discovery/release hardening to exact clean `v1.7.9`; created the Windows acceptance record. Source gates pass; Windows build and acceptance remain required before publication.
 
 - [x] **Readable Wall cover titles** — cover labels now keep a fixed 12px readable size and stable footer height at every density; long titles truncate with their full name available on hover instead of shrinking into unreadable text. Focused source checks pass; rebuilt Windows visual acceptance remains required.

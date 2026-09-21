@@ -121,7 +121,7 @@ for (const heading of ['One Library Wizard', 'Full-workspace Wall', 'Two Wall vi
   assert(releaseNotes.includes(heading), `v1.7.9 release notes are missing ${heading}`);
 }
 for (const requiredAcceptanceStep of [
-  '85 native commands have one registration and request/response contracts.',
+  '88 native commands have one registration and request/response contracts.',
   'Control Center gear opens on the first click',
   'Delayed hover text remains entirely inside every screen edge',
   'known fully updated installed Steam game',

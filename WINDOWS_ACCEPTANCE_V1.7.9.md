@@ -18,7 +18,7 @@ have a written accepted deferral.
 - [x] Renderer-binding checks pass.
 - [x] Metadata workflow checks pass.
 - [x] Clean update contract expects exact tag `v1.7.9`.
-- [x] 85 native commands have one registration and request/response contracts.
+- [x] 88 native commands have one registration and request/response contracts.
 - [ ] Candidate inspector passes against the newly built package.
 
 ## Windows interaction

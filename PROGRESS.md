@@ -1,5 +1,7 @@
 # NEO-LIB progress
 
+- **v1.7.9 GitHub build blocker is repaired in source** — the failed tag run stopped inside the launcher-isolation verifier because its explicit local-service allowlist had not been updated when the Home widget package service was added. That known service is now included; the safety boundary remains strict for every unrecognized module.
+
 - **GitHub build spam is fixed in source** — ordinary `main` pushes no longer start a Windows installer build. GitHub Actions now runs only when an exact version tag is pushed or when you deliberately start a manual build. The in-progress `v1.7.9` tag run remains the intended release-candidate build.
 
 - **v1.7.9 is source-aligned** — concise patch notes now cover the Wizard-first Library workflow, full-screen Wall, detailed list and readable cover labels/badges. Package identity, Settings/About, in-app changelog, README, update contract, workflow release body, hardening checks and Windows acceptance record all agree on clean `v1.7.9`. Source gates pass; a rebuilt Windows candidate and hands-on acceptance are still required before publication.
