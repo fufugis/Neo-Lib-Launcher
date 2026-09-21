@@ -60,7 +60,19 @@ export default function CoverWall({ games = [], density = 5, onDensityChange, on
 
 function WallCovers({ games, tiles, titleSize, onSelect }) {
   if (!games.length) return <EmptyWall />;
-  return <div className={`grid ${tiles >= 9 ? 'gap-2' : 'gap-3'}`} style={{ gridTemplateColumns: `repeat(${tiles}, minmax(0, 1fr))` }}>{games.map((game, index) => { const rating = personalRating(game); return <motion.button key={game.id} type="button" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1 }} transition={{ duration: 0.2, delay: Math.min(index, 20) * 0.018 }} onClick={() => onSelect?.(game.id)} className="group min-w-0 overflow-hidden rounded-xl border border-[rgb(var(--border)/0.78)] bg-[rgb(var(--panel)/0.42)] text-left shadow-[0_10px_25px_-20px_rgba(0,0,0,.95)] transition hover:-translate-y-1 hover:border-[rgb(var(--accent)/0.72)] hover:bg-[rgb(var(--accent)/0.08)] hover:shadow-[0_16px_35px_-18px_rgb(var(--accent)/0.48)]" title={`Open ${game.name || 'game'} Preview`}><div className="relative aspect-[2/3] overflow-hidden bg-[rgb(var(--surface)/0.7)]"><CoverArtwork game={game} eager={index < 18} /><span className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/80 via-black/22 to-transparent" />{rating && <span data-testid={`cover-wall-rating-${game.id}`} className={`pointer-events-none absolute right-0 top-0 z-10 rounded-bl-lg border-b border-l border-amber-100/70 bg-amber-300 font-black leading-none text-amber-950 shadow-[0_3px_14px_rgba(0,0,0,.65)] ${tiles >= 9 ? 'px-1.5 py-1 text-[8px]' : tiles >= 7 ? 'px-2 py-1.5 text-[9px]' : 'px-2.5 py-1.5 text-[11px]'}`} title={`Your personal rating: ${rating} out of 5`}>★ {rating}</span>}</div><span className="block truncate px-2.5 py-2 font-bold text-ink group-hover:text-[rgb(var(--accent))]" style={{ fontSize: `${titleSize}px` }}>{game.name || 'Untitled game'}</span></motion.button>; })}</div>;
+  return <div className={`grid ${tiles >= 9 ? 'gap-2' : 'gap-3'}`} style={{ gridTemplateColumns: `repeat(${tiles}, minmax(0, 1fr))` }}>
+    {games.map((game, index) => {
+      const rating = personalRating(game);
+      return <motion.button key={game.id} type="button" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1 }} transition={{ duration: 0.2, delay: Math.min(index, 20) * 0.018 }} onClick={() => onSelect?.(game.id)} className="group min-w-0 overflow-hidden rounded-xl border border-[rgb(var(--border)/0.78)] bg-[rgb(var(--panel)/0.42)] text-left shadow-[0_10px_25px_-20px_rgba(0,0,0,.95)] transition hover:-translate-y-1 hover:border-[rgb(var(--accent)/0.72)] hover:bg-[rgb(var(--accent)/0.08)] hover:shadow-[0_16px_35px_-18px_rgb(var(--accent)/0.48)]" title={`Open ${game.name || 'game'} Preview`}>
+        <div className="relative aspect-[2/3] overflow-hidden bg-[rgb(var(--surface)/0.7)]">
+          <CoverArtwork game={game} eager={index < 18} />
+          <span className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/80 via-black/22 to-transparent" />
+          {rating && <span data-testid={`cover-wall-rating-${game.id}`} className="pointer-events-none absolute right-1 top-1 z-10 inline-flex min-w-12 items-center justify-center rounded-md border border-amber-100/90 bg-amber-300 px-2 py-1 text-[10px] font-black leading-none tracking-[0.04em] text-amber-950 shadow-[0_3px_14px_rgba(0,0,0,.72)]" title={`Your personal rating: ${rating} out of 5`} aria-label={`Your personal rating: ${rating} out of 5`}>★ {rating}</span>}
+        </div>
+        <span className="block truncate px-2.5 py-2 font-bold text-ink group-hover:text-[rgb(var(--accent))]" style={{ fontSize: `${titleSize}px` }}>{game.name || 'Untitled game'}</span>
+      </motion.button>;
+    })}
+  </div>;
 }
 
 function WallDetails({ games, onSelect }) {

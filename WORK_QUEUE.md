@@ -4,6 +4,8 @@ This is the authoritative live queue. New user requests are appended here and re
 
 ## In progress
 
+- [x] **Readable Wall rating badges** — personal ratings on cover cards now retain a fixed readable yellow badge instead of shrinking to 8px in dense views. Focused source checks pass; rebuilt Windows visual acceptance remains required.
+
 - [x] **Full-workspace Wall + detailed list** — Wall now hides the Library pane and uses the entire content workspace, with clear Home and Library return actions. Its large view chooser switches between the side-by-side original-cover wall and a factual game list showing main genre, release date, last played, measured install size, tracked hours, source and personal rating. Selecting a game returns to its normal Preview. Focused source checks pass; rebuilt Windows visual acceptance remains required.
 
 - [x] **Single Wizard library entry point** — removed the duplicate Library Add and Refresh menus. Wizard is now the one place to add a single executable, scan a folder, import an installed launcher, refresh existing metadata, or tidy the library; category creation remains under Categories and Tools retains its separate Add tool route. Focused source checks pass; rebuilt Windows interaction acceptance remains required.
