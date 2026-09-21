@@ -89,6 +89,7 @@ const libraryToolbarSource = read('src/components/library/LibraryToolbarControls
 const controlMenuSource = read('src/components/library/AppControlMenu.jsx');
 const changelogModalSource = read('src/components/ChangelogModal.jsx');
 const hoverTipsSource = read('src/components/HoverTips.jsx');
+const titleBarSource = read('src/components/TitleBar.jsx');
 const stylesSource = read('src/styles.css');
 const themeCatalogSource = read('src/lib/utils.js');
 assert.equal((themeCatalogSource.match(/tone: 'bright'/g) || []).length, 4, 'Theme Studio must expose four bright themes.');
@@ -199,6 +200,8 @@ assert.match(controlMenuSource, /onMouseDown=\{\(event\) => event\.stopPropagati
 assert.match(controlMenuSource, /onPointerDown=\{\(event\) => event\.stopPropagation\(\)\}/);
 assert.match(controlMenuSource, /open && renderForegroundPortal\(/, 'Control Center must portal its actual menu directly, not pass a portal through an animation wrapper.');
 assert.doesNotMatch(controlMenuSource, /<AnimatePresence>/, 'Control Center must not pass a portal object through AnimatePresence.');
+assert.match(titleBarSource, /data-testid="titlebar-discord-btn"[\s\S]{0,900}data-testid="titlebar-reddit-btn"/, 'Reddit must sit beside the Discord title-bar action.');
+assert.match(titleBarSource, /https:\/\/www\.reddit\.com\/r\/NeoLibLauncher\//, 'The title-bar Reddit action must use the official NEO-LIB community URL.');
 assert.match(changelogModalSource, /return unseen\.length \? unseen : CHANGELOG\.slice\(0, 1\)/, 'Manual Patch notes must fall back to the current entry after the player has acknowledged it.');
 assert.doesNotMatch(changelogModalSource, /You&apos;re fully caught up/, 'Patch notes must not open as an empty caught-up screen.');
 assert.match(hoverTipsSource, /React\.useLayoutEffect/);

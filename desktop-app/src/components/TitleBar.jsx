@@ -1,13 +1,18 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Minus, Square, X, DownloadCloud, MessageCircle, Heart } from 'lucide-react';
+import { Minus, Square, X, DownloadCloud, MessageCircle, MessagesSquare, Heart } from 'lucide-react';
 
 const DISCORD_INVITE = 'https://discord.gg/spk6QWREk8';
+const REDDIT_COMMUNITY = 'https://www.reddit.com/r/NeoLibLauncher/';
 
 export default function TitleBar({ search, setSearch, currentVersion, updateAvailable, latestVersion, onClickUpdate, onOpenFeedback, onDonate }) {
   const openDiscord = () => {
     if (typeof window !== 'undefined' && window.api?.openExternal) window.api.openExternal(DISCORD_INVITE);
     else window.open(DISCORD_INVITE, '_blank');
+  };
+  const openReddit = () => {
+    if (typeof window !== 'undefined' && window.api?.openExternal) window.api.openExternal(REDDIT_COMMUNITY);
+    else window.open(REDDIT_COMMUNITY, '_blank');
   };
   return (
     <div
@@ -48,6 +53,15 @@ export default function TitleBar({ search, setSearch, currentVersion, updateAvai
         >
           <MessageCircle size={12} className="transition-transform group-hover:rotate-[-6deg]" />
           <span className="hidden min-[1100px]:inline">Discord</span>
+        </button>
+        <button
+          data-testid="titlebar-reddit-btn"
+          onClick={openReddit}
+          title="Visit the official NEO-LIB subreddit — share ideas, feedback and setups"
+          className="titlebar-action group"
+        >
+          <MessagesSquare size={12} className="transition-transform group-hover:rotate-[6deg]" />
+          <span className="hidden min-[1100px]:inline">Reddit</span>
         </button>
         {onDonate && (
           <button
