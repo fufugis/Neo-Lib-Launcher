@@ -1,7 +1,7 @@
 {
   "name": "neo-lib",
   "productName": "NEO-LIB",
-  "version": "1.7.8",
+  "version": "1.7.9",
   "description": "A synthwave-flavored, multi-source game library for Windows.",
   "main": "electron/main.js",
   "author": {

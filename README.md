@@ -2,7 +2,7 @@
 
 > A synthwave-flavored, **fully portable Windows game library** that unifies every game on your PC — Steam, Epic, EA App, GOG, standalone — into one neon-lit interface. No accounts. No cloud. No telemetry.
 
-![status](https://img.shields.io/badge/status-testing-f59e0b) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.7.8-8a4fff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![status](https://img.shields.io/badge/status-testing-f59e0b) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![release](https://img.shields.io/badge/release-v1.7.9-8a4fff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
 ---
 
@@ -164,14 +164,12 @@ Library + settings live at `%APPDATA%\NEO-LIB\`. Delete that folder to factory-r
 
 ## 📜 Patch notes
 
-### v1.7.8 — Architecture, Reliability & FiFi Hotfix Update *(testing candidate — not published)*
+### v1.7.9 — Library workflow and Wall polish hotfix *(testing candidate — not published)*
 
-This is NEO-LIB's largest update so far: a complete maintainability and safety
-rebuild beneath the existing launcher, plus FiFi, all-launcher metadata/news,
-stronger privacy, reviewed refresh results, a reorganised Home, Controller Center,
-Special-theme artwork and extensive reliability fixes.
+This focused follow-up keeps the v1.7.8 architecture work and makes Library and
+Wall easier to use.
 
-➡️ **[Read the complete v1.7.8 notes, including the original release notes and latest hotfixes](RELEASE_NOTES_v1.7.8.md)**
+➡️ **[Read the v1.7.9 notes](RELEASE_NOTES_v1.7.9.md)**
 
 Release pipeline hardening: GitHub now refuses to publish a build when the feedback relay is missing or malformed, verifies the configured relay is really present in the packaged renderer, and rejects known credential signatures or packaged `.env` files. Optional Discord Rich Presence is generated before build provenance, accepts only a numeric application ID and is verified in the final archive. Candidate evidence records hashes and enabled/disabled facts without writing integration values.
 

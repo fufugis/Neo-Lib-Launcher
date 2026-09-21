@@ -4,6 +4,8 @@ This is the authoritative live queue. New user requests are appended here and re
 
 ## In progress
 
+- [x] **v1.7.9 quick hotfix notes and identity** — added concise player-facing notes for the Wizard-first Library workflow, full-workspace Wall, detailed list, and readability fixes; aligned package/About/in-app changelog/README/workflow/update discovery/release hardening to exact clean `v1.7.9`; created the Windows acceptance record. Source gates pass; Windows build and acceptance remain required before publication.
+
 - [x] **Readable Wall cover titles** — cover labels now keep a fixed 12px readable size and stable footer height at every density; long titles truncate with their full name available on hover instead of shrinking into unreadable text. Focused source checks pass; rebuilt Windows visual acceptance remains required.
 
 - [x] **Readable Wall rating badges** — personal ratings on cover cards now retain a fixed readable yellow badge instead of shrinking to 8px in dense views. Focused source checks pass; rebuilt Windows visual acceptance remains required.

@@ -7,8 +7,8 @@ const appRoot = path.resolve(__dirname, '..');
 const repoRoot = path.resolve(appRoot, '..');
 const read = relative => fs.readFileSync(path.join(appRoot, relative), 'utf8');
 const windowsWorkflow = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'build-windows.yml'), 'utf8');
-const releaseNotes = fs.readFileSync(path.join(repoRoot, 'RELEASE_NOTES_v1.7.8.md'), 'utf8');
-const windowsAcceptance = fs.readFileSync(path.join(repoRoot, 'WINDOWS_ACCEPTANCE_V1.7.8.md'), 'utf8');
+const releaseNotes = fs.readFileSync(path.join(repoRoot, 'RELEASE_NOTES_v1.7.9.md'), 'utf8');
+const windowsAcceptance = fs.readFileSync(path.join(repoRoot, 'WINDOWS_ACCEPTANCE_V1.7.9.md'), 'utf8');
 const releaseHardening = fs.readFileSync(path.join(repoRoot, 'RELEASE_HARDENING.md'), 'utf8');
 const releaseConfigBuilder = read('scripts/prepare-release-config.cjs');
 const localReleaseBuilder = read('scripts/build-release.ps1');
@@ -116,9 +116,9 @@ assert(
 );
 assert(localReleaseBuilder.includes("@('run', 'package:portable')"), 'local release command must use the shared portable packager');
 assert(localReleaseBuilder.includes("@('run', 'inspect:release')"), 'local release command must finish with candidate inspection');
-assert(windowsWorkflow.includes('body_path: RELEASE_NOTES_v1.7.8.md'), 'GitHub release must use the reviewed v1.7.8 release notes');
-for (const heading of ['A rebuilt foundation', 'Meet FiFi', 'Private games stay private everywhere', 'Trustworthy builds and updates', 'Release status']) {
-  assert(releaseNotes.includes(heading), `v1.7.8 release notes are missing ${heading}`);
+assert(windowsWorkflow.includes('body_path: RELEASE_NOTES_v1.7.9.md'), 'GitHub release must use the reviewed v1.7.9 release notes');
+for (const heading of ['One Library Wizard', 'Full-workspace Wall', 'Two Wall views', 'Readable Wall polish', 'Release status']) {
+  assert(releaseNotes.includes(heading), `v1.7.9 release notes are missing ${heading}`);
 }
 for (const requiredAcceptanceStep of [
   '85 native commands have one registration and request/response contracts.',
@@ -151,13 +151,13 @@ for (const required of ['electron/**/*', 'dist-renderer/**/*', 'package.json']) 
 
 const appSource = read('src/App.jsx');
 const changelogSource = read('src/components/changelog/changelog-content.mjs');
-const currentChangelogSource = read('src/components/changelog/v178-changelog.mjs');
+const currentChangelogSource = read('src/components/changelog/v179-changelog.mjs');
 const appVersion = appSource.match(/const APP_VERSION = ['"]([^'"]+)['"]/i)?.[1];
 const changelogVersion = currentChangelogSource.match(/version:\s*['"]([^'"]+)['"]/i)?.[1];
 assert.equal(appVersion, packageJson.version, 'renderer and package versions must match');
 assert.equal(changelogVersion, packageJson.version, 'newest changelog and package versions must match');
-assert(changelogSource.includes("import { V178_CHANGELOG } from './v178-changelog.mjs'"), 'displayed changelog must use the curated current release entry');
-assert(changelogSource.includes('V178_CHANGELOG.version'), 'archived draft entry must not duplicate the displayed current release');
+assert(changelogSource.includes("import { V179_CHANGELOG } from './v179-changelog.mjs'"), 'displayed changelog must use the curated current release entry');
+assert(changelogSource.includes('V179_CHANGELOG,'), 'archived draft entry must not duplicate the displayed current release');
 
 const mainSource = read('electron/main.js');
 assert(!mainSource.includes('ipcMain.handle('), 'native commands must use the duplicate-safe IPC registry');

@@ -33,7 +33,7 @@ import { pickDetectedLauncher } from './services/launcher-detection-workflow.mjs
 import { createAutoSortWorkflow } from './services/auto-sort-workflow.mjs';
 
 // Read app version once — used by the update checker for comparison.
-const APP_VERSION = '1.7.8';
+const APP_VERSION = '1.7.9';
 import { uid, guessNameFromPath, hashPin, formatPlaytime } from './lib/utils';
 import { normalizeGenreProfile, GENRE_TAXONOMY_VERSION } from './lib/genreTaxonomy';
 import { setSoundPack } from './lib/sound';

@@ -1,5 +1,7 @@
 # NEO-LIB progress
 
+- **v1.7.9 is source-aligned** — concise patch notes now cover the Wizard-first Library workflow, full-screen Wall, detailed list and readable cover labels/badges. Package identity, Settings/About, in-app changelog, README, update contract, workflow release body, hardening checks and Windows acceptance record all agree on clean `v1.7.9`. Source gates pass; a rebuilt Windows candidate and hands-on acceptance are still required before publication.
+
 - **Wall cover titles are source-complete** — Wall no longer scales game names down with card density. Every cover keeps a stable readable label and truncates long names cleanly, with the full title available on hover. Focused source checks pass; rebuilt Windows visual acceptance remains required.
 
 - **Wall ratings are source-complete** — personal ratings on covers now use a fixed-size high-contrast yellow pill with clear spacing, so the score remains readable even in dense Wall layouts. Focused source checks pass; rebuilt Windows visual acceptance remains required.

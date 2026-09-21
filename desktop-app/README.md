@@ -4,15 +4,13 @@
 > fetches metadata from Steam / Epic / GOG, surfaces hand-picked deals, and
 > stays out of your way.
 
-![version](https://img.shields.io/badge/version-v1.7.8-8a4fff) ![status](https://img.shields.io/badge/status-testing-f59e0b) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
+![version](https://img.shields.io/badge/version-v1.7.9-8a4fff) ![status](https://img.shields.io/badge/status-testing-f59e0b) ![platform](https://img.shields.io/badge/platform-Windows%20x64-9b5cff) ![license](https://img.shields.io/badge/license-Proprietary-1a1a2e)
 
-### Latest — v1.7.8 (Architecture, Reliability & FiFi Hotfix Update — testing candidate)
+### Latest — v1.7.9 (Library workflow and Wall polish hotfix — testing candidate)
 
 The complete player-facing and GitHub Release notes are maintained in
-[`RELEASE_NOTES_v1.7.8.md`](../RELEASE_NOTES_v1.7.8.md). They retain the complete
-architecture rebuild, FiFi, launcher imports, metadata/news/update intelligence,
-privacy, Home, Special themes, controller foundations, performance, diagnostics and
-release safety without exposing the internal development ledger.
+[`RELEASE_NOTES_v1.7.9.md`](../RELEASE_NOTES_v1.7.9.md). The v1.7.8 architecture,
+FiFi, launcher imports and safety work remain part of this testing candidate.
 
 #### Major changes & new features
 
