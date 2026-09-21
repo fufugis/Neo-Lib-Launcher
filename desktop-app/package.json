@@ -10,7 +10,7 @@
   },
   "scripts": {
     "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && cross-env NODE_ENV=development electron .\"",
-    "prebuild:renderer": "node scripts/verify-launch-safety.cjs && npm run test:release-config && npm run test:feedback-relay && npm run test:feedback-fallback && npm run test:secrets && npm run test:fifi && npm run test:diagnostics && npm run test:renderer-bindings && npm run test:storage && npm run test:saves && npm run test:playtime && npm run test:storage-scan && npm run test:preview-facts && npm run test:capabilities && npm run test:artwork && npm run test:optimize && npm run test:game-watch && npm run test:game-launch && npm run test:providers && npm run test:ipc && npm run test:launchers && npm run test:renderer-state && npm run test:home-widgets && npm run test:widgets && npm run test:metadata-workflow && npm run test:category-privacy && npm run test:auto-sort && npm run test:update-discovery && npm run test:visual-boundaries && npm run test:operations && npm run test:release-hardening && npm run test:build-provenance && npm run test:release-candidate-inspector",
+    "prebuild:renderer": "node scripts/verify-launch-safety.cjs && npm run test:release-config && npm run test:feedback-relay && npm run test:feedback-fallback && npm run test:secrets && npm run test:fifi && npm run test:diagnostics && npm run test:renderer-bindings && npm run test:storage && npm run test:saves && npm run test:playtime && npm run test:storage-scan && npm run test:preview-facts && npm run test:capabilities && npm run test:artwork && npm run test:emulation && npm run test:optimize && npm run test:game-watch && npm run test:game-launch && npm run test:providers && npm run test:ipc && npm run test:launchers && npm run test:renderer-state && npm run test:home-widgets && npm run test:widgets && npm run test:metadata-workflow && npm run test:category-privacy && npm run test:auto-sort && npm run test:update-discovery && npm run test:visual-boundaries && npm run test:operations && npm run test:release-hardening && npm run test:build-provenance && npm run test:release-candidate-inspector",
     "test:release-config": "node scripts/verify-release-config.cjs",
     "prepare:release-config": "node scripts/prepare-release-config.cjs",
     "cleanup:release-config": "node scripts/cleanup-release-config.cjs",
@@ -27,6 +27,7 @@
     "test:preview-facts": "node scripts/verify-preview-game-facts.mjs",
     "test:capabilities": "node scripts/verify-game-capabilities.mjs",
     "test:artwork": "node scripts/verify-game-artwork.mjs",
+    "test:emulation": "node scripts/verify-emulation-library-model.mjs",
     "test:optimize": "node scripts/verify-junk-service.cjs && node scripts/verify-optimize-process-service.cjs",
     "test:game-watch": "node scripts/verify-external-game-watch-service.cjs",
     "test:game-launch": "node scripts/verify-game-launch-service.cjs",
