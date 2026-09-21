@@ -6,7 +6,7 @@ This is the authoritative live queue. New user requests are appended here and re
 
 - [x] **Quiet release workflow** — GitHub Actions no longer runs the expensive Windows package build for every push to `main`. Builds now start only for an exact version tag or a deliberate manual dispatch, eliminating ordinary development-run spam while preserving release-candidate builds.
 
-- [x] **v1.7.9 GitHub renderer gate repair** — the launcher-isolation verifier now recognizes the already-audited widget package service added by the Home extension foundation. The stale allowlist no longer stops the release before Vite and Windows packaging can begin.
+- [x] **v1.7.9 GitHub renderer gate repair** — the launcher-isolation verifier now recognizes the already-audited widget package service and current 88-command contract. GitHub Actions run `35636774870` passed renderer compilation, NSIS and portable packaging, candidate inspection and artifact upload from commit `a3f3d6d`, producing a 326.6 MB `NEO-LIB-Windows` artifact.
 
 - [x] **v1.7.9 quick hotfix notes and identity** — added concise player-facing notes for the Wizard-first Library workflow, full-workspace Wall, detailed list, and readability fixes; aligned package/About/in-app changelog/README/workflow/update discovery/release hardening to exact clean `v1.7.9`; created the Windows acceptance record. Source gates pass; Windows build and acceptance remain required before publication.
 
