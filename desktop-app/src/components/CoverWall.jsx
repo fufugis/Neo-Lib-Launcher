@@ -38,7 +38,6 @@ export default function CoverWall({ games = [], density = 5, onDensityChange, on
     return term ? games.filter((game) => String(game.name || '').toLowerCase().includes(term)) : games;
   }, [games, search]);
   const tiles = Math.max(3, Math.min(10, Number(density) || 5));
-  const titleSize = tiles >= 10 ? 8 : tiles >= 9 ? 8.5 : tiles >= 8 ? 9 : tiles >= 7 ? 10 : tiles >= 6 ? 11 : 12;
   const detailed = view === 'details';
 
   return <section className="h-full overflow-y-auto px-5 py-5 lg:px-7" data-testid="library-cover-wall" data-wall-layout={detailed ? 'details' : 'covers'}>
@@ -54,11 +53,11 @@ export default function CoverWall({ games = [], density = 5, onDensityChange, on
       {!detailed && <div className="mt-3 flex items-center justify-end gap-2"><span className="mr-auto text-[10px] text-muted">{visible.length} visible game{visible.length === 1 ? '' : 's'}</span><div className="flex items-center gap-2 rounded-xl border border-[rgb(var(--border)/0.78)] bg-[rgb(var(--surface)/0.42)] p-1.5"><button type="button" onClick={() => onDensityChange?.(Math.max(3, tiles - 1))} disabled={tiles <= 3} className="grid h-7 w-7 place-items-center rounded-lg text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink disabled:opacity-35" title="Larger cards"><Minus size={14} /></button><input aria-label="Cover Wall density" type="range" min="3" max="10" step="1" value={tiles} onChange={(event) => onDensityChange?.(Number(event.target.value))} className="w-28 accent-[rgb(var(--accent))]" /><button type="button" onClick={() => onDensityChange?.(Math.min(10, tiles + 1))} disabled={tiles >= 10} className="grid h-7 w-7 place-items-center rounded-lg text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink disabled:opacity-35" title="Smaller cards"><Plus size={14} /></button><span className="min-w-10 text-center text-[10px] font-black text-[rgb(var(--accent-2))]">{tiles}×{tiles}</span></div></div>}
     </header>
     {lockedCategories.length > 0 && <section className="mb-5 flex flex-wrap items-center gap-2 rounded-xl border border-[rgb(var(--accent)/0.32)] bg-[rgb(var(--accent)/0.07)] px-3 py-2.5" data-testid="cover-wall-private-categories"><span className="inline-flex items-center gap-1.5 pr-1 text-[9px] font-black uppercase tracking-[0.16em] text-[rgb(var(--accent-2))]"><LockKeyhole size={13} />Protected categories</span>{lockedCategories.map((category) => <button key={category.id} type="button" onClick={() => onUnlockCategory?.(category)} className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.44)] bg-[rgb(var(--panel)/0.54)] px-2.5 py-1.5 text-[10px] font-bold text-ink transition hover:border-[rgb(var(--accent))] hover:bg-[rgb(var(--accent)/0.16)]" title={`Enter PIN to show ${category.name} games`}><LockKeyhole size={12} className="text-[rgb(var(--accent))]" /><span>Show hidden category</span><span className="max-w-36 truncate text-[rgb(var(--accent-2))]">{category.name}</span></button>)}</section>}
-    {detailed ? <WallDetails games={visible} onSelect={onSelect} /> : <WallCovers games={visible} tiles={tiles} titleSize={titleSize} onSelect={onSelect} />}
+    {detailed ? <WallDetails games={visible} onSelect={onSelect} /> : <WallCovers games={visible} tiles={tiles} onSelect={onSelect} />}
   </section>;
 }
 
-function WallCovers({ games, tiles, titleSize, onSelect }) {
+function WallCovers({ games, tiles, onSelect }) {
   if (!games.length) return <EmptyWall />;
   return <div className={`grid ${tiles >= 9 ? 'gap-2' : 'gap-3'}`} style={{ gridTemplateColumns: `repeat(${tiles}, minmax(0, 1fr))` }}>
     {games.map((game, index) => {
@@ -69,7 +68,7 @@ function WallCovers({ games, tiles, titleSize, onSelect }) {
           <span className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/80 via-black/22 to-transparent" />
           {rating && <span data-testid={`cover-wall-rating-${game.id}`} className="pointer-events-none absolute right-1 top-1 z-10 inline-flex min-w-12 items-center justify-center rounded-md border border-amber-100/90 bg-amber-300 px-2 py-1 text-[10px] font-black leading-none tracking-[0.04em] text-amber-950 shadow-[0_3px_14px_rgba(0,0,0,.72)]" title={`Your personal rating: ${rating} out of 5`} aria-label={`Your personal rating: ${rating} out of 5`}>★ {rating}</span>}
         </div>
-        <span className="block truncate px-2.5 py-2 font-bold text-ink group-hover:text-[rgb(var(--accent))]" style={{ fontSize: `${titleSize}px` }}>{game.name || 'Untitled game'}</span>
+        <span data-testid="cover-wall-title" className="flex min-h-9 items-center truncate px-2.5 py-2 text-[12px] font-bold leading-tight text-ink group-hover:text-[rgb(var(--accent))]" title={game.name || 'Untitled game'}>{game.name || 'Untitled game'}</span>
       </motion.button>;
     })}
   </div>;

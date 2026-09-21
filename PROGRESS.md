@@ -1,5 +1,7 @@
 # NEO-LIB progress
 
+- **Wall cover titles are source-complete** — Wall no longer scales game names down with card density. Every cover keeps a stable readable label and truncates long names cleanly, with the full title available on hover. Focused source checks pass; rebuilt Windows visual acceptance remains required.
+
 - **Wall ratings are source-complete** — personal ratings on covers now use a fixed-size high-contrast yellow pill with clear spacing, so the score remains readable even in dense Wall layouts. Focused source checks pass; rebuilt Windows visual acceptance remains required.
 
 - **Full-screen Wall is source-complete** — Wall now becomes a lighter, full-workspace collection browser rather than squeezing beside Library. Two large choices switch between Side-by-side covers and Detailed list. Detailed rows show each game’s main genre, release date, last played date, measured install size, tracked playtime, source and personal rating; selecting a game goes to its normal Preview. Home and Library actions restore the normal sidebar workspace. Focused source checks pass; rebuilt Windows visual acceptance remains required.

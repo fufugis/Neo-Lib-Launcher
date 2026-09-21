@@ -4,6 +4,8 @@ This is the authoritative live queue. New user requests are appended here and re
 
 ## In progress
 
+- [x] **Readable Wall cover titles** — cover labels now keep a fixed 12px readable size and stable footer height at every density; long titles truncate with their full name available on hover instead of shrinking into unreadable text. Focused source checks pass; rebuilt Windows visual acceptance remains required.
+
 - [x] **Readable Wall rating badges** — personal ratings on cover cards now retain a fixed readable yellow badge instead of shrinking to 8px in dense views. Focused source checks pass; rebuilt Windows visual acceptance remains required.
 
 - [x] **Full-workspace Wall + detailed list** — Wall now hides the Library pane and uses the entire content workspace, with clear Home and Library return actions. Its large view chooser switches between the side-by-side original-cover wall and a factual game list showing main genre, release date, last played, measured install size, tracked hours, source and personal rating. Selecting a game returns to its normal Preview. Focused source checks pass; rebuilt Windows visual acceptance remains required.

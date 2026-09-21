@@ -197,6 +197,8 @@ assert.match(coverWallSource, /aspect-\[2\/3\]/, 'Cover Wall must present games 
 assert.match(coverWallSource, /Original cover unavailable/, 'Missing portrait art must have an honest readable fallback card.');
 assert.match(coverWallSource, /data-testid=\{`cover-wall-rating-\$\{game\.id\}`\}/, 'Rated Cover Wall games need a visible personal-rating tag.');
 assert.match(coverWallSource, /absolute right-1 top-1 z-10[^\n]*min-w-12[^\n]*bg-amber-300[^\n]*text-\[10px\]/, 'Cover Wall rating tags must remain a readable yellow upper-right badge at every density.');
+assert.match(coverWallSource, /data-testid="cover-wall-title"[^\n]*text-\[12px\]/, 'Cover titles must retain a readable fixed size at every Wall density.');
+assert.doesNotMatch(coverWallSource, /titleSize|tiles >= 10 \? 8/, 'Cover titles must truncate rather than shrinking below readable size in dense Wall layouts.');
 assert.match(appSource, /const wallActive = settings\.mode === 'library' && libraryViewMode === 'wall'/, 'Wall must have an explicit full-workspace state.');
 assert.match(appSource, /\{!wallActive && <Sidebar/, 'Wall must hide the Library sidebar while it is active.');
 assert.match(coverWallSource, /data-testid="wall-view-covers"/, 'Wall must offer the large side-by-side cover view choice.');
