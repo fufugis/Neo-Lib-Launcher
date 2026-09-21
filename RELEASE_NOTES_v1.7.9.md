@@ -19,10 +19,18 @@ Library and Wall easier to use.
   of shrinking them into unreadable text.
 - **Community shortcut** — Reddit remains immediately beside Discord in the
   title bar for the official NEO-LIB community.
+- **Editable Home widget grid** — Home now has a clear Unlock/Done mode. Widgets
+  reorder live while dragged, resize from a corner grip within safe content
+  floors, remember their sizes and expose title-bar menus for reorder, hide,
+  resize and reset actions.
+- **Compact widget manager** — built-in and imported widgets use tidy
+  three-column cards with the author inline, short descriptions, concise size
+  facts and an accessible eye-only visibility control.
 
 ## Verification
 
-Focused visual-boundary, renderer-binding and metadata-workflow checks pass.
+Focused Home-widget, visual-boundary, renderer-binding and metadata-workflow
+checks pass, and the complete renderer prebuild source gate passes.
 Rebuilt Windows visual and interaction acceptance remains required before this
 candidate is published as a public release.
 

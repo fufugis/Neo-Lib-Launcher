@@ -1,25 +1,24 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Archive, CalendarDays, ChevronLeft, ChevronRight, Clock3, Download, EyeOff, ExternalLink, FileUp, FolderOpen, Gamepad2, GripVertical, HardDrive, LockKeyhole, Newspaper, Puzzle, RefreshCw, ShieldCheck, Sparkles, Star, Trophy, X } from 'lucide-react';
+import { Archive, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Download, EyeOff, ExternalLink, FileUp, FolderOpen, Gamepad2, Grip, GripVertical, HardDrive, LockKeyhole, Maximize2, Menu, Minimize2, Move, Newspaper, Puzzle, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Star, Trophy, Unlock, X } from 'lucide-react';
 import UpdateHistoryModal from './UpdateHistoryModal';
 import { PLATFORM, added, getChronicle, getLibraryHealth, getRecommendations, hours, maskHomeNews, maskHomeUpdates, normaliseGameUpdates, platformOf, relative } from './home/home-model.mjs';
 import { createBoundedOperation } from '../services/bounded-operation.mjs';
 import { OPERATION_STATUS } from '../state/operation-state.mjs';
-import { HOME_WIDGET_BY_ID, homeWidgetLabel, widgetsForSegment } from './home/home-widget-registry.mjs';
+import { HOME_WIDGET_BY_ID, HOME_WIDGET_GRID, homeWidget, normaliseWidgetSize, widgetsForSegment } from './home/home-widget-registry.mjs';
 import WidgetManagerModal from './home/WidgetManagerModal';
+import { renderForegroundPortal } from './ui/VisualBoundary';
 
 const RANGES = { today: { label: 'Today', days: 1 }, week: { label: 'This week', days: 7 }, month: { label: 'This month', days: 31 } };
 const HOME_SEGMENTS = [
+  { id: 'pinned', label: 'Home highlights', hint: 'Your headline activity and current library news.', icon: Sparkles, panes: widgetsForSegment('pinned').map((widget) => widget.id) },
   { id: 'play', label: 'Play & history', hint: 'Your sessions, favourites, ratings, and next adventure.', icon: Gamepad2, panes: widgetsForSegment('play').map((widget) => widget.id) },
   { id: 'updates', label: 'News & updates', hint: 'Available game updates and what just released.', icon: Download, panes: widgetsForSegment('updates').map((widget) => widget.id) },
   { id: 'system', label: 'Library & PC care', hint: 'Library health, storage, and the things worth checking.', icon: HardDrive, panes: widgetsForSegment('system').map((widget) => widget.id) },
 ];
 const HOME_PANE_IDS = Object.keys(HOME_WIDGET_BY_ID);
-// These pairs deliberately save vertical space while keeping their contents
-// readable: the dashboard becomes one column again automatically on compact
-// windows. All items remain individual panes, so they keep the existing
-// drag/reorder and hide/show behavior instead of becoming inseparable cards.
-const HALF_WIDTH_HOME_PANES = new Set(['play-next', 'recent', 'best-games', 'chronicle', 'health', 'storage']);
+const HOME_GRID_ROW_HEIGHT = 108;
+const HOME_GRID_GAP = 12;
 // Home can unmount while a game is previewed. Keep a completed, local session
 // scan so Storage Control does not look empty when the player comes back.
 let STORAGE_SESSION_CACHE = { loading: false, scannedAt: 0, results: [], skipped: [] };
@@ -51,7 +50,10 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
   const [widgetManagerOpen, setWidgetManagerOpen] = React.useState(false);
   const [communityWidgets, setCommunityWidgets] = React.useState([]);
   const [widgetImportNotice, setWidgetImportNotice] = React.useState('');
+  const [layoutUnlocked, setLayoutUnlocked] = React.useState(false);
+  const [gridColumns, setGridColumns] = React.useState(HOME_WIDGET_GRID.desktop);
   const railRef = React.useRef(null);
+  const homeGridHostRef = React.useRef(null);
   const operations = React.useRef({});
   const rangeMeta = RANGES[range];
   const visibleTrackableGames = React.useMemo(() => games.filter((game) => !game.homeLocked), [games]);
@@ -95,6 +97,29 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
     ])];
   }, [homeLayout.hidden]);
   const updateLayout = (patch) => onUpdateHomeLayout?.({ ...homeLayout, ...patch });
+  const savedWidgetSizes = homeLayout.widgetSizes && typeof homeLayout.widgetSizes === 'object' ? homeLayout.widgetSizes : {};
+  const widgetSize = React.useCallback((id) => normaliseWidgetSize(homeWidget(id), savedWidgetSizes[id], gridColumns), [gridColumns, savedWidgetSizes]);
+  const resizeWidget = React.useCallback((id, nextSize) => {
+    const next = normaliseWidgetSize(homeWidget(id), nextSize, gridColumns);
+    if (!next) return;
+    updateLayout({ widgetSizes: { ...savedWidgetSizes, [id]: next } });
+  }, [gridColumns, homeLayout, onUpdateHomeLayout, savedWidgetSizes]);
+  const resetWidgetSize = React.useCallback((id) => {
+    const next = { ...savedWidgetSizes };
+    delete next[id];
+    updateLayout({ widgetSizes: next });
+  }, [homeLayout, onUpdateHomeLayout, savedWidgetSizes]);
+  React.useEffect(() => {
+    const host = homeGridHostRef.current;
+    if (!host) return undefined;
+    const chooseColumns = (width) => width >= 1120 ? HOME_WIDGET_GRID.desktop : width >= 720 ? HOME_WIDGET_GRID.compact : HOME_WIDGET_GRID.narrow;
+    const sync = () => setGridColumns(chooseColumns(host.getBoundingClientRect().width));
+    sync();
+    const observer = typeof window.ResizeObserver === 'function' ? new window.ResizeObserver((entries) => setGridColumns(chooseColumns(entries[0]?.contentRect?.width || host.getBoundingClientRect().width))) : null;
+    observer?.observe(host);
+    window.addEventListener('resize', sync);
+    return () => { observer?.disconnect(); window.removeEventListener('resize', sync); };
+  }, []);
   const loadCommunityWidgets = React.useCallback(async () => {
     const result = await window.api?.listWidgets?.();
     setCommunityWidgets(result?.ok && Array.isArray(result.widgets) ? result.widgets : []);
@@ -140,7 +165,7 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
       // player scrolls through a long dashboard while holding the handle.
       if (!targetId || targetId === draggedPane || targetSegment !== draggedPaneSegment) return;
       const rect = target.getBoundingClientRect();
-      const horizontal = HALF_WIDTH_HOME_PANES.has(draggedPane) && HALF_WIDTH_HOME_PANES.has(targetId);
+      const horizontal = widgetSize(draggedPane)?.cols < gridColumns && widgetSize(targetId)?.cols < gridColumns;
       const after = horizontal ? event.clientX > rect.left + rect.width / 2 : event.clientY > rect.top + rect.height / 2;
       setDragInsertion({ id: targetId, after, horizontal });
       setDragPreviewOrders((orders) => ({
@@ -151,8 +176,9 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', finishPaneDrag, { once: true });
     return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', finishPaneDrag); };
-  }, [draggedPane, draggedPaneSegment, finishPaneDrag, paneOrders, reorderPane]);
+  }, [draggedPane, draggedPaneSegment, finishPaneDrag, gridColumns, paneOrders, reorderPane, widgetSize]);
   const startPaneDrag = (segmentId, id, event) => {
+    if (!layoutUnlocked || event.button !== 0) return;
     event.preventDefault();
     event.currentTarget.setPointerCapture?.(event.pointerId);
     setDraggedPane(id);
@@ -182,6 +208,7 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
     return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', finishSegmentDrag); };
   }, [draggedSegment, finishSegmentDrag, reorderPane, segmentOrder]);
   const startSegmentDrag = (id, event) => {
+    if (!layoutUnlocked || event.button !== 0) return;
     event.preventDefault();
     event.currentTarget.setPointerCapture?.(event.pointerId);
     setDraggedSegment(id);
@@ -189,7 +216,14 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
     setSegmentDragInsertion(null);
   };
   const togglePane = (id, hidden) => updateLayout({ hidden: hidden ? [...new Set([...hiddenPanes, id])] : hiddenPanes.filter((item) => item !== id) });
-  const paneProps = (segmentId) => ({ paneOrder: activePaneOrders[segmentId], hiddenPanes, draggedPane, draggedPaneSegment, dragInsertion, startPaneDrag, togglePane, segmentId });
+  const paneProps = (segmentId) => ({ paneOrder: activePaneOrders[segmentId], hiddenPanes, draggedPane, draggedPaneSegment, dragInsertion, startPaneDrag, togglePane, segmentId, layoutUnlocked, setLayoutUnlocked, gridColumns, sizeForWidget: widgetSize, onResize: resizeWidget, onResetSize: resetWidgetSize });
+  const toggleLayoutLock = () => {
+    if (layoutUnlocked) {
+      finishPaneDrag();
+      finishSegmentDrag();
+    }
+    setLayoutUnlocked((value) => !value);
+  };
 
   React.useEffect(() => {
     const cached = normaliseGameUpdates(updatesCache);
@@ -291,6 +325,8 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
     setStorage(next);
   };
   const paneContent = {
+    'top-played': <TopPlayed games={topFive} scope={rankingScope} onScope={setRankingScope} rangeLabel={rangeMeta.label} summary={{ totalMinutes, gamesTouched: played.length, today: games.filter((game) => Number(game.lastPlayedAt || 0) >= Date.now() - 86400000).length, library: games.length }} onSelect={onSelect} />,
+    news: <PinnedNews news={visibleNews} railRef={railRef} onScroll={scrollNews} onOpen={setNewsDetail} rangeLabel={rangeMeta.label} />,
     'play-next': <PlayNext recommendations={recommendations} onSelect={onSelect} />,
     updates: <GameUpdates updates={visibleGameUpdates} onRefresh={() => refreshGameUpdates([], true)} onCancel={() => operations.current.updates?.cancel('Cancelled by the player.')} onResolve={(ids) => refreshGameUpdates(ids, true)} onSelect={onSelect} />,
     health: <LibraryHealth health={health} onOpenTidyUp={onOpenTidyUp} gameCount={games.length} />,
@@ -303,21 +339,27 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
   return <section className="flex h-full flex-col overflow-y-auto px-6 py-6 lg:px-9" data-testid="home-hub">
     <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div><p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[rgb(var(--accent-2))]">Your NEO-LIB</p><h1 className="font-display text-4xl font-black tracking-tight">Home</h1><p className="mt-1.5 text-[13px] text-muted">Your games, your time, and the updates that matter.</p></div>
-      <div className="flex flex-wrap justify-end gap-2">{hasPrivateCategories && <button type="button" onClick={onPanicLock} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-400/60 bg-red-400/[0.09] px-3 text-xs font-bold text-red-200 shadow-[0_0_16px_-7px_rgba(248,113,113,.95)] transition hover:bg-red-400/[0.18] hover:text-red-100" title="Lock every private category and return to a safe Library view" aria-label="Lock private categories"><ShieldCheck size={15} />Lock private</button>}<button type="button" onClick={() => setWidgetManagerOpen(true)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] px-3 text-xs font-bold text-ink transition hover:border-[rgb(var(--accent)/0.65)] hover:bg-[rgb(var(--accent)/0.10)]" title="Inspect and manage Home widgets"><Puzzle size={14} />Widgets</button><button type="button" onClick={startWidgetImport} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.62)] bg-[rgb(var(--accent)/0.10)] px-3 text-xs font-bold text-ink transition hover:bg-[rgb(var(--accent)/0.18)]" title="Choose a widget.json package to import"><FileUp size={14} />Import widget</button><div className="flex rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] p-1">{Object.entries(RANGES).map(([key, meta]) => <button key={key} onClick={() => setRange(key)} className={`rounded-md px-3 py-1.5 text-[11px] font-bold transition ${range === key ? 'bg-[rgb(var(--accent)/0.22)] text-ink shadow-[0_0_12px_-4px_rgb(var(--accent))]' : 'text-muted hover:text-ink'}`}>{meta.label}</button>)}</div>{hiddenPanes.length > 0 && <div className="flex items-center gap-1 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] p-1">{hiddenPanes.map((id) => <button key={id} onClick={() => togglePane(id, false)} className="rounded px-2 py-1.5 text-[10px] font-bold text-muted hover:bg-[rgb(var(--accent)/0.14)] hover:text-ink">Show {homeWidgetLabel(id)}</button>)}</div>}</div>
+      <div className="flex flex-wrap justify-end gap-2">
+        {hasPrivateCategories && <button type="button" onClick={onPanicLock} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-400/60 bg-red-400/[0.09] px-3 text-xs font-bold text-red-200 shadow-[0_0_16px_-7px_rgba(248,113,113,.95)] transition hover:bg-red-400/[0.18] hover:text-red-100" title="Lock every private category and return to a safe Library view" aria-label="Lock private categories"><ShieldCheck size={15} />Lock private</button>}
+        <button type="button" onClick={toggleLayoutLock} data-testid="home-layout-lock-toggle" aria-pressed={layoutUnlocked} className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition ${layoutUnlocked ? 'border-[rgb(var(--accent)/0.82)] bg-[rgb(var(--accent)/0.22)] text-ink shadow-[0_0_18px_-6px_rgb(var(--accent))]' : 'border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] text-ink hover:border-[rgb(var(--accent)/0.65)] hover:bg-[rgb(var(--accent)/0.10)]'}`} title={layoutUnlocked ? 'Save the widget arrangement and lock Home' : 'Unlock Home widgets for moving and resizing'}>{layoutUnlocked ? <Check size={14} /> : <Unlock size={14} />}{layoutUnlocked ? 'Done' : 'Unlock widgets'}</button>
+        <button type="button" onClick={() => setWidgetManagerOpen(true)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] px-3 text-xs font-bold text-ink transition hover:border-[rgb(var(--accent)/0.65)] hover:bg-[rgb(var(--accent)/0.10)]" title="Inspect and manage Home widgets"><Puzzle size={14} />Widgets</button>
+        <button type="button" onClick={startWidgetImport} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.62)] bg-[rgb(var(--accent)/0.10)] px-3 text-xs font-bold text-ink transition hover:bg-[rgb(var(--accent)/0.18)]" title="Choose a widget.json package to import"><FileUp size={14} />Import widget</button>
+        <div className="flex rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] p-1">{Object.entries(RANGES).map(([key, meta]) => <button key={key} onClick={() => setRange(key)} className={`rounded-md px-3 py-1.5 text-[11px] font-bold transition ${range === key ? 'bg-[rgb(var(--accent)/0.22)] text-ink shadow-[0_0_12px_-4px_rgb(var(--accent))]' : 'text-muted hover:text-ink'}`}>{meta.label}</button>)}</div>
+        {hiddenPanes.length > 0 && <button type="button" onClick={() => setWidgetManagerOpen(true)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] px-3 text-[10px] font-bold text-muted hover:text-ink"><EyeOff size={13} />{hiddenPanes.length} hidden</button>}
+      </div>
     </header>
 
     {hasLockedPrivateCategories && <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-400/35 bg-red-400/[0.065] px-4 py-3 shadow-[0_12px_28px_-22px_rgba(248,113,113,.9)]" data-testid="home-private-categories-locked-notice"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-red-400/40 bg-red-400/[0.10] text-red-200"><LockKeyhole size={15} /></span><span className="min-w-0"><span className="block text-[11px] font-black uppercase tracking-[0.16em] text-red-200">Private categories are locked</span><span className="mt-1 block text-[11px] leading-relaxed text-ink/90">Please unlock them in Library to view stats and news from these games.</span></span></div>}
 
-    {!hiddenPanes.includes('top-played') && <TopPlayed games={topFive} scope={rankingScope} onScope={setRankingScope} rangeLabel={rangeMeta.label} summary={{ totalMinutes, gamesTouched: played.length, today: games.filter((game) => Number(game.lastPlayedAt || 0) >= Date.now() - 86400000).length, library: games.length }} onSelect={onSelect} onHide={() => togglePane('top-played', true)} />}
-    {!hiddenPanes.includes('news') && <PinnedNews news={visibleNews} railRef={railRef} onScroll={scrollNews} onOpen={setNewsDetail} onHide={() => togglePane('news', true)} rangeLabel={rangeMeta.label} />}
-    <div className="home-segment-list flex flex-col">
+    {layoutUnlocked && <div className="mb-4 flex items-center gap-3 rounded-xl border border-[rgb(var(--accent)/0.48)] bg-[rgb(var(--accent)/0.09)] px-4 py-3" role="status" data-testid="home-layout-editing"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[rgb(var(--accent)/0.18)] text-[rgb(var(--accent-2))]"><Move size={15} /></span><div className="min-w-0 flex-1"><p className="text-xs font-black text-ink">Widget grid unlocked</p><p className="mt-0.5 text-[10px] text-muted">Drag widget title bars to reorder. Drag the corner grip to resize. Right-click any widget title bar for more actions.</p></div><span className="font-mono text-[10px] text-muted">{gridColumns} columns</span></div>}
+    <div ref={homeGridHostRef} className={`home-segment-list flex flex-col ${layoutUnlocked ? 'rounded-2xl bg-[linear-gradient(rgb(var(--border)/0.16)_1px,transparent_1px),linear-gradient(90deg,rgb(var(--border)/0.16)_1px,transparent_1px)] bg-[size:24px_24px] p-2' : ''}`} data-home-layout-unlocked={layoutUnlocked ? 'true' : 'false'}>
       {activeSegmentOrder.map((segmentId) => {
         const segment = HOME_SEGMENTS.find((item) => item.id === segmentId);
         if (!segment) return null;
         const Icon = segment.icon;
         const visible = activePaneOrders[segmentId].filter((id) => !hiddenPanes.includes(id));
-        return <HomeSegment key={segmentId} id={segmentId} title={segment.label} hint={segment.hint} icon={<Icon size={15} />} segmentOrder={activeSegmentOrder} draggedSegment={draggedSegment} dragInsertion={segmentDragInsertion} startSegmentDrag={startSegmentDrag}>
-          {visible.length ? <div className="grid grid-cols-1 gap-x-5 xl:grid-cols-2">{activePaneOrders[segmentId].map((id) => <HomePane key={id} id={id} {...paneProps(segmentId)}>{paneContent[id]}</HomePane>)}</div> : <p className="px-9 py-4 text-xs text-muted">Every pane in this section is hidden. Use the Show controls above to bring one back.</p>}
+        return <HomeSegment key={segmentId} id={segmentId} title={segment.label} hint={segment.hint} icon={<Icon size={15} />} segmentOrder={activeSegmentOrder} draggedSegment={draggedSegment} dragInsertion={segmentDragInsertion} startSegmentDrag={startSegmentDrag} layoutUnlocked={layoutUnlocked}>
+          {visible.length ? <div className="grid grid-flow-row-dense gap-3" style={{ gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))`, gridAutoRows: `${HOME_GRID_ROW_HEIGHT}px` }} data-home-grid={segmentId} data-home-grid-columns={gridColumns}>{visible.map((id) => <HomePane key={id} id={id} {...paneProps(segmentId)}>{paneContent[id]}</HomePane>)}</div> : <p className="px-9 py-4 text-xs text-muted">Every widget in this section is hidden. Open Widgets to bring one back.</p>}
         </HomeSegment>;
       })}
     </div>
@@ -332,7 +374,7 @@ function RailButton({ children, onClick }) { return <button onClick={onClick} cl
 // cards, and it remains separate from the Updates section beneath it.
 function PinnedNews({ news, railRef, onScroll, onOpen, onHide, rangeLabel }) {
   return <section className="mb-10 rounded-2xl border border-t-2 border-[rgb(var(--accent)/0.76)] bg-[linear-gradient(112deg,rgb(var(--accent)/0.18),rgb(var(--panel)/0.40)_46%,rgb(var(--accent-2)/0.12))] px-5 py-4 shadow-[0_0_40px_-24px_rgb(var(--accent)),0_18px_46px_-38px_rgb(var(--accent-2))]" data-testid="home-pinned-news">
-    <div className="mb-3.5 flex items-center justify-between gap-2"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl border border-[rgb(var(--accent-2)/0.46)] bg-[rgb(var(--accent-2)/0.14)] shadow-[0_0_18px_-4px_rgb(var(--accent-2))]"><Newspaper size={18} className="text-[rgb(var(--accent-2))]" /></span><div><p className="text-[10px] font-black uppercase tracking-[0.25em] text-[rgb(var(--accent-2))]">Weekly game news</p><h2 className="mt-0.5 text-base font-black tracking-wide">What changed in your library</h2><p className="mt-0.5 text-[10.5px] text-muted">Fresh patch notes, updates, and stories · {rangeLabel.toLowerCase()}</p></div></div><div className="flex items-center gap-1"><RailButton onClick={() => onScroll(-1)}><ChevronLeft size={13} /></RailButton><RailButton onClick={() => onScroll(1)}><ChevronRight size={13} /></RailButton><button onClick={onHide} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink" title="Hide This Week's News"><EyeOff size={13} /></button></div></div>
+    <div className="mb-3.5 flex items-center justify-between gap-2"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl border border-[rgb(var(--accent-2)/0.46)] bg-[rgb(var(--accent-2)/0.14)] shadow-[0_0_18px_-4px_rgb(var(--accent-2))]"><Newspaper size={18} className="text-[rgb(var(--accent-2))]" /></span><div><p className="text-[10px] font-black uppercase tracking-[0.25em] text-[rgb(var(--accent-2))]">Weekly game news</p><h2 className="mt-0.5 text-base font-black tracking-wide">What changed in your library</h2><p className="mt-0.5 text-[10.5px] text-muted">Fresh patch notes, updates, and stories · {rangeLabel.toLowerCase()}</p></div></div><div className="flex items-center gap-1"><RailButton onClick={() => onScroll(-1)}><ChevronLeft size={13} /></RailButton><RailButton onClick={() => onScroll(1)}><ChevronRight size={13} /></RailButton>{onHide && <button onClick={onHide} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink" title="Hide This Week's News"><EyeOff size={13} /></button>}</div></div>
     <div ref={railRef} onWheel={(event) => { if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) { event.currentTarget.scrollLeft += event.deltaY; event.preventDefault(); } }} className="flex gap-3 overflow-x-auto pb-1 [scrollbar-color:rgb(var(--accent))_transparent] [scrollbar-width:thin]">
       {news.loading && <p className="px-1 py-3 text-xs text-muted">Loading this week’s game news…</p>}
       {!news.loading && !news.items.length && <p className={`px-1 py-3 text-xs ${news.error ? 'text-amber-200' : 'text-muted'}`}>{news.error || `No game news in ${rangeLabel.toLowerCase()} yet.`}</p>}
@@ -379,34 +421,118 @@ function GameUpdates({ updates, onRefresh, onCancel, onResolve, onSelect }) {
   </section><UpdateHistoryModal item={historyItem} onClose={() => setHistoryItem(null)} /></>;
 }
 function TopPlayed({ games, scope, onScope, rangeLabel, summary, onSelect, onHide }) {
-  return <section className="mx-auto mb-6 w-full max-w-5xl rounded-2xl border border-[rgb(var(--accent)/0.34)] bg-[linear-gradient(110deg,rgb(var(--accent)/0.13),rgb(var(--panel)/0.44)_44%,rgb(var(--accent-2)/0.09))] p-4 shadow-[0_0_34px_-22px_rgb(var(--accent))]" data-testid="home-top-played"><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-2.5"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[rgb(var(--accent)/0.16)]"><Trophy size={17} className="text-[rgb(var(--accent))]" /></span><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">Your favorites in motion</p><h2 className="text-sm font-black">Top 5 played</h2></div></div><div className="flex items-center gap-2"><div className="flex rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.38)] p-0.5 text-[10px] font-bold"><button onClick={() => onScope('period')} className={`rounded-md px-2.5 py-1.5 ${scope === 'period' ? 'bg-[rgb(var(--accent)/0.20)] text-ink' : 'text-muted'}`}>{rangeLabel}</button><button onClick={() => onScope('all')} className={`rounded-md px-2.5 py-1.5 ${scope === 'all' ? 'bg-[rgb(var(--accent)/0.20)] text-ink' : 'text-muted'}`}>All time</button></div><button onClick={onHide} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink" title="Hide Top 5 played"><EyeOff size={13} /></button></div></div><div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-y border-[rgb(var(--border)/0.46)] py-2 text-[10px] text-muted"><span className="font-bold uppercase tracking-[0.14em] text-[rgb(var(--accent-2))]">{rangeLabel} at a glance</span><span><b className="text-ink">{hours(summary?.totalMinutes)}</b> played</span><span><b className="text-ink">{summary?.gamesTouched || 0}</b> games touched</span><span><b className="text-ink">{summary?.today || 0}</b> today</span><span><b className="text-ink">{summary?.library || 0}</b> in Library</span></div>{games.length ? <ol className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{games.map((game, index) => <li key={game.id}><button onClick={() => onSelect?.(game.id)} className="group flex w-full items-center gap-2.5 rounded-xl border border-[rgb(var(--border)/0.8)] bg-[rgb(var(--surface)/0.34)] p-2.5 text-left transition hover:-translate-y-0.5 hover:border-[rgb(var(--accent)/0.6)] hover:bg-[rgb(var(--surface)/0.58)]"><span className="w-4 font-mono text-[10px] font-black text-[rgb(var(--accent-2))]">{index + 1}</span><Cover game={game} className="h-10 w-[68px]" /><span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-black group-hover:text-[rgb(var(--accent))]">{game.name}</span><span className="mt-0.5 block text-[9.5px] text-muted">{PLATFORM[platformOf(game)]}</span><span className="mt-1 block text-[11px] font-bold text-[rgb(var(--accent-2))]">{hours(game.playtime)}</span></span></button></li>)}</ol> : <p className="mt-4 text-center text-xs text-muted">Import or track playtime to begin your ranking.</p>}</section>;
+  return <section className="mx-auto mb-6 w-full max-w-5xl rounded-2xl border border-[rgb(var(--accent)/0.34)] bg-[linear-gradient(110deg,rgb(var(--accent)/0.13),rgb(var(--panel)/0.44)_44%,rgb(var(--accent-2)/0.09))] p-4 shadow-[0_0_34px_-22px_rgb(var(--accent))]" data-testid="home-top-played"><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-2.5"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[rgb(var(--accent)/0.16)]"><Trophy size={17} className="text-[rgb(var(--accent))]" /></span><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">Your favorites in motion</p><h2 className="text-sm font-black">Top 5 played</h2></div></div><div className="flex items-center gap-2"><div className="flex rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.38)] p-0.5 text-[10px] font-bold"><button onClick={() => onScope('period')} className={`rounded-md px-2.5 py-1.5 ${scope === 'period' ? 'bg-[rgb(var(--accent)/0.20)] text-ink' : 'text-muted'}`}>{rangeLabel}</button><button onClick={() => onScope('all')} className={`rounded-md px-2.5 py-1.5 ${scope === 'all' ? 'bg-[rgb(var(--accent)/0.20)] text-ink' : 'text-muted'}`}>All time</button></div>{onHide && <button onClick={onHide} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink" title="Hide Top 5 played"><EyeOff size={13} /></button>}</div></div><div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-y border-[rgb(var(--border)/0.46)] py-2 text-[10px] text-muted"><span className="font-bold uppercase tracking-[0.14em] text-[rgb(var(--accent-2))]">{rangeLabel} at a glance</span><span><b className="text-ink">{hours(summary?.totalMinutes)}</b> played</span><span><b className="text-ink">{summary?.gamesTouched || 0}</b> games touched</span><span><b className="text-ink">{summary?.today || 0}</b> today</span><span><b className="text-ink">{summary?.library || 0}</b> in Library</span></div>{games.length ? <ol className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{games.map((game, index) => <li key={game.id}><button onClick={() => onSelect?.(game.id)} className="group flex w-full items-center gap-2.5 rounded-xl border border-[rgb(var(--border)/0.8)] bg-[rgb(var(--surface)/0.34)] p-2.5 text-left transition hover:-translate-y-0.5 hover:border-[rgb(var(--accent)/0.6)] hover:bg-[rgb(var(--surface)/0.58)]"><span className="w-4 font-mono text-[10px] font-black text-[rgb(var(--accent-2))]">{index + 1}</span><Cover game={game} className="h-10 w-[68px]" /><span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-black group-hover:text-[rgb(var(--accent))]">{game.name}</span><span className="mt-0.5 block text-[9.5px] text-muted">{PLATFORM[platformOf(game)]}</span><span className="mt-1 block text-[11px] font-bold text-[rgb(var(--accent-2))]">{hours(game.playtime)}</span></span></button></li>)}</ol> : <p className="mt-4 text-center text-xs text-muted">Import or track playtime to begin your ranking.</p>}</section>;
 }
-function HomeSegment({ id, title, hint, icon, children, segmentOrder, draggedSegment, dragInsertion, startSegmentDrag }) {
+function HomeSegment({ id, title, hint, icon, children, segmentOrder, draggedSegment, dragInsertion, startSegmentDrag, layoutUnlocked }) {
   const isDragging = draggedSegment === id;
   const isPeer = !!draggedSegment && !isDragging;
   const insertionHere = dragInsertion?.id === id;
   return <motion.section layout transition={{ layout: { duration: 0.26, ease: 'easeOut' } }} style={{ order: segmentOrder.indexOf(id) }} className={`group/homesegment relative mb-12 rounded-[1.35rem] border border-[rgb(var(--border)/0.72)] bg-[linear-gradient(128deg,rgb(var(--panel)/0.31),rgb(var(--surface)/0.16))] px-3 pb-2 pt-3 shadow-[0_20px_52px_-42px_rgb(var(--accent)/0.72)] ${isDragging ? 'z-20 scale-[0.992] ring-1 ring-[rgb(var(--accent)/0.45)]' : isPeer ? 'opacity-60' : ''}`} data-home-segment-id={id} data-testid={`home-segment-${id}`}>
     <div className="mb-4 flex items-center gap-3 border-b border-[rgb(var(--border)/0.58)] px-2 pb-3">
-      <button onPointerDown={(event) => startSegmentDrag(id, event)} className={`grid h-8 w-7 shrink-0 cursor-grab place-items-center rounded-lg transition active:cursor-grabbing ${isDragging ? 'bg-[rgb(var(--accent)/0.22)] text-[rgb(var(--accent))] shadow-[0_0_15px_rgb(var(--accent)/0.38)]' : 'text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink'}`} title={`Hold and drag to move the ${title} section`}><GripVertical size={15} /></button>
+      {layoutUnlocked && <button onPointerDown={(event) => startSegmentDrag(id, event)} className={`grid h-8 w-7 shrink-0 cursor-grab place-items-center rounded-lg transition active:cursor-grabbing ${isDragging ? 'bg-[rgb(var(--accent)/0.22)] text-[rgb(var(--accent))] shadow-[0_0_15px_rgb(var(--accent)/0.38)]' : 'text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink'}`} title={`Hold and drag to move the ${title} section`}><GripVertical size={15} /></button>}
       <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[rgb(var(--accent)/0.12)] text-[rgb(var(--accent))]">{icon}</span>
       <div className="min-w-0 flex-1"><h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-ink">{title}</h2><p className="mt-0.5 text-[10px] text-muted">{hint}</p></div>
-      <span className="hidden rounded-full border border-[rgb(var(--border)/0.72)] px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-muted sm:inline">Reorder section</span>
+      {layoutUnlocked && <span className="hidden rounded-full border border-[rgb(var(--accent)/0.40)] bg-[rgb(var(--accent)/0.08)] px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-[rgb(var(--accent-2))] sm:inline">Section unlocked</span>}
     </div>
     {insertionHere && <span className={`pointer-events-none absolute -left-2 -right-2 z-30 h-0.5 rounded-full bg-[rgb(var(--accent))] shadow-[0_0_14px_rgb(var(--accent))] ${dragInsertion.after ? '-bottom-6' : '-top-6'}`} />}
     {children}
   </motion.section>;
 }
 
-function HomePane({ id, children, paneOrder, hiddenPanes, draggedPane, draggedPaneSegment, dragInsertion, startPaneDrag, togglePane, segmentId }) {
+function HomePane({ id, children, paneOrder, hiddenPanes, draggedPane, draggedPaneSegment, dragInsertion, startPaneDrag, togglePane, segmentId, layoutUnlocked, setLayoutUnlocked, gridColumns, sizeForWidget, onResize, onResetSize }) {
   if (hiddenPanes.includes(id)) return null;
+  const widget = homeWidget(id);
   const isDragging = draggedPane === id;
   const isPeer = !!draggedPane && draggedPaneSegment === segmentId && !isDragging;
   const insertionHere = dragInsertion?.id === id;
-  const halfWidth = HALF_WIDTH_HOME_PANES.has(id);
+  const savedSize = sizeForWidget(id) || { cols: gridColumns, rows: 2 };
+  const [draftSize, setDraftSize] = React.useState(null);
+  const [contextMenu, setContextMenu] = React.useState(null);
+  const resizeSession = React.useRef(null);
+  const displaySize = draftSize || savedSize;
+  React.useEffect(() => { if (!resizeSession.current) setDraftSize(null); }, [savedSize.cols, savedSize.rows]);
+  React.useEffect(() => {
+    if (!contextMenu) return undefined;
+    const close = () => setContextMenu(null);
+    const onKey = (event) => { if (event.key === 'Escape') close(); };
+    window.addEventListener('pointerdown', close);
+    window.addEventListener('blur', close);
+    window.addEventListener('keydown', onKey);
+    return () => { window.removeEventListener('pointerdown', close); window.removeEventListener('blur', close); window.removeEventListener('keydown', onKey); };
+  }, [contextMenu]);
+  const calculateResize = (event) => {
+    const session = resizeSession.current;
+    if (!session) return savedSize;
+    return normaliseWidgetSize(widget, {
+      cols: session.size.cols + Math.round((event.clientX - session.x) / session.columnStep),
+      rows: session.size.rows + Math.round((event.clientY - session.y) / session.rowStep),
+    }, gridColumns);
+  };
+  const startResize = (event) => {
+    if (!layoutUnlocked || event.button !== 0) return;
+    event.preventDefault(); event.stopPropagation();
+    const grid = event.currentTarget.closest('[data-home-grid]');
+    const width = grid?.getBoundingClientRect().width || 1;
+    resizeSession.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, size: savedSize, columnStep: Math.max(1, (width - HOME_GRID_GAP * (gridColumns - 1)) / gridColumns + HOME_GRID_GAP), rowStep: HOME_GRID_ROW_HEIGHT + HOME_GRID_GAP };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    setDraftSize(savedSize);
+  };
+  const moveResize = (event) => {
+    if (resizeSession.current?.pointerId !== event.pointerId) return;
+    setDraftSize(calculateResize(event));
+  };
+  const finishResize = (event) => {
+    if (resizeSession.current?.pointerId !== event.pointerId) return;
+    const next = calculateResize(event);
+    resizeSession.current = null;
+    setDraftSize(null);
+    onResize(id, next);
+  };
+  const openContextMenu = (event) => {
+    event.preventDefault(); event.stopPropagation();
+    setContextMenu({ x: Math.min(event.clientX, window.innerWidth - 224), y: Math.min(event.clientY, window.innerHeight - 286) });
+  };
+  const openContextMenuButton = (event) => {
+    event.preventDefault(); event.stopPropagation();
+    const rect = event.currentTarget.getBoundingClientRect();
+    setContextMenu({ x: Math.min(rect.right, window.innerWidth - 224), y: Math.min(rect.bottom + 4, window.innerHeight - 286) });
+  };
+  const adjust = (cols, rows) => onResize(id, { cols: savedSize.cols + cols, rows: savedSize.rows + rows });
   const insertionClass = dragInsertion?.horizontal
     ? `-bottom-1 -top-1 h-auto w-0.5 ${dragInsertion.after ? '-right-3' : '-left-3'}`
     : `-left-2 -right-2 h-0.5 ${dragInsertion?.after ? '-bottom-3' : '-top-3'}`;
-  return <motion.div layout transition={{ layout: { duration: 0.22, ease: 'easeOut' } }} style={{ order: paneOrder.indexOf(id) }} className={`group/homepane relative mb-5 pl-9 ${halfWidth ? 'xl:col-span-1' : 'xl:col-span-2'} ${isDragging ? 'z-20 scale-[0.985] opacity-95' : isPeer ? 'opacity-60' : ''}`} data-home-pane-id={id} data-home-pane-segment={segmentId} data-testid={`home-pane-${id}`}><div className={`absolute left-0 top-2 z-30 flex items-center gap-0.5 transition-opacity ${isDragging ? 'opacity-100' : 'opacity-0 group-hover/homepane:opacity-100'}`}><button onPointerDown={(event) => startPaneDrag(segmentId, id, event)} className={`grid h-7 w-6 cursor-grab place-items-center rounded-md transition active:cursor-grabbing ${isDragging ? 'bg-[rgb(var(--accent)/0.22)] text-[rgb(var(--accent))] shadow-[0_0_14px_rgb(var(--accent)/0.45)]' : 'text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink'}`} title={`Hold and drag to reorder within ${HOME_SEGMENTS.find((segment) => segment.id === segmentId)?.label || 'this section'}`}><GripVertical size={14} /></button><button onClick={() => togglePane(id, true)} className="grid h-7 w-6 place-items-center rounded-md text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink" title="Hide this Home pane"><EyeOff size={12} /></button></div>{insertionHere && <span className={`pointer-events-none absolute z-30 rounded-full bg-[rgb(var(--accent))] shadow-[0_0_12px_rgb(var(--accent))] ${insertionClass}`} />}{children}</motion.div>;
+  return <motion.div layout transition={{ layout: { duration: 0.22, ease: 'easeOut' } }} style={{ order: paneOrder.indexOf(id), gridColumn: `span ${displaySize.cols} / span ${displaySize.cols}`, gridRow: `span ${displaySize.rows} / span ${displaySize.rows}` }} className={`group/homepane relative flex min-h-0 flex-col overflow-hidden rounded-xl border bg-[rgb(var(--surface)/0.16)] transition ${layoutUnlocked ? 'border-[rgb(var(--accent)/0.48)] ring-1 ring-[rgb(var(--accent)/0.10)]' : 'border-transparent'} ${isDragging ? 'z-20 scale-[0.985] opacity-95 shadow-2xl' : isPeer ? 'opacity-60' : ''}`} data-home-pane-id={id} data-home-pane-segment={segmentId} data-home-widget-size={`${displaySize.cols}x${displaySize.rows}`} data-testid={`home-pane-${id}`}>
+    <div onPointerDown={(event) => { if (layoutUnlocked && !event.target.closest('button')) startPaneDrag(segmentId, id, event); }} onContextMenu={openContextMenu} className={`flex h-8 shrink-0 select-none items-center gap-2 border-b px-2 ${layoutUnlocked ? 'cursor-grab border-[rgb(var(--accent)/0.35)] bg-[rgb(var(--accent)/0.12)] active:cursor-grabbing' : 'border-[rgb(var(--border)/0.38)] bg-[rgb(var(--panel)/0.24)]'}`} data-home-widget-titlebar={id}>
+      <GripVertical size={13} className={layoutUnlocked ? 'text-[rgb(var(--accent-2))]' : 'text-muted/55'} />
+      <span className="min-w-0 flex-1 truncate text-[10px] font-black uppercase tracking-[0.13em] text-ink">{widget?.label || id}</span>
+      <span className="font-mono text-[9px] text-muted">{displaySize.cols}×{displaySize.rows}</span>
+      <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={openContextMenuButton} className="grid h-6 w-6 place-items-center rounded text-muted hover:bg-[rgb(var(--accent)/0.14)] hover:text-ink" aria-label={`Open ${widget?.label || id} widget menu`} title="Widget options"><Menu size={12} /></button>
+    </div>
+    <div className="min-h-0 flex-1 overflow-auto p-1.5 [scrollbar-color:rgb(var(--accent))_transparent] [scrollbar-width:thin]">{children}</div>
+    {layoutUnlocked && <button type="button" onPointerDown={startResize} onPointerMove={moveResize} onPointerUp={finishResize} onPointerCancel={finishResize} className="absolute bottom-0 right-0 z-30 grid h-7 w-7 cursor-nwse-resize place-items-center rounded-tl-lg border-l border-t border-[rgb(var(--accent)/0.45)] bg-[rgb(var(--panel)/0.92)] text-[rgb(var(--accent-2))] shadow-[-4px_-4px_14px_-8px_rgb(var(--accent))]" aria-label={`Resize ${widget?.label || id}`} title="Drag to resize"><Grip size={13} /></button>}
+    {insertionHere && <span className={`pointer-events-none absolute z-40 rounded-full bg-[rgb(var(--accent))] shadow-[0_0_12px_rgb(var(--accent))] ${insertionClass}`} />}
+    {contextMenu && renderForegroundPortal(<WidgetContextMenu x={contextMenu.x} y={contextMenu.y} label={widget?.label || id} unlocked={layoutUnlocked} size={savedSize} widget={widget} columns={gridColumns} onUnlock={() => { setLayoutUnlocked(true); setContextMenu(null); }} onHide={() => { togglePane(id, true); setContextMenu(null); }} onAdjust={(cols, rows) => { adjust(cols, rows); setContextMenu(null); }} onReset={() => { onResetSize(id); setContextMenu(null); }} />)}
+  </motion.div>;
+}
+
+function WidgetContextMenu({ x, y, label, unlocked, size, widget, columns, onUnlock, onHide, onAdjust, onReset }) {
+  const canNarrow = size.cols > Math.min(widget?.layout?.minCols || 1, columns);
+  const canWiden = size.cols < Math.min(widget?.layout?.maxCols || columns, columns);
+  const canShorten = size.rows > (widget?.layout?.minRows || 1);
+  const canGrow = size.rows < (widget?.layout?.maxRows || 8);
+  const item = 'flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[11px] font-bold text-ink hover:bg-[rgb(var(--accent)/0.12)] disabled:cursor-not-allowed disabled:opacity-35';
+  return <div className="fixed z-[170] w-52 rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.98)] p-1.5 shadow-2xl backdrop-blur-xl" style={{ left: x, top: y }} role="menu" aria-label={`${label} widget options`} onPointerDown={(event) => event.stopPropagation()}>
+    <p className="truncate border-b border-[rgb(var(--border)/0.55)] px-2.5 pb-2 pt-1 text-[10px] font-black uppercase tracking-[0.14em] text-[rgb(var(--accent-2))]">{label}</p>
+    <button type="button" className={item} onClick={onUnlock}><Move size={13} />{unlocked ? 'Grid editing is active' : 'Reorder widgets'}</button>
+    <div className="grid grid-cols-2 gap-1 border-y border-[rgb(var(--border)/0.45)] py-1">
+      <button type="button" className={item} disabled={!canNarrow} onClick={() => onAdjust(-1, 0)}><Minimize2 size={13} />Narrower</button>
+      <button type="button" className={item} disabled={!canWiden} onClick={() => onAdjust(1, 0)}><Maximize2 size={13} />Wider</button>
+      <button type="button" className={item} disabled={!canShorten} onClick={() => onAdjust(0, -1)}><Minimize2 size={13} />Shorter</button>
+      <button type="button" className={item} disabled={!canGrow} onClick={() => onAdjust(0, 1)}><Maximize2 size={13} />Taller</button>
+    </div>
+    <button type="button" className={item} onClick={onReset}><RotateCcw size={13} />Reset size</button>
+    <button type="button" className={item} onClick={onHide}><EyeOff size={13} />Hide this widget</button>
+  </div>;
 }
 function Stat({ label, value }) { return <div><p className="text-2xl font-black text-ink">{value}</p><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted">{label}</p></div>; }
 function Cover({ game, className = 'h-11 w-20' }) {
