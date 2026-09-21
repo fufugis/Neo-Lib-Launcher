@@ -4,6 +4,8 @@ This is the authoritative live queue. New user requests are appended here and re
 
 ## In progress
 
+- [x] **Full-workspace Wall + detailed list** — Wall now hides the Library pane and uses the entire content workspace, with clear Home and Library return actions. Its large view chooser switches between the side-by-side original-cover wall and a factual game list showing main genre, release date, last played, measured install size, tracked hours, source and personal rating. Selecting a game returns to its normal Preview. Focused source checks pass; rebuilt Windows visual acceptance remains required.
+
 - [x] **Single Wizard library entry point** — removed the duplicate Library Add and Refresh menus. Wizard is now the one place to add a single executable, scan a folder, import an installed launcher, refresh existing metadata, or tidy the library; category creation remains under Categories and Tools retains its separate Add tool route. Focused source checks pass; rebuilt Windows interaction acceptance remains required.
 
 - [ ] **Home extension workspace P0 — foundation in progress** — every existing Home panel is now registered as a first-party widget with a stable ID, Home segment and responsive minimum/default size contract, without changing its existing content, controls or privacy behavior. Next: migrate the present segment layout to a player-owned grid and then introduce a sandboxed community package host. Community distribution remains manual through the NEO-LIB Reddit/Discord channels until trust, update and review policy are designed. Do not execute unrestricted community JavaScript in the renderer or grant native/Electron access.

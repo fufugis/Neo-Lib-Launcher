@@ -197,6 +197,16 @@ assert.match(coverWallSource, /aspect-\[2\/3\]/, 'Cover Wall must present games 
 assert.match(coverWallSource, /Original cover unavailable/, 'Missing portrait art must have an honest readable fallback card.');
 assert.match(coverWallSource, /data-testid=\{`cover-wall-rating-\$\{game\.id\}`\}/, 'Rated Cover Wall games need a visible personal-rating tag.');
 assert.match(coverWallSource, /absolute right-0 top-0 z-10[^\n]*bg-amber-300/, 'Cover Wall rating tags must stay yellow and above cover artwork in the upper-right corner.');
+assert.match(appSource, /const wallActive = settings\.mode === 'library' && libraryViewMode === 'wall'/, 'Wall must have an explicit full-workspace state.');
+assert.match(appSource, /\{!wallActive && <Sidebar/, 'Wall must hide the Library sidebar while it is active.');
+assert.match(coverWallSource, /data-testid="wall-view-covers"/, 'Wall must offer the large side-by-side cover view choice.');
+assert.match(coverWallSource, /data-testid="wall-view-details"/, 'Wall must offer the large detailed-list choice.');
+assert.match(coverWallSource, /data-testid="wall-details-list"/, 'Wall detailed mode must have its own factual list surface.');
+for (const column of ['Main genre', 'Released', 'Last played', 'Install size', 'Hours played']) {
+  assert.match(coverWallSource, new RegExp(column), `Wall detailed list lost ${column}.`);
+}
+assert.match(coverWallSource, /data-testid="wall-open-home"/, 'Wall must provide a direct Home return action.');
+assert.match(coverWallSource, /data-testid="wall-open-library"/, 'Wall must provide a direct Library return action.');
 assert.match(read('electron/preload.js'), /onWindowVisibility/);
 assert.match(read('electron/main.js'), /window:visibility/);
 assert.match(globalStylesSource, /\.font-black \{ font-weight: 700; \}/, 'Ordinary heavy text must keep the calmer application-wide weight.');

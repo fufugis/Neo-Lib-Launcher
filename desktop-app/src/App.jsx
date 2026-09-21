@@ -1329,6 +1329,7 @@ export default function App() {
   const visibleGames = React.useMemo(() => filterByLauncher(currentItems, launcherFilter, isTools), [currentItems, isTools, launcherFilter]);
   const selected = currentItems.find((g) => g.id === currentSelectedId) || null;
   const libraryViewMode = settings.libraryViewMode || 'preview';
+  const wallActive = settings.mode === 'library' && libraryViewMode === 'wall';
   const preferredLibraryEntry = React.useMemo(() => preferredLibraryGame(library.games || [], settings.lastGameId), [library.games, settings.lastGameId]);
   const preferredToolEntry = React.useMemo(() => preferredTool(library.tools || [], settings.lastToolId), [library.tools, settings.lastToolId]);
   const openLibraryDefault = React.useCallback(() => {
@@ -1407,7 +1408,7 @@ export default function App() {
       </div>
 
       <div className="neolib-ui-foreground relative z-20 flex min-h-0 flex-1">
-        <Sidebar
+        {!wallActive && <Sidebar
           games={visibleGames}
           categories={currentCats}
           gameOrderByCategory={currentOrder}
@@ -1522,14 +1523,26 @@ export default function App() {
           onQuit={() => nativeApi?.quit?.()}
           onSystemHealthChange={onMascotHealthChange}
           systemHealthOpenRequest={mascotHealthOpenRequest}
-        />
+        />}
 
         <main className="relative flex min-w-0 flex-1 flex-col">
           <div className="flex-1 min-h-0 overflow-hidden">
             {!isTools && settings.mode === 'home' ? (
               <HomeHub games={homeGames} lockedGameCategories={lockedHomeCategoryByGameId} hasPrivateCategories={(library.categories || []).some((category) => category.private)} hasLockedPrivateCategories={(library.categories || []).some((category) => category.private && !unlockedCategories.includes(category.id))} onPanicLock={panicLockPrivateLibrary} resting={gameRestActive} homeLayout={settings.homeLayout || {}} onUpdateHomeLayout={(homeLayout) => updateSetting({ homeLayout })} updatesCache={settings.homeGameUpdatesCache} onUpdateUpdatesCache={(homeGameUpdatesCache) => updateSetting({ homeGameUpdatesCache })} onSelect={(id) => { if (lockedHomeCategoryByGameId[id]) { notify(`Unlock ${lockedHomeCategoryByGameId[id]} in Library to reveal this game.`); return; } setSelectedId(id); setMode('library'); }} onOpenPlaytimeImport={() => openPlaytimeImport({ force: true })} onOpenTidyUp={() => setTidyOpen(true)} />
-            ) : !isTools && libraryViewMode === 'wall' ? (
-              <CoverWall games={coverWallGames} density={settings.coverWallDensity || 5} onDensityChange={(coverWallDensity) => updateSetting({ coverWallDensity })} onSelect={(id) => { setSelectedId(id); updateSetting({ mode: 'library', libraryViewMode: 'preview' }); }} search={search} lockedCategories={lockedWallCategories} onUnlockCategory={requestUnlock} />
+            ) : !isTools && wallActive ? (
+              <CoverWall
+                games={coverWallGames}
+                density={settings.coverWallDensity || 5}
+                onDensityChange={(coverWallDensity) => updateSetting({ coverWallDensity })}
+                view={settings.wallView || 'covers'}
+                onChangeView={(wallView) => updateSetting({ wallView })}
+                onSelect={(id) => { setSelectedId(id); updateSetting({ mode: 'library', libraryViewMode: 'preview' }); }}
+                onOpenHome={() => { setSelectedId(null); updateSetting({ mode: 'home', libraryViewMode: 'preview' }); }}
+                onOpenLibrary={openLibraryDefault}
+                search={search}
+                lockedCategories={lockedWallCategories}
+                onUnlockCategory={requestUnlock}
+              />
             ) : !selected ? (
               <WorkspaceEmpty kind={isTools ? 'tools' : 'library'} />
             ) : (
