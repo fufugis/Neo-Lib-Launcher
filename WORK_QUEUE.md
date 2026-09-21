@@ -4,6 +4,8 @@ This is the authoritative live queue. New user requests are appended here and re
 
 ## In progress
 
+- [x] **Single Wizard game-add entry point** — removed the duplicate Library Add menu. Wizard is now the one place to add a single executable, scan a folder, or import an installed launcher; category creation remains under Categories and Tools retains its separate Add tool route. Focused source checks pass; rebuilt Windows interaction acceptance remains required.
+
 - [ ] **Home extension workspace P0 — foundation in progress** — every existing Home panel is now registered as a first-party widget with a stable ID, Home segment and responsive minimum/default size contract, without changing its existing content, controls or privacy behavior. Next: migrate the present segment layout to a player-owned grid and then introduce a sandboxed community package host. Community distribution remains manual through the NEO-LIB Reddit/Discord channels until trust, update and review policy are designed. Do not execute unrestricted community JavaScript in the renderer or grant native/Electron access.
 
 - [ ] **Home widget import and manager P0 — validation in progress** — Home receives direct Import widget and Widgets controls. An author’s `widget.json` records their display name, URL, description, version, future entry file, size contract and narrowly declared future permissions. NEO-LIB validates and copies the package into its private widget folder without executing its code; the manager shows built-in widgets and safely stored community-package details. Next: complete source validation, then connect player-owned grid placement and the isolated runtime host.

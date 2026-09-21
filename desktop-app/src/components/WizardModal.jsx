@@ -467,9 +467,25 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
           <div className="flex items-start gap-3">
             <Sparkles size={18} className="mt-0.5 text-[rgb(var(--accent))]" />
             <p className="text-sm text-muted">
-              Pick a folder to scan, or import directly from your installed launchers below.
+              Add one executable manually, pick a folder to scan, or import directly from your installed launchers below.
               Launcher imports add installed games using local records after confirmation. Use Refresh info afterwards to choose artwork and descriptions. Folder scans let you review each match.
             </p>
+          </div>
+
+          <div className="rounded-lg border border-[rgb(var(--accent)/0.32)] bg-[rgb(var(--accent)/0.055)] p-4" data-testid="wizard-manual-add-section">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted">Add one game manually</div>
+                <p className="mt-1 text-xs text-muted">Choose a game .exe or shortcut, then review its metadata before adding it.</p>
+              </div>
+              <button
+                data-testid="wizard-add-manual-start-btn"
+                onClick={() => { onClose(); onAddManual?.(); }}
+                className="inline-flex shrink-0 items-center gap-2 rounded-full hairline px-4 py-2 text-xs font-semibold text-ink hover:border-[rgb(var(--accent)/0.6)] hover:bg-[rgb(var(--accent)/0.10)]"
+              >
+                <PlusCircle size={13} className="text-[rgb(var(--accent))]" /> Add game manually
+              </button>
+            </div>
           </div>
 
           {/* Launcher imports */}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Plus, Wand2, RefreshCw, Sparkles, ChevronDown, Tag, ArrowDownUp, Moon, Sun,
+  Wand2, RefreshCw, Sparkles, ChevronDown, Tag, ArrowDownUp, Moon, Sun,
   Library as LibIcon, Boxes, Columns, Home, Check, ListTree,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -96,7 +96,7 @@ const SIDEBAR_THEME_ART = {
 
 /**
  * Sidebar (tree view)
- * - Top toolbar: Add · Wizard · Refresh-all · Library settings (size, etc.) · App settings
+ * - Top toolbar: Wizard · Refresh-all · Library settings (size, etc.) · App settings
  * - Tree:
  *    ▸ [colored chip] CATEGORY NAME (count)
  *        indented game rows…
@@ -171,11 +171,9 @@ export default function Sidebar({
   };
   const [libSettingsOpen, setLibSettingsOpen] = React.useState(false);
   const libSettingsBtnRef = React.useRef(null);
-  const [addMenuOpen, setAddMenuOpen] = React.useState(false);
   const [refreshMenuOpen, setRefreshMenuOpen] = React.useState(false);
   const [categoriesMenuOpen, setCategoriesMenuOpen] = React.useState(false);
   const [sortMenuOpen, setSortMenuOpen] = React.useState(false);
-  const addMenuRef = React.useRef(null);
   const refreshMenuRef = React.useRef(null);
   const categoriesMenuRef = React.useRef(null);
   const sortMenuRef = React.useRef(null);
@@ -200,18 +198,17 @@ export default function Sidebar({
   // Every small Library popover follows the same simple escape hatch: click
   // anywhere outside it (or press Escape) and it goes away.
   React.useEffect(() => {
-    if (!addMenuOpen && !refreshMenuOpen && !categoriesMenuOpen && !sortMenuOpen) return undefined;
+    if (!refreshMenuOpen && !categoriesMenuOpen && !sortMenuOpen) return undefined;
     const close = (event) => {
-      if (addMenuRef.current && !addMenuRef.current.contains(event.target)) setAddMenuOpen(false);
       if (refreshMenuRef.current && !refreshMenuRef.current.contains(event.target)) setRefreshMenuOpen(false);
       if (categoriesMenuRef.current && !categoriesMenuRef.current.contains(event.target)) setCategoriesMenuOpen(false);
       if (sortMenuRef.current && !sortMenuRef.current.contains(event.target)) setSortMenuOpen(false);
     };
-    const escape = (event) => { if (event.key === 'Escape') { setAddMenuOpen(false); setRefreshMenuOpen(false); setCategoriesMenuOpen(false); setSortMenuOpen(false); } };
+    const escape = (event) => { if (event.key === 'Escape') { setRefreshMenuOpen(false); setCategoriesMenuOpen(false); setSortMenuOpen(false); } };
     document.addEventListener('mousedown', close);
     document.addEventListener('keydown', escape);
     return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', escape); };
-  }, [addMenuOpen, refreshMenuOpen, categoriesMenuOpen, sortMenuOpen]);
+  }, [refreshMenuOpen, categoriesMenuOpen, sortMenuOpen]);
 
   // Tutorial controls Visuals directly, rather than synthetically clicking
   // the toggle. That avoids a timer race which used to leave it flickering or
@@ -402,7 +399,7 @@ export default function Sidebar({
       {/* Secondary launcher filter row moved BELOW the Add/Wizard toolbar
           in v1.3.1 — see the combined row below. */}
 
-      {/* Toolbar row 2 — Add menu / Wizard / (flex) / Refresh / Visuals / TwoRow.
+      {/* Toolbar row 2 — Wizard / (flex) / Refresh / Visuals / TwoRow.
           Labels collapse to icon-only when the sidebar is especially narrow so the
           row stays tidy without wrapping or truncating. */}
       {(() => {
@@ -415,57 +412,10 @@ export default function Sidebar({
           background: 'linear-gradient(180deg, rgb(0 0 0 / 0.20) 0%, rgb(0 0 0 / 0.08) 100%)',
         }}
       >
-        <div ref={addMenuRef} className="relative">
-          <SideBtn
-            label={labelsVisible ? "Add" : null}
-            labelStyle={toolbarLabelStyle}
-            icon={<Plus size={16} />}
-            onClick={() => setAddMenuOpen((v) => !v)}
-            testid="sidebar-add-btn"
-            title={isTools ? 'Add tool' : 'Add game or category'}
-          />
-          <AnimatePresence>
-            {addMenuOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -6, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.15 }}
-                onClick={(e) => e.stopPropagation()}
-                className="library-toolbar-popover absolute left-0 z-30 mt-1 w-56 rounded-lg hairline shadow-2xl p-1.5"
-              >
-                <button
-                  data-testid="add-menu-game"
-                  onClick={() => { setAddMenuOpen(false); onAddManual?.(); }}
-                  className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left hover:bg-[rgb(var(--accent)/0.08)] transition-colors"
-                >
-                  <span className="flex items-center gap-2 text-[12px] font-semibold text-ink">
-                    <Plus size={13} className="text-[rgb(var(--accent))]" />
-                    {isTools ? 'Add tool' : 'Add game'}
-                  </span>
-                  <span className="text-[10.5px] text-muted">
-                    {isTools ? 'Add an executable or shortcut to your tools.' : 'Open the existing add-game menu.'}
-                  </span>
-                </button>
-                {!isTools && (
-                  <button
-                    data-testid="add-menu-category"
-                    onClick={() => { setAddMenuOpen(false); onCreateCategory?.(); }}
-                    className="flex w-full flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left hover:bg-[rgb(var(--accent-2)/0.08)] transition-colors"
-                  >
-                    <span className="flex items-center gap-2 text-[12px] font-semibold text-ink">
-                      <Tag size={13} className="text-[rgb(var(--accent-2))]" />
-                      Add category
-                    </span>
-                    <span className="text-[10.5px] text-muted">Create a new shelf for your library.</span>
-                  </button>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-        {!isTools && (
-          <SideBtn label={labelsVisible ? "Wizard" : null} labelStyle={toolbarLabelStyle} icon={<Wand2 size={16} />} onClick={onOpenWizard} testid="sidebar-wizard-btn" title="Wizard" />
+        {isTools ? (
+          <SideBtn label={labelsVisible ? "Add tool" : null} labelStyle={toolbarLabelStyle} icon={<Wand2 size={16} />} onClick={onAddManual} testid="sidebar-add-tool-btn" title="Add tool" />
+        ) : (
+          <SideBtn label={labelsVisible ? "Wizard" : null} labelStyle={toolbarLabelStyle} icon={<Wand2 size={16} />} onClick={onOpenWizard} testid="sidebar-wizard-btn" title="Add games, scan folders, or import launchers" />
         )}
         <button
           type="button"
@@ -558,8 +508,8 @@ export default function Sidebar({
 
       {/* v1.3.1 — Combined filter + actions row (Library tab only).
           v1.6.4 — Launcher pills collapsed into a single dropdown to reduce
-          horizontal clutter. "+ New" renamed to "+ Category" so its purpose
-          is obvious next to "Add Game". */}
+          horizontal clutter. Category creation stays in the Categories menu,
+          while every game-add route starts in Wizard. */}
       {!isTools && (
         <div className="relative z-40 flex items-center gap-1 px-3 pb-2" data-testid="launcher-pane-row">
           <LauncherDropdown

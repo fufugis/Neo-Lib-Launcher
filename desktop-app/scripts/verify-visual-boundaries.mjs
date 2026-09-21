@@ -81,6 +81,7 @@ assert.match(read('src/components/HomeHub.jsx'), /home\/home-model\.mjs/);
 assert.match(read('src/components/FungistMascot.jsx'), /mascot\/fungist-model\.mjs/);
 
 const sidebarSource = read('src/components/Sidebar.jsx');
+const wizardSource = read('src/components/WizardModal.jsx');
 const globalStylesSource = read('src/styles.css');
 const libraryVisualsSource = read('src/components/library/LibraryVisualsPopover.jsx');
 const libraryTreeSource = read('src/components/library/LibraryTree.jsx');
@@ -105,6 +106,10 @@ assert.match(sidebarSource, /library\/LibraryVisualsPopover/);
 assert.match(sidebarSource, /library\/LibraryIconGrid/);
 assert.match(sidebarSource, /library\/LibraryTree/);
 assert.match(sidebarSource, /library\/LibraryToolbarControls/);
+assert.match(sidebarSource, /testid="sidebar-wizard-btn"/, 'Library must retain Wizard as its single game-add entry point.');
+assert.doesNotMatch(sidebarSource, /testid="sidebar-add-btn"|data-testid="add-menu-game"/, 'Library must not restore a duplicate Add-game control outside Wizard.');
+assert.match(wizardSource, /data-testid="wizard-manual-add-section"/, 'Wizard must visibly own the manual add route.');
+assert.match(wizardSource, /data-testid="wizard-add-manual-start-btn"/, 'Wizard manual add needs a direct action.');
 assert.doesNotMatch(sidebarSource, /function LibrarySettingsPopover|function BgTexturePicker|function EffectsPopSlider|const BG_TEXTURES/);
 assert.doesNotMatch(sidebarSource, /function TwoColumnSections|function SectionWrap|function LibrarySection|function LibraryGameRow|function GameRow|function PinnedStrip|function CategoryContextMenu/);
 assert.doesNotMatch(sidebarSource, /function SideBtn|function TabPill|function LauncherDropdown|function LauncherPill/);

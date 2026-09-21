@@ -25,8 +25,8 @@ const STEPS = [
   },
   {
     title: 'This is your Library',
-    body: 'Imported games live here, grouped into shelves you control. Use + Add for one title or Wizard to scan folders and installed launchers. Your library remains on this PC.',
-    target: ['sidebar-tree', 'sidebar-add-btn'],
+    body: 'Imported games live here, grouped into shelves you control. Open Wizard to add one game manually, scan folders, or import installed launchers. Your library remains on this PC.',
+    target: ['sidebar-tree', 'sidebar-wizard-btn'],
     view: 'library',
     icon: '📚',
     mascot: true,

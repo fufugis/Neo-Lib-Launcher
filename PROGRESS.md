@@ -1,5 +1,7 @@
 # NEO-LIB progress
 
+- **One place to add games is source-complete** — Library now begins with Wizard only. Its first page clearly offers Add game manually alongside folder scans and installed-launcher imports, so every game route starts from one dependable place. Categories remain in Library’s Categories control, and Tools keeps its separate Add tool workflow. Focused source checks pass; rebuilt Windows interaction acceptance remains required.
+
 - **Reddit community shortcut is source-complete** — the official r/NeoLibLauncher button now sits beside Discord in the title bar and opens through the same normal-browser handoff. It remains icon-compact at narrow widths. Focused source checks pass; rebuilt Windows interaction acceptance remains required.
 
 - **Original portrait cover art is source-complete** — Cover Wall now uses its portrait-card layout and prefers a dedicated portrait field. Steam receives the official `library_600x900` cover route from its known app ID; GOG carries its published vertical cover; reviewed refreshes preserve player-selected covers and backfill the new portrait field. If a provider has no portrait or an image fails to load, NEO-LIB intentionally renders a readable title/backdrop card rather than cropping a wide hero image into a false cover. Focused source checks pass; rebuilt Windows visual acceptance and a real Steam/GOG refresh check remain required.
