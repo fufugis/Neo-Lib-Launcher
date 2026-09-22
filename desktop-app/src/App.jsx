@@ -1534,6 +1534,7 @@ export default function App() {
             ) : !isTools && wallActive ? (
               <CoverWall
                 games={coverWallGames}
+                favoriteIds={settings.pinnedGameIds || []}
                 density={settings.coverWallDensity || 5}
                 onDensityChange={(coverWallDensity) => updateSetting({ coverWallDensity })}
                 view={settings.wallView || 'covers'}

@@ -211,6 +211,9 @@ assert.match(appSource, /const wallActive = settings\.mode === 'library' && libr
 assert.match(appSource, /\{!wallActive && <Sidebar/, 'Wall must hide the Library sidebar while it is active.');
 assert.match(coverWallSource, /data-testid="wall-view-covers"/, 'Wall must offer the large side-by-side cover view choice.');
 assert.match(coverWallSource, /data-testid="wall-view-details"/, 'Wall must offer the large detailed-list choice.');
+assert.match(coverWallSource, /data-testid="wall-quick-filters"/, 'Wall must expose its simple quick-filter strip.');
+assert.match(coverWallSource, /data-testid=\{`wall-filter-\$\{filter\.id\}`\}/, 'Every Wall quick-filter choice needs a stable UI binding.');
+assert.match(appSource, /favoriteIds=\{settings\.pinnedGameIds \|\| \[\]\}/, 'Wall Favorites must use the player\'s saved favorite game IDs.');
 assert.match(coverWallSource, /data-testid="wall-details-list"/, 'Wall detailed mode must have its own factual list surface.');
 for (const column of ['Main genre', 'Released', 'Last played', 'Install size', 'Hours played']) {
   assert.match(coverWallSource, new RegExp(column), `Wall detailed list lost ${column}.`);

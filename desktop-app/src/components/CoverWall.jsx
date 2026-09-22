@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { CalendarDays, Clock3, Gamepad2, Grid3X3, HardDrive, Home, ImageOff, Library, List, LockKeyhole, Minus, Plus, Star } from 'lucide-react';
 import { artworkBackdrop, portraitArtwork } from '../lib/game-artwork-model.mjs';
 import { formatPlaytime } from '../lib/utils';
+import { applyWallFilter, WALL_FILTERS } from './library/wall-filter-model.mjs';
 
 function personalRating(game) {
   const rating = Number(game?.rating);
@@ -32,11 +33,13 @@ function installSize(game) {
 }
 
 /** Wall is a full-width, quiet browsing mode with no sidebar. */
-export default function CoverWall({ games = [], density = 5, onDensityChange, onSelect, search = '', lockedCategories = [], onUnlockCategory, view = 'covers', onChangeView, onOpenHome, onOpenLibrary }) {
+export default function CoverWall({ games = [], favoriteIds = [], density = 5, onDensityChange, onSelect, search = '', lockedCategories = [], onUnlockCategory, view = 'covers', onChangeView, onOpenHome, onOpenLibrary }) {
+  const [wallFilter, setWallFilter] = React.useState('all');
   const visible = React.useMemo(() => {
     const term = String(search || '').trim().toLowerCase();
-    return term ? games.filter((game) => String(game.name || '').toLowerCase().includes(term)) : games;
-  }, [games, search]);
+    const searched = term ? games.filter((game) => String(game.name || '').toLowerCase().includes(term)) : games;
+    return applyWallFilter(searched, wallFilter, favoriteIds);
+  }, [favoriteIds, games, search, wallFilter]);
   const tiles = Math.max(3, Math.min(10, Number(density) || 5));
   const detailed = view === 'details';
 
@@ -47,6 +50,9 @@ export default function CoverWall({ games = [], density = 5, onDensityChange, on
       <div className="flex items-center gap-1 rounded-lg border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--surface)/0.34)] p-1" aria-label="Wall view">
         <button type="button" data-testid="wall-view-covers" onClick={() => onChangeView?.('covers')} className={`inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[10.5px] font-semibold transition ${!detailed ? 'bg-[rgb(var(--accent)/0.16)] text-ink ring-1 ring-[rgb(var(--accent)/0.58)]' : 'text-muted hover:bg-[rgb(var(--accent)/0.08)] hover:text-ink'}`} title="Side-by-side portrait covers"><Grid3X3 size={14} /> Covers</button>
         <button type="button" data-testid="wall-view-details" onClick={() => onChangeView?.('details')} className={`inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[10.5px] font-semibold transition ${detailed ? 'bg-[rgb(var(--accent-2)/0.14)] text-ink ring-1 ring-[rgb(var(--accent-2)/0.58)]' : 'text-muted hover:bg-[rgb(var(--accent-2)/0.08)] hover:text-ink'}`} title="Detailed library list"><List size={14} /> Details</button>
+      </div>
+      <div className="flex items-center gap-1 rounded-lg border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--surface)/0.34)] p-1" aria-label="Filter Wall games" data-testid="wall-quick-filters">
+        {WALL_FILTERS.map((filter) => <button key={filter.id} type="button" data-testid={`wall-filter-${filter.id}`} aria-pressed={wallFilter === filter.id} onClick={() => setWallFilter(filter.id)} className={`h-8 whitespace-nowrap rounded-md px-2.5 text-[9.5px] font-bold uppercase tracking-[0.08em] transition ${wallFilter === filter.id ? 'bg-[rgb(var(--accent)/0.18)] text-ink ring-1 ring-[rgb(var(--accent)/0.62)] shadow-[0_0_12px_-7px_rgb(var(--accent))]' : 'text-muted hover:bg-[rgb(var(--accent)/0.08)] hover:text-ink'}`}>{filter.label}</button>)}
       </div>
       <span className="text-[9.5px] text-muted">{visible.length} game{visible.length === 1 ? '' : 's'}</span>
       {!detailed && <div className="flex h-9 items-center gap-1 rounded-lg border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--surface)/0.34)] px-1" aria-label="Cover size"><button type="button" onClick={() => onDensityChange?.(Math.max(3, tiles - 1))} disabled={tiles <= 3} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink disabled:opacity-35" title="Larger cards"><Minus size={13} /></button><input aria-label="Cover Wall density" type="range" min="3" max="10" step="1" value={tiles} onChange={(event) => onDensityChange?.(Number(event.target.value))} className="w-20 accent-[rgb(var(--accent))]" /><button type="button" onClick={() => onDensityChange?.(Math.min(10, tiles + 1))} disabled={tiles >= 10} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink disabled:opacity-35" title="Smaller cards"><Plus size={13} /></button><span className="min-w-8 text-center text-[9px] font-bold text-[rgb(var(--accent-2))]">{tiles}×{tiles}</span></div>}

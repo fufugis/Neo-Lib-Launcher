@@ -18,6 +18,10 @@ export const V179_CHANGELOG = {
       title: 'Choose top or Sidebar navigation',
       body: 'Keep the familiar top Home, Library, Wall and Tools buttons, or switch to a slim left icon rail that reveals labels on hover. Visual Tweaks and Control Center → Personalise share the same saved Sidebar setting.',
     },
+    {
+      title: 'Filter the Wall in one click',
+      body: 'All, Favorites, Most played and Recently played are always available in the compact Wall toolbar. The active choice is highlighted, updates the visible count and works in both cover and detailed views.',
+    },
   ],
   fixes: [
     'Wall controls now fit in one slim wrapping toolbar instead of a tall introduction and two oversized view cards.',

@@ -40,6 +40,9 @@ Library and Wall easier to use.
   Home, Library, Wall and Tools into a slim left icon rail. The rail reveals
   its labels on hover, and the same saved choice is available in Visual Tweaks
   and Control Center → Personalise.
+- **Wall quick filters** — switch between All, Favorites, Most played and
+  Recently played directly from the Wall toolbar. The active filter is clearly
+  highlighted and works in both Covers and Details.
 
 ## Verification
 
