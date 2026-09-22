@@ -10,7 +10,13 @@ export function officialSteamPortrait(appid) {
 
 export function portraitArtwork(game = {}) {
   if (typeof game.portraitImage === 'string' && game.portraitImage.trim()) return game.portraitImage.trim();
-  if (String(game.source || game.launcher || '').toLowerCase() === 'steam') return officialSteamPortrait(game.appid);
+  // Launcher imports historically stored their source as `steam-import`, so
+  // requiring an exact `steam` string hid the official portrait for existing
+  // libraries even though the trusted app ID was already present.
+  // `appid` is NEO-LIB's dedicated Steam identity field. Older Wall entries
+  // sometimes predate the source label entirely, but the ID is still enough
+  // to request Steam's official library portrait.
+  if (validSteamAppId(game.appid)) return officialSteamPortrait(game.appid);
   // A player-selected cover from Customize is an explicit portrait choice.
   if (game.manualOverride && typeof game.coverUrl === 'string' && game.coverUrl.trim()) return game.coverUrl.trim();
   return '';

@@ -96,7 +96,7 @@ export function GameCapabilities({ game }) {
           return <span key={item.id} title={`${item.label} · ${item.source}${item.detail ? ` · ${item.detail}` : ''}`} className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--border)/0.62)] bg-[rgb(var(--panel)/0.35)] px-2 py-1.5 text-[10px] font-semibold text-ink"><Icon size={13} className="text-[rgb(var(--accent-2))]" />{item.label}</span>;
         })}
       </div>
-      {achievement?.syncState !== 'linked' && <p className="border-t border-[rgb(var(--border)/0.45)] px-3.5 py-2 text-[9px] leading-relaxed text-muted"><Trophy size={10} className="mr-1 inline text-[rgb(var(--accent-2))]" />{achievement.source} confirms achievement support{achievement.total == null ? '' : ` (${achievement.total} available)`}. Earned progress will appear only after the future opt-in {achievement.source} connection—NEO-LIB does not guess it.</p>}
+      {achievement && achievement.syncState !== 'linked' && <p className="border-t border-[rgb(var(--border)/0.45)] px-3.5 py-2 text-[9px] leading-relaxed text-muted"><Trophy size={10} className="mr-1 inline text-[rgb(var(--accent-2))]" />{achievement.source} confirms achievement support{achievement.total == null ? '' : ` (${achievement.total} available)`}. Earned progress will appear only after the future opt-in {achievement.source} connection—NEO-LIB does not guess it.</p>}
     </section>
   );
 }
