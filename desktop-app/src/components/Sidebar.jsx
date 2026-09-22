@@ -127,6 +127,7 @@ export default function Sidebar({
   bgTextureId, bgTextureOpacity,
   onChangeBgTextureId, onChangeBgTextureOpacity,
   cursorTheme = 'windows', onChangeCursorTheme,
+  navigationLayout = 'top', onChangeNavigationLayout,
   onSelect, onGameViewed,
   onAddManual, onOpenWizard, manualResting = false, onToggleManualRest, onOpenFeedback,
   onCreateCategory, onCategoryContext, onGameContext,
@@ -177,6 +178,8 @@ export default function Sidebar({
   const sortMenuRef = React.useRef(null);
   const treeScrollRef = React.useRef(null);
   const isTools = mode === 'tools';
+  const sideNavigation = navigationLayout === 'sidebar';
+  const [sideNavigationExpanded, setSideNavigationExpanded] = React.useState(false);
   // Keep toolbar labels legible while the sidebar is resized: they shrink over
   // the last 80px, then collapse cleanly to icons instead of being clipped.
   const labelProgress = Math.max(0, Math.min(1, (sidebarWidth - 240) / 80));
@@ -292,6 +295,8 @@ export default function Sidebar({
       className="library-font-scope relative flex h-full shrink-0 flex-col overflow-hidden border-r hairline glass-soft"
       style={{
         width: sidebarWidth,
+        paddingLeft: sideNavigation ? 48 : 0,
+        transition: 'padding-left 180ms ease',
         '--library-font-family': libraryFontFamily(libraryFont),
         // Regular must feel genuinely lighter than the old semi-bold Library
         // treatment. Fat is the intentional opt-in weight, not the baseline.
@@ -337,11 +342,31 @@ export default function Sidebar({
         className="absolute right-0 top-0 z-30 h-full w-1.5 cursor-col-resize hover:bg-[rgb(var(--accent)/0.4)] transition-colors"
         style={{ touchAction: 'none' }}
       />
+      {sideNavigation && <SideNavigationRail
+        expanded={sideNavigationExpanded}
+        onExpandedChange={setSideNavigationExpanded}
+        mode={mode}
+        libraryViewMode={libraryViewMode}
+        onOpenHome={() => { onSelect?.(null); onSetMode('home'); }}
+        onOpenLibrary={() => { onChangeLibraryViewMode?.('preview'); onSetMode('library'); onSetLauncherFilter?.('all'); }}
+        onOpenWall={() => { onChangeLibraryViewMode?.('wall'); onSelect?.(null); }}
+        onOpenTools={() => onSetMode('tools')}
+        onOpenThemes={onOpenThemes}
+        onOpenMascot={onOpenMascot}
+        onOpenVisuals={() => setLibSettingsOpen(true)}
+        onOpenControllers={onOpenControllerCenter}
+        onOpenSettings={onOpenSettings}
+        onOpenChangelog={onOpenChangelog}
+        onCheckForUpdates={onCheckForUpdates}
+        onOpenFeedback={() => onOpenFeedback?.('feedback')}
+        onQuit={onQuit}
+        onDisableSidebar={() => onChangeNavigationLayout?.('top')}
+      />}
       {/* Top toolbar — Home / Library / Tools. Frosted band that stretches
           across the sidebar, gradient underline separates it from category tree.
           v1.6.3 — Labels collapse to icon-only when the sidebar is dragged
           under ~340px so nothing gets truncated to a single letter. */}
-      {(() => {
+      {!sideNavigation && (() => {
         return (
       <div
         className="special-control-surface neolib-special-nav-art relative z-40 flex items-stretch gap-1 px-2 pt-2.5 pb-2"
@@ -365,6 +390,8 @@ export default function Sidebar({
           onCheckForUpdates={onCheckForUpdates}
           onOpenFeedback={() => onOpenFeedback?.('feedback')}
           onQuit={onQuit}
+          sidebarEnabled={sideNavigation}
+          onToggleSidebar={(enabled) => onChangeNavigationLayout?.(enabled ? 'sidebar' : 'top')}
         />
         <TabPill decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} label="Home" icon={<Home size={15} />} showLabel={labelsVisible} labelStyle={toolbarLabelStyle} active={mode === 'home'} onClick={() => { onSelect?.(null); onSetMode('home'); }} testid="tab-home" />
         <TabPill decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} label="Library" icon={<LibIcon size={15} />} showLabel={labelsVisible} labelStyle={toolbarLabelStyle} active={mode === 'library' && libraryViewMode !== 'wall'} onClick={() => { onChangeLibraryViewMode?.('preview'); onSetMode('library'); onSetLauncherFilter?.('all'); }} testid="tab-library" />
@@ -475,6 +502,8 @@ export default function Sidebar({
                 onChangeBgTextureOpacity={onChangeBgTextureOpacity}
                 cursorTheme={cursorTheme}
                 onChangeCursorTheme={onChangeCursorTheme}
+                navigationLayout={navigationLayout}
+                onChangeNavigationLayout={onChangeNavigationLayout}
                 onClose={() => setLibSettingsOpen(false)}
                 onOpenFeedback={onOpenFeedback}
                 twoRow={twoRow}
@@ -750,4 +779,52 @@ export default function Sidebar({
       {!isTools && <SystemHealthBar resting={gameResting} runningGameName={runningGameName} restReason={restReason} games={allGames} onStatusChange={onSystemHealthChange} openRequest={systemHealthOpenRequest} />}
     </aside>
   );
+}
+
+function SideNavigationRail({ expanded, onExpandedChange, mode, libraryViewMode, onOpenHome, onOpenLibrary, onOpenWall, onOpenTools, onOpenThemes, onOpenMascot, onOpenVisuals, onOpenControllers, onOpenSettings, onOpenChangelog, onCheckForUpdates, onOpenFeedback, onQuit, onDisableSidebar }) {
+  return <nav
+    data-testid="side-navigation-rail"
+    aria-label="Primary navigation"
+    onMouseEnter={() => onExpandedChange?.(true)}
+    onMouseLeave={() => onExpandedChange?.(false)}
+    className="absolute inset-y-0 left-0 z-50 flex flex-col overflow-hidden border-r border-[rgb(var(--border)/0.8)] bg-[rgb(var(--surface)/0.97)] px-1.5 py-2 shadow-[8px_0_24px_-20px_rgba(0,0,0,.95)] backdrop-blur-xl transition-[width] duration-200 ease-out"
+    style={{ width: expanded ? 148 : 48 }}
+  >
+    <AppControlMenu
+      sidebarMode
+      sidebarExpanded={expanded}
+      sidebarEnabled
+      onToggleSidebar={(enabled) => { if (!enabled) onDisableSidebar?.(); }}
+      onOpenThemes={onOpenThemes}
+      onOpenMascot={onOpenMascot}
+      onOpenVisuals={onOpenVisuals}
+      onOpenControllers={onOpenControllers}
+      onOpenSettings={onOpenSettings}
+      onOpenChangelog={onOpenChangelog}
+      onCheckForUpdates={onCheckForUpdates}
+      onOpenFeedback={onOpenFeedback}
+      onQuit={onQuit}
+    />
+    <span className="mx-1 my-2 h-px shrink-0 bg-[rgb(var(--border)/0.65)]" />
+    <RailNavigationButton icon={<Home size={17} />} label="Home" expanded={expanded} active={mode === 'home'} onClick={onOpenHome} testid="tab-home" />
+    <RailNavigationButton icon={<LibIcon size={17} />} label="Library" expanded={expanded} active={mode === 'library' && libraryViewMode !== 'wall'} onClick={onOpenLibrary} testid="tab-library" />
+    <RailNavigationButton icon={<Columns size={17} />} label="Wall" expanded={expanded} active={mode === 'library' && libraryViewMode === 'wall'} onClick={onOpenWall} testid="tab-cover-wall" />
+    <RailNavigationButton icon={<Boxes size={17} />} label="Tools" expanded={expanded} active={mode === 'tools'} onClick={onOpenTools} testid="tab-tools" />
+    <span className={`mt-auto overflow-hidden whitespace-nowrap px-2 pb-1 text-[8px] font-bold uppercase tracking-[0.16em] text-muted transition-opacity ${expanded ? 'opacity-75' : 'opacity-0'}`}>Navigation</span>
+  </nav>;
+}
+
+function RailNavigationButton({ icon, label, expanded, active, onClick, testid }) {
+  return <button
+    type="button"
+    data-testid={testid}
+    title={expanded ? undefined : label}
+    aria-label={label}
+    aria-pressed={active}
+    onClick={onClick}
+    className={`mb-1 flex h-10 w-full shrink-0 items-center gap-3 overflow-hidden rounded-lg border px-2.5 text-left transition ${active ? 'border-[rgb(var(--accent)/0.68)] bg-[rgb(var(--accent)/0.16)] text-ink shadow-[0_0_14px_-8px_rgb(var(--accent))]' : 'border-transparent text-ink/78 hover:border-[rgb(var(--accent)/0.38)] hover:bg-[rgb(var(--accent)/0.08)] hover:text-ink'}`}
+  >
+    <span className={`grid h-5 w-5 shrink-0 place-items-center ${active ? 'text-[rgb(var(--accent))]' : 'text-[rgb(var(--accent-2))]'}`}>{icon}</span>
+    <span className={`overflow-hidden whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.14em] transition-all ${expanded ? 'max-w-20 translate-x-0 opacity-100' : 'max-w-0 -translate-x-1 opacity-0'}`}>{label}</span>
+  </button>;
 }

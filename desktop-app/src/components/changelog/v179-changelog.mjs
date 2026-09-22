@@ -14,6 +14,10 @@ export const V179_CHANGELOG = {
       title: 'Home becomes a category-free widget canvas',
       body: 'Every widget now stands alone. Unlock Home and choose Snap on for automatic grid reordering or Free move for exact placement, resizing, overlap and stacking. Every title bar also has a right-click/options menu for placement mode, stacking, size, reset and hide actions.',
     },
+    {
+      title: 'Choose top or Sidebar navigation',
+      body: 'Keep the familiar top Home, Library, Wall and Tools buttons, or switch to a slim left icon rail that reveals labels on hover. Visual Tweaks and Control Center → Personalise share the same saved Sidebar setting.',
+    },
   ],
   fixes: [
     'Wall controls now fit in one slim wrapping toolbar instead of a tall introduction and two oversized view cards.',

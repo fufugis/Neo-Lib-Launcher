@@ -1466,6 +1466,8 @@ export default function App() {
           onChangeBgTextureOpacity={(v) => updateSetting({ bgTextureOpacity: v })}
           cursorTheme={settings.cursorTheme || 'windows'}
           onChangeCursorTheme={(cursorTheme) => updateSetting({ cursorTheme })}
+          navigationLayout={settings.navigationLayout === 'sidebar' ? 'sidebar' : 'top'}
+          onChangeNavigationLayout={(navigationLayout) => updateSetting({ navigationLayout: navigationLayout === 'sidebar' ? 'sidebar' : 'top' })}
           mode={settings.mode || 'library'}
           onSetMode={(nextMode) => {
             if (nextMode === 'library') openLibraryDefault();

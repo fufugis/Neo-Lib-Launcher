@@ -16,6 +16,7 @@ export default function LibraryVisualsPopover({
   effectsLevel = 2, currentTheme = 'synthwave', motionCadence = 'full',
   bgTextureId = 'none', bgTextureOpacity = 12,
   cursorTheme = 'windows',
+  navigationLayout = 'top', onChangeNavigationLayout,
   onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
   onChangeRowGap, onChangeCatGap, onChangeCatTopGap, onChangeCategoryMarkerMode,
   onToggleSubcatStrip, onChangeNameTextSize,
@@ -102,7 +103,15 @@ export default function LibraryVisualsPopover({
           each group makes the current control family obvious at a glance. */}
       <div className="visuals-grid">
       <div className="space-y-3">
-        <VisualGroup title="Library view">
+        <VisualGroup title="Navigation">
+          <div>
+            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-muted">Menu position</div>
+            <div className="grid grid-cols-2 gap-1" data-testid="pop-navigation-layout">
+              {[['top', 'Default top'], ['sidebar', 'Sidebar']].map(([value, label]) => <button key={value} type="button" onClick={() => onChangeNavigationLayout?.(value)} aria-pressed={navigationLayout === value} className={cn('rounded-md hairline py-1.5 text-[11px] font-bold transition-colors', navigationLayout === value ? 'border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.12)] text-ink' : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]')}>{label}</button>)}
+            </div>
+            <p className="mt-1.5 text-[9.5px] leading-relaxed text-muted">Sidebar keeps icons beside the Library and expands its labels only while you hover it.</p>
+          </div>
+        </VisualGroup><VisualGroup title="Library view">
           <div className="grid grid-cols-2 gap-1" data-testid="pop-library-view-mode">
             {[
               { active: !libraryIconMode, label: 'Standard' },

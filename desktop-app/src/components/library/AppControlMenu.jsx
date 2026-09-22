@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ChevronRight, Gamepad2, Lightbulb, Palette, Power, RefreshCw, Settings2, SlidersHorizontal, Sparkles, Tv2, UserRound } from 'lucide-react';
+import { ChevronRight, Gamepad2, Lightbulb, Palette, PanelLeft, Power, RefreshCw, Settings2, SlidersHorizontal, Sparkles, Tv2, UserRound } from 'lucide-react';
 import { renderForegroundPortal } from '../ui/VisualBoundary';
 
 function MenuItem({ icon, label, detail, onClick, disabled = false, testid, danger = false }) {
@@ -21,11 +21,20 @@ function MenuSection({ label, children }) {
   return <section className="px-1 py-1.5"><p className="px-2.5 pb-1 text-[8.5px] font-bold uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">{label}</p>{children}</section>;
 }
 
+function MenuToggle({ icon, label, detail, checked, onChange, testid }) {
+  return <button type="button" data-testid={testid} role="switch" aria-checked={checked} onClick={() => onChange?.(!checked)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-ink transition hover:bg-[rgb(var(--accent)/0.10)]">
+    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-[rgb(var(--accent)/0.10)] text-[rgb(var(--accent))]">{icon}</span>
+    <span className="min-w-0 flex-1"><span className="block text-[11px] font-bold">{label}</span><span className="mt-0.5 block text-[9px] leading-snug text-muted">{detail}</span></span>
+    <span className={`relative h-5 w-9 shrink-0 rounded-full border transition ${checked ? 'border-[rgb(var(--accent)/0.75)] bg-[rgb(var(--accent)/0.42)]' : 'border-[rgb(var(--border)/0.75)] bg-black/25'}`}><span className={`absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-[17px]' : 'translate-x-0.5'}`} /></span>
+    <span className="w-5 text-right text-[8px] font-bold uppercase tracking-wide text-muted">{checked ? 'On' : 'Off'}</span>
+  </button>;
+}
+
 /**
  * One home for presentation, devices and app-level actions. It is portalled so
  * game rows, preview panes and theme FX can never cover it.
  */
-export default function AppControlMenu({ onOpenThemes, onOpenVisuals, onOpenControllers, onOpenMascot, onOpenSettings, onOpenChangelog, onCheckForUpdates, onOpenFeedback, onQuit }) {
+export default function AppControlMenu({ onOpenThemes, onOpenVisuals, onOpenControllers, onOpenMascot, onOpenSettings, onOpenChangelog, onCheckForUpdates, onOpenFeedback, onQuit, sidebarMode = false, sidebarExpanded = false, sidebarEnabled = false, onToggleSidebar }) {
   const [open, setOpen] = React.useState(false);
   const buttonRef = React.useRef(null);
   const panelRef = React.useRef(null);
@@ -34,8 +43,10 @@ export default function AppControlMenu({ onOpenThemes, onOpenVisuals, onOpenCont
   const place = React.useCallback(() => {
     const rect = buttonRef.current?.getBoundingClientRect();
     if (!rect) return;
-    setPosition({ top: Math.min(window.innerHeight - 24, rect.bottom + 6), left: Math.max(12, rect.left) });
-  }, []);
+    setPosition(sidebarMode
+      ? { top: Math.max(12, Math.min(window.innerHeight - 24, rect.top)), left: Math.max(12, Math.min(window.innerWidth - 350, rect.right + 8)) }
+      : { top: Math.min(window.innerHeight - 24, rect.bottom + 6), left: Math.max(12, rect.left) });
+  }, [sidebarMode]);
   const toggle = () => { if (!open) place(); setOpen(value => !value); };
   const choose = (action) => { setOpen(false); action?.(); };
 
@@ -51,7 +62,7 @@ export default function AppControlMenu({ onOpenThemes, onOpenVisuals, onOpenCont
     return () => { window.removeEventListener('resize', place); document.removeEventListener('mousedown', outside); document.removeEventListener('keydown', escape); };
   }, [open, place]);
 
-  return <div className="relative z-[60] shrink-0 pointer-events-auto">
+  return <div className={`relative z-[60] shrink-0 pointer-events-auto ${sidebarMode ? 'w-full' : ''}`}>
     <button
       ref={buttonRef}
       type="button"
@@ -61,10 +72,12 @@ export default function AppControlMenu({ onOpenThemes, onOpenVisuals, onOpenCont
       onPointerDown={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
       onClick={toggle}
-      className={`relative z-[61] grid h-9 w-9 place-items-center rounded-lg border pointer-events-auto transition ${open ? 'border-[rgb(var(--accent)/0.85)] bg-[rgb(var(--accent)/0.15)] text-[rgb(var(--accent))] shadow-[0_0_16px_-5px_rgb(var(--accent))]' : 'border-[rgb(var(--border)/0.7)] bg-[rgb(var(--panel))] text-ink/85 hover:border-[rgb(var(--accent)/0.55)] hover:text-ink'}`}
+      className={`relative z-[61] h-9 w-9 rounded-lg border pointer-events-auto transition ${sidebarMode ? 'flex items-center justify-start gap-3 px-2.5' : 'grid place-items-center'} ${open ? 'border-[rgb(var(--accent)/0.85)] bg-[rgb(var(--accent)/0.15)] text-[rgb(var(--accent))] shadow-[0_0_16px_-5px_rgb(var(--accent))]' : 'border-[rgb(var(--border)/0.7)] bg-[rgb(var(--panel))] text-ink/85 hover:border-[rgb(var(--accent)/0.55)] hover:text-ink'}`}
+      style={sidebarMode ? { width: '100%' } : undefined}
       title="NEO-LIB menu"
     >
       <Settings2 size={17} />
+      {sidebarMode && <span className={`overflow-hidden whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.14em] transition-all ${sidebarExpanded ? 'max-w-20 opacity-100' : 'max-w-0 opacity-0'}`}>Menu</span>}
     </button>
     {open && renderForegroundPortal(
         <motion.div
@@ -87,6 +100,7 @@ export default function AppControlMenu({ onOpenThemes, onOpenVisuals, onOpenCont
             <MenuItem icon={<Palette size={15} />} label="Themes" detail="Choose NEO-LIB's overall atmosphere" onClick={() => choose(onOpenThemes)} testid="app-menu-themes" />
             <MenuItem icon={<Palette size={15} />} label="Custom theme" detail="Build and save a personal theme" disabled testid="app-menu-custom-theme" />
             <MenuItem icon={<SlidersHorizontal size={15} />} label="Visual Tweaks" detail="Library type, layout, texture, motion and FX" onClick={() => choose(onOpenVisuals)} testid="app-menu-visuals" />
+            <MenuToggle icon={<PanelLeft size={15} />} label="Sidebar" detail="Move Home, Library, Wall and Tools into a left icon rail" checked={sidebarEnabled} onChange={onToggleSidebar} testid="app-menu-sidebar-toggle" />
           </MenuSection>
           <div className="mx-3 h-px bg-[rgb(var(--border)/0.55)]" />
           <MenuSection label="Devices">

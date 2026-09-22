@@ -36,6 +36,10 @@ Library and Wall easier to use.
 - **Compact widget manager** — built-in and imported widgets use tidy
   three-column cards with the author inline, short descriptions, concise size
   facts and an accessible eye-only visibility control.
+- **Optional navigation sidebar** — keep the familiar top navigation or move
+  Home, Library, Wall and Tools into a slim left icon rail. The rail reveals
+  its labels on hover, and the same saved choice is available in Visual Tweaks
+  and Control Center → Personalise.
 
 ## Verification
 
