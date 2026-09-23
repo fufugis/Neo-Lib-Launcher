@@ -43,6 +43,11 @@ Library and Wall easier to use.
 - **Wall quick filters** — switch between All, Favorites, Most played and
   Recently played directly from the Wall toolbar. The active filter is clearly
   highlighted and works in both Covers and Details.
+- **Clearer GitHub project page** — the oversized internal development diary has
+  been replaced by a concise player-facing overview with honest download status,
+  supported sources, privacy, installation, feedback and roadmap information.
+  Retired prototype and generated testing files have also been removed from the
+  repository without changing the live desktop application.
 
 ## Verification
 

@@ -1,5 +1,7 @@
 # NEO-LIB progress
 
+- **GitHub now presents the product instead of the development diary** — the public README is a short, plain-language overview with downloads, supported sources, privacy, installation, current status, roadmap boundaries, feedback routes and source-build instructions. The active desktop folder has a separate contributor guide and corrected build instructions. An unreferenced pre-Electron backend/frontend prototype, Emergent scaffolding, old agent test reports, a repository-local Git identity and duplicate pitch/features documents have been removed; the live app and release files are unchanged.
+
 - **v1.7.9 GitHub build blocker is repaired and Actions-verified** — the failed tag run stopped inside the launcher-isolation verifier because its explicit local-service allowlist had not been updated when the Home widget package service was added. That known service and the current 88-command contract are now recognized while unknown modules remain blocked. Manual run `35636774870` completed the renderer, NSIS installer, portable build, candidate inspection and artifact upload from commit `a3f3d6d`; GitHub produced a 326.6 MB `NEO-LIB-Windows` artifact.
 
 - **GitHub build spam is fixed in source** — ordinary `main` pushes no longer start a Windows installer build. GitHub Actions now runs only when an exact version tag is pushed or when you deliberately start a manual build. The in-progress `v1.7.9` tag run remains the intended release-candidate build.

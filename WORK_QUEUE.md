@@ -4,6 +4,8 @@ This is the authoritative live queue. New user requests are appended here and re
 
 ## In progress
 
+- [x] **GitHub presentation and legacy-root cleanup** — replaced the 110 KB public development diary with a concise product page that explains what NEO-LIB is, how to install it, supported sources, privacy, current status and honest planned work. Replaced the duplicate 86 KB desktop diary and stale install guide with focused contributor documentation. Removed the unreferenced prototype FastAPI backend, old Create React App frontend, Emergent deployment scaffolding, generated testing-agent reports, repository-local agent identity, and duplicate promotional documents. The active `desktop-app`, release workflow, current release records and player data paths remain untouched.
+
 - [x] **Quiet release workflow** — GitHub Actions no longer runs the expensive Windows package build for every push to `main`. Builds now start only for an exact version tag or a deliberate manual dispatch, eliminating ordinary development-run spam while preserving release-candidate builds.
 
 - [x] **v1.7.9 GitHub renderer gate repair** — the launcher-isolation verifier now recognizes the already-audited widget package service and current 88-command contract. GitHub Actions run `35636774870` passed renderer compilation, NSIS and portable packaging, candidate inspection and artifact upload from commit `a3f3d6d`, producing a 326.6 MB `NEO-LIB-Windows` artifact.
