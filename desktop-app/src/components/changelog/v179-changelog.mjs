@@ -26,6 +26,10 @@ export const V179_CHANGELOG = {
       title: 'Game Workshop brings editing into one place',
       body: 'The former Customize panel is now a clear six-section Game Workshop for metadata, artwork, launch routes, Library status, sourced game signals and advanced update details. Journey Status and personal notes stay local, while only explicitly chosen content flags are shown.',
     },
+    {
+      title: 'Wall Peek keeps you in your collection',
+      body: 'Selecting a Wall game now opens a compact right-side overlay with its Journey Status, playtime, source, screenshots and confirmed game signals. Close it with X, Escape or the backdrop, launch safely, or choose Full Preview when you want the complete page.',
+    },
   ],
   fixes: [
     'Wall controls now fit in one slim wrapping toolbar instead of a tall introduction and two oversized view cards.',

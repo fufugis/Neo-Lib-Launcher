@@ -1543,7 +1543,8 @@ export default function App() {
                 onDensityChange={(coverWallDensity) => updateSetting({ coverWallDensity })}
                 view={settings.wallView || 'covers'}
                 onChangeView={(wallView) => updateSetting({ wallView })}
-                onSelect={(id) => { setSelectedId(id); updateSetting({ mode: 'library', libraryViewMode: 'preview' }); }}
+                onOpenPreview={(id) => { setSelectedId(id); updateSetting({ mode: 'library', libraryViewMode: 'preview' }); }}
+                onLaunch={(game) => launchGame(game)}
                 onOpenHome={() => { setSelectedId(null); updateSetting({ mode: 'home', libraryViewMode: 'preview' }); }}
                 onOpenLibrary={openLibraryDefault}
                 search={search}

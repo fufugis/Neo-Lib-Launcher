@@ -220,6 +220,14 @@ for (const column of ['Main genre', 'Released', 'Last played', 'Install size', '
 }
 assert.match(coverWallSource, /data-testid="wall-open-home"/, 'Wall must provide a direct Home return action.');
 assert.match(coverWallSource, /data-testid="wall-open-library"/, 'Wall must provide a direct Library return action.');
+assert.match(coverWallSource, /data-testid="wall-peek-backdrop"/, 'Wall selection must open a dismissible Peek backdrop instead of navigating away immediately.');
+assert.match(coverWallSource, /data-testid="wall-peek"/, 'Wall Peek needs a dedicated overlay surface.');
+assert.match(coverWallSource, /data-testid="wall-peek-close"/, 'Wall Peek needs an explicit close control.');
+assert.match(coverWallSource, /event\.key === 'Escape'/, 'Wall Peek must close with Escape.');
+assert.match(coverWallSource, /data-testid="wall-peek-open-preview"/, 'Wall Peek must offer the full Preview as an explicit action.');
+assert.match(coverWallSource, /data-testid="wall-peek-play"/, 'Wall Peek must retain guarded Play access.');
+assert.match(coverWallSource, /gameSignals\(game\)/, 'Wall Peek must use the shared evidence-led Game Signals registry.');
+assert.match(appSource, /onOpenPreview=\{\(id\) => \{ setSelectedId\(id\); updateSetting\(\{ mode: 'library', libraryViewMode: 'preview' \}\); \}\}/, 'Only Wall Peek Full Preview may leave the Wall workspace.');
 assert.match(read('electron/preload.js'), /onWindowVisibility/);
 assert.match(read('electron/main.js'), /window:visibility/);
 assert.match(globalStylesSource, /\.font-black \{ font-weight: 700; \}/, 'Ordinary heavy text must keep the calmer application-wide weight.');
