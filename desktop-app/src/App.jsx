@@ -31,6 +31,7 @@ import { createMetadataWorkflow } from './services/metadata-workflow.mjs';
 import { createCategoryPrivacyWorkflow } from './services/category-privacy-workflow.mjs';
 import { pickDetectedLauncher } from './services/launcher-detection-workflow.mjs';
 import { createAutoSortWorkflow } from './services/auto-sort-workflow.mjs';
+import { journeyStatusAfterFirstLaunch } from './lib/game-journey-model.mjs';
 
 // Read app version once — used by the update checker for comparison.
 const APP_VERSION = '1.7.9';
@@ -1042,7 +1043,10 @@ export default function App() {
           playMascotVoice('play-time', { mascotId: settings.mascotId || 'fungist', volume: settings.fungistVoiceVolume ?? 72, cooldownMs: 12_000 });
         }
         const launchOrigin = launchOriginRef.current;
-        updateGame(g.id, { lastPlayedAt: Date.now() });
+        updateGame(g.id, {
+          lastPlayedAt: Date.now(),
+          journeyStatus: journeyStatusAfterFirstLaunch(g.journeyStatus, g.playtime),
+        });
         window.clearTimeout(fungistLaunchTimer.current);
         setFungistLaunchCelebration({ key: Date.now(), origin: launchOrigin, gameName: g.name });
         fungistLaunchTimer.current = window.setTimeout(() => setFungistLaunchCelebration(null), 1_750);

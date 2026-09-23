@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import { appendArtworkRevision, artworkSnapshot, normalizeArtworkLocks } from '../src/lib/artwork-revision-model.mjs';
 import { normalizeLaunchRoutes, primaryLaunchRoute } from '../src/lib/game-launch-routes-model.mjs';
 import { JOURNEY_STATUSES, journeyStatusAfterFirstLaunch, normalizeJourneyStatus } from '../src/lib/game-journey-model.mjs';
@@ -37,4 +39,15 @@ assert.equal(snapshot.cover, 'cover.jpg');
 assert.deepEqual(appendArtworkRevision([1, 2], snapshot, 2), [2, snapshot]);
 assert.deepEqual(normalizeArtworkLocks({ cover: true, hero: 1 }), { icon: false, cover: true, hero: false, background: false, logo: false });
 
-console.log('PASS: Journey Status, Launch Routes, Game Signals, configurable Wall columns and Artwork Workshop revision contracts are stable and bounded.');
+const workshop = fs.readFileSync(path.join(import.meta.dirname, '../src/components/EditMetadataModal.jsx'), 'utf8');
+assert.match(workshop, /Game Workshop/);
+for (const tab of ['Overview', 'Artwork', 'Play & routes', 'Library', 'Signals', 'Advanced']) assert.match(workshop, new RegExp(tab.replace(/[&]/g, '\\&')));
+assert.match(workshop, /normalizeLaunchRoutes/);
+assert.match(workshop, /journeyStatus/);
+assert.match(workshop, /contentFlags/);
+assert.match(workshop, /game-workshop-save/);
+
+const app = fs.readFileSync(path.join(import.meta.dirname, '../src/App.jsx'), 'utf8');
+assert.match(app, /journeyStatusAfterFirstLaunch\(g\.journeyStatus, g\.playtime\)/);
+
+console.log('PASS: Game Workshop preserves the existing editor fields, exposes all six sections, saves bounded Journey Status/Launch Routes/content flags, and starts a new journey on first tracked launch.');

@@ -98,7 +98,7 @@ export default function PreviewActionBar({ game, categories, onLaunch, onLaunchE
       <button
         data-testid="detail-customize-btn"
         onClick={() => onCustomize?.(game)}
-        title="Set custom cover, icon, screenshots, description, or .exe path"
+        title="Open Game Workshop to edit artwork, launch routes, library status, and metadata"
         className="group inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold text-[rgb(var(--surface))] transition-all hover:scale-[1.04]"
         style={{
           backgroundImage: 'linear-gradient(135deg, rgb(var(--accent-2)) 0%, rgb(var(--accent)) 100%)',
@@ -106,7 +106,7 @@ export default function PreviewActionBar({ game, categories, onLaunch, onLaunchE
         }}
       >
         <Wand2 size={13} className="transition-transform group-hover:rotate-12" />
-        Customize
+        Edit game
       </button>
 
       <button
@@ -220,4 +220,3 @@ function ManagedToolMenu({ game, onLocate, onInstall, installing, compact = fals
   }, [open]);
   return <div ref={ref} className="relative shrink-0"><button onClick={() => setOpen((value) => !value)} disabled={installing} className={`${compact ? 'h-8 px-3 text-[10px]' : 'h-9 px-4 text-[11px]'} inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.42)] bg-[rgb(var(--accent)/0.1)] font-black text-[rgb(var(--accent))] hover:bg-[rgb(var(--accent)/0.18)] disabled:opacity-50`} title={`Set up ${game.name}`}><Wrench size={compact ? 12 : 14} />{installing ? 'Downloading…' : 'Set up'}<ChevronDown size={12} className={open ? 'rotate-180 transition-transform' : 'transition-transform'} /></button>{open && <div className="absolute right-0 top-[calc(100%+6px)] z-[90] w-56 overflow-hidden rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.98)] p-1.5 shadow-2xl"><button onClick={() => { setOpen(false); onLocate?.(game); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[10.5px] font-semibold text-ink hover:bg-[rgb(var(--accent)/0.12)]"><FolderOpen size={13} className="text-[rgb(var(--accent-2))]" /><span><b className="block">Locate it</b><span className="text-[9px] font-normal text-muted">Choose an existing official executable</span></span></button><button onClick={() => { setOpen(false); onInstall?.(game); }} className="mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[10.5px] font-semibold text-ink hover:bg-[rgb(var(--accent)/0.12)]"><Download size={13} className="text-emerald-300" /><span><b className="block">Install from official site</b><span className="text-[9px] font-normal text-muted">Downloads only after this click</span></span></button></div>}</div>;
 }
-

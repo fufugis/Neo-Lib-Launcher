@@ -22,6 +22,10 @@ export const V179_CHANGELOG = {
       title: 'Filter the Wall in one click',
       body: 'All, Favorites, Most played and Recently played are always available in the compact Wall toolbar. The active choice is highlighted, updates the visible count and works in both cover and detailed views.',
     },
+    {
+      title: 'Game Workshop brings editing into one place',
+      body: 'The former Customize panel is now a clear six-section Game Workshop for metadata, artwork, launch routes, Library status, sourced game signals and advanced update details. Journey Status and personal notes stay local, while only explicitly chosen content flags are shown.',
+    },
   ],
   fixes: [
     'Wall controls now fit in one slim wrapping toolbar instead of a tall introduction and two oversized view cards.',
