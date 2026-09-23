@@ -215,9 +215,9 @@ assert.match(coverWallSource, /data-testid="wall-quick-filters"/, 'Wall must exp
 assert.match(coverWallSource, /data-testid=\{`wall-filter-\$\{filter\.id\}`\}/, 'Every Wall quick-filter choice needs a stable UI binding.');
 assert.match(appSource, /favoriteIds=\{settings\.pinnedGameIds \|\| \[\]\}/, 'Wall Favorites must use the player\'s saved favorite game IDs.');
 assert.match(coverWallSource, /data-testid="wall-details-list"/, 'Wall detailed mode must have its own factual list surface.');
-for (const column of ['Main genre', 'Released', 'Last played', 'Install size', 'Hours played']) {
-  assert.match(coverWallSource, new RegExp(column), `Wall detailed list lost ${column}.`);
-}
+assert.match(coverWallSource, /normalizeWallColumns/, 'Wall detailed list must consume the shared configurable column contract.');
+assert.match(coverWallSource, /data-testid="wall-columns-toggle"/, 'Wall detailed list must expose its column controls.');
+assert.match(coverWallSource, /data-testid="wall-columns-menu"/, 'Wall detailed list must expose visible-column and width controls.');
 assert.match(coverWallSource, /data-testid="wall-open-home"/, 'Wall must provide a direct Home return action.');
 assert.match(coverWallSource, /data-testid="wall-open-library"/, 'Wall must provide a direct Library return action.');
 assert.match(coverWallSource, /data-testid="wall-peek-backdrop"/, 'Wall selection must open a dismissible Peek backdrop instead of navigating away immediately.');

@@ -30,6 +30,10 @@ export const V179_CHANGELOG = {
       title: 'Wall Peek keeps you in your collection',
       body: 'Selecting a Wall game now opens a compact right-side overlay with its Journey Status, playtime, source, screenshots and confirmed game signals. Close it with X, Escape or the backdrop, launch safely, or choose Full Preview when you want the complete page.',
     },
+    {
+      title: 'Detailed Wall can be tailored to you',
+      body: 'Click a Detailed Wall heading to sort it, then open Columns to hide optional facts or adjust their width. Your chosen layout stays local, while Game identity always remains visible.',
+    },
   ],
   fixes: [
     'Wall controls now fit in one slim wrapping toolbar instead of a tall introduction and two oversized view cards.',

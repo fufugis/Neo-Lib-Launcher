@@ -57,7 +57,7 @@ This is the authoritative live queue. New user requests are appended here and re
 
 - [x] **Wall Peek + Game Signals P0** — clicking a Wall game now opens a floating right-side Peek without leaving or shrinking the collection. X, Escape, backdrop, clicking the selected card again or another card dismisses/replaces it. Peek shows cover, source, Journey Status, playtime, compact metadata, up to three screenshots, guarded Play and explicit Full Preview. Its compact icon vocabulary reads the shared evidence-led Game Signals registry; Adult/NSFW and other content flags appear only when explicitly stored. Focused Wall, renderer and visual-boundary checks pass; rebuilt Windows mouse/keyboard/privacy acceptance remains required.
 
-- [ ] **Detailed Wall layouts P1** — allow heading sort, column visibility, drag reorder, bounded resize and named saved layouts using the prepared column contract. Game identity remains mandatory and usable reset/default behavior is required.
+- [x] **Detailed Wall layouts P1** — Detailed Wall now consumes the prepared persisted column contract. Players can sort on headings, show/hide non-identity columns and adjust each bounded column width from the compact Columns panel; Game remains mandatory. Focused renderer, Wall and visual-boundary checks pass; rebuilt Windows interaction acceptance remains required.
 
 - [ ] **Artwork Workshop P0** — compare Current and Suggested Icon/Cover/Hero/Background/Logo assets with source and dimensions when known; support Protect mine, Use this, Clear and bounded Restore. Every provider/catalogue result remains review-first and player artwork is never silently replaced.
 
