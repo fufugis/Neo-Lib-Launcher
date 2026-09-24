@@ -4,6 +4,7 @@ import { ArchiveRestore, ChevronDown, Download, FileText, FolderOpen, Play, Refr
 import { cn, colorFromId } from '../../lib/utils';
 import { hoverThrottled, playLaunch } from '../../lib/sound';
 import { renderForegroundPortal } from '../ui/VisualBoundary';
+import { normalizeLaunchRoutes } from '../../lib/game-launch-routes-model.mjs';
 
 function openSearch(query, engine = 'google') {
   const url = engine === 'youtube'
@@ -16,6 +17,8 @@ function openSearch(query, engine = 'google') {
 /* ---------- Action bar ---------- */
 export default function PreviewActionBar({ game, categories, onLaunch, onLaunchError, onRefetch, onRevealFolder, onToggleCategory, onCustomize, onOpenSaveManager, onLocateManagedTool, onInstallManagedTool, managedToolInstalling, fetching, settings = {} }) {
   const [catOpen, setCatOpen] = React.useState(false);
+  const [routeOpen, setRouteOpen] = React.useState(false);
+  const [routeAnchor, setRouteAnchor] = React.useState(null);
   const [catAnchor, setCatAnchor] = React.useState(null);
   const popRef = React.useRef(null);
   React.useEffect(() => {
@@ -23,6 +26,20 @@ export default function PreviewActionBar({ game, categories, onLaunch, onLaunchE
     if (catOpen) document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
   }, [catOpen]);
+  const launchWithSafety = React.useCallback(async (target, event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const launchOrigin = { x: rect.left + (rect.width / 2), y: rect.top + (rect.height / 2) };
+    if (!window.api?.armGameLaunch) {
+      if (settings.soundsEnabled !== false) playLaunch();
+      onLaunch(target, '', launchOrigin);
+      return;
+    }
+    const armed = await window.api.armGameLaunch();
+    if (!armed?.ok) { onLaunchError?.(armed?.error || 'Launch safety could not verify that click. Please try again.'); return; }
+    if (settings.soundsEnabled !== false) playLaunch();
+    onLaunch(target, armed.token, launchOrigin);
+  }, [onLaunch, onLaunchError, settings.soundsEnabled]);
+  const routes = React.useMemo(() => normalizeLaunchRoutes(game.launchRoutes).filter((route) => route.enabled && route.target), [game.launchRoutes]);
 
   return (
     <div className="special-control-surface neolib-special-action-art relative z-10 flex flex-wrap items-center gap-3 border-y hairline px-6 py-3" style={{ backgroundColor: 'rgb(var(--surface) / 0.24)', backdropFilter: 'blur(8px) saturate(124%)' }}>
@@ -33,24 +50,18 @@ export default function PreviewActionBar({ game, categories, onLaunch, onLaunchE
         onMouseEnter={() => { if (settings.soundsEnabled !== false) hoverThrottled(); }}
         disabled={game.managedTool && game.availability !== 'installed'}
         data-neolib-launch="true"
-        onClick={async (event) => {
-          const rect = event.currentTarget.getBoundingClientRect();
-          const launchOrigin = { x: rect.left + (rect.width / 2), y: rect.top + (rect.height / 2) };
-          if (!window.api?.armGameLaunch) {
-            if (settings.soundsEnabled !== false) playLaunch();
-            onLaunch(game, '', launchOrigin);
-            return;
-          }
-          const armed = await window.api?.armGameLaunch?.();
-          if (!armed?.ok) { onLaunchError?.(armed?.error || 'Launch safety could not verify that click. Please try again.'); return; }
-          if (settings.soundsEnabled !== false) playLaunch();
-          onLaunch(game, armed.token, launchOrigin);
-        }}
+        onClick={(event) => launchWithSafety(game, event)}
         className="neon group inline-flex items-center gap-2 rounded-full bg-[rgb(var(--accent))] px-5 py-2 text-[13px] font-bold tracking-wide text-[rgb(var(--surface))] disabled:cursor-not-allowed disabled:opacity-40"
       >
         <Play size={14} className="transition-transform group-hover:translate-x-0.5" />
         {game.managedTool && game.availability !== 'installed' ? 'SET UP REQUIRED' : 'LAUNCH'}
       </motion.button>
+      {routes.length > 0 && <div className="relative">
+        <button data-testid="detail-route-picker-btn" onClick={(event) => { const rect = event.currentTarget.getBoundingClientRect(); setRouteAnchor({ x: rect.left, y: rect.bottom + 4 }); setRouteOpen((open) => !open); }} className="grid h-9 w-9 place-items-center rounded-full hairline text-muted hover:border-[rgb(var(--accent)/0.58)] hover:text-ink" title="Choose launch route"><ChevronDown size={15} /></button>
+        {routeOpen && routeAnchor && renderForegroundPortal(<div className="fixed z-[220] w-56 overflow-hidden rounded-xl hairline glass p-1 shadow-2xl" style={{ left: routeAnchor.x, top: routeAnchor.y }}>
+          {routes.map((route) => <button key={route.id} onClick={(event) => { setRouteOpen(false); launchWithSafety({ ...game, exePath: route.target, launchArgs: route.arguments || '', launchRouteId: route.id }, event); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink"><Play size={12} /><span className="truncate">{route.label}</span></button>)}
+        </div>)}
+      </div>}
 
       {game.managedTool && game.availability !== 'installed' && <ManagedToolMenu game={game} onLocate={onLocateManagedTool} onInstall={onInstallManagedTool} installing={managedToolInstalling} />}
 
