@@ -6,6 +6,7 @@ import { normalizeLaunchRoutes, primaryLaunchRoute } from '../src/lib/game-launc
 import { JOURNEY_STATUSES, journeyStatusAfterFirstLaunch, normalizeJourneyStatus } from '../src/lib/game-journey-model.mjs';
 import { gameSignals, GAME_SIGNAL_DEFINITIONS } from '../src/lib/game-signals-model.mjs';
 import { normalizeWallColumns, visibleWallColumns, WALL_COLUMN_DEFINITIONS } from '../src/components/library/wall-columns-model.mjs';
+import { collectionCategoryAssignment } from '../src/services/collection-mode.mjs';
 
 assert.deepEqual(JOURNEY_STATUSES.map(({ id }) => id), ['not-started', 'backlog', 'in-progress', 'on-hold', 'finished', 'mastered', 'dropped']);
 assert.equal(normalizeJourneyStatus('unknown'), 'not-started');
@@ -34,6 +35,8 @@ assert.equal(columns.find(({ id }) => id === 'rating').width, 70);
 assert.equal(visibleWallColumns([{ id: 'mainGenre', visible: false }]).some(({ id }) => id === 'mainGenre'), false);
 assert.equal(WALL_COLUMN_DEFINITIONS.some(({ id }) => id === 'journeyStatus'), true);
 
+assert.deepEqual(collectionCategoryAssignment([{ id: 'a', categoryIds: ['first'] }, { id: 'b' }], ['a', 'b'], 'second'), [{ id: 'a', categoryIds: ['first', 'second'] }, { id: 'b', categoryIds: ['second'] }]);
+
 const snapshot = artworkSnapshot({ icon: 'icon.png', portraitImage: 'cover.jpg', logo: 'logo.png', artworkSources: { cover: 'Player' } }, { at: 5, reason: 'before-repair' });
 assert.equal(snapshot.cover, 'cover.jpg');
 assert.equal(snapshot.logo, 'logo.png');
@@ -57,12 +60,14 @@ assert.match(wall, /wall-select-games/);
 assert.match(wall, /wall-collection-actions/);
 assert.match(wall, /onBulkFavorite/);
 assert.match(wall, /onBulkJourneyStatus/);
+assert.match(wall, /onBulkAddCategory/);
 
 const sidebar = fs.readFileSync(path.join(import.meta.dirname, '../src/components/Sidebar.jsx'), 'utf8');
 assert.match(sidebar, /sidebar-select-games/);
 assert.match(sidebar, /sidebar-collection-actions/);
 assert.match(sidebar, /onBulkFavorite/);
 assert.match(sidebar, /onBulkJourneyStatus/);
+assert.match(sidebar, /onBulkAddCategory/);
 
 const wizard = fs.readFileSync(path.join(import.meta.dirname, '../src/components/WizardModal.jsx'), 'utf8');
 assert.match(wizard, /Retro Profiles/);
@@ -80,6 +85,7 @@ const app = fs.readFileSync(path.join(import.meta.dirname, '../src/App.jsx'), 'u
 assert.match(app, /journeyStatusAfterFirstLaunch\(g\.journeyStatus, g\.playtime\)/);
 assert.match(app, /onBulkFavorite/);
 assert.match(app, /onBulkJourneyStatus/);
+assert.match(app, /addBulkCategory/);
 assert.match(app, /onRetroProfilesChange/);
 
 console.log('PASS: Game Workshop preserves the existing editor fields, exposes all six sections, saves bounded Journey Status/Launch Routes/content flags, and starts a new journey on first tracked launch.');

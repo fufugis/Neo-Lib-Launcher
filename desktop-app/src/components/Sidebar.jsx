@@ -121,7 +121,7 @@ export default function Sidebar({
   effectsLevel = 2, currentTheme = 'synthwave', motionCadence = 'full', onChangeEffectsLevel, onChangeMotionCadence,
   unseenNewsCount = 0,
   pinnedIds = [],
-  onBulkFavorite, onBulkJourneyStatus,
+  collectionCategories = [], onBulkFavorite, onBulkJourneyStatus, onBulkAddCategory,
   onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
   onChangeRowGap, onChangeCatGap, onChangeCatTopGap, onChangeCategoryMarkerMode,
   onToggleSubcatStrip, onChangeNameTextSize,
@@ -630,7 +630,7 @@ export default function Sidebar({
         </div>
       )}
 
-      {!isTools && selectionMode && <LibrarySelectionBar count={selectedIds.length} onDone={finishSelection} onFavorite={(favorite) => onBulkFavorite?.(selectedIds, favorite)} onJourneyStatus={(journeyStatus) => onBulkJourneyStatus?.(selectedIds, journeyStatus)} />}
+      {!isTools && selectionMode && <LibrarySelectionBar count={selectedIds.length} categories={collectionCategories} onDone={finishSelection} onFavorite={(favorite) => onBulkFavorite?.(selectedIds, favorite)} onJourneyStatus={(journeyStatus) => onBulkJourneyStatus?.(selectedIds, journeyStatus)} onAddCategory={(categoryId) => onBulkAddCategory?.(selectedIds, categoryId)} />}
       {/* Tree — single column or two-column (categories never split between columns).
           v1.2.2 — auto-scroll while dragging a game near the top/bottom edges so
           long libraries are actually reachable during a drag operation. */}
@@ -794,8 +794,8 @@ export default function Sidebar({
   );
 }
 
-function LibrarySelectionBar({ count, onDone, onFavorite, onJourneyStatus }) {
-  return <div data-testid="sidebar-collection-actions" className="mx-3 mb-2 flex flex-wrap items-center gap-1 rounded-lg border border-[rgb(var(--accent)/0.5)] bg-[rgb(var(--accent)/0.09)] p-1.5"><span className="px-1 text-[9px] font-bold text-ink">{count} selected</span><button type="button" disabled={!count} onClick={() => onFavorite(true)} className="rounded-md px-2 py-1 text-[9px] font-bold text-muted hover:bg-[rgb(var(--accent)/0.16)] hover:text-ink disabled:opacity-35">Favorite</button><button type="button" disabled={!count} onClick={() => onFavorite(false)} className="rounded-md px-2 py-1 text-[9px] font-bold text-muted hover:bg-[rgb(var(--accent)/0.16)] hover:text-ink disabled:opacity-35">Unfavorite</button><select aria-label="Set Journey Status for selected Library games" disabled={!count} defaultValue="" onChange={(event) => { if (event.target.value) onJourneyStatus(event.target.value); event.target.value = ''; }} className="h-7 min-w-0 flex-1 rounded-md bg-transparent px-1 text-[9px] font-bold text-muted outline-none disabled:opacity-35"><option value="">Set status…</option>{JOURNEY_STATUSES.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select><button type="button" onClick={onDone} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-[rgb(var(--accent)/0.16)] hover:text-ink" title="Leave selection mode"><X size={12} /></button></div>;
+function LibrarySelectionBar({ count, categories, onDone, onFavorite, onJourneyStatus, onAddCategory }) {
+  return <div data-testid="sidebar-collection-actions" className="mx-3 mb-2 flex flex-wrap items-center gap-1 rounded-lg border border-[rgb(var(--accent)/0.5)] bg-[rgb(var(--accent)/0.09)] p-1.5"><span className="px-1 text-[9px] font-bold text-ink">{count} selected</span><button type="button" disabled={!count} onClick={() => onFavorite(true)} className="rounded-md px-2 py-1 text-[9px] font-bold text-muted hover:bg-[rgb(var(--accent)/0.16)] hover:text-ink disabled:opacity-35">Favorite</button><button type="button" disabled={!count} onClick={() => onFavorite(false)} className="rounded-md px-2 py-1 text-[9px] font-bold text-muted hover:bg-[rgb(var(--accent)/0.16)] hover:text-ink disabled:opacity-35">Unfavorite</button><select aria-label="Add selected Library games to a category" disabled={!count || !categories.length} defaultValue="" onChange={(event) => { if (event.target.value) onAddCategory(event.target.value); event.target.value = ''; }} className="h-7 min-w-0 max-w-28 rounded-md bg-transparent px-1 text-[9px] font-bold text-muted outline-none disabled:opacity-35"><option value="">Add to…</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><select aria-label="Set Journey Status for selected Library games" disabled={!count} defaultValue="" onChange={(event) => { if (event.target.value) onJourneyStatus(event.target.value); event.target.value = ''; }} className="h-7 min-w-0 flex-1 rounded-md bg-transparent px-1 text-[9px] font-bold text-muted outline-none disabled:opacity-35"><option value="">Set status…</option>{JOURNEY_STATUSES.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select><button type="button" onClick={onDone} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-[rgb(var(--accent)/0.16)] hover:text-ink" title="Leave selection mode"><X size={12} /></button></div>;
 }
 
 function SideNavigationRail({ expanded, onExpandedChange, mode, libraryViewMode, onOpenHome, onOpenLibrary, onOpenWall, onOpenTools, onOpenThemes, onOpenMascot, onOpenVisuals, onOpenControllers, onOpenSettings, onOpenChangelog, onCheckForUpdates, onOpenFeedback, onQuit, onDisableSidebar }) {

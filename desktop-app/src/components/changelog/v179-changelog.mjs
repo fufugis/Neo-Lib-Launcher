@@ -40,7 +40,7 @@ export const V179_CHANGELOG = {
     },
     {
       title: 'Collection Mode starts in Wall',
-      body: 'Choose Select in Library or Select games in Wall to mark several titles without changing normal browsing. Batch favorite/unfavorite actions and Journey Status updates apply only to the selected games, in Library, covers and detailed Wall.',
+      body: 'Choose Select in Library or Select games in Wall to mark several titles without changing normal browsing. Batch favorite/unfavorite actions, Journey Status updates and adding to an existing normal category apply only to the selected games, in Library, covers and detailed Wall.',
     },
     {
       title: 'Retro Profiles are ready for your own setup',
