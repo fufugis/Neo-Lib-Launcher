@@ -46,6 +46,10 @@ export const V179_CHANGELOG = {
       title: 'Retro Profiles are ready for your own setup',
       body: 'Wizard now saves player-chosen emulator paths, ROM folders, platform extensions, argument prefixes, working folders and tracking preferences. NEO-LIB does not supply, search, scan, import or launch ROMs from this setup screen; reviewed ROM importing follows separately.',
     },
+    {
+      title: 'Artwork refreshes are easier to trust',
+      body: 'Metadata review now places Current and Suggested artwork side by side before you apply it. Protected artwork slots remain clearly listed and are not changed by an accepted metadata refresh.',
+    },
   ],
   fixes: [
     'Wall controls now fit in one slim wrapping toolbar instead of a tall introduction and two oversized view cards.',

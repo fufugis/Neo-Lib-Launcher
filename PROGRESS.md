@@ -1,5 +1,7 @@
 # NEO-LIB progress
 
+- **Artwork review is source-complete** — metadata refresh now compares Current and Suggested artwork directly in its existing review dialog. When a Game Workshop lock exists, Hero/Cover/Background artwork stays unchanged on acceptance and the protected slots are shown clearly. This is intentionally a player-reviewed operation; independent multi-source suggestion galleries remain queued. Focused metadata, Library Experience and renderer checks pass; rebuilt Windows visual acceptance remains required.
+
 - **Retro Profile setup is source-complete** — Wizard now stores up to twenty player-owned emulator profiles: emulator executable, ROM folder, platform-extension group, optional argument prefix/working folder and process/manual tracking. The setup screen does not scan, import, launch, download or locate ROMs, BIOS files or emulators. Focused emulation, Library Experience and renderer checks pass; the later reviewed scanner/import stage remains queued.
 
 - **Collection Mode is source-complete for Wall** — Wall now has an explicit Select games mode in both cover and detailed views. It makes multi-selection visible without changing ordinary card behavior, then applies Favorite/Unfavorite and Journey Status only to the chosen games. Category, private shelf and artwork/metadata queue bulk actions remain separate queued work. Focused Library Experience, Wall and renderer checks pass; rebuilt Windows interaction acceptance remains required.

@@ -1,9 +1,10 @@
 import React from 'react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
-import { Check, X, GripVertical, RefreshCw, ExternalLink } from 'lucide-react';
+import { Check, X, GripVertical, Lock, RefreshCw, ExternalLink } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { genreDisplayGroups, normalizeGenreProfile } from '../lib/genreTaxonomy';
 import { cleanDescriptionText } from '../lib/descriptionFormatting.mjs';
+import { normalizeArtworkLocks } from '../lib/artwork-revision-model.mjs';
 
 const isElectron = typeof window !== 'undefined' && !!window.api;
 
@@ -52,6 +53,7 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
   const nothingFound = !proposed;
   const proposedTags = p.genreTags?.length ? p.genreTags : (p.genres || []);
   const proposedProfile = proposedTags.length ? normalizeGenreProfile({ rawTags: proposedTags, source: p.source || 'web' }) : null;
+  const artworkLocks = normalizeArtworkLocks(game.artworkLocks);
   const currentIdentity = identitySummary(game.genreProfile);
   const proposedIdentity = identitySummary(proposedProfile);
 
@@ -82,11 +84,22 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
       patch.about = cleanDescriptionText(p.about || p.shortDescription || '');
     }
     if (pick.image) {
-      patch.headerImage = p.headerImage || game.headerImage;
-      patch.capsuleImage = p.capsuleImage || p.headerImage || game.coverUrl;
-      patch.portraitImage = p.portraitImage || game.portraitImage || '';
-      patch.coverUrl = p.portraitImage || p.capsuleImage || p.headerImage || game.coverUrl;
-      patch.background = p.background || p.headerImage || game.background;
+      const artworkSources = { ...(game.artworkSources || {}) };
+      if (!artworkLocks.hero && p.headerImage) {
+        patch.headerImage = p.headerImage;
+        artworkSources.hero = p.source || 'Metadata review';
+      }
+      if (!artworkLocks.cover && (p.portraitImage || p.capsuleImage || p.headerImage)) {
+        patch.capsuleImage = p.capsuleImage || p.headerImage || game.coverUrl;
+        patch.portraitImage = p.portraitImage || game.portraitImage || '';
+        patch.coverUrl = p.portraitImage || p.capsuleImage || p.headerImage || game.coverUrl;
+        artworkSources.cover = p.source || 'Metadata review';
+      }
+      if (!artworkLocks.background && (p.background || p.headerImage)) {
+        patch.background = p.background || p.headerImage || game.background;
+        artworkSources.background = p.source || 'Metadata review';
+      }
+      patch.artworkSources = artworkSources;
     }
     if (pick.screenshots) patch.screenshots = p.screenshots || [];
     if (pick.genres) {
@@ -201,27 +214,12 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
                 </div>
               </div>
 
-              {/* Image preview — show proposed hero/cover */}
+              {/* Artwork comparison stays review-first and honors Workshop locks. */}
               {(p.headerImage || p.capsuleImage || p.background) && (
-                <div className="md:col-span-2 relative overflow-hidden rounded-md hairline">
-                  <img
-                    src={p.headerImage || p.background || p.capsuleImage}
-                    alt=""
-                    className={cn('aspect-[16/5] w-full object-cover transition-opacity', !pick.image && 'opacity-30 grayscale')}
-                  />
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[rgb(var(--surface))]/85 via-transparent to-transparent" />
-                  <div className="absolute bottom-2 left-3 right-3 flex items-end justify-between gap-2">
-                    <div>
-                      <div className="text-[9px] uppercase tracking-wider text-[rgb(var(--accent-2))]">Proposed hero</div>
-                      <div className="font-display text-base font-bold text-ink">{p.name}</div>
-                    </div>
-                    <FieldCheck
-                      label="Apply image"
-                      checked={pick.image}
-                      onToggle={(v) => setPick((s) => ({ ...s, image: v }))}
-                      testid="accept-pick-image"
-                    />
-                  </div>
+                <div className="md:col-span-2 rounded-md hairline bg-panel/30 p-3">
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><div><div className="text-[9px] uppercase tracking-wider text-[rgb(var(--accent-2))]">Artwork review</div><div className="mt-0.5 text-xs text-muted">Current and suggested artwork stay separate until you apply the review.</div></div><FieldCheck label="Use suggested artwork" checked={pick.image} onToggle={(v) => setPick((s) => ({ ...s, image: v }))} testid="accept-pick-image" /></div>
+                  <div className={cn('grid gap-2 sm:grid-cols-2 transition-opacity', !pick.image && 'opacity-40 grayscale')}><ArtworkReviewCard label="Current" image={game.portraitImage || game.coverUrl || game.headerImage} /><ArtworkReviewCard label={`Suggested · ${p.source || 'reviewed source'}`} image={p.portraitImage || p.capsuleImage || p.headerImage || p.background} /></div>
+                  {Object.entries(artworkLocks).filter(([, locked]) => locked).length > 0 && <p className="mt-2 inline-flex items-center gap-1.5 text-[10px] text-[rgb(var(--accent-2))]"><Lock size={11} />Protected artwork is kept: {Object.entries(artworkLocks).filter(([, locked]) => locked).map(([slot]) => slot).join(', ')}.</p>}
                 </div>
               )}
 
@@ -376,6 +374,10 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
 function identitySummary(profile) {
   const groups = genreDisplayGroups(profile);
   return groups.length ? groups.map(([label, entries]) => `${label}: ${entries.map((entry) => entry.label).join(', ')}`).join(' · ') : '—';
+}
+
+function ArtworkReviewCard({ label, image }) {
+  return <div className="overflow-hidden rounded-md border border-[rgb(var(--border)/0.62)] bg-[rgb(var(--surface)/0.38)]"><div className="flex aspect-[16/6] items-center justify-center bg-black/20">{image ? <img src={image} alt="" className="h-full w-full object-cover" /> : <span className="text-[10px] text-muted">No artwork</span>}</div><p className="truncate px-2 py-1.5 text-[9px] font-bold uppercase tracking-[0.11em] text-muted">{label}</p></div>;
 }
 
 function DiffField({ label, current, proposed, full, tall, checked = true, onToggle, testid, note }) {

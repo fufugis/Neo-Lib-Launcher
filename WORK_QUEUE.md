@@ -63,7 +63,9 @@ This is the authoritative live queue. New user requests are appended here and re
 
 - [x] **Artwork Workshop safety P0** — Game Workshop now keeps per-slot Protect mine choices for Icon/Cover/Hero/Background/Logo, source/dimension context when known and up to eight local restore points. Clear and Restore are staged until Save; no artwork is silently replaced.
 
-- [ ] **Artwork Workshop suggestions P0** — add a visual Current/Suggested comparison for candidate Icon/Cover/Hero/Background/Logo assets, including source and resolution, with explicit Use this decisions. Every provider/catalogue result remains review-first and player artwork is never silently replaced.
+- [x] **Artwork Workshop metadata review P0** — existing reviewed metadata refresh now displays Current/Suggested artwork side by side and honors stored Hero/Cover/Background protection choices. Acceptance remains player-driven.
+
+- [ ] **Artwork Workshop source gallery P1** — add individual candidate Icon/Cover/Hero/Background/Logo gallery results with source/resolution and explicit Use this decisions. Every provider/catalogue result remains review-first and player artwork is never silently replaced.
 
 - [x] **Collection Mode Wall P1** — Wall now has explicit multi-select in cover and detailed views for Favorite/Unfavorite and Journey Status. Ordinary click behavior remains Peek-first, and selection state is always visible.
 

@@ -64,6 +64,12 @@ assert.match(wizard, /retro-profile-save/);
 assert.match(wizard, /NEO-LIB never supplies or searches for emulators, BIOS files or ROMs/);
 assert.doesNotMatch(wizard, /scanRom|scanROM|importRom|importROM/, 'The profile setup surface must not scan/import ROMs yet.');
 
+const metadataReview = fs.readFileSync(path.join(import.meta.dirname, '../src/components/AcceptMetadataModal.jsx'), 'utf8');
+assert.match(metadataReview, /Artwork review/);
+assert.match(metadataReview, /normalizeArtworkLocks/);
+assert.match(metadataReview, /artworkLocks\.cover/);
+assert.match(metadataReview, /Protected artwork is kept/);
+
 const app = fs.readFileSync(path.join(import.meta.dirname, '../src/App.jsx'), 'utf8');
 assert.match(app, /journeyStatusAfterFirstLaunch\(g\.journeyStatus, g\.playtime\)/);
 assert.match(app, /onBulkFavorite/);
