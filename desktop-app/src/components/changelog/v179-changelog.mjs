@@ -42,6 +42,10 @@ export const V179_CHANGELOG = {
       title: 'Collection Mode starts in Wall',
       body: 'Choose Select games in Wall to mark several titles without changing normal browsing. Batch favorite/unfavorite actions and Journey Status updates apply only to the selected games, in both cover and detailed views.',
     },
+    {
+      title: 'Retro Profiles are ready for your own setup',
+      body: 'Wizard now saves player-chosen emulator paths, ROM folders, platform extensions, argument prefixes, working folders and tracking preferences. NEO-LIB does not supply, search, scan, import or launch ROMs from this setup screen; reviewed ROM importing follows separately.',
+    },
   ],
   fixes: [
     'Wall controls now fit in one slim wrapping toolbar instead of a tall introduction and two oversized view cards.',

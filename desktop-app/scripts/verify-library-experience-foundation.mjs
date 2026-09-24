@@ -58,9 +58,16 @@ assert.match(wall, /wall-collection-actions/);
 assert.match(wall, /onBulkFavorite/);
 assert.match(wall, /onBulkJourneyStatus/);
 
+const wizard = fs.readFileSync(path.join(import.meta.dirname, '../src/components/WizardModal.jsx'), 'utf8');
+assert.match(wizard, /Retro Profiles/);
+assert.match(wizard, /retro-profile-save/);
+assert.match(wizard, /NEO-LIB never supplies or searches for emulators, BIOS files or ROMs/);
+assert.doesNotMatch(wizard, /scanRom|scanROM|importRom|importROM/, 'The profile setup surface must not scan/import ROMs yet.');
+
 const app = fs.readFileSync(path.join(import.meta.dirname, '../src/App.jsx'), 'utf8');
 assert.match(app, /journeyStatusAfterFirstLaunch\(g\.journeyStatus, g\.playtime\)/);
 assert.match(app, /onBulkFavorite/);
 assert.match(app, /onBulkJourneyStatus/);
+assert.match(app, /onRetroProfilesChange/);
 
 console.log('PASS: Game Workshop preserves the existing editor fields, exposes all six sections, saves bounded Journey Status/Launch Routes/content flags, and starts a new journey on first tracked launch.');

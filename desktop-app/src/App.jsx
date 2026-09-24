@@ -1687,6 +1687,7 @@ export default function App() {
           setWizardAutoScan,
           requestMetadataRefresh,
           openTidyUp: () => setTidyOpen(true),
+          onRetroProfilesChange: (retroProfiles) => updateSetting({ retroProfiles }),
           setMascotActivity,
           addToGames,
           library,
