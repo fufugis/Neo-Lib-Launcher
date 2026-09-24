@@ -106,7 +106,7 @@ async function main() {
   const registrationSource = ipcSources.join('\n');
 const staticChannels = Array.from(registrationSource.matchAll(/registerIpc\(['"]([^'"]+)['"]/g), match => match[1]);
 const nativeChannels = staticChannels;
-assert.equal(nativeChannels.length, 89, 'known native command count changed; review the contract intentionally');
+assert.equal(nativeChannels.length, 90, 'known native command count changed; review the contract intentionally');
 assert.equal(new Set(nativeChannels).size, nativeChannels.length, 'source contains a duplicate channel');
 
 const rendererChannels = Array.from(new Set(Array.from(preload.matchAll(/ipcRenderer\.invoke\(['"]([^'"]+)['"]/g), match => match[1])));
@@ -116,7 +116,7 @@ const nativeOnly = nativeChannels.filter(channel => !rendererChannels.includes(c
 assert.deepEqual(nativeOnly, ['gemini:metadata'], 'review internal-only/dead native commands intentionally');
 
 const groups = Object.groupBy(nativeChannels, channel => channel.split(':', 1)[0]);
-assert.equal(Object.keys(groups).length, 29, 'domain inventory changed; document the new boundary');
+assert.equal(Object.keys(groups).length, 30, 'domain inventory changed; document the new boundary');
 
 const persistenceHandlers = {};
 const documentCalls = [];

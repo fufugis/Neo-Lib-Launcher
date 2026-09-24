@@ -10,6 +10,7 @@ import { SettingsSection as Section, SettingsToggle as Toggle } from './settings
 export default function SettingsModal({ open, onClose, settings, setSettings, onShowChangelog, currentVersion = '1.7.9' }) {
   const setKey = (patch) => setSettings({ ...settings, ...patch });
   const [showKey, setShowKey] = React.useState(false);
+  const [showArtworkKey, setShowArtworkKey] = React.useState(false);
   const [autoStart, setAutoStart] = React.useState(false);
   const [aiTest, setAiTest] = React.useState({ state: 'idle', message: '' });
 
@@ -175,6 +176,17 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
           </div>
         </Section>
 
+        <Section title="Artwork catalogue · optional">
+          <p className="mb-3 text-xs leading-relaxed text-muted">
+            Add your own{' '}<a href="#" onClick={(event) => { event.preventDefault(); window.api?.openExternal('https://www.steamgriddb.com/profile/preferences/api'); }} className="text-[rgb(var(--accent-2))] hover:underline">SteamGridDB API key</a>{' '}
+            to search community cover, hero, logo and icon artwork from Game Workshop. NEO-LIB sends the key only to SteamGridDB after you deliberately search; every image remains a preview until you choose it and save the game.
+          </p>
+          <div className="relative">
+            <input data-testid="settings-steamgriddb-key" type={showArtworkKey ? 'text' : 'password'} value={settings.steamGridDbKey || ''} onChange={(event) => setKey({ steamGridDbKey: event.target.value.trim() })} placeholder="SteamGridDB API key" className="h-9 w-full rounded-md bg-surface/60 hairline px-3 pr-9 font-mono text-sm focus:border-[rgb(var(--accent)/0.6)] focus:outline-none" />
+            <button onClick={() => setShowArtworkKey((value) => !value)} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-ink" title={showArtworkKey ? 'Hide' : 'Show'}>{showArtworkKey ? <EyeOff size={13} /> : <Eye size={13} />}</button>
+          </div>
+        </Section>
+
         {/* AI fallback */}
         <Section title="AI fallback · optional">
           <p className="mb-3 text-xs text-muted leading-relaxed">
@@ -214,7 +226,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
 
         <Section title="About">
           <p className="text-xs text-muted leading-relaxed">
-            NEO-LIB v{currentVersion}. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google.
+            NEO-LIB v{currentVersion}. Local-first. Metadata sourced from Steam, GOG, itch.io, VNDB, DLsite, DuckDuckGo and Google; optional reviewed artwork can come from SteamGridDB.
             Library data lives in <span className="font-mono text-ink">%APPDATA%/NEO-LIB</span>.
           </p>
           <div className="mt-2 rounded-md border border-[rgb(var(--border)/0.8)] bg-[rgb(var(--panel)/0.45)] px-2.5 py-2 text-[10px] leading-relaxed text-muted" data-testid="settings-build-info">

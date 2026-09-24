@@ -1,6 +1,6 @@
 import React from 'react';
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
-import { Check, GripVertical, History, Image as ImageIcon, Lock, LockOpen, Plus, RefreshCw, RotateCcw, Save, Trash2, Upload, X } from 'lucide-react';
+import { Check, Globe2, GripVertical, History, Image as ImageIcon, Loader2, Lock, LockOpen, Plus, RefreshCw, RotateCcw, Save, Search, Trash2, Upload, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { JOURNEY_STATUSES, normalizeJourneyStatus } from '../lib/game-journey-model.mjs';
 import { LAUNCH_ROUTE_KINDS, normalizeLaunchRoutes, primaryLaunchRoute } from '../lib/game-launch-routes-model.mjs';
@@ -23,7 +23,7 @@ const CONTENT_SIGNALS = GAME_SIGNAL_DEFINITIONS.filter(({ group }) => group === 
  * details. It preserves the former metadata fields while arranging them into
  * focused sections and only stores typed, bounded route/status data.
  */
-export default function EditMetadataModal({ open, game, onClose, onSave }) {
+export default function EditMetadataModal({ open, game, onClose, onSave, steamGridDbKey = '' }) {
   const [form, setForm] = React.useState(() => emptyForm(game));
   const [tab, setTab] = React.useState('overview');
   const dragControls = useDragControls();
@@ -177,7 +177,7 @@ export default function EditMetadataModal({ open, game, onClose, onSave }) {
 
           <div className="min-h-0 flex-1 overflow-y-auto p-5">
             {tab === 'overview' && <Overview form={form} set={set} />}
-            {tab === 'artwork' && <Artwork form={form} set={set} onPick={pickImageFor} />}
+            {tab === 'artwork' && <Artwork form={form} set={set} onPick={pickImageFor} steamGridDbKey={steamGridDbKey} />}
             {tab === 'play' && <PlayRoutes form={form} set={set} onPickExe={pickExeFor} />}
             {tab === 'library' && <LibraryForm form={form} set={set} game={game} />}
             {tab === 'signals' && <Signals form={form} set={set} game={game} />}
@@ -221,10 +221,11 @@ function Overview({ form, set }) {
   </div>;
 }
 
-function Artwork({ form, set, onPick }) {
-  const updateArtwork = (slot, field, value) => set({
+function Artwork({ form, set, onPick, steamGridDbKey }) {
+  const [catalogue, setCatalogue] = React.useState({ open: false, slot: '', query: '', games: [], assets: [], busy: false, error: '', selectedGame: null });
+  const updateArtwork = (slot, field, value, source = 'Player selected') => set({
     [field]: value,
-    artworkSources: { ...form.artworkSources, [slot]: value ? 'Player selected' : '' },
+    artworkSources: { ...form.artworkSources, [slot]: value ? source : '' },
   });
   const toggleLock = (slot) => set('artworkLocks', {
     ...form.artworkLocks,
@@ -241,13 +242,14 @@ function Artwork({ form, set, onPick }) {
   return <div className="space-y-4">
     <Section title="Artwork Workshop" description="Choose local files or paste a URL. Protected artwork is kept out of future repair suggestions, and nothing replaces it without your review.">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <ImageSlot label="Icon" value={form.icon} onChange={(value) => updateArtwork('icon', 'icon', value)} onPick={() => onPick('icon')} protected={form.artworkLocks?.icon} onToggleProtect={() => toggleLock('icon')} source={form.artworkSources?.icon} aspect="1/1" />
-        <ImageSlot label="Cover" value={form.coverUrl} onChange={(value) => updateArtwork('cover', 'coverUrl', value)} onPick={() => onPick('coverUrl')} protected={form.artworkLocks?.cover} onToggleProtect={() => toggleLock('cover')} source={form.artworkSources?.cover} aspect="3/4" />
-        <ImageSlot label="Hero / header" value={form.headerImage} onChange={(value) => updateArtwork('hero', 'headerImage', value)} onPick={() => onPick('headerImage')} protected={form.artworkLocks?.hero} onToggleProtect={() => toggleLock('hero')} source={form.artworkSources?.hero} aspect="16/9" />
-        <ImageSlot label="Background" value={form.background} onChange={(value) => updateArtwork('background', 'background', value)} onPick={() => onPick('background')} protected={form.artworkLocks?.background} onToggleProtect={() => toggleLock('background')} source={form.artworkSources?.background} aspect="16/9" />
-        <ImageSlot label="Logo" value={form.logo} onChange={(value) => updateArtwork('logo', 'logo', value)} onPick={() => onPick('logo')} protected={form.artworkLocks?.logo} onToggleProtect={() => toggleLock('logo')} source={form.artworkSources?.logo} aspect="16/9" />
+        <ImageSlot label="Icon" value={form.icon} onChange={(value) => updateArtwork('icon', 'icon', value)} onPick={() => onPick('icon')} onBrowse={() => setCatalogue({ open: true, slot: 'icon', query: form.name, games: [], assets: [], busy: false, error: '', selectedGame: null })} protected={form.artworkLocks?.icon} onToggleProtect={() => toggleLock('icon')} source={form.artworkSources?.icon} aspect="1/1" />
+        <ImageSlot label="Cover" value={form.coverUrl} onChange={(value) => updateArtwork('cover', 'coverUrl', value)} onPick={() => onPick('coverUrl')} onBrowse={() => setCatalogue({ open: true, slot: 'cover', query: form.name, games: [], assets: [], busy: false, error: '', selectedGame: null })} protected={form.artworkLocks?.cover} onToggleProtect={() => toggleLock('cover')} source={form.artworkSources?.cover} aspect="3/4" />
+        <ImageSlot label="Hero / header" value={form.headerImage} onChange={(value) => updateArtwork('hero', 'headerImage', value)} onPick={() => onPick('headerImage')} onBrowse={() => setCatalogue({ open: true, slot: 'hero', query: form.name, games: [], assets: [], busy: false, error: '', selectedGame: null })} protected={form.artworkLocks?.hero} onToggleProtect={() => toggleLock('hero')} source={form.artworkSources?.hero} aspect="16/9" />
+        <ImageSlot label="Background" value={form.background} onChange={(value) => updateArtwork('background', 'background', value)} onPick={() => onPick('background')} onBrowse={() => setCatalogue({ open: true, slot: 'background', query: form.name, games: [], assets: [], busy: false, error: '', selectedGame: null })} protected={form.artworkLocks?.background} onToggleProtect={() => toggleLock('background')} source={form.artworkSources?.background} aspect="16/9" />
+        <ImageSlot label="Logo" value={form.logo} onChange={(value) => updateArtwork('logo', 'logo', value)} onPick={() => onPick('logo')} onBrowse={() => setCatalogue({ open: true, slot: 'logo', query: form.name, games: [], assets: [], busy: false, error: '', selectedGame: null })} protected={form.artworkLocks?.logo} onToggleProtect={() => toggleLock('logo')} source={form.artworkSources?.logo} aspect="16/9" />
       </div>
     </Section>
+    {catalogue.open && <SteamGridDbGallery state={catalogue} setState={setCatalogue} apiKey={steamGridDbKey} onUse={(asset) => { const field = artworkFieldForSlot(catalogue.slot); updateArtwork(catalogue.slot, field, asset.url, `SteamGridDB · ${asset.author}${asset.width && asset.height ? ` · ${asset.width}×${asset.height}` : ''}`); setCatalogue((current) => ({ ...current, open: false })); }} />}
     <ArtworkHistory revisions={form.artworkRevisions} onRestore={restore} />
     <Section title="Screenshots" description="One public image URL per line.">
       <Field label="Screenshot URLs"><textarea value={form.screenshots} onChange={(event) => set('screenshots', event.target.value)} rows={5} placeholder={'https://…/shot1.png\nhttps://…/shot2.png'} className={cn(inputCls, 'h-auto resize-y py-2 font-mono text-[11px]')} /></Field>
@@ -396,7 +398,7 @@ function ArtworkHistory({ revisions, onRestore }) {
   </Section>;
 }
 
-function ImageSlot({ label, value, onChange, onPick, protected: isProtected, onToggleProtect, source, aspect = '1/1' }) {
+function ImageSlot({ label, value, onChange, onPick, onBrowse, protected: isProtected, onToggleProtect, source, aspect = '1/1' }) {
   const [dimensions, setDimensions] = React.useState('');
   React.useEffect(() => setDimensions(''), [value]);
   return <div className="space-y-1.5">
@@ -407,10 +409,34 @@ function ImageSlot({ label, value, onChange, onPick, protected: isProtected, onT
     <p className="min-h-3 truncate text-[9px] text-muted" title={source || ''}>{source ? `Source: ${source}` : 'Source not recorded'}{dimensions ? ` · ${dimensions}` : ''}</p>
     <div className="flex gap-1">
       <button onClick={onPick} className="inline-flex flex-1 items-center justify-center gap-1 rounded-md hairline px-1 py-1.5 text-[10px] text-muted hover:border-[rgb(var(--accent)/0.5)] hover:text-ink"><Upload size={10} /> File</button>
+      <button onClick={onBrowse} className="inline-flex flex-1 items-center justify-center gap-1 rounded-md hairline px-1 py-1.5 text-[10px] text-muted hover:border-[rgb(var(--accent-2)/0.5)] hover:text-ink"><Globe2 size={10} /> Online</button>
       {value && <button onClick={() => onChange('')} className="grid w-7 place-items-center rounded-md hairline text-muted hover:border-red-400/40 hover:text-red-400" title="Clear"><RefreshCw size={10} /></button>}
     </div>
     <input value={value} onChange={(event) => onChange(event.target.value)} placeholder="…or paste URL" className="w-full rounded-md bg-panel/40 hairline px-2 py-1.5 text-[10px] text-muted/90 focus:border-[rgb(var(--accent)/0.6)] focus:outline-none focus:text-ink" />
   </div>;
+}
+
+function SteamGridDbGallery({ state, setState, apiKey, onUse }) {
+  const update = (patch) => setState((current) => ({ ...current, ...patch }));
+  const search = async () => {
+    if (!apiKey) { update({ error: 'Add your SteamGridDB API key in Settings first.' }); return; }
+    update({ busy: true, error: '', games: [], assets: [], selectedGame: null });
+    const result = await window.api?.steamGridDbArtwork?.({ apiKey, action: 'search', query: state.query });
+    update(result?.ok ? { busy: false, games: result.games || [] } : { busy: false, error: result?.error || 'SteamGridDB search failed.' });
+  };
+  const chooseGame = async (game) => {
+    update({ busy: true, error: '', selectedGame: game, assets: [] });
+    const result = await window.api?.steamGridDbArtwork?.({ apiKey, action: 'assets', gameId: game.id, kind: state.slot });
+    update(result?.ok ? { busy: false, assets: result.assets || [] } : { busy: false, error: result?.error || 'Artwork could not be loaded.' });
+  };
+  return <Section title={`SteamGridDB ${state.slot} gallery`} description="Player-key search only. Check the exact title, author and resolution; nothing is saved until you choose an image and then Save game.">
+    <div className="flex gap-2"><input value={state.query} onChange={(event) => update({ query: event.target.value })} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); search(); } }} className={cn(inputCls, 'flex-1')} placeholder="Search exact game title" /><button onClick={search} disabled={state.busy || !state.query.trim()} className="inline-flex items-center gap-1.5 rounded-md bg-[rgb(var(--accent))] px-3 text-[10px] font-bold text-[rgb(var(--surface))] disabled:opacity-40">{state.busy ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />} Search</button><button onClick={() => update({ open: false })} className="rounded-md hairline px-3 text-[10px] text-muted hover:text-ink">Close</button></div>
+    {state.error && <p role="alert" className="mt-3 text-xs text-amber-300">{state.error}</p>}
+    {!state.selectedGame && state.games.length > 0 && <div className="mt-3 grid gap-2 sm:grid-cols-2">{state.games.map((game) => <button key={game.id} onClick={() => chooseGame(game)} className="rounded-lg hairline p-2.5 text-left hover:border-[rgb(var(--accent)/0.55)]"><b className="block truncate text-xs text-ink">{game.name}</b><span className="text-[9px] text-muted">{game.verified ? 'Verified title' : 'Community title'}{game.types.length ? ` · ${game.types.join(', ')}` : ''}</span></button>)}</div>}
+    {state.selectedGame && <div className="mt-3 flex items-center justify-between gap-2"><p className="text-xs text-muted">Showing {state.slot} art for <b className="text-ink">{state.selectedGame.name}</b></p><button onClick={() => update({ selectedGame: null, assets: [] })} className="text-[10px] font-bold text-[rgb(var(--accent-2))] hover:underline">Choose another title</button></div>}
+    {!state.busy && state.selectedGame && !state.assets.length && !state.error && <p className="mt-3 text-xs text-muted">No matching static artwork was found for this slot.</p>}
+    {state.assets.length > 0 && <div className="mt-3 grid max-h-96 grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3">{state.assets.map((asset) => <article key={asset.id} className="overflow-hidden rounded-lg hairline bg-panel/35"><div className={state.slot === 'cover' ? 'aspect-[2/3]' : state.slot === 'icon' ? 'aspect-square' : 'aspect-video'}><img src={asset.thumb} alt="SteamGridDB candidate" className="h-full w-full object-contain bg-black/20" /></div><div className="space-y-1 p-2"><p className="truncate text-[9px] text-muted" title={asset.author}>{asset.author}{asset.width && asset.height ? ` · ${asset.width}×${asset.height}` : ''}</p><p className="text-[8px] uppercase tracking-wide text-muted">{asset.style || 'Artwork'}{asset.nsfw ? ' · NSFW' : ''}{asset.humor ? ' · Humor' : ''}</p><button onClick={() => onUse(asset)} className="w-full rounded-md bg-[rgb(var(--accent)/0.16)] px-2 py-1.5 text-[10px] font-bold text-ink hover:bg-[rgb(var(--accent)/0.28)]">Use this</button></div></article>)}</div>}
+  </Section>;
 }
 
 const inputCls = 'w-full rounded-md bg-panel/60 hairline px-3 py-2 text-xs text-ink placeholder:text-muted/70 focus:border-[rgb(var(--accent)/0.6)] focus:outline-none';
@@ -455,6 +481,10 @@ function artworkSlotForField(field) {
     background: 'background',
     logo: 'logo',
   })[field] || field;
+}
+
+function artworkFieldForSlot(slot) {
+  return ({ icon: 'icon', cover: 'coverUrl', hero: 'headerImage', background: 'background', logo: 'logo' })[slot] || 'coverUrl';
 }
 
 function sameArtwork(left, right) {

@@ -67,6 +67,10 @@ assert.match(workshop, /Artwork Workshop/);
 assert.match(workshop, /artworkLocks/);
 assert.match(workshop, /artworkRevisions/);
 assert.match(workshop, /Restore previous artwork/);
+assert.match(workshop, /SteamGridDbGallery/);
+assert.match(workshop, /steamGridDbArtwork/);
+assert.match(workshop, /Use this/);
+assert.match(workshop, /asset\.width && asset\.height/);
 
 const wall = fs.readFileSync(path.join(import.meta.dirname, '../src/components/CoverWall.jsx'), 'utf8');
 assert.match(wall, /wall-select-games/);

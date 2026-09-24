@@ -1,4 +1,4 @@
-const { guardHandler, guardResult, isBoolean, isBoundedArray, isBoundedString, isIdentifier, isJsonObjectWithin, isPath, isPlainObject } = require('./contract-guards.cjs');
+const { guardHandler, guardResult, isBoolean, isBoundedArray, isBoundedString, isHttpUrl, isIdentifier, isJsonObjectWithin, isPath, isPlainObject } = require('./contract-guards.cjs');
 
 const METADATA_SOURCES = new Set(['steam', 'gog', 'itch', 'dlsite', 'vndb', 'ryuugames', 'f95zone', 'google', 'ai']);
 const validSecret = value => isBoundedString(value, { max: 4096 });
@@ -18,6 +18,11 @@ const isCandidateList = result => isPlainObject(result)
 const isHint = hint => isPlainObject(hint)
   && isBoundedString(hint.query, { required: true, max: 100 })
   && isBoundedString(hint.evidence, { required: true, max: 500 });
+const isArtworkResult = result => isPlainObject(result)
+  && isBoolean(result.ok, { required: true })
+  && isBoundedString(result.error, { max: 4000 })
+  && (result.games == null || isBoundedArray(result.games, 12, game => isPlainObject(game) && isIdentifier(game.id) && isBoundedString(game.name, { required: true, max: 300 }) && isBoolean(game.verified) && isBoundedArray(game.types, 12, type => isBoundedString(type, { required: true, max: 80 }))))
+  && (result.assets == null || isBoundedArray(result.assets, 36, asset => isPlainObject(asset) && isIdentifier(asset.id) && isHttpUrl(asset.url) && isHttpUrl(asset.thumb) && isBoundedString(asset.author, { required: true, max: 120 }) && isBoundedString(asset.style, { max: 80 }) && isBoolean(asset.nsfw) && isBoolean(asset.humor)));
 
 function registerMetadataIpc({ registerIpc, services }) {
   if (typeof registerIpc !== 'function' || !services) throw new TypeError('registerMetadataIpc requires registerIpc and services.');
@@ -62,6 +67,16 @@ function registerMetadataIpc({ registerIpc, services }) {
       && isBoundedString(payload.currentName, { max: 500 }),
     { hints: [] },
   ), result => isPlainObject(result) && isBoundedArray(result.hints, 10, isHint), { hints: [], error: 'Metadata hints returned an invalid result.', code: 'INVALID_RESPONSE' }));
+  registerIpc('artwork:steamGridDb', guardResult(guardHandler(
+    requireService(services, 'artwork:steamGridDb'),
+    payload => isPlainObject(payload)
+      && validSecret(payload.apiKey)
+      && ['search', 'assets'].includes(payload.action)
+      && isBoundedString(payload.query, { max: 300 })
+      && isIdentifier(payload.gameId, { required: false })
+      && isBoundedString(payload.kind, { max: 20 }),
+    { ok: false, code: 'INVALID_REQUEST', error: 'The artwork request was malformed.' },
+  ), isArtworkResult, { ok: false, code: 'INVALID_RESPONSE', error: 'SteamGridDB returned an invalid artwork response.' }));
 }
 
 module.exports = { registerMetadataIpc };

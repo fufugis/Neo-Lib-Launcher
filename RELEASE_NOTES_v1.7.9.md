@@ -52,6 +52,11 @@ Library and Wall easier to use.
   or artwork review queues one at a time. Manual metadata and protected artwork
   remain safe, previous artwork is restorable, and private-category assignment
   requires an unlocked destination plus a clear scope summary.
+- **Reviewed online artwork gallery** — players can optionally save their own
+  SteamGridDB API key, confirm the matching game, compare Icon, Cover, Hero,
+  Background and Logo candidates with source, author and resolution details,
+  then stage one deliberate choice. Nothing replaces current artwork until the
+  normal Save game action.
 - **Clearer GitHub project page** — the oversized internal development diary has
   been replaced by a concise player-facing overview with honest download status,
   supported sources, privacy, installation, feedback and roadmap information.
@@ -60,8 +65,8 @@ Library and Wall easier to use.
 
 ## Verification
 
-Focused Home-widget, emulation, launch, IPC, visual-boundary, renderer-binding
-and metadata-workflow checks pass. The managed workspace cannot start Vite's
+Focused Home-widget, emulation, launch, provider, IPC, visual-boundary,
+renderer-binding and metadata-workflow checks pass. The managed workspace cannot start Vite's
 build helper (`spawn EPERM`), so a rebuilt Windows scan/import/launch pass remains
 required.
 Rebuilt Windows visual and interaction acceptance remains required before this

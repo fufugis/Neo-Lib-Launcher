@@ -113,9 +113,10 @@ Work currently being prepared includes:
 
 - a clearer Game Workshop for metadata, artwork, launch routes, and library status;
 - a compact Wall preview overlay and configurable detailed-list columns;
-- an Artwork Workshop with comparison, protection, and restore controls;
+- an Artwork Workshop with comparison, protection, restore controls, and an
+  optional player-keyed SteamGridDB selection gallery;
 - reviewed community widget execution with strict permissions and crash isolation;
-- optional achievement connectors and external artwork catalogues;
+- optional achievement connectors;
 - expanded reviewed emulator presets and retro metadata/artwork sources;
 - a documented folder-based custom theme format.
 

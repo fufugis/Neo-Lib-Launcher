@@ -183,22 +183,25 @@ async function main() {
   await verifyGuard(scan, 'scan:roms', [{ root: 'D:\\ROMs', extensions: ['.sfc'], maxDepth: 6, maxFiles: 2000 }], [{ root: 'D:\\ROMs', extensions: ['exe'] }], { ok: false });
   await verifyResponseGuard(scan, 'scan:roms', [{ root: 'D:\\ROMs', extensions: ['.sfc'] }], { ok: true, items: [{ path: [], extension: '.sfc', sizeBytes: 1, modifiedAt: 1 }], truncated: false, visitedFiles: 1 }, { ok: false, items: [] });
 
-  const metadataChannels = ['metadata:auto', 'metadata:expandCandidate', 'metadata:listCandidates', 'metadata:deriveHints'];
+  const metadataChannels = ['metadata:auto', 'metadata:expandCandidate', 'metadata:listCandidates', 'metadata:deriveHints', 'artwork:steamGridDb'];
   const metadataResults = {
     'metadata:auto': { source: 'steam', name: 'Portal 2', appid: '620' },
     'metadata:expandCandidate': { source: 'steam', name: 'Portal 2', appid: '620' },
     'metadata:listCandidates': { candidates: [{ source: 'steam', id: '620', name: 'Portal 2', image: '', year: '2011', shortDescription: '', raw: {} }] },
     'metadata:deriveHints': { hints: [{ query: 'Portal 2', evidence: 'Executable name' }] },
+    'artwork:steamGridDb': { ok: true, assets: [{ id: '1', url: 'https://cdn.test/art.png', thumb: 'https://cdn.test/thumb.png', width: 600, height: 900, style: 'alternate', score: 2, author: 'Artist', nsfw: false, humor: false }] },
   };
   const metadata = register(registerMetadataIpc, metadataChannels, metadataResults);
   await verifyGuard(metadata, 'metadata:auto', [{ query: 'Portal 2', skipSources: ['gog'], force: true }], [{ query: 'x'.repeat(501) }], {}, null);
   await verifyGuard(metadata, 'metadata:expandCandidate', [{ candidate: { source: 'steam', id: '620', name: 'Portal 2' } }], [{ candidate: { source: 'unknown', id: '620' } }], {}, null);
   await verifyGuard(metadata, 'metadata:listCandidates', [{ source: 'gog', query: 'Cyberpunk 2077' }], [{ source: 'unknown', query: 'Cyberpunk 2077' }], { candidates: [] });
   await verifyGuard(metadata, 'metadata:deriveHints', [{ exePath: 'C:\\Games\\Game.exe', currentName: 'Game' }], [{ exePath: 42, currentName: 'Game' }], { hints: [] });
+  await verifyGuard(metadata, 'artwork:steamGridDb', [{ apiKey: 'player-key', action: 'search', query: 'Portal 2' }], [{ apiKey: 'key', action: 'delete', query: 'Portal 2' }], { ok: false, code: 'INVALID_REQUEST' });
   await verifyResponseGuard(metadata, 'metadata:auto', [{ query: 'Portal 2' }], { source: 'steam', name: [] }, {}, null);
   await verifyResponseGuard(metadata, 'metadata:expandCandidate', [{ candidate: { source: 'steam', id: '620', name: 'Portal 2' } }], [], {}, null);
   await verifyResponseGuard(metadata, 'metadata:listCandidates', [{ source: 'steam', query: 'Portal 2' }], { candidates: [{ source: 'steam', id: '', name: 'Portal 2' }] }, {}, { candidates: [], error: 'The metadata candidate service returned an invalid result.', code: 'INVALID_RESPONSE' });
   await verifyResponseGuard(metadata, 'metadata:deriveHints', [{ currentName: 'Portal 2' }], { hints: [{ query: '', evidence: 'Name' }] }, {}, { hints: [], error: 'Metadata hints returned an invalid result.', code: 'INVALID_RESPONSE' });
+  await verifyResponseGuard(metadata, 'artwork:steamGridDb', [{ apiKey: 'player-key', action: 'assets', gameId: '1', kind: 'cover' }], { ok: true, assets: [{ id: '1', url: 'javascript:bad', thumb: 'https://cdn.test/thumb.png', author: 'Artist', nsfw: false, humor: false }] }, {}, { ok: false, code: 'INVALID_RESPONSE', error: 'SteamGridDB returned an invalid artwork response.' });
   await verifyServiceResultPreserved(metadata, 'metadata:auto', [{ query: 'Unknown' }], null);
 
   const newsChannels = ['news:latestForGame', 'news:fetchAll', 'news:fetchSteam'];
@@ -506,7 +509,7 @@ async function main() {
   healthResult = { cpuPercent: 120, ramPercent: 50, memoryUsedGb: 8, memoryFreeGb: 8, memoryTotalGb: 16 };
   assert.deepEqual(await systemHandlers['system:health']({}), { cpuPercent: null, ramPercent: null, memoryUsedGb: 0, memoryFreeGb: 0, memoryTotalGb: 0, code: 'INVALID_RESPONSE' });
 
-  console.log('PASS: all 54 renderer payload contracts reject malformed input before native services, and all 89 native commands enforce response contracts while preserving valid success and failure results. The other 35 native commands are intentionally no-payload.');
+  console.log('PASS: all 55 renderer payload contracts reject malformed input before native services, and all 90 native commands enforce response contracts while preserving valid success and failure results. The other 35 native commands are intentionally no-payload.');
 }
 
 main().catch(error => {

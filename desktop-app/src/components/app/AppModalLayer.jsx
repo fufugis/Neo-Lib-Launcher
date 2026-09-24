@@ -314,6 +314,7 @@ export default function AppModalLayer({ context }) {
       <EditMetadataModal
         open={!!editMetaGame}
         game={editMetaGame}
+        steamGridDbKey={settings.steamGridDbKey || ''}
         onClose={() => setEditMetaGame(null)}
         onSave={(patch) => {
           if (!editMetaGame) return;

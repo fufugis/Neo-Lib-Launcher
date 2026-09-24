@@ -31,7 +31,7 @@ Owns renderer preferences, window bounds, Home layout, theme/visual settings,
 update state, AI configuration and mascot preferences. It must be an object, not
 an array or primitive. Unknown settings remain intact.
 
-This file and its `.bak` may contain a Gemini API key if the player saved one in
+This file and its `.bak` may contain a Gemini or SteamGridDB API key if the player saved one in
 NEO-LIB. Backups remain local beside the original file and must never be attached
 to feedback or diagnostics automatically.
 

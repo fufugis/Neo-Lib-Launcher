@@ -13,7 +13,8 @@ const providers = [
   'specialist-metadata-provider-service.cjs', 'metadata-candidate-service.cjs',
   'gemini-provider-service.cjs', 'news-normalization-service.cjs',
   'public-news-provider-service.cjs', 'weekly-release-provider-service.cjs',
-  'steam-news-provider-service.cjs', 'owned-news-provider-service.cjs',
+  'steam-news-provider-service.cjs', 'steamgriddb-artwork-service.cjs',
+  'owned-news-provider-service.cjs',
   'update-history-provider-service.cjs', 'deals-provider-service.cjs',
   'update-scan-coordinator-service.cjs', 'update-source-discovery-service.cjs',
   'installed-version-evidence-service.cjs', 'update-page-version-service.cjs',
@@ -50,11 +51,12 @@ for (const verifier of [
   'verify-specialist-metadata-provider-service.cjs', 'verify-metadata-candidate-service.cjs',
   'verify-gemini-provider-service.cjs', 'verify-news-normalization-service.cjs',
   'verify-public-news-provider-service.cjs', 'verify-weekly-release-provider-service.cjs',
-  'verify-steam-news-provider-service.cjs', 'verify-owned-news-provider-service.cjs',
+  'verify-steam-news-provider-service.cjs', 'verify-steamgriddb-artwork-service.cjs',
+  'verify-owned-news-provider-service.cjs',
   'verify-update-history-provider-service.cjs', 'verify-deals-provider-service.cjs',
   'verify-update-scan-coordinator-service.cjs', 'verify-update-source-discovery-service.cjs',
   'verify-installed-version-evidence-service.cjs', 'verify-update-page-version-service.cjs',
   'verify-independent-update-assessment-service.cjs',
 ]) assert(providerCommand.includes(verifier), `${verifier} must remain in the provider gate`);
 
-console.log('PASS: Stage 4 inventory has 17 injected provider/evidence services, no hidden direct I/O dependencies or legacy main-process caches, one IPC route per feed, per-game assessment delegation and guarded user-reviewed refresh.');
+console.log('PASS: Stage 4 inventory has 18 injected provider/evidence services, no hidden direct I/O dependencies or legacy main-process caches, one IPC route per feed, per-game assessment delegation and guarded user-reviewed refresh.');

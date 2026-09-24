@@ -18,7 +18,7 @@ have a written accepted deferral.
 - [x] Renderer-binding checks pass.
 - [x] Metadata workflow checks pass.
 - [x] Clean update contract expects exact tag `v1.7.9`.
-- [x] 89 native commands have one registration and request/response contracts. This includes the bounded player-triggered ROM scan.
+- [x] 90 native commands have one registration and request/response contracts. This includes the bounded player-triggered ROM scan and opt-in SteamGridDB artwork search.
 - [x] Candidate inspector passes against the newly built package (GitHub Actions run `35636774870`, commit `a3f3d6d`).
 
 ## Windows interaction
@@ -42,6 +42,9 @@ have a written accepted deferral.
 - [ ] Collection Mode metadata review confirms its scope, skips manual entries and advances through selected games one at a time.
 - [ ] Collection Mode artwork review preserves locked slots, keeps a restore point and changes nothing until Apply is pressed.
 - [ ] Protect in lists only unlocked private categories, confirms the selected count and hides protected identity again after Lock private.
+- [ ] With a valid player-owned SteamGridDB key, Game Workshop Online search shows title choices before artwork candidates.
+- [ ] Icon, Cover, Hero, Background and Logo galleries show source/author/resolution and stage Use this without changing saved artwork until Save game.
+- [ ] Canceling Game Workshop after choosing online artwork leaves the original artwork unchanged; saving creates a usable restore point.
 
 ## Steam update truth
 

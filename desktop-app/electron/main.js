@@ -61,6 +61,7 @@ const { createOptimizeProcessService } = require('./optimize/process-inspection-
 const { createExternalGameWatchService } = require('./game/external-game-watch-service.cjs');
 const { createGameLaunchService } = require('./game/game-launch-service.cjs');
 const { createStoreProviderService } = require('./providers/store-provider-service.cjs');
+const { createSteamGridDbArtworkService } = require('./providers/steamgriddb-artwork-service.cjs');
 const { createPublicWebProviderService } = require('./providers/public-web-provider-service.cjs');
 const { createSpecialistMetadataProviderService } = require('./providers/specialist-metadata-provider-service.cjs');
 const { createMetadataCandidateService } = require('./providers/metadata-candidate-service.cjs');
@@ -212,9 +213,9 @@ const junkService = createJunkService({
 });
 
 // ---------------- HTTP helpers ---------------- //
-function httpGetJson(url, timeoutMs = 7000) {
+function httpGetJson(url, timeoutMs = 7000, extraHeaders = {}) {
   return new Promise((resolve, reject) => {
-    const req = https.get(url, { headers: { 'User-Agent': 'GameLibrary/1.0' } }, (res) => {
+    const req = https.get(url, { headers: { 'User-Agent': 'NEO-LIB/1.7.9', ...extraHeaders } }, (res) => {
       let body = '';
       res.on('data', (chunk) => (body += chunk));
       res.on('end', () => {
@@ -861,6 +862,7 @@ function httpPostJson(url, body, extraHeaders = {}) {
 }
 
 const storeProviders = createStoreProviderService({ httpGetJson, cleanSearchTerm, stripHtml, steamGenreEvidence });
+const steamGridDbArtwork = createSteamGridDbArtworkService({ httpGetJson });
 const publicWebProvider = createPublicWebProviderService({ httpGetText, cleanSearchTerm, cleanTitle, publicSearchUrl });
 const specialistMetadataProviders = createSpecialistMetadataProviderService({ httpGetText, httpPostJson, cleanTitle });
 const newsNormalization = createNewsNormalizationService({ now: Date.now });
@@ -891,6 +893,7 @@ const metadataCandidates = createMetadataCandidateService({
 });
 remainingIpcServices["steam:search"] = (_event, query) => storeProviders.searchSteam(query);
 remainingIpcServices["steam:details"] = (_event, appid) => storeProviders.getSteamDetails(appid);
+remainingIpcServices['artwork:steamGridDb'] = (_event, request) => steamGridDbArtwork.request(request);
 
 // ---------------- IPC: cache image locally ---------------- //
 registerImageIpc({ registerIpc, imageCache });

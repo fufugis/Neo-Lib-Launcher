@@ -74,6 +74,7 @@ contextBridge.exposeInMainWorld('api', {
   deriveMetadataHints: (opts) => ipcRenderer.invoke('metadata:deriveHints', opts),
   listCandidates: (opts) => ipcRenderer.invoke('metadata:listCandidates', opts),
   expandCandidate: (opts) => ipcRenderer.invoke('metadata:expandCandidate', opts),
+  steamGridDbArtwork: (opts) => ipcRenderer.invoke('artwork:steamGridDb', opts),
   webSearch: (q) => ipcRenderer.invoke('web:search', q),
   gogSearch: (q) => ipcRenderer.invoke('gog:search', q),
   testGemini: (opts) => ipcRenderer.invoke('gemini:test', opts),

@@ -1,5 +1,5 @@
 export const DEFAULT_SETTINGS = Object.freeze({
-  theme: 'synthwave', firstRun: true, geminiKey: '', aiModel: 'gemini-2.5-flash',
+  theme: 'synthwave', firstRun: true, geminiKey: '', steamGridDbKey: '', aiModel: 'gemini-2.5-flash',
   fungistNotifications: {}, librarySize: 'medium', showcaseMode: 'recent_added', collapsed: {},
   interfaceMode: 'default', presentationMode: 'desktop', preferredControllerFingerprint: '',
   navigationLayout: 'top',

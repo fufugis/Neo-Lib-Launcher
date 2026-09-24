@@ -32,7 +32,7 @@ This is the authoritative live queue. New user requests are appended here and re
 
 - [x] **Clean Wall rating badges** — removed the app-wide amber text shadow from the Wall rating itself, replaced the text star with a crisp icon, relaxed the weight and spacing, and removed the heavy badge shadow. The score stays fixed at 11px across every density. Focused visual checks pass; rebuilt Windows acceptance remains required.
 
-- [ ] **Optional external artwork catalogue P1** — add a reviewed, opt-in artwork-only connector for titles still missing a true portrait. SteamGridDB is the preferred first route using the player’s own API key and explicit asset selection; IGDB or RAWG must wait for a safe credential, licensing and attribution design. Never embed a shared secret, silently replace player art, or treat a wide hero as an original cover.
+- [x] **Optional external artwork catalogue P1** — Game Workshop now offers an opt-in SteamGridDB gallery for Icon, Cover, Hero, Background and Logo using only the player’s locally saved API key. Search results require the player to choose the matching title, show source/author/resolution/style and content labels, and stage an explicit Use this choice until the normal Save game action. No shared secret is embedded and no artwork is silently replaced. Provider, IPC, Library Experience and renderer checks pass; rebuilt Windows/live-API acceptance remains required.
 
 - [x] **Home widget import and manager P0 — safe package catalogue** — Home has direct Import widget and Widgets controls. An author’s `widget.json` records display name, URL, description, version, future entry file, size contract and narrowly declared future permissions. NEO-LIB validates and copies the package into its private widget folder without executing code. The manager now uses tidy three-column cards, inline author attribution, compact size facts and accessible eye-only visibility controls.
 
@@ -67,7 +67,7 @@ This is the authoritative live queue. New user requests are appended here and re
 
 - [x] **Artwork Workshop metadata review P0** — existing reviewed metadata refresh now displays Current/Suggested artwork side by side and honors stored Hero/Cover/Background protection choices. Acceptance remains player-driven.
 
-- [ ] **Artwork Workshop source gallery P1** — add individual candidate Icon/Cover/Hero/Background/Logo gallery results with source/resolution and explicit Use this decisions. Every provider/catalogue result remains review-first and player artwork is never silently replaced.
+- [x] **Artwork Workshop source gallery P1** — Icon, Cover, Hero, Background and Logo each open their own SteamGridDB candidate gallery. The player first confirms the correct game, then sees source, author, resolution, style and content labels before an explicit Use this choice; the staged result is committed only by Save game and remains covered by normal restore points.
 
 - [x] **Collection Mode Wall P1** — Wall now has explicit multi-select in cover and detailed views for Favorite/Unfavorite and Journey Status. Ordinary click behavior remains Peek-first, and selection state is always visible.
 

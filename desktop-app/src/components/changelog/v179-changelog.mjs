@@ -50,6 +50,10 @@ export const V179_CHANGELOG = {
       title: 'Artwork refreshes are easier to trust',
       body: 'Metadata review now places Current and Suggested artwork side by side before you apply it. Protected artwork slots remain clearly listed and are not changed by an accepted metadata refresh.',
     },
+    {
+      title: 'Choose online artwork without surrendering control',
+      body: 'Add your own optional SteamGridDB API key in Settings, then open Online beside an Icon, Cover, Hero, Background or Logo in Game Workshop. Confirm the right game, compare source, author, resolution and content labels, and choose Use this. Nothing changes permanently until you save the game.',
+    },
   ],
   fixes: [
     'Wall controls now fit in one slim wrapping toolbar instead of a tall introduction and two oversized view cards.',
