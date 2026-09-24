@@ -1,7 +1,7 @@
 function createGameLaunchService({
   shell, spawn, path, crypto, platform = process.platform, appStartedAt,
   recordSafety, readSharedSafety, writeSharedSafety, setDiscordActivity,
-  clearDiscordActivity, sendExited, nowMs = () => Date.now(),
+  clearDiscordActivity, sendExited, checkLibraryRoot, nowMs = () => Date.now(),
 }) {
   if (!shell || typeof spawn !== 'function' || !path || !crypto || typeof recordSafety !== 'function') {
     throw new TypeError('createGameLaunchService requires shell, process, path, crypto and safety dependencies.');
@@ -26,7 +26,7 @@ function createGameLaunchService({
     return { ok: true, token };
   }
 
-  async function launch(event, { exePath, launchArgs, workingDirectory, gameId, name, launchToken } = {}) {
+  async function launch(event, { exePath, launchArgs, workingDirectory, gameId, name, launchToken, libraryRootPath } = {}) {
     if (!exePath || typeof exePath !== 'string') return { ok: false, error: 'No exePath provided' };
     try {
       if (/^(?:ms-settings:|shell:)/i.test(exePath)) {
@@ -45,6 +45,18 @@ function createGameLaunchService({
       if (now - appStartedAt < quarantineMs) {
         recordSafety('blocked-startup-quarantine', { gameId, name: safeName, sinceStartMs: now - appStartedAt });
         return { ok: false, error: 'NEO-LIB is still settling after startup. Please wait a moment before launching a game.' };
+      }
+      if (libraryRootPath) {
+        const root = String(libraryRootPath).replace(/\//g, '\\').replace(/\\+$/, '').toLowerCase();
+        const target = exePath.replace(/\//g, '\\').toLowerCase();
+        if (!path.isAbsolute(libraryRootPath) || !(target === root || target.startsWith(`${root}${path.sep}`)) || typeof checkLibraryRoot !== 'function') {
+          return { ok: false, error: 'This game is not inside its configured library root.' };
+        }
+        const status = await checkLibraryRoot(libraryRootPath);
+        if (!status?.available) {
+          recordSafety('blocked-offline-library-root', { gameId, name: safeName });
+          return { ok: false, error: `Library root ${libraryRootPath}: ${status?.error || 'drive or network folder unavailable.'}` };
+        }
       }
       if (now < safety.lockedUntil) {
         recordSafety('blocked-local-lock', { gameId, name: safeName });

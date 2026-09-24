@@ -50,6 +50,11 @@ Library and Wall easier to use.
   require your review before applying. Mature-source covers and snippets start
   hidden until you reveal them; existing-library refresh keeps its small review
   batches. Live store-page and Windows-app checks are still pending.
+- **External library pointers** — save a named external-drive, NAS or local
+  game folder in Wizard without copying or scanning it. Check availability on
+  demand; games inside an offline root refuse to launch with a clear message.
+  Stored paths start hidden in the manager. Cloud entries are bookmarks only,
+  with no account connection or cloud-game launching.
 - **Optional navigation sidebar** — keep the familiar top navigation or move
   Home, Library, Wall and Tools into a slim left icon rail. The rail reveals
   its labels on hover, and the same saved choice is available in Visual Tweaks

@@ -3,6 +3,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   fungistNotifications: {}, librarySize: 'medium', showcaseMode: 'recent_added', collapsed: {},
   interfaceMode: 'default', presentationMode: 'desktop', preferredControllerFingerprint: '',
   navigationLayout: 'top',
+  externalLibraryRoots: [],
   libraryIconMode: false, libraryIconSize: 48, libraryIconSpacing: 8, libraryIconRows: 3,
 });
 

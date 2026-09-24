@@ -15,6 +15,7 @@ function registerAppOsIpc({ registerIpc, appOs }) {
   registerIpc('app:setAutoStart', guardResult(guardHandler((_event, enabled) => appOs.setAutoStart(enabled), enabled => isBoolean(enabled, { required: true }), invalidRequest('The auto-start request was malformed.')), isActionResult, invalidResponse('The auto-start setting returned an invalid result.')));
   registerIpc('app:getAutoStart', guardResult(() => appOs.getAutoStart(), value => typeof value === 'boolean', false));
   registerIpc('app:openPath', guardResult(guardHandler((_event, value) => appOs.openPath(value), value => isPath(value), invalidRequest('The open-path request was malformed.')), isActionResult, invalidResponse('Opening the path returned an invalid result.')));
+  registerIpc('app:checkLibraryRoot', guardResult(guardHandler((_event, value) => appOs.checkLibraryRoot(value), value => isPath(value), invalidRequest('The library-root check was malformed.')), result => isPlainObject(result) && typeof result.ok === 'boolean' && typeof result.available === 'boolean' && isBoundedString(result.error, { max: 4000 }), invalidResponse('The library-root check returned an invalid result.')));
 }
 
 module.exports = { registerAppOsIpc };

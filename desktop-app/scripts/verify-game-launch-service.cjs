@@ -12,6 +12,7 @@ const { createGameLaunchService } = require('../electron/game/game-launch-servic
   const exited = [];
   const childHandlers = {};
   let tokenIndex = 0;
+  let rootOnline = false;
   const service = createGameLaunchService({
     path: path.win32, platform: 'win32', appStartedAt: 0, nowMs: () => clock,
     shell: { async openExternal(target) { safetyEvents.push(['uri', target]); }, async openPath() { return ''; } },
@@ -26,6 +27,7 @@ const { createGameLaunchService } = require('../electron/game/game-launch-servic
     setDiscordActivity: value => discord.push(['set', value]),
     clearDiscordActivity: () => discord.push(['clear']),
     sendExited: payload => exited.push(payload),
+    checkLibraryRoot: async () => ({ ok: true, available: rootOnline }),
   });
   const event = { sender: { id: 7 } };
   assert.equal(service.arm(event).ok, false, 'startup quarantine must block arming');
@@ -58,5 +60,13 @@ const { createGameLaunchService } = require('../electron/game/game-launch-servic
   assert.deepEqual(await service.launch(event, { exePath: 'C:\\Emulators\\RetroArch.exe', launchArgs: '--fullscreen "D:\\ROM Library\\Mario World.sfc"', workingDirectory: 'C:\\Emulators', gameId: 'rom-1', name: 'Super Mario World', launchToken: 'token-5' }), { ok: true });
   assert.deepEqual(spawnCalls.at(-1).args, ['--fullscreen', 'D:\\ROM Library\\Mario World.sfc'], 'Quoted ROM paths must remain one spawn argument.');
   assert.equal(spawnCalls.at(-1).options.cwd, 'C:\\Emulators', 'Retro profiles may choose the emulator working folder without invoking a shell.');
-  console.log('PASS: extracted launch service enforces startup quarantine, one-use expiry, local/shared cooldown state, exact spawn arguments, running-game lifecycle and exit reporting. URI settings remain explicit. No process launched.');
+  clock += 12000;
+  assert.deepEqual(service.arm(event), { ok: true, token: 'token-6' });
+  assert.match((await service.launch(event, { exePath: 'D:\\Games\\Offline\\game.exe', libraryRootPath: 'D:\\Games', gameId: 'offline', launchToken: 'token-6' })).error, /unavailable/i);
+  assert.equal(spawnCalls.length, 2, 'an offline root must not start the game');
+  rootOnline = true;
+  assert.deepEqual(service.arm(event), { ok: true, token: 'token-7' });
+  assert.deepEqual(await service.launch(event, { exePath: 'D:\\Games\\Online\\game.exe', libraryRootPath: 'D:\\Games', gameId: 'online', launchToken: 'token-7' }), { ok: true });
+  assert.equal(spawnCalls.length, 3);
+  console.log('PASS: extracted launch service enforces startup quarantine, one-use expiry, local/shared cooldown, offline library-root refusal, exact spawn arguments and running-game lifecycle. No process launched.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

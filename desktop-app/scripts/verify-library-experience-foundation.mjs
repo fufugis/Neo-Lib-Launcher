@@ -8,6 +8,24 @@ import { gameSignals, GAME_SIGNAL_DEFINITIONS } from '../src/lib/game-signals-mo
 import { normalizeWallColumns, visibleWallColumns, WALL_COLUMN_DEFINITIONS } from '../src/components/library/wall-columns-model.mjs';
 import { collectionCategoryAssignment, collectionExternalRootAssignment, collectionReviewPlan, createCollectionReviewWorkflow } from '../src/services/collection-mode.mjs';
 import { mergeRetroImport } from '../src/state/retro-import-state.mjs';
+import { externalRootForGame, normalizeExternalLibraryRoots } from '../src/lib/externalLibraryRoots.mjs';
+
+const roots = normalizeExternalLibraryRoots([
+  { id: 'drive', name: 'External', kind: 'removable', location: 'D:\\Games', private: true },
+  { id: 'nested', name: 'Favorites', kind: 'network', location: 'D:\\Games\\Favorites', private: false },
+  { id: 'duplicate', name: 'Duplicate', kind: 'removable', location: 'd:\\games\\' },
+  { id: 'cloud', name: 'Catalogue', kind: 'cloud', location: 'https://example.com/library' },
+  { id: 'nas', name: 'NAS', kind: 'network', location: '\\\\server\\share\\Games' },
+  { id: 'relative', name: 'Unsafe', kind: 'local', location: '..\\Games' },
+  { id: 'traversal', name: 'Traversal', kind: 'local', location: 'D:\\Games\\..\\Windows' },
+  { id: 'credential-link', name: 'Unsafe link', kind: 'cloud', location: 'https://user:secret@example.com/library' },
+]);
+assert.equal(roots.length, 4);
+assert.equal(roots[0].private, true);
+assert.equal(externalRootForGame({ exePath: 'D:\\Games\\Favorites\\game.exe' }, roots)?.id, 'nested');
+assert.equal(externalRootForGame({ exePath: 'D:\\Games2\\game.exe' }, roots), null);
+assert.equal(externalRootForGame({ exePath: '\\\\server\\share\\Games\\game.exe' }, roots)?.id, 'nas');
+assert.equal(externalRootForGame({ exePath: 'https://example.com/library/game' }, roots), null);
 
 assert.deepEqual(JOURNEY_STATUSES.map(({ id }) => id), ['not-started', 'backlog', 'in-progress', 'on-hold', 'finished', 'mastered', 'dropped']);
 assert.equal(normalizeJourneyStatus('unknown'), 'not-started');

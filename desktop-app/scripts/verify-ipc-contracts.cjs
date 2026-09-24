@@ -111,6 +111,7 @@ async function main() {
   await verifyGuard(game, 'game:watchExternal', [{ games: [{ id: 'g1', name: 'Game', exePath: 'C:\\Games\\Game.exe' }] }], [{ games: 'not-an-array' }], { ok: false, code: 'INVALID_REQUEST' });
   assert.deepEqual(await game.handlers['game:watchExternal']({}, {}), gameResults['game:watchExternal'], 'empty watch payload must retain stop-watching behavior');
   await verifyGuard(game, 'game:launch', [{ exePath: 'C:\\Games\\Game.exe', launchArgs: '--safe', workingDirectory: 'C:\\Games', gameId: 'g1', name: 'Game', launchToken: 'token' }], [{ exePath: ['C:\\Games\\Game.exe'] }], { ok: false, code: 'INVALID_REQUEST' });
+  await verifyGuard(game, 'game:launch', [{ exePath: 'C:\\Games\\Game.exe', libraryRootPath: 'D:\\Games' }], [{ exePath: 'C:\\Games\\Game.exe', libraryRootPath: ['D:\\Games'] }], { ok: false, code: 'INVALID_REQUEST' });
   assert.deepEqual(await game.handlers['game:scanExternalNow']({}), gameResults['game:scanExternalNow']);
   assert.deepEqual(await game.handlers['game:armLaunch']({ sender: { id: 7 } }), gameResults['game:armLaunch']);
   await verifyResponseGuard(game, 'game:scanExternalNow', [], { ok: true, active: 'no' }, { active: false, gameId: null, name: '' });
@@ -346,7 +347,7 @@ async function main() {
   const appOsCalls = [];
   const appOsResults = {
     openExternal: { ok: true }, revealInFolder: { ok: true, opened: 'C:\\Games' }, openContainingDir: undefined,
-    setAutoStart: { ok: true }, getAutoStart: true, openPath: { ok: true },
+    setAutoStart: { ok: true }, getAutoStart: true, openPath: { ok: true }, checkLibraryRoot: { ok: true, available: true },
   };
   const appOs = Object.fromEntries(Object.keys(appOsResults).map(method => [method, async (...args) => {
     appOsCalls.push({ method, args }); return appOsResults[method];
@@ -358,6 +359,11 @@ async function main() {
   await verifyRejected(appOsHandlers, appOsCalls, 'app:openContainingDir', [42]);
   await verifyRejected(appOsHandlers, appOsCalls, 'app:setAutoStart', [1], { ok: false, code: 'INVALID_REQUEST' });
   await verifyRejected(appOsHandlers, appOsCalls, 'app:openPath', [[]], { ok: false, code: 'INVALID_REQUEST' });
+  await verifyRejected(appOsHandlers, appOsCalls, 'app:checkLibraryRoot', [{}], { ok: false, code: 'INVALID_REQUEST' });
+  assert.deepEqual(await appOsHandlers['app:checkLibraryRoot']({}, 'D:\\Games'), { ok: true, available: true });
+  appOsResults.checkLibraryRoot = { ok: true, available: 'yes' };
+  assert.equal((await appOsHandlers['app:checkLibraryRoot']({}, 'D:\\Games')).code, 'INVALID_RESPONSE');
+  appOsResults.checkLibraryRoot = { ok: true, available: true };
   assert.deepEqual(await appOsHandlers['app:openExternal']({}, 'https://neo-lib.example'), { ok: true });
   assert.deepEqual(await appOsHandlers['app:openExternal']({}, 'ms-settings:bluetooth'), { ok: true });
   appOsResults.openExternal = { ok: 'yes' };
@@ -537,7 +543,7 @@ async function main() {
   assert.equal((await widgetHandlers['widgets:list']({})).widgets[0].id, widget.id);
   assert.equal((await widgetHandlers['widgets:update']({}, 'C:\\Widget\\widget.json')).replacedVersion, '0.9.0');
 
-  console.log('PASS: all 60 renderer payload contracts reject malformed input before native services, and all 95 native commands enforce response contracts while preserving valid success and failure results. The other 35 native commands are intentionally no-payload.');
+  console.log('PASS: all 61 renderer payload contracts reject malformed input before native services, and all 96 native commands enforce response contracts while preserving valid success and failure results. The other 35 native commands are intentionally no-payload.');
 }
 
 main().catch(error => {

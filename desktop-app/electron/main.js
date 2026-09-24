@@ -549,6 +549,7 @@ function writeSharedLaunchSafety(value) {
 
 const gameLaunchService = createGameLaunchService({
   shell, spawn, path, crypto, appStartedAt, recordSafety: recordLaunchSafety,
+  checkLibraryRoot: value => appOs.checkLibraryRoot(value),
   readSharedSafety: readSharedLaunchSafety, writeSharedSafety: writeSharedLaunchSafety,
   setDiscordActivity, clearDiscordActivity,
   sendExited(payload) {

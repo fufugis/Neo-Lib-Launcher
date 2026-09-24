@@ -27,6 +27,10 @@ export const V179_CHANGELOG = {
       body: 'JAST Store and Game Jolt join DLsite in the manual source picker. Compare the candidate title and official game-page address before applying metadata. Mature-source artwork and snippets start hidden until you reveal them.',
     },
     {
+      title: 'Keep external library pointers without copying games',
+      body: 'Wizard can remember a named external drive, NAS or local game folder. Check its availability when you want; NEO-LIB will not scan it automatically. A game inside an offline root will not launch until the drive returns. Cloud links remain catalogue bookmarks only.',
+    },
+    {
       title: 'Choose top or Sidebar navigation',
       body: 'Keep the familiar top Home, Library, Wall and Tools buttons, or switch to a slim left icon rail that reveals labels on hover. Visual Tweaks and Control Center → Personalise share the same saved Sidebar setting.',
     },

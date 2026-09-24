@@ -55,6 +55,7 @@ function registerGameIpc({ registerIpc, services }) {
       && isPath(payload.exePath)
       && isBoundedString(payload.launchArgs, { max: 8192 })
       && isPath(payload.workingDirectory, { required: false })
+      && isPath(payload.libraryRootPath, { required: false })
       && isIdentifier(payload.gameId, { required: false })
       && isBoundedString(payload.name, { max: 500 })
       && isBoundedString(payload.launchToken, { max: 256 }),

@@ -106,7 +106,7 @@ async function main() {
   const registrationSource = ipcSources.join('\n');
 const staticChannels = Array.from(registrationSource.matchAll(/registerIpc\(['"]([^'"]+)['"]/g), match => match[1]);
 const nativeChannels = staticChannels;
-assert.equal(nativeChannels.length, 95, 'known native command count changed; review the contract intentionally');
+assert.equal(nativeChannels.length, 96, 'known native command count changed; review the contract intentionally');
 assert.equal(new Set(nativeChannels).size, nativeChannels.length, 'source contains a duplicate channel');
 
 const rendererChannels = Array.from(new Set(Array.from(preload.matchAll(/ipcRenderer\.invoke\(['"]([^'"]+)['"]/g), match => match[1])));
@@ -168,7 +168,7 @@ assert.deepEqual(documentCalls, [
   let pickerWindow = firstWindow;
   const selectedByTitle = {
     'Select game executable': 'C:\\Games\\One.exe',
-    'Select folder to scan for games': 'D:\\Games',
+    'Select folder': 'D:\\Games',
     'Pick an image (icon / cover / hero)': 'C:\\Art\\cover.png',
     "Select this game's save folder": 'C:\\Saves\\One',
     'Import NEO-LIB widget': 'C:\\Widgets\\example\\widget.json',
@@ -321,7 +321,7 @@ assert.deepEqual(documentCalls, [
   });
   const appHandlers = {};
   registerAppOsIpc({ registerIpc(channel, fn) { appHandlers[channel] = fn; }, appOs });
-  assert.deepEqual(Object.keys(appHandlers), ['app:openExternal', 'app:revealInFolder', 'app:openContainingDir', 'app:setAutoStart', 'app:getAutoStart', 'app:openPath']);
+  assert.deepEqual(Object.keys(appHandlers), ['app:openExternal', 'app:revealInFolder', 'app:openContainingDir', 'app:setAutoStart', 'app:getAutoStart', 'app:openPath', 'app:checkLibraryRoot']);
   assert.deepEqual(await appHandlers['app:openExternal']({}, 'https://neo-lib.example/news'), { ok: true });
   assert.deepEqual(await appHandlers['app:openExternal']({}, 'ms-settings:bluetooth'), { ok: true });
   assert.deepEqual(await appHandlers['app:openExternal']({}, 'ms-settings:privacy'), { ok: false, code: 'INVALID_REQUEST', error: 'Only a valid public HTTP/HTTPS link or approved Windows settings page can be opened.' });
@@ -338,6 +338,10 @@ assert.deepEqual(documentCalls, [
   assert.equal(await appHandlers['app:getAutoStart'](), true);
   assert.deepEqual(await appHandlers['app:openPath']({}, 'C:\\Games'), { ok: true });
   assert.deepEqual(await appHandlers['app:openPath']({}, ''), { ok: false, code: 'INVALID_REQUEST', error: 'The open-path request was malformed.' });
+  pathKind = 'directory';
+  assert.deepEqual(await appHandlers['app:checkLibraryRoot']({}, 'D:\\Games'), { ok: true, available: true });
+  pathKind = 'missing';
+  assert.deepEqual(await appHandlers['app:checkLibraryRoot']({}, 'D:\\Games'), { ok: true, available: false, error: 'The drive or network folder is unavailable.' });
   openPathError = 'access denied';
   assert.deepEqual(await appHandlers['app:openPath']({}, 'C:\\Blocked'), { ok: false, error: 'access denied' });
   assert.deepEqual(appCalls.find(call => call[0] === 'setLoginItemSettings')[1], { openAtLogin: true, path: 'C:\\NEO-LIB\\NEO-LIB.exe' });

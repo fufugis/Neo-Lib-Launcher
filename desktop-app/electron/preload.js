@@ -87,6 +87,7 @@ contextBridge.exposeInMainWorld('api', {
   openExternal: (url) => ipcRenderer.invoke('app:openExternal', url),
   openPath: (p) => ipcRenderer.invoke('app:openPath', p),
   revealInFolder: (p) => ipcRenderer.invoke('app:revealInFolder', p),
+  checkLibraryRoot: (p) => ipcRenderer.invoke('app:checkLibraryRoot', p),
   openContainingDir: (p) => ipcRenderer.invoke('app:openContainingDir', p),
   getDiagnosticReport: () => ipcRenderer.invoke('diagnostics:getReport'),
   openDiagnosticFolder: () => ipcRenderer.invoke('diagnostics:openFolder'),

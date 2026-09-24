@@ -67,7 +67,25 @@ function createAppOsService({ app, shell, fsp, path, execPath, recordLaunchSafet
     return error ? { ok: false, error } : { ok: true };
   }
 
-  return Object.freeze({ openExternal, revealInFolder, openContainingDir, setAutoStart, getAutoStart, openPath });
+  async function checkLibraryRoot(value) {
+    if (typeof value !== 'string' || !path.isAbsolute(value) || value.length > 1024) {
+      return { ok: false, available: false, error: 'Choose an absolute local or network folder.' };
+    }
+    let timer;
+    try {
+      const stat = await Promise.race([
+        fsp.stat(value),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), 1500); }),
+      ]);
+      return stat.isDirectory()
+        ? { ok: true, available: true }
+        : { ok: true, available: false, error: 'This library path is not a folder.' };
+    } catch {
+      return { ok: true, available: false, error: 'The drive or network folder is unavailable.' };
+    } finally { clearTimeout(timer); }
+  }
+
+  return Object.freeze({ openExternal, revealInFolder, openContainingDir, setAutoStart, getAutoStart, openPath, checkLibraryRoot });
 }
 
 module.exports = { createAppOsService };

@@ -52,6 +52,7 @@ export default function AppModalLayer({ context }) {
     requestMetadataRefresh,
     openTidyUp,
     onRetroProfilesChange,
+    onExternalLibraryRootsChange,
     importRetroGames,
     addToGames,
     library,
@@ -173,6 +174,8 @@ export default function AppModalLayer({ context }) {
         onRefreshLibrary={requestMetadataRefresh}
         onTidyLibrary={openTidyUp}
         onRetroProfilesChange={onRetroProfilesChange}
+        onExternalLibraryRootsChange={onExternalLibraryRootsChange}
+        externalLibraryRoots={settings.externalLibraryRoots || []}
         onImportRoms={importRetroGames}
         retroProfiles={settings.retroProfiles || []}
         existingExePaths={(library.games || []).map((g) => g.exePath).filter(Boolean)}

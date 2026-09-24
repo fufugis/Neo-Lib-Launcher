@@ -12,6 +12,7 @@ import { genreDisplayGroups, normalizeGenreProfile } from '../lib/genreTaxonomy'
 import { createBoundedOperation } from '../services/bounded-operation.mjs';
 import { OPERATION_STATUS } from '../state/operation-state.mjs';
 import RetroProfilesPanel from './wizard/RetroProfilesPanel';
+import ExternalLibraryRootsPanel from './wizard/ExternalLibraryRootsPanel';
 
 /**
  * Auto-import Wizard
@@ -42,7 +43,7 @@ function operationFailureMessage(operation, label) {
   return operation?.message || `${label} failed.`;
 }
 
-export default function WizardModal({ open, onClose, onImport, onAccept, onAddManual, onRefreshLibrary, onTidyLibrary, onRetroProfilesChange, onImportRoms, retroProfiles = [], geminiKey, aiModel = 'gemini-2.5-flash', existingExePaths = [], existingGames = [], prefilledRoot = '', autoScan = false }) {
+export default function WizardModal({ open, onClose, onImport, onAccept, onAddManual, onRefreshLibrary, onTidyLibrary, onRetroProfilesChange, onImportRoms, retroProfiles = [], onExternalLibraryRootsChange, externalLibraryRoots = [], geminiKey, aiModel = 'gemini-2.5-flash', existingExePaths = [], existingGames = [], prefilledRoot = '', autoScan = false }) {
   const [step, setStep] = React.useState(1);
   const [root, setRoot] = React.useState('');
   const [candidates, setCandidates] = React.useState([]);
@@ -75,6 +76,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
   const imageBoundedOperation = React.useRef(null);
   const [wizardStatus, setWizardStatus] = React.useState('');
   const [retroProfilesOpen, setRetroProfilesOpen] = React.useState(false);
+  const [externalRootsOpen, setExternalRootsOpen] = React.useState(false);
 
   // Exclude paths during scan — common launcher folders + custom
   const [skipLaunchers, setSkipLaunchers] = React.useState({
@@ -496,6 +498,14 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
               <button type="button" data-testid="wizard-retro-profiles-toggle" onClick={() => setRetroProfilesOpen((value) => !value)} className="inline-flex shrink-0 items-center gap-2 rounded-full hairline px-4 py-2 text-xs font-semibold text-ink hover:border-[rgb(var(--accent)/0.6)] hover:bg-[rgb(var(--accent)/0.10)]"><Gamepad2 size={13} className="text-[rgb(var(--accent))]" />{retroProfilesOpen ? 'Close profiles' : 'Manage profiles'}</button>
             </div>
             {retroProfilesOpen && <RetroProfilesPanel profiles={retroProfiles} onChange={onRetroProfilesChange} onImportRoms={onImportRoms} existingGames={existingGames} />}
+          </div>
+
+          <div className="rounded-lg hairline bg-surface/50 p-4" data-testid="wizard-external-roots-section">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div><div className="text-[10px] uppercase tracking-wider text-muted">External libraries</div><p className="mt-1 text-xs text-muted">Keep pointers to your external drive, NAS or cloud catalogue without importing files.</p></div>
+              <button type="button" onClick={() => setExternalRootsOpen((value) => !value)} className="rounded-full hairline px-4 py-2 text-xs font-semibold text-ink hover:border-[rgb(var(--accent)/0.6)]">{externalRootsOpen ? 'Close roots' : 'Manage roots'}</button>
+            </div>
+            {externalRootsOpen && <ExternalLibraryRootsPanel roots={externalLibraryRoots} onChange={onExternalLibraryRootsChange} />}
           </div>
 
           <div className="rounded-lg hairline bg-surface/50 p-4" data-testid="wizard-library-care-section">

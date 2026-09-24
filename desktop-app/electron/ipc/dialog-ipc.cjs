@@ -18,7 +18,7 @@ function registerDialogIpc({ registerIpc, dialog, getMainWindow }) {
   }), value => value === null || isPath(value), null));
 
   registerIpc('dialog:pickDirectory', guardResult(() => pickFirst({
-    title: 'Select folder to scan for games',
+    title: 'Select folder',
     properties: ['openDirectory'],
   }), value => value === null || isPath(value), null));
 

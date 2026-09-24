@@ -34,6 +34,7 @@ import { createAutoSortWorkflow } from './services/auto-sort-workflow.mjs';
 import { collectionCategoryAssignment, collectionFavoriteIds, collectionJourneyStatus, createCollectionReviewWorkflow } from './services/collection-mode.mjs';
 import { mergeRetroImport } from './state/retro-import-state.mjs';
 import { journeyStatusAfterFirstLaunch } from './lib/game-journey-model.mjs';
+import { externalRootForGame, normalizeExternalLibraryRoots } from './lib/externalLibraryRoots.mjs';
 
 // Read app version once — used by the update checker for comparison.
 const APP_VERSION = '1.7.9';
@@ -1035,6 +1036,7 @@ export default function App() {
       }
       const res = await nativeApi.launchGame({
         exePath: g.exePath, launchArgs: g.launchArgs || '', workingDirectory: g.workingDirectory || '', gameId: g.id, name: g.name, launchToken,
+        libraryRootPath: externalRootForGame(g, settings.externalLibraryRoots)?.location || '',
       });
       if (!res.ok) {
         recordLaunchProblem(g.id, res.error || 'could not start');
@@ -1682,6 +1684,7 @@ export default function App() {
           requestMetadataRefresh,
           openTidyUp: () => setTidyOpen(true),
           onRetroProfilesChange: (retroProfiles) => updateSetting({ retroProfiles }),
+          onExternalLibraryRootsChange: (externalLibraryRoots) => updateSetting({ externalLibraryRoots: normalizeExternalLibraryRoots(externalLibraryRoots) }),
           importRetroGames,
           setMascotActivity,
           addToGames,
