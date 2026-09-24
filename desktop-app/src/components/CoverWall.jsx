@@ -1,11 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { CalendarDays, Clock3, Cloud, ExternalLink, Gamepad2, Grid3X3, HardDrive, Home, ImageOff, Library, List, LockKeyhole, Minus, Play, Plus, Radio, ShieldAlert, SlidersHorizontal, Star, Trophy, UserRound, Users, Wrench, X } from 'lucide-react';
+import { CalendarDays, CheckSquare, Clock3, Cloud, ExternalLink, Gamepad2, Grid3X3, HardDrive, Heart, Home, ImageOff, Library, List, LockKeyhole, Minus, Play, Plus, Radio, ShieldAlert, SlidersHorizontal, Square, Star, Trophy, UserRound, Users, Wrench, X } from 'lucide-react';
 import { artworkBackdrop, portraitArtwork } from '../lib/game-artwork-model.mjs';
 import { formatPlaytime } from '../lib/utils';
 import { applyWallFilter, WALL_FILTERS } from './library/wall-filter-model.mjs';
 import { gameSignals } from '../lib/game-signals-model.mjs';
-import { journeyStatusDefinition } from '../lib/game-journey-model.mjs';
+import { JOURNEY_STATUSES, journeyStatusDefinition } from '../lib/game-journey-model.mjs';
 import { normalizeWallColumns, visibleWallColumns } from './library/wall-columns-model.mjs';
 
 function personalRating(game) {
@@ -36,11 +36,13 @@ function installSize(game) {
 }
 
 /** Wall is a full-width, quiet browsing mode with no sidebar. */
-export default function CoverWall({ games = [], favoriteIds = [], density = 5, onDensityChange, onOpenPreview, onLaunch, search = '', lockedCategories = [], onUnlockCategory, view = 'covers', onChangeView, onOpenHome, onOpenLibrary, wallColumns, onWallColumnsChange }) {
+export default function CoverWall({ games = [], favoriteIds = [], density = 5, onDensityChange, onOpenPreview, onLaunch, search = '', lockedCategories = [], onUnlockCategory, view = 'covers', onChangeView, onOpenHome, onOpenLibrary, wallColumns, onWallColumnsChange, onBulkFavorite, onBulkJourneyStatus }) {
   const [wallFilter, setWallFilter] = React.useState('all');
   const [peekId, setPeekId] = React.useState('');
   const [columnMenuOpen, setColumnMenuOpen] = React.useState(false);
   const [sort, setSort] = React.useState({ id: 'game', direction: 'asc' });
+  const [selectionMode, setSelectionMode] = React.useState(false);
+  const [selectedIds, setSelectedIds] = React.useState([]);
   const visible = React.useMemo(() => {
     const term = String(search || '').trim().toLowerCase();
     const searched = term ? games.filter((game) => String(game.name || '').toLowerCase().includes(term)) : games;
@@ -51,6 +53,10 @@ export default function CoverWall({ games = [], favoriteIds = [], density = 5, o
   const peekGame = visible.find((game) => game.id === peekId) || null;
   const columns = React.useMemo(() => normalizeWallColumns(wallColumns), [wallColumns]);
   const shownColumns = React.useMemo(() => visibleWallColumns(columns), [columns]);
+  const selectedCount = selectedIds.length;
+  const toggleSelected = (id) => setSelectedIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]);
+  const finishSelection = () => { setSelectionMode(false); setSelectedIds([]); };
+  const beginSelection = () => { setPeekId(''); setSelectedIds([]); setSelectionMode(true); };
 
   React.useEffect(() => {
     if (peekId && !peekGame) setPeekId('');
@@ -77,25 +83,32 @@ export default function CoverWall({ games = [], favoriteIds = [], density = 5, o
       <span className="text-[9.5px] text-muted">{visible.length} game{visible.length === 1 ? '' : 's'}</span>
       {!detailed && <div className="flex h-9 items-center gap-1 rounded-lg border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--surface)/0.34)] px-1" aria-label="Cover size"><button type="button" onClick={() => onDensityChange?.(Math.max(3, tiles - 1))} disabled={tiles <= 3} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink disabled:opacity-35" title="Larger cards"><Minus size={13} /></button><input aria-label="Cover Wall density" type="range" min="3" max="10" step="1" value={tiles} onChange={(event) => onDensityChange?.(Number(event.target.value))} className="w-20 accent-[rgb(var(--accent))]" /><button type="button" onClick={() => onDensityChange?.(Math.min(10, tiles + 1))} disabled={tiles >= 10} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink disabled:opacity-35" title="Smaller cards"><Plus size={13} /></button><span className="min-w-8 text-center text-[9px] font-bold text-[rgb(var(--accent-2))]">{tiles}×{tiles}</span></div>}
       {detailed && <button type="button" data-testid="wall-columns-toggle" onClick={() => setColumnMenuOpen((open) => !open)} className="inline-flex h-8 items-center gap-1.5 rounded-lg hairline px-2.5 text-[10.5px] font-semibold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink"><SlidersHorizontal size={12} /> Columns</button>}
+      {selectionMode ? <CollectionActions count={selectedCount} onDone={finishSelection} onFavorite={(value) => { onBulkFavorite?.(selectedIds, value); }} onJourneyStatus={(journeyStatus) => { onBulkJourneyStatus?.(selectedIds, journeyStatus); }} /> : <button type="button" data-testid="wall-select-games" onClick={beginSelection} className="inline-flex h-8 items-center gap-1.5 rounded-lg hairline px-2.5 text-[10.5px] font-semibold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink"><CheckSquare size={12} /> Select games</button>}
       <div className="ml-auto flex items-center gap-1.5"><button type="button" onClick={onOpenHome} data-testid="wall-open-home" className="inline-flex h-8 items-center gap-1.5 rounded-lg hairline px-2.5 text-[10.5px] font-semibold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink"><Home size={12} /> Home</button><button type="button" onClick={onOpenLibrary} data-testid="wall-open-library" className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.5)] bg-[rgb(var(--accent)/0.09)] px-2.5 text-[10.5px] font-semibold text-ink hover:bg-[rgb(var(--accent)/0.16)]"><Library size={12} /> Library</button></div>
     </header>
     {detailed && columnMenuOpen && <ColumnMenu columns={columns} onChange={onWallColumnsChange} />}
     {lockedCategories.length > 0 && <section className="mb-5 flex flex-wrap items-center gap-2 rounded-xl border border-[rgb(var(--accent)/0.32)] bg-[rgb(var(--accent)/0.07)] px-3 py-2.5" data-testid="cover-wall-private-categories"><span className="inline-flex items-center gap-1.5 pr-1 text-[9px] font-black uppercase tracking-[0.16em] text-[rgb(var(--accent-2))]"><LockKeyhole size={13} />Protected categories</span>{lockedCategories.map((category) => <button key={category.id} type="button" onClick={() => onUnlockCategory?.(category)} className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.44)] bg-[rgb(var(--panel)/0.54)] px-2.5 py-1.5 text-[10px] font-bold text-ink transition hover:border-[rgb(var(--accent))] hover:bg-[rgb(var(--accent)/0.16)]" title={`Enter PIN to show ${category.name} games`}><LockKeyhole size={12} className="text-[rgb(var(--accent))]" /><span>Show hidden category</span><span className="max-w-36 truncate text-[rgb(var(--accent-2))]">{category.name}</span></button>)}</section>}
-    {detailed ? <WallDetails games={visible} columns={shownColumns} sort={sort} onSort={(id) => setSort((current) => ({ id, direction: current.id === id && current.direction === 'asc' ? 'desc' : 'asc' }))} onSelect={(id) => setPeekId((current) => current === id ? '' : id)} /> : <WallCovers games={visible} tiles={tiles} onSelect={(id) => setPeekId((current) => current === id ? '' : id)} />}
+    {detailed ? <WallDetails games={visible} columns={shownColumns} sort={sort} onSort={(id) => setSort((current) => ({ id, direction: current.id === id && current.direction === 'asc' ? 'desc' : 'asc' }))} onSelect={(id) => selectionMode ? toggleSelected(id) : setPeekId((current) => current === id ? '' : id)} selectionMode={selectionMode} selectedIds={selectedIds} /> : <WallCovers games={visible} tiles={tiles} onSelect={(id) => selectionMode ? toggleSelected(id) : setPeekId((current) => current === id ? '' : id)} selectionMode={selectionMode} selectedIds={selectedIds} />}
     {peekGame && <WallPeek game={peekGame} onClose={() => setPeekId('')} onOpenPreview={() => onOpenPreview?.(peekGame.id)} onLaunch={() => onLaunch?.(peekGame)} />}
   </section>;
 }
 
-function WallCovers({ games, tiles, onSelect }) {
+function CollectionActions({ count, onDone, onFavorite, onJourneyStatus }) {
+  return <div data-testid="wall-collection-actions" className="flex flex-wrap items-center gap-1 rounded-lg border border-[rgb(var(--accent)/0.46)] bg-[rgb(var(--accent)/0.08)] p-1"><span className="px-1.5 text-[9px] font-bold text-ink">{count} selected</span><button type="button" disabled={!count} onClick={() => onFavorite(true)} className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[9px] font-bold text-muted hover:bg-[rgb(var(--accent)/0.16)] hover:text-ink disabled:opacity-35"><Heart size={11} /> Favorite</button><button type="button" disabled={!count} onClick={() => onFavorite(false)} className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[9px] font-bold text-muted hover:bg-[rgb(var(--accent)/0.16)] hover:text-ink disabled:opacity-35">Unfavorite</button><select aria-label="Set Journey Status for selected games" disabled={!count} defaultValue="" onChange={(event) => { if (event.target.value) onJourneyStatus(event.target.value); event.target.value = ''; }} className="h-7 max-w-28 rounded-md bg-transparent px-1 text-[9px] font-bold text-muted outline-none disabled:opacity-35"><option value="">Set status…</option>{JOURNEY_STATUSES.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select><button type="button" onClick={onDone} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-[rgb(var(--accent)/0.16)] hover:text-ink" title="Leave selection mode"><X size={12} /></button></div>;
+}
+
+function WallCovers({ games, tiles, onSelect, selectionMode, selectedIds }) {
   if (!games.length) return <EmptyWall />;
   return <div className={`grid ${tiles >= 9 ? 'gap-2' : 'gap-3'}`} style={{ gridTemplateColumns: `repeat(${tiles}, minmax(0, 1fr))` }}>
     {games.map((game, index) => {
       const rating = personalRating(game);
-      return <motion.button key={game.id} type="button" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1 }} transition={{ duration: 0.2, delay: Math.min(index, 20) * 0.018 }} onClick={() => onSelect?.(game.id)} className="group min-w-0 overflow-hidden rounded-xl border border-[rgb(var(--border)/0.78)] bg-[rgb(var(--panel)/0.42)] text-left shadow-[0_10px_25px_-20px_rgba(0,0,0,.95)] transition hover:-translate-y-1 hover:border-[rgb(var(--accent)/0.72)] hover:bg-[rgb(var(--accent)/0.08)] hover:shadow-[0_16px_35px_-18px_rgb(var(--accent)/0.48)]" title={`Open ${game.name || 'game'} details`}>
+      const selected = selectedIds.includes(game.id);
+      return <motion.button key={game.id} type="button" aria-pressed={selectionMode ? selected : undefined} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1 }} transition={{ duration: 0.2, delay: Math.min(index, 20) * 0.018 }} onClick={() => onSelect?.(game.id)} className={`group relative min-w-0 overflow-hidden rounded-xl border bg-[rgb(var(--panel)/0.42)] text-left shadow-[0_10px_25px_-20px_rgba(0,0,0,.95)] transition hover:-translate-y-1 hover:border-[rgb(var(--accent)/0.72)] hover:bg-[rgb(var(--accent)/0.08)] hover:shadow-[0_16px_35px_-18px_rgb(var(--accent)/0.48)] ${selected ? 'border-[rgb(var(--accent))] ring-2 ring-[rgb(var(--accent)/0.55)]' : 'border-[rgb(var(--border)/0.78)]'}`} title={selectionMode ? `Select ${game.name || 'game'}` : `Open ${game.name || 'game'} details`}>
         <div className="relative aspect-[2/3] overflow-hidden bg-[rgb(var(--surface)/0.7)]">
           <CoverArtwork game={game} eager={index < 18} />
           <span className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/80 via-black/22 to-transparent" />
           {rating && <span data-testid={`cover-wall-rating-${game.id}`} className="pointer-events-none absolute right-1.5 top-1.5 z-10 inline-flex min-w-12 items-center justify-center gap-1 rounded-md border border-amber-100 bg-amber-300 px-2 py-1 text-[11px] font-bold leading-none tracking-normal text-amber-950 shadow-none" style={{ textShadow: 'none' }} title={`Your personal rating: ${rating} out of 5`} aria-label={`Your personal rating: ${rating} out of 5`}><Star size={10} strokeWidth={2.4} fill="currentColor" />{rating}</span>}
+          {selectionMode && <span className="pointer-events-none absolute left-1.5 top-1.5 z-10 grid h-6 w-6 place-items-center rounded-md bg-black/62 text-white">{selected ? <CheckSquare size={15} /> : <Square size={15} />}</span>}
         </div>
         <span data-testid="cover-wall-title" className="flex min-h-9 items-center truncate px-2.5 py-2 text-[12px] font-bold leading-tight text-ink group-hover:text-[rgb(var(--accent))]" title={game.name || 'Untitled game'}>{game.name || 'Untitled game'}</span>
       </motion.button>;
@@ -103,11 +116,12 @@ function WallCovers({ games, tiles, onSelect }) {
   </div>;
 }
 
-function WallDetails({ games, columns, sort, onSort, onSelect }) {
+function WallDetails({ games, columns, sort, onSort, onSelect, selectionMode, selectedIds }) {
   if (!games.length) return <EmptyWall />;
   const sorted = [...games].sort((left, right) => compareWallGames(left, right, sort.id) * (sort.direction === 'desc' ? -1 : 1));
   const template = columns.map((column) => `minmax(${column.minWidth}px,${column.width}px)`).join(' ');
-  return <section className="overflow-x-auto rounded-2xl border border-[rgb(var(--border)/0.8)] bg-[rgb(var(--panel)/0.40)]" data-testid="wall-details-list"><div className="grid min-w-max gap-3 border-b border-[rgb(var(--border)/0.72)] bg-[rgb(var(--surface)/0.48)] px-4 py-2 text-[9px] font-black uppercase tracking-[0.13em] text-muted" style={{ gridTemplateColumns: template }}>{columns.map((column) => <button key={column.id} onClick={() => onSort(column.id)} className="truncate text-left hover:text-ink">{column.label}{sort.id === column.id ? (sort.direction === 'asc' ? ' ↑' : ' ↓') : ''}</button>)}</div>{sorted.map((game, index) => <motion.button key={game.id} type="button" initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1 }} transition={{ duration: 0.16, delay: Math.min(index, 18) * 0.012 }} onClick={() => onSelect?.(game.id)} className="grid min-w-max w-full items-center gap-3 border-b border-[rgb(var(--border)/0.52)] px-4 py-2.5 text-left last:border-b-0 hover:bg-[rgb(var(--accent)/0.075)]" style={{ gridTemplateColumns: template }}>{columns.map((column) => <WallCell key={column.id} column={column.id} game={game} />)}</motion.button>)}</section>;
+  const selectionTemplate = selectionMode ? `28px ${template}` : template;
+  return <section className="overflow-x-auto rounded-2xl border border-[rgb(var(--border)/0.8)] bg-[rgb(var(--panel)/0.40)]" data-testid="wall-details-list"><div className="grid min-w-max gap-3 border-b border-[rgb(var(--border)/0.72)] bg-[rgb(var(--surface)/0.48)] px-4 py-2 text-[9px] font-black uppercase tracking-[0.13em] text-muted" style={{ gridTemplateColumns: selectionTemplate }}>{selectionMode && <span>Select</span>}{columns.map((column) => <button key={column.id} onClick={() => onSort(column.id)} className="truncate text-left hover:text-ink">{column.label}{sort.id === column.id ? (sort.direction === 'asc' ? ' ↑' : ' ↓') : ''}</button>)}</div>{sorted.map((game, index) => { const selected = selectedIds.includes(game.id); return <motion.button key={game.id} type="button" aria-pressed={selectionMode ? selected : undefined} initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1 }} transition={{ duration: 0.16, delay: Math.min(index, 18) * 0.012 }} onClick={() => onSelect?.(game.id)} className={`grid min-w-max w-full items-center gap-3 border-b border-[rgb(var(--border)/0.52)] px-4 py-2.5 text-left last:border-b-0 hover:bg-[rgb(var(--accent)/0.075)] ${selected ? 'bg-[rgb(var(--accent)/0.10)]' : ''}`} style={{ gridTemplateColumns: selectionTemplate }}>{selectionMode && <span className="text-[rgb(var(--accent))]">{selected ? <CheckSquare size={16} /> : <Square size={16} />}</span>}{columns.map((column) => <WallCell key={column.id} column={column.id} game={game} />)}</motion.button>; })}</section>;
 }
 
 function ColumnMenu({ columns, onChange }) {

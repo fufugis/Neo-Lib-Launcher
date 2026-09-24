@@ -1,5 +1,7 @@
 # NEO-LIB progress
 
+- **Collection Mode is source-complete for Wall** — Wall now has an explicit Select games mode in both cover and detailed views. It makes multi-selection visible without changing ordinary card behavior, then applies Favorite/Unfavorite and Journey Status only to the chosen games. Category, private shelf and artwork/metadata queue bulk actions remain separate queued work. Focused Library Experience, Wall and renderer checks pass; rebuilt Windows interaction acceptance remains required.
+
 - **Artwork Workshop safety is source-complete** — Game Workshop’s Artwork section now has per-slot Protect mine controls for icon, cover, hero, background and logo; local source/dimension context; and eight bounded restore points. No artwork change is committed until Save, and protection prevents future repair suggestions from replacing a player choice. The focused Library Experience, renderer and production renderer build checks pass; rebuilt Windows interaction acceptance remains required.
 
 - **Detailed Wall columns are source-complete** — Detailed Wall now uses its shared configurable column contract. Heading clicks sort rows with visible direction, while a compact Columns panel persists each non-identity column’s visibility and bounded width. The Game identity column remains mandatory. Focused Wall, renderer and visual-boundary checks pass; rebuilt Windows interaction acceptance remains required.

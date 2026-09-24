@@ -52,7 +52,15 @@ assert.match(workshop, /artworkLocks/);
 assert.match(workshop, /artworkRevisions/);
 assert.match(workshop, /Restore previous artwork/);
 
+const wall = fs.readFileSync(path.join(import.meta.dirname, '../src/components/CoverWall.jsx'), 'utf8');
+assert.match(wall, /wall-select-games/);
+assert.match(wall, /wall-collection-actions/);
+assert.match(wall, /onBulkFavorite/);
+assert.match(wall, /onBulkJourneyStatus/);
+
 const app = fs.readFileSync(path.join(import.meta.dirname, '../src/App.jsx'), 'utf8');
 assert.match(app, /journeyStatusAfterFirstLaunch\(g\.journeyStatus, g\.playtime\)/);
+assert.match(app, /onBulkFavorite/);
+assert.match(app, /onBulkJourneyStatus/);
 
 console.log('PASS: Game Workshop preserves the existing editor fields, exposes all six sections, saves bounded Journey Status/Launch Routes/content flags, and starts a new journey on first tracked launch.');
