@@ -7,10 +7,10 @@ import { createBoundedOperation } from '../services/bounded-operation.mjs';
 import { OPERATION_STATUS } from '../state/operation-state.mjs';
 import { HOME_WIDGET_BY_ID, HOME_WIDGET_GRID, homeWidget, normaliseWidgetSize, widgetsForSegment } from './home/home-widget-registry.mjs';
 import WidgetManagerModal from './home/WidgetManagerModal';
+import CommunityWidgetHost from './home/CommunityWidgetHost';
 import { renderForegroundPortal } from './ui/VisualBoundary';
 
 const RANGES = { today: { label: 'Today', days: 1 }, week: { label: 'This week', days: 7 }, month: { label: 'This month', days: 31 } };
-const HOME_PANE_IDS = Object.keys(HOME_WIDGET_BY_ID);
 const LEGACY_HOME_SEGMENTS = ['pinned', 'play', 'updates', 'system'];
 const DEFAULT_HOME_WIDGET_ORDER = LEGACY_HOME_SEGMENTS.flatMap((segment) => widgetsForSegment(segment).map((widget) => widget.id));
 const HOME_GRID_ROW_HEIGHT = 108;
@@ -41,6 +41,7 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
   const [dragInsertion, setDragInsertion] = React.useState(null);
   const [widgetManagerOpen, setWidgetManagerOpen] = React.useState(false);
   const [communityWidgets, setCommunityWidgets] = React.useState([]);
+  const [recoverableWidgets, setRecoverableWidgets] = React.useState([]);
   const [widgetImportNotice, setWidgetImportNotice] = React.useState('');
   const [layoutUnlocked, setLayoutUnlocked] = React.useState(false);
   const [gridColumns, setGridColumns] = React.useState(HOME_WIDGET_GRID.desktop);
@@ -63,6 +64,13 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
   const recommendations = React.useMemo(() => getRecommendations(games, visibleNews.items), [games, visibleNews.items]);
   const chronicle = React.useMemo(() => getChronicle(games, visibleNews.items), [games, visibleNews.items]);
   const bestGames = React.useMemo(() => [...games].filter((game) => Number(game.rating || 0) > 0).sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0) || Number(b.playtime || 0) - Number(a.playtime || 0)).slice(0, 5), [games]);
+  const communityConfig = homeLayout.communityWidgetConfig && typeof homeLayout.communityWidgetConfig === 'object' ? homeLayout.communityWidgetConfig : {};
+  const enabledCommunityWidgets = React.useMemo(() => communityWidgets.filter((widget) => widget.compatible && communityConfig[widget.id]?.enabled === true && communityConfig[widget.id]?.version === widget.version), [communityConfig, communityWidgets]);
+  const widgetDefinitions = React.useMemo(() => ({
+    ...HOME_WIDGET_BY_ID,
+    ...Object.fromEntries(enabledCommunityWidgets.map((widget) => [widget.id, { ...widget, label: widget.name, kind: 'community' }])),
+  }), [enabledCommunityWidgets]);
+  const activePaneIds = React.useMemo(() => Object.keys(widgetDefinitions), [widgetDefinitions]);
   const widgetOrder = React.useMemo(() => {
     const saved = Array.isArray(homeLayout.widgetOrder) ? homeLayout.widgetOrder : [];
     const legacyBySegment = homeLayout.paneOrderBySegment && typeof homeLayout.paneOrderBySegment === 'object' ? homeLayout.paneOrderBySegment : {};
@@ -70,8 +78,8 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
     const legacyFlat = legacySegmentOrder.flatMap((segment) => Array.isArray(legacyBySegment[segment]) ? legacyBySegment[segment] : widgetsForSegment(segment).map((widget) => widget.id));
     const legacyOrder = Array.isArray(homeLayout.order) ? homeLayout.order : [];
     const preferred = saved.length ? saved : legacyFlat.length ? legacyFlat : legacyOrder;
-    return [...new Set([...preferred.filter((id) => HOME_PANE_IDS.includes(id)), ...DEFAULT_HOME_WIDGET_ORDER])];
-  }, [homeLayout.order, homeLayout.paneOrderBySegment, homeLayout.segmentOrder, homeLayout.widgetOrder]);
+    return [...new Set([...preferred.filter((id) => activePaneIds.includes(id)), ...DEFAULT_HOME_WIDGET_ORDER, ...enabledCommunityWidgets.map((widget) => widget.id)])];
+  }, [activePaneIds, enabledCommunityWidgets, homeLayout.order, homeLayout.paneOrderBySegment, homeLayout.segmentOrder, homeLayout.widgetOrder]);
   const activeWidgetOrder = dragPreviewOrder || widgetOrder;
   const hiddenPanes = React.useMemo(() => {
     const saved = Array.isArray(homeLayout.hidden) ? homeLayout.hidden : [];
@@ -79,20 +87,20 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
     // player's old hide choice when that pane becomes two properly grouped
     // cards, rather than unexpectedly restoring both pieces.
     return [...new Set([
-      ...saved.filter((id) => HOME_PANE_IDS.includes(id)),
+      ...saved.filter((id) => activePaneIds.includes(id)),
       ...(saved.includes('library-tools') ? ['storage', 'chronicle'] : []),
     ])];
-  }, [homeLayout.hidden]);
+  }, [activePaneIds, homeLayout.hidden]);
   const updateLayout = (patch) => onUpdateHomeLayout?.({ ...homeLayout, ...patch });
   const snapToGrid = homeLayout.snapToGrid !== false;
   const savedWidgetSizes = homeLayout.widgetSizes && typeof homeLayout.widgetSizes === 'object' ? homeLayout.widgetSizes : {};
   const freePositions = homeLayout.freePositions && typeof homeLayout.freePositions === 'object' ? homeLayout.freePositions : {};
-  const widgetSize = React.useCallback((id) => normaliseWidgetSize(homeWidget(id), savedWidgetSizes[id], gridColumns), [gridColumns, savedWidgetSizes]);
+  const widgetSize = React.useCallback((id) => normaliseWidgetSize(widgetDefinitions[id], savedWidgetSizes[id], gridColumns), [gridColumns, savedWidgetSizes, widgetDefinitions]);
   const resizeWidget = React.useCallback((id, nextSize) => {
-    const next = normaliseWidgetSize(homeWidget(id), nextSize, gridColumns);
+    const next = normaliseWidgetSize(widgetDefinitions[id], nextSize, gridColumns);
     if (!next) return;
     updateLayout({ widgetSizes: { ...savedWidgetSizes, [id]: next } });
-  }, [gridColumns, homeLayout, onUpdateHomeLayout, savedWidgetSizes]);
+  }, [gridColumns, homeLayout, onUpdateHomeLayout, savedWidgetSizes, widgetDefinitions]);
   const resetWidgetSize = React.useCallback((id) => {
     const nextSizes = { ...savedWidgetSizes };
     const nextPositions = { ...freePositions };
@@ -114,17 +122,26 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
   const loadCommunityWidgets = React.useCallback(async () => {
     const result = await window.api?.listWidgets?.();
     setCommunityWidgets(result?.ok && Array.isArray(result.widgets) ? result.widgets : []);
+    setRecoverableWidgets(result?.ok && Array.isArray(result.recoverable) ? result.recoverable : []);
   }, []);
+  React.useEffect(() => { loadCommunityWidgets(); }, [loadCommunityWidgets]);
   React.useEffect(() => { if (widgetManagerOpen) loadCommunityWidgets(); }, [widgetManagerOpen, loadCommunityWidgets]);
   const importWidget = React.useCallback(async () => {
     if (!window.api?.pickWidgetManifest || !window.api?.importWidget) return { message: 'Widget import is available in the installed desktop app.' };
     const manifestPath = await window.api.pickWidgetManifest();
     if (!manifestPath) return { message: 'Widget import cancelled.' };
-    const result = await window.api.importWidget(manifestPath);
+    let result = await window.api.importWidget(manifestPath);
+    if (result?.code === 'UPDATE_REVIEW_REQUIRED') {
+      const requested = result.widget?.permissions?.length ? result.widget.permissions.join(', ') : 'none';
+      const approved = window.confirm('Update ' + (result.widget?.name || 'widget') + ' from v' + result.currentVersion + ' to v' + result.widget?.version + '?\n\nRequested capabilities: ' + requested + '\nNew capabilities stay disabled until you approve them.');
+      if (!approved) return { message: 'Widget update cancelled.' };
+      result = await window.api?.updateWidget?.(manifestPath);
+    }
     if (!result?.ok) return { message: result?.error || 'Widget package could not be imported.' };
+    if (result.replacedVersion) updateLayout({ communityWidgetConfig: { ...communityConfig, [result.widget.id]: { enabled: false, grants: [], version: result.widget.version, storage: communityConfig[result.widget.id]?.storage || {} } } });
     await loadCommunityWidgets();
-    return { message: `${result.widget?.name || 'Widget'} imported safely. It will become available when the isolated community host is ready.` };
-  }, [loadCommunityWidgets]);
+    return { message: result.replacedVersion ? (result.widget?.name || 'Widget') + ' updated safely. Review its capabilities before enabling it.' : (result.widget?.name || 'Widget') + ' imported safely and remains disabled until you enable it.' };
+  }, [communityConfig, homeLayout, loadCommunityWidgets, onUpdateHomeLayout]);
   const startWidgetImport = React.useCallback(async () => {
     setWidgetManagerOpen(true);
     const result = await importWidget();
@@ -169,6 +186,21 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
     setDragInsertion(null);
   };
   const togglePane = (id, hidden) => updateLayout({ hidden: hidden ? [...new Set([...hiddenPanes, id])] : hiddenPanes.filter((item) => item !== id) });
+  const updateCommunityConfig = React.useCallback((id, next) => updateLayout({ communityWidgetConfig: { ...communityConfig, [id]: next } }), [communityConfig, homeLayout, onUpdateHomeLayout]);
+  const removeCommunityWidget = React.useCallback(async (widget) => {
+    if (!window.confirm('Uninstall ' + widget.name + '? A recoverable copy will be kept locally.')) return { message: 'Widget removal cancelled.' };
+    const result = await window.api?.removeWidget?.(widget.id);
+    if (!result?.ok) return { message: result?.error || 'Widget could not be removed.' };
+    updateLayout({ communityWidgetConfig: { ...communityConfig, [widget.id]: { ...communityConfig[widget.id], enabled: false } } });
+    await loadCommunityWidgets();
+    return { message: widget.name + ' removed. You can restore it from Recovery.' };
+  }, [communityConfig, homeLayout, loadCommunityWidgets, onUpdateHomeLayout]);
+  const restoreCommunityWidget = React.useCallback(async (widget) => {
+    const result = await window.api?.restoreWidget?.(widget.id);
+    if (!result?.ok) return { message: result?.error || 'Widget could not be restored.' };
+    await loadCommunityWidgets();
+    return { message: widget.name + ' restored and left disabled.' };
+  }, [loadCommunityWidgets]);
   const updateFreePosition = React.useCallback((id, position) => updateLayout({ freePositions: { ...freePositions, [id]: position } }), [freePositions, homeLayout, onUpdateHomeLayout]);
   const bringWidgetToFront = React.useCallback((id) => {
     const next = [...widgetOrder.filter((widgetId) => widgetId !== id), id];
@@ -303,6 +335,10 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
     chronicle: <GamingChronicle entries={chronicle} onSelect={onSelect} />,
     recent: <section className="pb-1"><div className="mb-2 flex items-center gap-2"><Clock3 size={14} className="text-[rgb(var(--accent))]" /><h2 className="text-xs font-black uppercase tracking-[0.18em]">Recent sessions</h2><span className="text-[10px] text-muted">Latest plays · chronological</span></div><div className="overflow-hidden rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.3)]">{played.length ? played.slice(0, 5).map((game) => <button key={game.id} onClick={() => onSelect?.(game.id)} className="flex w-full items-center gap-3 border-b border-[rgb(var(--border)/0.55)] px-3 py-2.5 text-left last:border-b-0 hover:bg-[rgb(var(--accent)/0.07)]"><Cover game={game} /><span className="min-w-0 flex-1"><span className="block truncate text-xs font-bold">{game.name}</span><span className="mt-0.5 flex items-center gap-1 text-[10px] text-muted"><Gamepad2 size={10} />{PLATFORM[platformOf(game)]}</span></span><span className="hidden text-right text-[10px] text-muted sm:block">Played<br /><b className="text-ink">{relative(game.lastPlayedAt)}</b></span><span className="font-mono text-xs font-bold text-[rgb(var(--accent-2))]">{hours(game.playtime)}</span></button>) : <p className="p-5 text-center text-xs text-muted">Your latest sessions will appear here.</p>}</div></section>,
   };
+  const communityPaneContent = Object.fromEntries(enabledCommunityWidgets.map((widget) => {
+    const config = communityConfig[widget.id] || {};
+    return [widget.id, <CommunityWidgetHost key={widget.id} widget={widget} grants={config.grants || []} storage={config.storage || {}} games={games} onStorageChange={(storageValue) => updateCommunityConfig(widget.id, { ...config, storage: storageValue })} />];
+  }));
   const visibleWidgetIds = activeWidgetOrder.filter((id) => !hiddenPanes.includes(id));
   const fallbackFreePosition = (index) => {
     const columns = gridColumns === HOME_WIDGET_GRID.desktop ? 2 : 1;
@@ -331,11 +367,11 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
     {layoutUnlocked && <div className="mb-4 flex items-center gap-3 rounded-xl border border-[rgb(var(--accent)/0.48)] bg-[rgb(var(--accent)/0.09)] px-4 py-3" role="status" data-testid="home-layout-editing"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[rgb(var(--accent)/0.18)] text-[rgb(var(--accent-2))]"><Move size={15} /></span><div className="min-w-0 flex-1"><p className="text-xs font-black text-ink">Widget canvas unlocked · {snapToGrid ? 'snapping to grid' : 'free placement'}</p><p className="mt-0.5 text-[10px] text-muted">Drag any widget title bar and use its corner grip to resize. Turn snapping off to place and overlap widgets freely. Right-click a title bar for more actions.</p></div><span className="font-mono text-[10px] text-muted">{snapToGrid ? `${gridColumns} columns` : 'Free canvas'}</span></div>}
     <div className="overflow-auto rounded-2xl [scrollbar-color:rgb(var(--accent))_transparent] [scrollbar-width:thin]">
       <div ref={homeGridHostRef} className={`${snapToGrid ? 'grid grid-flow-row-dense gap-3' : 'relative'} ${layoutUnlocked ? 'bg-[linear-gradient(rgb(var(--border)/0.16)_1px,transparent_1px),linear-gradient(90deg,rgb(var(--border)/0.16)_1px,transparent_1px)] bg-[size:24px_24px] p-2' : ''}`} style={snapToGrid ? { gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))`, gridAutoRows: `${HOME_GRID_ROW_HEIGHT}px` } : { width: `${freeCanvasWidth}px`, height: `${freeCanvasHeight}px` }} data-home-canvas data-home-grid={snapToGrid ? 'snap' : 'free'} data-home-grid-columns={gridColumns} data-home-layout-unlocked={layoutUnlocked ? 'true' : 'false'} data-home-snap={snapToGrid ? 'true' : 'false'}>
-        {visibleWidgetIds.length ? visibleWidgetIds.map((id, index) => <HomePane key={id} id={id} {...paneProps} freePosition={resolvedFreePositions[id]} stackIndex={index}>{paneContent[id]}</HomePane>) : <p className="p-8 text-center text-xs text-muted">Every Home widget is hidden. Open Widgets to bring one back.</p>}
+        {visibleWidgetIds.length ? visibleWidgetIds.map((id, index) => <HomePane key={id} id={id} widgetDefinition={widgetDefinitions[id]} {...paneProps} freePosition={resolvedFreePositions[id]} stackIndex={index}>{paneContent[id] || communityPaneContent[id]}</HomePane>) : <p className="p-8 text-center text-xs text-muted">Every Home widget is hidden. Open Widgets to bring one back.</p>}
       </div>
     </div>
     {newsDetail && <NewsDetail item={newsDetail} onClose={() => setNewsDetail(null)} />}
-    <WidgetManagerModal open={widgetManagerOpen} onClose={() => setWidgetManagerOpen(false)} communityWidgets={communityWidgets} hiddenIds={hiddenPanes} onToggleBuiltin={togglePane} onImport={importWidget} externalNotice={widgetImportNotice} />
+    <WidgetManagerModal open={widgetManagerOpen} onClose={() => setWidgetManagerOpen(false)} communityWidgets={communityWidgets} recoverableWidgets={recoverableWidgets} communityConfig={communityConfig} hiddenIds={hiddenPanes} onToggleBuiltin={togglePane} onImport={importWidget} onCommunityConfig={updateCommunityConfig} onRemove={removeCommunityWidget} onRestore={restoreCommunityWidget} externalNotice={widgetImportNotice} />
   </section>;
 }
 function RailButton({ children, onClick }) { return <button onClick={onClick} className="grid h-7 w-7 place-items-center rounded-md border border-[rgb(var(--border))] text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink">{children}</button>; }
@@ -394,8 +430,8 @@ function GameUpdates({ updates, onRefresh, onCancel, onResolve, onSelect }) {
 function TopPlayed({ games, scope, onScope, rangeLabel, summary, onSelect, onHide }) {
   return <section className="mx-auto mb-6 w-full max-w-5xl rounded-2xl border border-[rgb(var(--accent)/0.34)] bg-[linear-gradient(110deg,rgb(var(--accent)/0.13),rgb(var(--panel)/0.44)_44%,rgb(var(--accent-2)/0.09))] p-4 shadow-[0_0_34px_-22px_rgb(var(--accent))]" data-testid="home-top-played"><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-2.5"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[rgb(var(--accent)/0.16)]"><Trophy size={17} className="text-[rgb(var(--accent))]" /></span><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">Your favorites in motion</p><h2 className="text-sm font-black">Top 5 played</h2></div></div><div className="flex items-center gap-2"><div className="flex rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.38)] p-0.5 text-[10px] font-bold"><button onClick={() => onScope('period')} className={`rounded-md px-2.5 py-1.5 ${scope === 'period' ? 'bg-[rgb(var(--accent)/0.20)] text-ink' : 'text-muted'}`}>{rangeLabel}</button><button onClick={() => onScope('all')} className={`rounded-md px-2.5 py-1.5 ${scope === 'all' ? 'bg-[rgb(var(--accent)/0.20)] text-ink' : 'text-muted'}`}>All time</button></div>{onHide && <button onClick={onHide} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink" title="Hide Top 5 played"><EyeOff size={13} /></button>}</div></div><div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-y border-[rgb(var(--border)/0.46)] py-2 text-[10px] text-muted"><span className="font-bold uppercase tracking-[0.14em] text-[rgb(var(--accent-2))]">{rangeLabel} at a glance</span><span><b className="text-ink">{hours(summary?.totalMinutes)}</b> played</span><span><b className="text-ink">{summary?.gamesTouched || 0}</b> games touched</span><span><b className="text-ink">{summary?.today || 0}</b> today</span><span><b className="text-ink">{summary?.library || 0}</b> in Library</span></div>{games.length ? <ol className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{games.map((game, index) => <li key={game.id}><button onClick={() => onSelect?.(game.id)} className="group flex w-full items-center gap-2.5 rounded-xl border border-[rgb(var(--border)/0.8)] bg-[rgb(var(--surface)/0.34)] p-2.5 text-left transition hover:-translate-y-0.5 hover:border-[rgb(var(--accent)/0.6)] hover:bg-[rgb(var(--surface)/0.58)]"><span className="w-4 font-mono text-[10px] font-black text-[rgb(var(--accent-2))]">{index + 1}</span><Cover game={game} className="h-10 w-[68px]" /><span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-black group-hover:text-[rgb(var(--accent))]">{game.name}</span><span className="mt-0.5 block text-[9.5px] text-muted">{PLATFORM[platformOf(game)]}</span><span className="mt-1 block text-[11px] font-bold text-[rgb(var(--accent-2))]">{hours(game.playtime)}</span></span></button></li>)}</ol> : <p className="mt-4 text-center text-xs text-muted">Import or track playtime to begin your ranking.</p>}</section>;
 }
-function HomePane({ id, children, paneOrder, draggedPane, dragInsertion, startPaneDrag, togglePane, layoutUnlocked, setLayoutUnlocked, gridColumns, snapToGrid, sizeForWidget, onResize, onResetSize, freePosition, stackIndex, onFreePosition, onBringFront, onToggleSnap }) {
-  const widget = homeWidget(id);
+function HomePane({ id, widgetDefinition, children, paneOrder, draggedPane, dragInsertion, startPaneDrag, togglePane, layoutUnlocked, setLayoutUnlocked, gridColumns, snapToGrid, sizeForWidget, onResize, onResetSize, freePosition, stackIndex, onFreePosition, onBringFront, onToggleSnap }) {
+  const widget = widgetDefinition || homeWidget(id);
   const isDragging = draggedPane === id;
   const isPeer = !!draggedPane && !isDragging;
   const insertionHere = dragInsertion?.id === id;

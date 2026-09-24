@@ -106,7 +106,7 @@ async function main() {
   const registrationSource = ipcSources.join('\n');
 const staticChannels = Array.from(registrationSource.matchAll(/registerIpc\(['"]([^'"]+)['"]/g), match => match[1]);
 const nativeChannels = staticChannels;
-assert.equal(nativeChannels.length, 90, 'known native command count changed; review the contract intentionally');
+assert.equal(nativeChannels.length, 94, 'known native command count changed; review the contract intentionally');
 assert.equal(new Set(nativeChannels).size, nativeChannels.length, 'source contains a duplicate channel');
 
 const rendererChannels = Array.from(new Set(Array.from(preload.matchAll(/ipcRenderer\.invoke\(['"]([^'"]+)['"]/g), match => match[1])));

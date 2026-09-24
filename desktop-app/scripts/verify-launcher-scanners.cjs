@@ -195,7 +195,7 @@ function fixture(mode) {
     process: { ...startup.dependencies.process, platform: 'win32', arch: 'x64', on() {} }, __dirname: path.join(root, 'electron'),
     console, Buffer, URL, setTimeout: deny('timer'), setInterval: deny('interval'),
   }, { filename: 'isolated-main.js', timeout: 5000 });
-  assert.equal(Object.keys(nativeHandlers).length, 90, 'all current native IPC endpoints still registered');
+  assert.equal(Object.keys(nativeHandlers).length, 94, 'all current native IPC endpoints still registered');
   for (const channel of channels) {
     startup.trace.length = 0;
     const result = await nativeHandlers[channel]();
@@ -203,5 +203,5 @@ function fixture(mode) {
   }
   const pkg = require('../package.json');
   assert(pkg.build.files.includes('electron/**/*'), 'new native module included in packaged app');
-  console.log('PASS: 40 scanner fixture runs plus 10 full-main integration scans match pre-refactor results and I/O traces; unchanged handler bodies/shared helpers, all 90 IPC registrations and packaging inclusion verified. UI readiness withheld. No real disk scans, registry calls, library writes or game launches.');
+  console.log('PASS: 40 scanner fixture runs plus 10 full-main integration scans match pre-refactor results and I/O traces; unchanged handler bodies/shared helpers, all 94 IPC registrations and packaging inclusion verified. UI readiness withheld. No real disk scans, registry calls, library writes or game launches.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

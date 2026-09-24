@@ -8,7 +8,7 @@ the shared request guards in `contract-guards.cjs`.
 
 ## Current checkpoint
 
-- 90 native commands across 30 named domains are inventoried by
+- 94 native commands across 30 named domains are inventoried by
   `scripts/verify-ipc-registry.cjs`.
 - Every command invoked by `preload.js` resolves to exactly one native handler.
 - `gemini:metadata` is the one documented native-only command and should be
@@ -39,7 +39,7 @@ the shared request guards in `contract-guards.cjs`.
   deals, game, Gemini, GOG, launcher, metadata, news, Optimize, releases, saves,
   scanning, Steam, storage, tools, updates and web.
 - `main.js` contains zero direct `registerIpc(...)` calls. It supplies the
-  current service functions, then the domain modules register all 90 commands.
+  current service functions, then the domain modules register all 94 commands.
 - Game launch/watch, save inspection/backup/restore/search, Optimize process/junk,
   storage measurement and directory scanning validate renderer payloads before
   invoking their native services.
@@ -49,8 +49,8 @@ the shared request guards in `contract-guards.cjs`.
   The first two batches account for 35 guarded contracts.
 - Launcher actions, external/path operations, lifecycle toggles, library/settings
   saves, playtime, image caching, Launch Doctor, shortcut resolution and icon
-  extraction complete the request boundary. All 55 payload-bearing native commands
-  are guarded; the other 32 commands intentionally take no renderer data.
+  extraction complete the request boundary. All 59 payload-bearing native commands
+  are guarded; the other 35 commands intentionally take no renderer data.
 - Response guards now cover all 14 game launch/watch, save
   inspection/backup/restore/search and Optimize process/junk commands. Valid success
   and failure results pass through unchanged; malformed native results become an
@@ -74,7 +74,7 @@ the shared request guards in `contract-guards.cjs`.
 Domain-contract separation is complete. Many provider, launch, save, Optimize and
 metadata implementations still live in `main.js`; moving those implementations
 into deeper services belongs to the following architecture stages. Automated
-request and response validation are complete for all 90 commands. The same response
+request and response validation are complete for all 94 commands. The same response
 boundary catches synchronous service throws and rejected promises, returns the
 command's established safe fallback, and writes only channel/domain/failure type plus
 an error class to local diagnostics. Request arguments, error text and payloads are

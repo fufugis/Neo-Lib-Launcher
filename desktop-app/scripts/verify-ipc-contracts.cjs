@@ -26,6 +26,7 @@ const { registerExeIpc } = require('../electron/ipc/exe-ipc.cjs');
 const { registerWindowIpc } = require('../electron/ipc/window-ipc.cjs');
 const { registerDialogIpc } = require('../electron/ipc/dialog-ipc.cjs');
 const { registerSystemIpc } = require('../electron/ipc/system-ipc.cjs');
+const { registerWidgetsIpc } = require('../electron/ipc/widgets-ipc.cjs');
 
 function register(registerDomain, channels, results = {}) {
   const calls = [];
@@ -509,7 +510,30 @@ async function main() {
   healthResult = { cpuPercent: 120, ramPercent: 50, memoryUsedGb: 8, memoryFreeGb: 8, memoryTotalGb: 16 };
   assert.deepEqual(await systemHandlers['system:health']({}), { cpuPercent: null, ramPercent: null, memoryUsedGb: 0, memoryFreeGb: 0, memoryTotalGb: 0, code: 'INVALID_RESPONSE' });
 
-  console.log('PASS: all 55 renderer payload contracts reject malformed input before native services, and all 90 native commands enforce response contracts while preserving valid success and failure results. The other 35 native commands are intentionally no-payload.');
+  const widgetHandlers = {};
+  const widgetCalls = [];
+  const widget = { id: 'author.widget', name: 'Widget', description: '', author: { name: 'Author', url: '' }, version: '1.0.0', entry: 'index.html', installedAt: 1, apiVersion: 1, compatible: true, permissions: [] };
+  registerWidgetsIpc({
+    registerIpc(channel, handler) { widgetHandlers[channel] = handler; },
+    widgets: {
+      async install(value) { widgetCalls.push(['install', value]); return { ok: true, widget }; },
+      async update(value) { widgetCalls.push(['update', value]); return { ok: true, widget, replacedVersion: '0.9.0' }; },
+      async list() { return { widgets: [widget], recoverable: [] }; },
+      async runtime(value) { widgetCalls.push(['runtime', value]); return { ok: true, widget, html: '<main>Widget</main>' }; },
+      async remove(value) { widgetCalls.push(['remove', value]); return { ok: true, id: value }; },
+      async restore(value) { widgetCalls.push(['restore', value]); return { ok: true, id: value }; },
+    },
+  });
+  for (const channel of ['widgets:runtime', 'widgets:remove', 'widgets:restore']) {
+    const before = widgetCalls.length;
+    assert.equal((await widgetHandlers[channel]({}, '../escape')).code, 'INVALID_REQUEST');
+    assert.equal(widgetCalls.length, before);
+    assert.equal((await widgetHandlers[channel]({}, widget.id)).ok, true);
+  }
+  assert.equal((await widgetHandlers['widgets:list']({})).widgets[0].id, widget.id);
+  assert.equal((await widgetHandlers['widgets:update']({}, 'C:\\Widget\\widget.json')).replacedVersion, '0.9.0');
+
+  console.log('PASS: all 59 renderer payload contracts reject malformed input before native services, and all 94 native commands enforce response contracts while preserving valid success and failure results. The other 35 native commands are intentionally no-payload.');
 }
 
 main().catch(error => {

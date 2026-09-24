@@ -15,6 +15,10 @@ export const V179_CHANGELOG = {
       body: 'Every widget now stands alone. Unlock Home and choose Snap on for automatic grid reordering or Free move for exact placement, resizing, overlap and stacking. Every title bar also has a right-click/options menu for placement mode, stacking, size, reset and hide actions.',
     },
     {
+      title: 'Run community widgets with clear permissions',
+      body: 'Imported widgets start disabled. Enable each one in Widgets and decide separately whether it can use private widget storage, redacted Library summaries or HTTPS. Widgets run in restricted frames, show a Reload control after a failure, require update review and can be restored after uninstall.',
+    },
+    {
       title: 'Choose top or Sidebar navigation',
       body: 'Keep the familiar top Home, Library, Wall and Tools buttons, or switch to a slim left icon rail that reveals labels on hover. Visual Tweaks and Control Center → Personalise share the same saved Sidebar setting.',
     },

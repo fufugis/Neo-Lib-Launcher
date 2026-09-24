@@ -150,8 +150,12 @@ contextBridge.exposeInMainWorld('api', {
   openSteamController: () => ipcRenderer.invoke('launcher:openSteamController'),
   openLauncherDownloads: (platform) => ipcRenderer.invoke('launcher:openDownloads', platform),
 
-  // Community widget packages are installed as data only. No widget code is
-  // exposed to this preload or executed in the main NEO-LIB renderer.
+  // Community widget files remain behind bounded native services. Only the
+  // isolated iframe host may execute a reviewed HTML entry.
   importWidget: (manifestPath) => ipcRenderer.invoke('widgets:import', manifestPath),
+  updateWidget: (manifestPath) => ipcRenderer.invoke('widgets:update', manifestPath),
   listWidgets: () => ipcRenderer.invoke('widgets:list'),
+  loadWidgetRuntime: (id) => ipcRenderer.invoke('widgets:runtime', id),
+  removeWidget: (id) => ipcRenderer.invoke('widgets:remove', id),
+  restoreWidget: (id) => ipcRenderer.invoke('widgets:restore', id),
 });

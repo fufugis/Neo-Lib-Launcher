@@ -115,7 +115,7 @@ Work currently being prepared includes:
 - a compact Wall preview overlay and configurable detailed-list columns;
 - an Artwork Workshop with comparison, protection, restore controls, and an
   optional player-keyed SteamGridDB selection gallery;
-- reviewed community widget execution with strict permissions and crash isolation;
+- Windows acceptance for community widget isolation and permissions;
 - optional achievement connectors;
 - expanded reviewed emulator presets and retro metadata/artwork sources;
 - a documented folder-based custom theme format.

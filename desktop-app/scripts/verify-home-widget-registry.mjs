@@ -4,6 +4,7 @@ import { BUILTIN_HOME_WIDGETS, HOME_WIDGET_API_VERSION, HOME_WIDGET_GRID, homeWi
 
 const homeSource = readFileSync(new URL('../src/components/HomeHub.jsx', import.meta.url), 'utf8');
 const managerSource = readFileSync(new URL('../src/components/home/WidgetManagerModal.jsx', import.meta.url), 'utf8');
+const communityHost = readFileSync(new URL('../src/components/home/CommunityWidgetHost.jsx', import.meta.url), 'utf8');
 
 const ids = BUILTIN_HOME_WIDGETS.map((widget) => widget.id);
 assert.equal(HOME_WIDGET_API_VERSION, 1);
@@ -39,4 +40,9 @@ assert.match(homeSource, /Bring to front/, 'overlapping free widgets must expose
 assert.doesNotMatch(homeSource, /function HomeSegment/, 'widgets must not be trapped inside movable categories');
 assert.match(managerSource, /xl:grid-cols-3/, 'the widget manager must support a tidy three-column layout');
 assert.match(managerSource, /aria-label=\{`\$\{hidden \? 'Show' : 'Hide'\}/, 'visibility must use a compact accessible eye control');
-console.log('PASS: Home has one category-free widget canvas with snap/free placement, unrestricted grid sizing, persisted pixel geometry, stacking controls and a compact manager. Source and pure fixtures only.');
+assert.match(communityHost, /sandbox="allow-scripts"/, 'community widgets must execute in an opaque sandbox');
+assert.doesNotMatch(communityHost, /allow-same-origin/, 'community widgets must not share the app origin');
+assert.match(communityHost, /Content-Security-Policy/, 'community widgets need a restrictive content policy');
+assert.match(communityHost, /event\.source !== frameRef\.current\?\.contentWindow/, 'widget messages must come from their own frame');
+assert.match(communityHost, /!game\.homeLocked/, 'locked games must be removed before granting Library summaries');
+console.log('PASS: Home has a category-free widget canvas, compact manager and restricted community frame with private-game redaction. Source and pure fixtures only.');

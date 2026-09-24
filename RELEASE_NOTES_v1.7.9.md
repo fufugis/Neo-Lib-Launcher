@@ -36,6 +36,11 @@ Library and Wall easier to use.
 - **Compact widget manager** — built-in and imported widgets use tidy
   three-column cards with the author inline, short descriptions, concise size
   facts and an accessible eye-only visibility control.
+- **Community widget host** — imported widgets can now be enabled individually
+  on Home. Each runs inside its own restricted frame. Storage, redacted Library
+  summaries and HTTPS access each require a separate choice in Widgets.
+  Broken widgets can be reloaded, updates require review, and uninstall keeps
+  a recoverable copy. See the Home Widgets guide before using community code.
 - **Optional navigation sidebar** — keep the familiar top navigation or move
   Home, Library, Wall and Tools into a slim left icon rail. The rail reveals
   its labels on hover, and the same saved choice is available in Visual Tweaks
@@ -65,7 +70,7 @@ Library and Wall easier to use.
 
 ## Verification
 
-Focused Home-widget, emulation, launch, provider, IPC, visual-boundary,
+Focused Home-widget, package, emulation, launch, provider, IPC, visual-boundary,
 renderer-binding and metadata-workflow checks pass. The managed workspace cannot start Vite's
 build helper (`spawn EPERM`), so a rebuilt Windows scan/import/launch pass remains
 required.
