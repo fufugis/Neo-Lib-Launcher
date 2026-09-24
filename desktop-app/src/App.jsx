@@ -929,6 +929,19 @@ export default function App() {
       }),
     }));
   };
+  const updateBulkFavorite = (ids, favorite) => {
+    const picked = new Set(Array.isArray(ids) ? ids : []);
+    if (!picked.size) return;
+    const current = settings.pinnedGameIds || [];
+    updateSetting({ pinnedGameIds: favorite ? [...new Set([...current, ...picked])] : current.filter((id) => !picked.has(id)) });
+    notify(`${favorite ? 'Favorited' : 'Unfavorited'} ${picked.size} game${picked.size === 1 ? '' : 's'}.`);
+  };
+  const updateBulkJourneyStatus = (ids, journeyStatus) => {
+    const picked = new Set(Array.isArray(ids) ? ids : []);
+    if (!picked.size) return;
+    setLibrary((previous) => ({ ...previous, [sliceK.items]: (previous[sliceK.items] || []).map((game) => picked.has(game.id) ? { ...game, journeyStatus } : game) }));
+    notify(`Updated Journey Status for ${picked.size} game${picked.size === 1 ? '' : 's'}.`);
+  };
   const addTool = (data) => {
     const tool = {
       id: uid(),
@@ -1430,6 +1443,8 @@ export default function App() {
           categoryMarkerMode={settings.categoryMarkerMode || (settings.showCategoryDot === false ? 'background' : 'dot')}
           showCategoryDot={(settings.categoryMarkerMode || (settings.showCategoryDot === false ? 'background' : 'dot')) === 'dot'}
           pinnedIds={settings.pinnedGameIds || []}
+          onBulkFavorite={updateBulkFavorite}
+          onBulkJourneyStatus={updateBulkJourneyStatus}
           onChangeRowSize={(v) => updateSetting({ rowSize: v })}
           onChangeCatTextSize={(v) => updateSetting({ catTextSize: v })}
           onChangeCatGlow={(v) => updateSetting({ catGlow: v })}
@@ -1547,25 +1562,8 @@ export default function App() {
                 onWallColumnsChange={(wallColumns) => updateSetting({ wallColumns })}
                 onOpenPreview={(id) => { setSelectedId(id); updateSetting({ mode: 'library', libraryViewMode: 'preview' }); }}
                 onLaunch={(game) => launchGame(game)}
-                onBulkFavorite={(ids, favorite) => {
-                  const picked = new Set(Array.isArray(ids) ? ids : []);
-                  if (!picked.size) return;
-                  const current = settings.pinnedGameIds || [];
-                  const pinnedGameIds = favorite
-                    ? [...new Set([...current, ...picked])]
-                    : current.filter((id) => !picked.has(id));
-                  updateSetting({ pinnedGameIds });
-                  notify(`${favorite ? 'Favorited' : 'Unfavorited'} ${picked.size} game${picked.size === 1 ? '' : 's'}.`);
-                }}
-                onBulkJourneyStatus={(ids, journeyStatus) => {
-                  const picked = new Set(Array.isArray(ids) ? ids : []);
-                  if (!picked.size) return;
-                  setLibrary((previous) => ({
-                    ...previous,
-                    [sliceK.items]: (previous[sliceK.items] || []).map((game) => picked.has(game.id) ? { ...game, journeyStatus } : game),
-                  }));
-                  notify(`Updated Journey Status for ${picked.size} game${picked.size === 1 ? '' : 's'}.`);
-                }}
+                onBulkFavorite={updateBulkFavorite}
+                onBulkJourneyStatus={updateBulkJourneyStatus}
                 onOpenHome={() => { setSelectedId(null); updateSetting({ mode: 'home', libraryViewMode: 'preview' }); }}
                 onOpenLibrary={openLibraryDefault}
                 search={search}

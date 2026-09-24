@@ -8,7 +8,7 @@ import { LibraryGameRow } from './LibraryTree';
  */
 export default function LibraryIconGrid({
   games = [], selectedId, iconSize = 48, spacing = 8, rows = 3,
-  categories = [], onSelect, onGameContext,
+  categories = [], onSelect, onGameContext, selectionMode = false, selectedIds = new Set(),
 }) {
   const safeIconSize = Math.max(24, Math.min(96, Number(iconSize) || 48));
   const safeSpacing = Math.max(0, Math.min(24, Number(spacing) || 0));
@@ -28,7 +28,8 @@ export default function LibraryIconGrid({
           size={size}
           iconOnly
           flatList
-          selected={selectedId === game.id}
+          selected={selectedIds.has(game.id) || (!selectionMode && selectedId === game.id)}
+          selectionMode={selectionMode}
           indexInCat={index}
           sectionGames={games}
           fromCatId={null}

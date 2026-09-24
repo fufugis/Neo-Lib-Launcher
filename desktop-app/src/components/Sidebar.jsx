@@ -2,7 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Wand2, ChevronDown, Tag, ArrowDownUp, Moon, Sun,
-  Library as LibIcon, Boxes, Columns, Home, Check, ListTree,
+  Library as LibIcon, Boxes, CheckSquare, Columns, Home, Check, ListTree, X,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import SystemHealthBar from './SystemHealthBar';
@@ -12,6 +12,7 @@ import AppControlMenu from './library/AppControlMenu';
 import { libraryFontFamily } from './library/library-visual-model.mjs';
 import { LibraryGameRow, LibrarySection, PinnedStrip, TwoColumnSections } from './library/LibraryTree';
 import { LauncherDropdown, SideBtn, TabPill } from './library/LibraryToolbarControls';
+import { JOURNEY_STATUSES } from '../lib/game-journey-model.mjs';
 
 /* v1.6.4 — Background texture styles applied INSIDE the sidebar so the
    texture never covers hero banners / preview images in the main pane. */
@@ -120,6 +121,7 @@ export default function Sidebar({
   effectsLevel = 2, currentTheme = 'synthwave', motionCadence = 'full', onChangeEffectsLevel, onChangeMotionCadence,
   unseenNewsCount = 0,
   pinnedIds = [],
+  onBulkFavorite, onBulkJourneyStatus,
   onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
   onChangeRowGap, onChangeCatGap, onChangeCatTopGap, onChangeCategoryMarkerMode,
   onToggleSubcatStrip, onChangeNameTextSize,
@@ -179,7 +181,7 @@ export default function Sidebar({
   const treeScrollRef = React.useRef(null);
   const isTools = mode === 'tools';
   const sideNavigation = navigationLayout === 'sidebar';
-  const [sideNavigationExpanded, setSideNavigationExpanded] = React.useState(false);
+  const [sideNavigationExpanded, setSideNavigationExpanded] = React.useState(false); const [selectionMode, setSelectionMode] = React.useState(false); const [selectedIds, setSelectedIds] = React.useState([]);
   // Keep toolbar labels legible while the sidebar is resized: they shrink over
   // the last 80px, then collapse cleanly to icons instead of being clipped.
   const labelProgress = Math.max(0, Math.min(1, (sidebarWidth - 240) / 80));
@@ -195,7 +197,7 @@ export default function Sidebar({
     onGameViewed?.(id);
     onSelect?.(id);
   }, [onGameViewed, onSelect]);
-
+  const selectedIdSet = React.useMemo(() => new Set(selectedIds), [selectedIds]); const handleGameClick = React.useCallback((id) => !selectionMode ? selectGame(id) : setSelectedIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]), [selectGame, selectionMode]); const startSelection = () => { setSelectedIds([]); setSelectionMode(true); }; const finishSelection = () => { setSelectedIds([]); setSelectionMode(false); };
   // Every small Library popover follows the same simple escape hatch: click
   // anywhere outside it (or press Escape) and it goes away.
   React.useEffect(() => {
@@ -459,6 +461,7 @@ export default function Sidebar({
           </span>
           {labelsVisible && <span className="overflow-hidden whitespace-nowrap" style={toolbarLabelStyle}>{manualResting ? 'Wake up' : 'Rest Zzz'}</span>}
         </button>
+        {!isTools && <button type="button" data-testid="sidebar-select-games" onClick={selectionMode ? finishSelection : startSelection} className={cn('library-toolbar-control inline-flex h-8 items-center gap-1.5 rounded-md hairline px-2 text-[10px] font-semibold transition-colors', selectionMode ? 'border-[rgb(var(--accent)/0.72)] bg-[rgb(var(--accent)/0.12)] text-ink' : 'text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink')} title={selectionMode ? 'Leave selection mode' : 'Select several games'}><CheckSquare size={14} />{labelsVisible && <span style={toolbarLabelStyle}>{selectionMode ? 'Done' : 'Select'}</span>}</button>}
         <div className="flex-1" />
         <AnimatePresence>
           {libSettingsOpen && (
@@ -627,6 +630,7 @@ export default function Sidebar({
         </div>
       )}
 
+      {!isTools && selectionMode && <LibrarySelectionBar count={selectedIds.length} onDone={finishSelection} onFavorite={(favorite) => onBulkFavorite?.(selectedIds, favorite)} onJourneyStatus={(journeyStatus) => onBulkJourneyStatus?.(selectedIds, journeyStatus)} />}
       {/* Tree — single column or two-column (categories never split between columns).
           v1.2.2 — auto-scroll while dragging a game near the top/bottom edges so
           long libraries are actually reachable during a drag operation. */}
@@ -659,16 +663,20 @@ export default function Sidebar({
             spacing={libraryIconSpacing}
             rows={libraryIconRows}
             categories={categories}
-            onSelect={selectGame}
+            onSelect={handleGameClick}
             onGameContext={onGameContext}
+            selectionMode={selectionMode}
+            selectedIds={selectedIdSet}
           />
         ) : <>
         {/* Pinned strip — full-width, sits above all categories in both single & two-row modes */}
         <PinnedStrip
           games={visiblePinnedGames}
           selectedId={selectedId}
-          onSelect={selectGame}
+          onSelect={handleGameClick}
           onContext={onGameContext}
+          selectionMode={selectionMode}
+          selectedIds={selectedIdSet}
         />
         {!showCategories ? (
           <>
@@ -684,12 +692,13 @@ export default function Sidebar({
                   showCategoryDot={false}
                   showSubcatStrip={showSubcatStrip}
                   isPinned={false}
-                  selected={selectedId === g.id}
+                  selected={selectedIdSet.has(g.id) || (!selectionMode && selectedId === g.id)}
+                  selectionMode={selectionMode}
                   indexInCat={idx}
                   sectionGames={flatGames}
                   fromCatId={null}
                   flatList
-                  onClick={() => selectGame(g.id)}
+                  onClick={() => handleGameClick(g.id)}
                   onContext={(action) => onGameContext(action, g)}
                   onReorderInCat={() => {}}
                   onMoveBetween={() => {}}
@@ -716,7 +725,9 @@ export default function Sidebar({
                 showSubcatStrip={showSubcatStrip}
                 pinnedIdsSet={pinnedIdsSet}
                 selectedId={selectedId}
-                onSelect={selectGame}
+                onSelect={handleGameClick}
+                selectionMode={selectionMode}
+                selectedIds={selectedIdSet}
                 onContext={(action, payload) => onGameContext(action, payload.game, payload)}
                 onCategoryContext={(category, anchor) => onCategoryContext(category, anchor)}
                 onUnlockCategory={() => onUnlockCategory(s.category)}
@@ -733,9 +744,9 @@ export default function Sidebar({
           <TwoColumnSections sections={sections} commonProps={{
             collapsed, size, iconPosition, catTextSize, catGlow, rowGap, catGap, catTopGap, selectedId,
             showCategoryDot, categoryMarkerMode, showSubcatStrip, pinnedIdsSet,
-            onSelect: selectGame, onGameContext, onCategoryContext, onUnlockCategory, onToggleCollapsed,
+            onSelect: handleGameClick, onGameContext, onCategoryContext, onUnlockCategory, onToggleCollapsed,
             onMoveGameToCategory, onReorderGameInCategory, onReorderCategory,
-            unlockedCategories, categories,
+            unlockedCategories, categories, selectionMode, selectedIds: selectedIdSet,
           }} />
         ) : (
           sections.map((s, sectionIdx) => (
@@ -756,7 +767,9 @@ export default function Sidebar({
               showSubcatStrip={showSubcatStrip}
               pinnedIdsSet={pinnedIdsSet}
               selectedId={selectedId}
-              onSelect={selectGame}
+              onSelect={handleGameClick}
+              selectionMode={selectionMode}
+              selectedIds={selectedIdSet}
               onContext={(action, payload) => onGameContext(action, payload.game, payload)}
               onCategoryContext={(category, anchor) => onCategoryContext(category, anchor)}
               onUnlockCategory={() => onUnlockCategory(s.category)}
@@ -779,6 +792,10 @@ export default function Sidebar({
       {!isTools && <SystemHealthBar resting={gameResting} runningGameName={runningGameName} restReason={restReason} games={allGames} onStatusChange={onSystemHealthChange} openRequest={systemHealthOpenRequest} />}
     </aside>
   );
+}
+
+function LibrarySelectionBar({ count, onDone, onFavorite, onJourneyStatus }) {
+  return <div data-testid="sidebar-collection-actions" className="mx-3 mb-2 flex flex-wrap items-center gap-1 rounded-lg border border-[rgb(var(--accent)/0.5)] bg-[rgb(var(--accent)/0.09)] p-1.5"><span className="px-1 text-[9px] font-bold text-ink">{count} selected</span><button type="button" disabled={!count} onClick={() => onFavorite(true)} className="rounded-md px-2 py-1 text-[9px] font-bold text-muted hover:bg-[rgb(var(--accent)/0.16)] hover:text-ink disabled:opacity-35">Favorite</button><button type="button" disabled={!count} onClick={() => onFavorite(false)} className="rounded-md px-2 py-1 text-[9px] font-bold text-muted hover:bg-[rgb(var(--accent)/0.16)] hover:text-ink disabled:opacity-35">Unfavorite</button><select aria-label="Set Journey Status for selected Library games" disabled={!count} defaultValue="" onChange={(event) => { if (event.target.value) onJourneyStatus(event.target.value); event.target.value = ''; }} className="h-7 min-w-0 flex-1 rounded-md bg-transparent px-1 text-[9px] font-bold text-muted outline-none disabled:opacity-35"><option value="">Set status…</option>{JOURNEY_STATUSES.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select><button type="button" onClick={onDone} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-[rgb(var(--accent)/0.16)] hover:text-ink" title="Leave selection mode"><X size={12} /></button></div>;
 }
 
 function SideNavigationRail({ expanded, onExpandedChange, mode, libraryViewMode, onOpenHome, onOpenLibrary, onOpenWall, onOpenTools, onOpenThemes, onOpenMascot, onOpenVisuals, onOpenControllers, onOpenSettings, onOpenChangelog, onCheckForUpdates, onOpenFeedback, onQuit, onDisableSidebar }) {

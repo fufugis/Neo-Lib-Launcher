@@ -3,7 +3,7 @@ import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import {
   RefreshCw, Trash2, Pencil, FolderOpen, MoreVertical, Lock, ChevronRight, ChevronDown,
   Tag, GripVertical, Terminal, Info, ArrowUp, ArrowDown, EyeOff, Pin, PinOff,
-  RotateCcw, ArchiveRestore, Stethoscope, Wand2, Wrench,
+  RotateCcw, ArchiveRestore, CheckSquare, Square, Stethoscope, Wand2, Wrench,
 } from 'lucide-react';
 import { categoryHeaderLabel } from '../../lib/categoryHeaderLabel.mjs';
 import { cn, colorFromId, formatPlaytime, playtimeSource } from '../../lib/utils';
@@ -44,7 +44,7 @@ function SectionWrap({ s, idx, commonProps }) {
     pinnedIdsSet,
     onSelect, onGameContext, onCategoryContext, onUnlockCategory, onToggleCollapsed,
     onMoveGameToCategory, onReorderGameInCategory, onReorderCategory,
-    unlockedCategories, categories } = commonProps;
+    unlockedCategories, categories, selectionMode, selectedIds } = commonProps;
   return (
     <LibrarySection
       section={s}
@@ -62,6 +62,8 @@ function SectionWrap({ s, idx, commonProps }) {
       showSubcatStrip={showSubcatStrip}
       pinnedIdsSet={pinnedIdsSet}
       selectedId={selectedId}
+      selectionMode={selectionMode}
+      selectedIds={selectedIds}
       onSelect={onSelect}
       onContext={(action, payload) => onGameContext(action, payload.game, payload)}
       onCategoryContext={(category, anchor) => onCategoryContext(category, anchor)}
@@ -86,6 +88,8 @@ export function LibrarySection({
   showCategoryDot = true, categoryMarkerMode = 'dot',
   showSubcatStrip = true,
   pinnedIdsSet = new Set(),
+  selectionMode = false,
+  selectedIds = new Set(),
 }) {
   const isUncat = section.id === '__uncat__';
   const c = section.category;
@@ -375,7 +379,8 @@ export function LibrarySection({
                     showCategoryDot={showCategoryDot}
                     showSubcatStrip={showSubcatStrip}
                     isPinned={pinnedIdsSet.has(g.id)}
-                    selected={selectedId === g.id}
+                    selected={selectedIds.has(g.id) || (!selectionMode && selectedId === g.id)}
+                    selectionMode={selectionMode}
                     indexInCat={idx}
                     sectionGames={section.games}
                     fromCatId={isUncat ? null : c.id}
@@ -402,7 +407,7 @@ export function LibraryGameRow({
   g, size, selected, onClick, onContext, fromCatId, indexInCat,
   sectionGames, onReorderInCat, onMoveBetween, categories,
   iconPosition = 'left', rowGap = 2, showCategoryDot = true, showSubcatStrip = true, isPinned = false, flatList = false,
-  iconOnly = false,
+  iconOnly = false, selectionMode = false,
 }) {
   const [menu, setMenu] = React.useState({ open: false, x: 0, y: 0 });
   const ref = React.useRef(null);
@@ -525,6 +530,7 @@ export function LibraryGameRow({
           selected ? 'bg-[rgb(var(--accent))] shadow-[0_0_8px_rgb(var(--accent))]' : 'bg-transparent'
         )}
       />
+      {selectionMode && !iconOnly && <span className="absolute right-1.5 top-1.5 text-[rgb(var(--accent))]">{selected ? <CheckSquare size={14} /> : <Square size={14} />}</span>}
 
       {!iconOnly && isNewToLibrary && (
         <span
@@ -790,7 +796,7 @@ export function CategoryContextMenu({ open, anchor, category, onClose, onAction 
  * Stays full-width above both columns in two-row mode (it's rendered outside
  * the column-split logic). Max 5 enforced by App.jsx on pin action.
  */
-export function PinnedStrip({ games, selectedId, onSelect, onContext }) {
+export function PinnedStrip({ games, selectedId, onSelect, onContext, selectionMode = false, selectedIds = new Set() }) {
   if (!games || games.length === 0) return null;
   return (
     <div
@@ -816,7 +822,7 @@ export function PinnedStrip({ games, selectedId, onSelect, onContext }) {
             }}
             className={cn(
               'group relative flex items-center gap-1.5 rounded-md px-2 h-7 text-[10.5px] font-medium transition-all',
-              selectedId === g.id
+              (selectedIds.has(g.id) || (!selectionMode && selectedId === g.id))
                 ? 'bg-[rgb(var(--accent)/0.18)] text-ink shadow-[inset_0_0_0_1px_rgb(var(--accent)/0.55)]'
                 : 'bg-surface/40 text-muted hover:text-ink hover:bg-[rgb(var(--accent)/0.10)]'
             )}
@@ -833,6 +839,7 @@ export function PinnedStrip({ games, selectedId, onSelect, onContext }) {
               )}
             </span>
             <span className="truncate">{g.name}</span>
+            {selectionMode && <span className="shrink-0 text-[rgb(var(--accent))]">{selectedIds.has(g.id) ? <CheckSquare size={12} /> : <Square size={12} />}</span>}
           </button>
         ))}
       </div>

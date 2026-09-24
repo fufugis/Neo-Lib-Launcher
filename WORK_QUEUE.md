@@ -69,7 +69,9 @@ This is the authoritative live queue. New user requests are appended here and re
 
 - [x] **Collection Mode Wall P1** — Wall now has explicit multi-select in cover and detailed views for Favorite/Unfavorite and Journey Status. Ordinary click behavior remains Peek-first, and selection state is always visible.
 
-- [ ] **Collection Mode Library P1** — extend explicit multi-select to the normal Library for category, metadata/artwork review queues, hide/private and future external-root changes. Every destructive or identity-changing batch receives a scope summary and confirmation.
+- [x] **Collection Mode normal Library P1** — normal Library now has explicit multi-select in category shelves, pinned games, flat list, two-column and icon layouts for Favorite/Unfavorite and Journey Status. Normal clicks remain Preview-first.
+
+- [ ] **Collection Mode category/review P1** — add confirmed category, metadata/artwork review queues, hide/private and future external-root changes. Every destructive or identity-changing batch receives a scope summary and confirmation.
 
 - [x] **Mid theme brightness correction** — Generic Blue, Gaming and Modern now use lifted medium-tone surface/panel/border values and matching Theme Studio swatches, placing them beside Generic Gray and Home rather than the Dark group. Focused visual-boundary and release-hardening checks pass; rebuilt Windows contrast acceptance remains required.
 

@@ -58,6 +58,12 @@ assert.match(wall, /wall-collection-actions/);
 assert.match(wall, /onBulkFavorite/);
 assert.match(wall, /onBulkJourneyStatus/);
 
+const sidebar = fs.readFileSync(path.join(import.meta.dirname, '../src/components/Sidebar.jsx'), 'utf8');
+assert.match(sidebar, /sidebar-select-games/);
+assert.match(sidebar, /sidebar-collection-actions/);
+assert.match(sidebar, /onBulkFavorite/);
+assert.match(sidebar, /onBulkJourneyStatus/);
+
 const wizard = fs.readFileSync(path.join(import.meta.dirname, '../src/components/WizardModal.jsx'), 'utf8');
 assert.match(wizard, /Retro Profiles/);
 assert.match(wizard, /retro-profile-save/);
