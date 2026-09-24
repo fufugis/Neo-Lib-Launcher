@@ -1,5 +1,6 @@
 // Pure helpers shared by the refresh picker and its regression tests.
 import { cleanDescriptionText } from './descriptionFormatting.mjs';
+import { appendArtworkRevision, artworkSnapshot, normalizeArtworkLocks } from './artwork-revision-model.mjs';
 
 const imageUrl = (value) => typeof value === 'string' && /^(https?:|file:|data:image\/)/i.test(value);
 export function fieldCandidates(record, field) {
@@ -10,18 +11,37 @@ export function fieldCandidates(record, field) {
     const value = record.about || record.shortDescription;
     return value ? [{ ...base, value, key: value }] : [];
   }
+  if (field === 'artwork') {
+    const values = [record.portraitImage, record.capsuleImage, record.icon, record.headerImage, record.background, record.logoImage || record.logo].filter(imageUrl);
+    return values.length ? [{ ...base, value: record, key: JSON.stringify(values) }] : [];
+  }
   const values = field === 'icon' ? [record.icon, record.portraitImage, record.capsuleImage, record.headerImage]
     : field === 'banner' ? [record.background, record.headerImage, record.capsuleImage]
     : (record.screenshots || []);
   return [...new Set(values.filter(imageUrl))].map(value => ({ ...base, value, key: value }));
 }
-export function selectedRefreshPatch(field, candidates) {
+export function selectedRefreshPatch(field, candidates, game = {}) {
   if (!candidates.length) return {};
   const { value, record } = candidates[0];
   if (field === 'icon') return { icon: value, coverUrl: value };
   if (field === 'banner') return { headerImage: value, background: value };
   if (field === 'description') return { about: cleanDescriptionText(value), shortDescription: cleanDescriptionText(record.shortDescription || value) };
   if (field === 'screenshots') return { screenshots: candidates.map(c => c.value) };
+  if (field === 'artwork') {
+    const locks = normalizeArtworkLocks(game.artworkLocks);
+    const source = record.source || 'Metadata review';
+    const patch = {
+      artworkRevisions: appendArtworkRevision(game.artworkRevisions, artworkSnapshot(game, { reason: 'before-collection-artwork-review' })),
+      artworkSources: { ...(game.artworkSources || {}) },
+    };
+    const cover = record.portraitImage || record.capsuleImage || record.icon;
+    if (!locks.cover && cover) { patch.portraitImage = cover; patch.coverUrl = cover; patch.artworkSources.cover = source; }
+    if (!locks.icon && record.icon) { patch.icon = record.icon; patch.artworkSources.icon = source; }
+    if (!locks.hero && record.headerImage) { patch.headerImage = record.headerImage; patch.artworkSources.hero = source; }
+    if (!locks.background && (record.background || record.headerImage)) { patch.background = record.background || record.headerImage; patch.artworkSources.background = source; }
+    if (!locks.logo && (record.logoImage || record.logo)) { patch.logoImage = record.logoImage || record.logo; patch.artworkSources.logo = source; }
+    return patch;
+  }
   // A normal refresh never changes the installed game's identity or launch data.
   const patch = {};
   for (const key of ['about', 'shortDescription', 'headerImage', 'background', 'screenshots', 'genres', 'genreTags', 'developers', 'publishers', 'releaseDate', 'website', 'metacritic']) {

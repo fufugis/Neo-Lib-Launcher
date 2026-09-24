@@ -37,11 +37,14 @@ export default function RefreshCandidatesModal({ game, field, options, progress,
     ? previous.includes(key) ? previous.filter(k => k !== key) : [...previous, key]
     : [key]);
   const picked = items.filter(item => selected.includes(item.key) && !failedImages.has(item.key));
-  return <Modal open onClose={onClose} wide title={`Choose ${field === 'all-locked' ? 'metadata' : field} · ${game.name}`} testid="refresh-candidates-modal">
+  const reviewLabel = field === 'all-locked' ? 'metadata' : field;
+  const currentArtwork = [game.portraitImage || game.coverUrl, game.headerImage, game.background, game.logoImage || game.logo].filter(Boolean);
+  return <Modal open onClose={onClose} wide title={`Choose ${reviewLabel} · ${game.name}`} testid="refresh-candidates-modal">
     <div className="p-5 space-y-4 overflow-y-auto max-h-[75vh]">
       <p className="text-sm text-muted">{progress ? `Game ${progress}. ` : ''}Nothing changes until you apply your selection. Check the title and source: search results may include other editions or games.</p>
       <div className="rounded-lg hairline p-3 text-xs text-muted">Current: {field === 'description' ? <div className="whitespace-pre-wrap max-h-28 overflow-auto">{game.about || game.shortDescription || 'Missing'}</div>
         : field === 'all-locked' ? game.name
+        : field === 'artwork' ? <div className="mt-2 grid grid-cols-4 gap-2">{currentArtwork.length ? currentArtwork.map((url, index) => <img key={`${url}:${index}`} src={url} alt="Current artwork" className="h-20 w-full rounded object-contain bg-black/20" />) : <span>No artwork</span>}</div>
         : <div className="flex gap-2 overflow-auto">{(field === 'screenshots' ? game.screenshots || [] : [field === 'icon' ? game.icon || game.coverUrl : game.background || game.headerImage]).filter(Boolean).map((url, i) => <img key={i} src={url} alt="Current artwork" className="h-16 w-24 object-contain" />)}</div>}</div>
       {error && <p role="alert" className="text-sm text-amber-300">{error}</p>}
       {field === 'screenshots' && <p className="text-xs text-muted">Select multiple images. Applying replaces the current screenshot collection with exactly your selection.</p>}
@@ -50,17 +53,18 @@ export default function RefreshCandidatesModal({ game, field, options, progress,
           <div className="text-sm font-semibold break-words">{item.name}</div><div className="text-xs text-muted mb-2">{item.source} · {selected.includes(item.key) ? 'Selected' : 'Click to select'}</div>
           {field === 'description' ? <div className="max-h-48 overflow-auto whitespace-pre-wrap text-sm">{item.value}</div>
           : field === 'all-locked' ? <div className="space-y-2 text-sm">{(item.record.headerImage || item.record.capsuleImage) && <img src={item.record.headerImage || item.record.capsuleImage} alt="Proposed artwork" className="w-full h-28 object-contain" />}<div className="max-h-32 overflow-auto whitespace-pre-wrap">{item.record.about || item.record.shortDescription || 'No description'}</div><div>{(item.record.genres || []).join(', ')}</div><div>{item.record.screenshots?.length || 0} screenshots · {(item.record.developers || []).join(', ')}</div></div>
+          : field === 'artwork' ? <div className="grid grid-cols-2 gap-2">{[item.record.portraitImage || item.record.capsuleImage || item.record.icon, item.record.headerImage, item.record.background, item.record.logoImage || item.record.logo].filter(Boolean).map((url, index) => <img key={`${url}:${index}`} src={url} alt="Suggested artwork" className="h-28 w-full rounded bg-black/20 object-contain" />)}</div>
           : failedImages.has(item.key) ? <div className="text-sm">Image unavailable — choose another result.</div> : <img src={item.value} alt={`${item.name} ${field} candidate`} className="w-full h-36 object-contain" onError={() => setFailedImages(old => new Set([...old, item.key]))} />}
         </button>)}
       </div>
-      {field === 'all-locked' && picked.length > 0 && <details className="hairline rounded p-3 text-sm"><summary>Review every field that will change</summary><div className="max-h-64 overflow-auto space-y-3 mt-3">{Object.entries(selectedRefreshPatch(field, picked)).map(([key, value]) => <div key={key}><strong>{key}</strong><div className="whitespace-pre-wrap break-words">{Array.isArray(value) ? value.join('\n') : String(value)}</div></div>)}</div></details>}
+      {(field === 'all-locked' || field === 'artwork') && picked.length > 0 && <details className="hairline rounded p-3 text-sm"><summary>Review every field that will change</summary><div className="max-h-64 overflow-auto space-y-3 mt-3">{Object.entries(selectedRefreshPatch(field, picked, game)).filter(([key]) => !['artworkRevisions', 'artworkSources'].includes(key)).map(([key, value]) => <div key={key}><strong>{key}</strong><div className="whitespace-pre-wrap break-words">{Array.isArray(value) ? value.join('\n') : String(value)}</div></div>)}</div></details>}
       {busy && <p role="status">Searching sources… You can cancel without changing anything.</p>}
       {!busy && !items.length && <p>No usable results found. Keep your current data or try another search.</p>}
       {(items.length > limit || more) ? <button className="hairline rounded px-4 py-2" disabled={busy} onClick={() => { const next = limit + 5; setLimit(next); load(next); }}>Show more (+5)</button> : !busy && <p className="text-xs text-muted">No more results from the available sources.</p>}
       <div className="sticky bottom-0 bg-panel border-t border-[rgb(var(--border))] pt-3 flex gap-3 justify-end">
         <button className="hairline rounded px-3 py-2" onClick={onClose}>{progress ? 'Stop review' : 'Cancel'}</button>
         {onSkip && <button className="hairline rounded px-3 py-2" onClick={onSkip}>Skip game</button>}
-        <button disabled={!picked.length || busy} className="rounded px-4 py-2 bg-[rgb(var(--accent))] text-[rgb(var(--surface))] disabled:opacity-40" onClick={async () => { setBusy(true); try { await onApply(selectedRefreshPatch(field, picked)); } catch (e) { setError(e.message || 'Could not save selection'); setBusy(false); } }}>Apply selected{field === 'screenshots' ? ` (${picked.length})` : ''}</button>
+        <button disabled={!picked.length || busy} className="rounded px-4 py-2 bg-[rgb(var(--accent))] text-[rgb(var(--surface))] disabled:opacity-40" onClick={async () => { setBusy(true); try { await onApply(selectedRefreshPatch(field, picked, game)); } catch (e) { setError(e.message || 'Could not save selection'); setBusy(false); } }}>Apply selected{field === 'screenshots' ? ` (${picked.length})` : ''}</button>
       </div>
     </div>
   </Modal>;

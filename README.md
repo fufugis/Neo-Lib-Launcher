@@ -30,6 +30,8 @@ launcher or executable.
   sorting, icon-only browsing, cover Wall, detailed Wall, and compact quick filters.
 - **Reviewed metadata instead of silent guesses** — compare proposed titles,
   descriptions, genres, artwork, and source evidence before saving changes.
+- **Deliberate collection work** — select several games for favorite, status,
+  category, reviewed metadata/artwork, or confirmed private-category changes.
 - **A customizable Home** — move, resize, reorder, hide, and restore independent
   widgets on a snapping grid or a free-position canvas.
 - **Visual personality** — built-in themes, effects, custom cursors, layout controls,

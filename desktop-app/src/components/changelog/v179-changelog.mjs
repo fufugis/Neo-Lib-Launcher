@@ -40,7 +40,7 @@ export const V179_CHANGELOG = {
     },
     {
       title: 'Collection Mode starts in Wall',
-      body: 'Choose Select in Library or Select games in Wall to mark several titles without changing normal browsing. Batch favorite/unfavorite actions, Journey Status updates and adding to an existing normal category apply only to the selected games, in Library, covers and detailed Wall.',
+      body: 'Choose Select in Library or Select games in Wall to mark several titles without changing normal browsing. Favorite, status and category changes apply only to that selection. Metadata and artwork open a confirmed one-by-one review queue, while Protect in requires an already-unlocked private category and never bypasses its PIN.',
     },
     {
       title: 'Retro Library connects your ROMs to your emulators',

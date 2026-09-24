@@ -39,6 +39,9 @@ have a written accepted deferral.
 - [ ] NES/SNES/GBA/3DS or other available fixtures enter their correct platform shelves and appear in platform sections at the end of Wall.
 - [ ] A ROM path containing spaces launches as one argument through the selected emulator and uses its optional working folder.
 - [ ] Retro metadata review uses title plus platform, preserves the fallback until accepted, and saves the chosen case art.
+- [ ] Collection Mode metadata review confirms its scope, skips manual entries and advances through selected games one at a time.
+- [ ] Collection Mode artwork review preserves locked slots, keeps a restore point and changes nothing until Apply is pressed.
+- [ ] Protect in lists only unlocked private categories, confirms the selected count and hides protected identity again after Lock private.
 
 ## Steam update truth
 

@@ -48,6 +48,10 @@ Library and Wall easier to use.
   review list, and import without duplicate ROM paths. Library shelves and Wall
   sections are created per platform. Launching passes the selected ROM directly
   to that profile through NEO-LIB's normal guarded Play route.
+- **Safer Collection Mode work** — selected games can enter confirmed metadata
+  or artwork review queues one at a time. Manual metadata and protected artwork
+  remain safe, previous artwork is restorable, and private-category assignment
+  requires an unlocked destination plus a clear scope summary.
 - **Clearer GitHub project page** — the oversized internal development diary has
   been replaced by a concise player-facing overview with honest download status,
   supported sources, privacy, installation, feedback and roadmap information.

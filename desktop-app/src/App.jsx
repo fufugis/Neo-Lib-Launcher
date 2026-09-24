@@ -31,7 +31,7 @@ import { createMetadataWorkflow } from './services/metadata-workflow.mjs';
 import { createCategoryPrivacyWorkflow } from './services/category-privacy-workflow.mjs';
 import { pickDetectedLauncher } from './services/launcher-detection-workflow.mjs';
 import { createAutoSortWorkflow } from './services/auto-sort-workflow.mjs';
-import { collectionCategoryAssignment, collectionFavoriteIds, collectionJourneyStatus } from './services/collection-mode.mjs';
+import { collectionCategoryAssignment, collectionFavoriteIds, collectionJourneyStatus, createCollectionReviewWorkflow } from './services/collection-mode.mjs';
 import { mergeRetroImport } from './state/retro-import-state.mjs';
 import { journeyStatusAfterFirstLaunch } from './lib/game-journey-model.mjs';
 
@@ -934,6 +934,7 @@ export default function App() {
   const updateBulkFavorite = (ids, favorite) => { const picked = Array.isArray(ids) ? ids : []; if (!picked.length) return; updateSetting({ pinnedGameIds: collectionFavoriteIds(settings.pinnedGameIds || [], picked, favorite) }); notify(`${favorite ? 'Favorited' : 'Unfavorited'} ${picked.length} game${picked.length === 1 ? '' : 's'}.`); };
   const updateBulkJourneyStatus = (ids, journeyStatus) => { const picked = Array.isArray(ids) ? ids : []; if (!picked.length || !journeyStatus) return; setLibrary((previous) => ({ ...previous, [sliceK.items]: collectionJourneyStatus(previous[sliceK.items] || [], picked, journeyStatus) })); notify(`Updated Journey Status for ${picked.length} game${picked.length === 1 ? '' : 's'}.`); };
   const addBulkCategory = (ids, categoryId) => { const picked = Array.isArray(ids) ? ids : []; const category = (library.categories || []).find((item) => item.id === categoryId && !item.private); if (!picked.length || !category) return; setLibrary((previous) => ({ ...previous, [sliceK.items]: collectionCategoryAssignment(previous[sliceK.items] || [], picked, categoryId) })); notify(`Added ${picked.length} game${picked.length === 1 ? '' : 's'} to ${category.name}.`); };
+  const collectionReview = createCollectionReviewWorkflow({ games: library[sliceK.items] || [], categories: library.categories || [], unlockedCategoryIds: unlockedCategories, setConfirmCfg, setRefreshReview, setLibrary, sliceKey: sliceK.items, notify });
   const importRetroGames = (entries) => { const requested = Array.isArray(entries) ? entries : []; if (!requested.length) return 0; setLibrary((previous) => mergeRetroImport(previous, requested, uid).library); notify(`Imported ${requested.length} retro game${requested.length === 1 ? '' : 's'} by platform.`); return requested.length; };
   const addTool = (data) => {
     const tool = {
@@ -1436,10 +1437,9 @@ export default function App() {
           categoryMarkerMode={settings.categoryMarkerMode || (settings.showCategoryDot === false ? 'background' : 'dot')}
           showCategoryDot={(settings.categoryMarkerMode || (settings.showCategoryDot === false ? 'background' : 'dot')) === 'dot'}
           pinnedIds={settings.pinnedGameIds || []}
-          collectionCategories={currentCats.filter((category) => !category.private)}
-          onBulkFavorite={updateBulkFavorite}
-          onBulkJourneyStatus={updateBulkJourneyStatus}
-          onBulkAddCategory={addBulkCategory}
+          collectionCategories={currentCats.filter((category) => !category.private)} privateCollectionCategories={currentCats.filter((category) => category.private && unlockedCategories.includes(category.id))}
+          onBulkFavorite={updateBulkFavorite} onBulkJourneyStatus={updateBulkJourneyStatus} onBulkAddCategory={addBulkCategory}
+          onBulkReviewMetadata={collectionReview.reviewMetadata} onBulkReviewArtwork={collectionReview.reviewArtwork} onBulkProtect={collectionReview.protect}
           onChangeRowSize={(v) => updateSetting({ rowSize: v })}
           onChangeCatTextSize={(v) => updateSetting({ catTextSize: v })}
           onChangeCatGlow={(v) => updateSetting({ catGlow: v })}
@@ -1549,7 +1549,7 @@ export default function App() {
               <CoverWall
                 games={coverWallGames}
                 favoriteIds={settings.pinnedGameIds || []}
-                collectionCategories={currentCats.filter((category) => !category.private)}
+                collectionCategories={currentCats.filter((category) => !category.private)} privateCollectionCategories={currentCats.filter((category) => category.private && unlockedCategories.includes(category.id))}
                 density={settings.coverWallDensity || 5}
                 onDensityChange={(coverWallDensity) => updateSetting({ coverWallDensity })}
                 view={settings.wallView || 'covers'}
@@ -1558,9 +1558,8 @@ export default function App() {
                 onWallColumnsChange={(wallColumns) => updateSetting({ wallColumns })}
                 onOpenPreview={(id) => { setSelectedId(id); updateSetting({ mode: 'library', libraryViewMode: 'preview' }); }}
                 onLaunch={(game) => launchGame(game)}
-                onBulkFavorite={updateBulkFavorite}
-                onBulkJourneyStatus={updateBulkJourneyStatus}
-                onBulkAddCategory={addBulkCategory}
+                onBulkFavorite={updateBulkFavorite} onBulkJourneyStatus={updateBulkJourneyStatus} onBulkAddCategory={addBulkCategory}
+                onBulkReviewMetadata={collectionReview.reviewMetadata} onBulkReviewArtwork={collectionReview.reviewArtwork} onBulkProtect={collectionReview.protect}
                 onOpenHome={() => { setSelectedId(null); updateSetting({ mode: 'home', libraryViewMode: 'preview' }); }}
                 onOpenLibrary={openLibraryDefault}
                 search={search}

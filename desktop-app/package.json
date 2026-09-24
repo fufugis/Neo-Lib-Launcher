@@ -39,7 +39,7 @@
     "test:renderer-state": "node scripts/verify-renderer-state.mjs && node scripts/verify-experience-foundation.mjs",
     "test:home-widgets": "node scripts/verify-home-widget-registry.mjs",
     "test:widgets": "node scripts/verify-widget-package-service.cjs",
-    "test:metadata-workflow": "node scripts/verify-metadata-workflow.mjs",
+    "test:metadata-workflow": "node scripts/verify-metadata-workflow.mjs && node scripts/verify-refresh-candidates.mjs",
     "test:category-privacy": "node scripts/verify-category-privacy-workflow.mjs",
     "test:auto-sort": "node scripts/verify-auto-sort-workflow.mjs",
     "test:update-discovery": "node scripts/verify-update-discovery.mjs",

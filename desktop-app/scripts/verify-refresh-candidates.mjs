@@ -15,6 +15,12 @@ assert.deepEqual(selectedRefreshPatch('icon', []), {}, 'nothing selected means n
 const malicious = { ...record, id: 'other', appid: 1, exePath: 'bad.exe', launchArgs: '--run', categoryId: 'private', name: 'Other game', screenshots: [] };
 const full = selectedRefreshPatch('all-locked', fieldCandidates(malicious, 'all-locked'));
 for (const key of ['id', 'appid', 'exePath', 'launchArgs', 'categoryId', 'name', 'screenshots']) assert.equal(key in full, false, `preserve ${key}`);
+const artworkGame = { icon: image(20), portraitImage: image(21), headerImage: image(22), artworkLocks: { hero: true }, artworkSources: { hero: 'Player' }, artworkRevisions: [] };
+const artwork = selectedRefreshPatch('artwork', fieldCandidates({ ...record, portraitImage: image(6), logoImage: image(7) }, 'artwork'), artworkGame);
+assert.equal(artwork.portraitImage, image(6));
+assert.equal(artwork.headerImage, undefined, 'protected hero remains untouched');
+assert.equal(artwork.logoImage, image(7));
+assert.equal(artwork.artworkRevisions.length, 1, 'previous artwork remains restorable');
 
 const calls = [];
 const api = {
@@ -45,13 +51,14 @@ assert.equal(empty.candidates.length, 0); assert.equal(empty.more, false); asser
 
 const require = createRequire(import.meta.url);
 const babel = createRequire(require.resolve('@vitejs/plugin-react'))('@babel/core');
-for (const relative of ['src/App.jsx', 'src/components/RefreshCandidatesModal.jsx', 'src/components/ChangelogModal.jsx']) {
+for (const relative of ['src/App.jsx', 'src/components/RefreshCandidatesModal.jsx', 'src/components/ChangelogModal.jsx', 'src/components/library/CollectionActions.jsx']) {
   babel.parseSync(fs.readFileSync(new URL(`../${relative}`, import.meta.url), 'utf8'), { configFile: false, babelrc: false, parserOpts: { plugins: ['jsx'] } });
 }
 const app = fs.readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
 const surgical = app.slice(app.indexOf('const handleTroubleshoot'), app.indexOf('/* --- Collapsed state'));
 assert.ok(surgical.includes('setRefreshReview'));
 assert.ok(!surgical.includes('updateGame('), 'field refresh cannot save before review');
-const bulk = app.slice(app.indexOf('const refetchAll'), app.indexOf('// Keep ref in sync'));
+const workflow = fs.readFileSync(new URL('../src/services/metadata-workflow.mjs', import.meta.url), 'utf8');
+const bulk = workflow.slice(workflow.indexOf('const refetchAll'), workflow.indexOf('return {', workflow.indexOf('const refetchAll')));
 assert.ok(bulk.includes('setRefreshReview')); assert.ok(!bulk.includes('autoApply: true'), 'bulk refresh cannot auto-apply');
 console.log('PASS: field patches, safe identity, deduplication, five-result paging, source exhaustion, Blizzard ID, cancellation, source errors, JSX parsing and shared refresh routing. No network or real library writes.');

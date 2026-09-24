@@ -6,7 +6,7 @@ import { normalizeLaunchRoutes, primaryLaunchRoute } from '../src/lib/game-launc
 import { JOURNEY_STATUSES, journeyStatusAfterFirstLaunch, normalizeJourneyStatus } from '../src/lib/game-journey-model.mjs';
 import { gameSignals, GAME_SIGNAL_DEFINITIONS } from '../src/lib/game-signals-model.mjs';
 import { normalizeWallColumns, visibleWallColumns, WALL_COLUMN_DEFINITIONS } from '../src/components/library/wall-columns-model.mjs';
-import { collectionCategoryAssignment } from '../src/services/collection-mode.mjs';
+import { collectionCategoryAssignment, collectionExternalRootAssignment, collectionReviewPlan, createCollectionReviewWorkflow } from '../src/services/collection-mode.mjs';
 import { mergeRetroImport } from '../src/state/retro-import-state.mjs';
 
 assert.deepEqual(JOURNEY_STATUSES.map(({ id }) => id), ['not-started', 'backlog', 'in-progress', 'on-hold', 'finished', 'mastered', 'dropped']);
@@ -37,6 +37,15 @@ assert.equal(visibleWallColumns([{ id: 'mainGenre', visible: false }]).some(({ i
 assert.equal(WALL_COLUMN_DEFINITIONS.some(({ id }) => id === 'journeyStatus'), true);
 
 assert.deepEqual(collectionCategoryAssignment([{ id: 'a', categoryIds: ['first'] }, { id: 'b' }], ['a', 'b'], 'second'), [{ id: 'a', categoryIds: ['first', 'second'] }, { id: 'b', categoryIds: ['second'] }]);
+assert.deepEqual(collectionReviewPlan([{ id: 'a', manualOverride: true }, { id: 'b' }], ['a', 'b'], 'metadata'), { kind: 'metadata', selected: [{ id: 'a', manualOverride: true }, { id: 'b' }], targets: [{ id: 'b' }], skipped: 1, field: 'all-locked' });
+assert.deepEqual(collectionExternalRootAssignment([{ id: 'a' }, { id: 'b' }], ['a'], 'nas', [{ id: 'nas', enabled: true }]), [{ id: 'a', externalLibraryRootId: 'nas' }, { id: 'b' }]);
+assert.deepEqual(collectionExternalRootAssignment([{ id: 'a' }], ['a'], 'missing', []), [{ id: 'a' }], 'unknown roots cannot write arbitrary paths');
+let confirm = null, review = null, protectedLibrary = null;
+const collectionWorkflow = createCollectionReviewWorkflow({ games: [{ id: 'a' }, { id: 'b' }], categories: [{ id: 'secret', name: 'Secret', private: true }], unlockedCategoryIds: ['secret'], setConfirmCfg: (value) => { confirm = value; }, setRefreshReview: (value) => { review = value; }, setLibrary: (apply) => { protectedLibrary = apply({ games: [{ id: 'a' }, { id: 'b' }] }); } });
+collectionWorkflow.reviewArtwork(['a', 'b']); confirm.onConfirm();
+assert.equal(review.field, 'artwork'); assert.equal(review.games.length, 2);
+collectionWorkflow.protect(['a'], 'secret'); confirm.onConfirm();
+assert.deepEqual(protectedLibrary.games[0].categoryIds, ['secret']);
 const retroImport = mergeRetroImport({ games: [{ id: 'old', romPath: 'D:\\ROMs\\Old.sfc' }], categories: [] }, [{ name: 'Old duplicate', exePath: 'C:\\emu.exe', romPath: 'd:/roms/old.sfc', retroPlatform: 'snes', platform: 'Super Nintendo', categoryIds: ['retro-snes'] }, { name: 'New', exePath: 'C:\\emu.exe', romPath: 'D:\\ROMs\\New.sfc', retroPlatform: 'snes', platform: 'Super Nintendo', categoryIds: ['retro-snes'] }], () => 'new-id', 10);
 assert.equal(retroImport.imported.length, 1);
 assert.equal(retroImport.library.categories[0].id, 'retro-snes');
@@ -65,6 +74,9 @@ assert.match(wall, /wall-collection-actions/);
 assert.match(wall, /onBulkFavorite/);
 assert.match(wall, /onBulkJourneyStatus/);
 assert.match(wall, /onBulkAddCategory/);
+assert.match(wall, /onBulkReviewMetadata/);
+assert.match(wall, /onBulkReviewArtwork/);
+assert.match(wall, /onBulkProtect/);
 
 const sidebar = fs.readFileSync(path.join(import.meta.dirname, '../src/components/Sidebar.jsx'), 'utf8');
 assert.match(sidebar, /sidebar-select-games/);
@@ -72,6 +84,9 @@ assert.match(sidebar, /sidebar-collection-actions/);
 assert.match(sidebar, /onBulkFavorite/);
 assert.match(sidebar, /onBulkJourneyStatus/);
 assert.match(sidebar, /onBulkAddCategory/);
+assert.match(sidebar, /onBulkReviewMetadata/);
+assert.match(sidebar, /onBulkReviewArtwork/);
+assert.match(sidebar, /onBulkProtect/);
 
 const wizard = fs.readFileSync(path.join(import.meta.dirname, '../src/components/WizardModal.jsx'), 'utf8');
 assert.match(wizard, /Retro Library/);
