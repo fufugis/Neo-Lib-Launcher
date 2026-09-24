@@ -876,6 +876,8 @@ const metadataCandidates = createMetadataCandidateService({
     gog: term => listGogCandidates(term),
     itch: term => listItchCandidates(term),
     dlsite: term => listDlsiteCandidates(term),
+    jast: term => listNicheCandidates('jast', term),
+    gamejolt: term => listNicheCandidates('gamejolt', term),
     vndb: term => listVndbCandidates(term),
     ryuugames: term => listRyuuCandidates(term),
     f95zone: term => listF95Candidates(term),
@@ -887,6 +889,8 @@ const metadataCandidates = createMetadataCandidateService({
     gog: candidate => expandGog(candidate),
     itch: candidate => expandItch(candidate),
     dlsite: candidate => dlsiteLookup(candidate.id),
+    jast: candidate => specialistMetadataProviders.nicheStoreDetails('jast', candidate.id),
+    gamejolt: candidate => specialistMetadataProviders.nicheStoreDetails('gamejolt', candidate.id),
     vndb: candidate => expandVndb(candidate),
     ryuugames: candidate => expandRyuu(candidate),
     f95zone: candidate => expandF95(candidate),
@@ -1841,6 +1845,8 @@ remainingIpcServices["metadata:deriveHints"] = async (_e, { exePath, currentName
  *   'gog'       → GOG catalog search → up to 10
  *   'itch'      → itch.io HTML search → up to 8
  *   'dlsite'    → DLsite RJ/VJ code lookup (single hit) OR keyword search
+ *   'jast'      → reviewed JAST Store game pages
+ *   'gamejolt'  → reviewed Game Jolt game pages
  *   'vndb'      → VNDB Kana API search → up to 10
  *   'ryuugames' → Ryuugames WordPress search → up to 5
  *   'f95zone'   → DDG `site:f95zone.to <query>` → up to 5 thread title hits
@@ -2175,6 +2181,14 @@ async function expandGoogle(c) {
     releaseDate: c.year || '',
     website: url,
   };
+}
+
+async function listNicheCandidates(source, term) {
+  const site = source === 'jast' ? 'jaststore.com/games/' : 'gamejolt.com/games/';
+  try {
+    const results = await ddgSearch(`site:${site} "${term.replace(/["\\]/g, ' ').slice(0, 150)}"`);
+    return specialistMetadataProviders.nicheStoreCandidates(source, results);
+  } catch { return []; }
 }
 
 async function metadataFromPublicResult(top, fallbackName) {

@@ -23,6 +23,10 @@ export const V179_CHANGELOG = {
       body: 'For a confirmed Steam-owned game, open its Preview and choose Connect Steam achievements. Enter your own Steam Web API key for this app session and press Verify and sync. NEO-LIB checks the signed-in Steam account and game ownership before showing earned and total counts; failed or private responses never become made-up progress.',
     },
     {
+      title: 'Review metadata from more indie stores',
+      body: 'JAST Store and Game Jolt join DLsite in the manual source picker. Compare the candidate title and official game-page address before applying metadata. Mature-source artwork and snippets start hidden until you reveal them.',
+    },
+    {
       title: 'Choose top or Sidebar navigation',
       body: 'Keep the familiar top Home, Library, Wall and Tools buttons, or switch to a slim left icon rail that reveals labels on hover. Visual Tweaks and Control Center → Personalise share the same saved Sidebar setting.',
     },

@@ -39,6 +39,7 @@ export default function FetchSourcePicker({ open, game, geminiKey, aiModel = 'ge
   const [statusMsg, setStatusMsg] = React.useState('');
   const [expanding, setExpanding] = React.useState(false);
   const [hints, setHints] = React.useState([]);
+  const [showMaturePreview, setShowMaturePreview] = React.useState(false);
 
   // Smart query seeding — when the modal opens, derive a sensible default
   // from the exe filename + parent folder. e.g. given
@@ -49,6 +50,7 @@ export default function FetchSourcePicker({ open, game, geminiKey, aiModel = 'ge
     setQuery(deriveBestQuery(game));
     setCandidates([]);
     setCursor(0);
+    setShowMaturePreview(false);
     setSource('auto');
     setHints([]);
     setStatusMsg('Pick a source — or hit "Auto fetch" to try everything.');
@@ -70,6 +72,7 @@ export default function FetchSourcePicker({ open, game, geminiKey, aiModel = 'ge
     setLoading(true);
     setCandidates([]);
     setCursor(0);
+    setShowMaturePreview(false);
     setStatusMsg(`Searching ${prettyName(src)}…`);
     try {
       if (src === 'auto') {
@@ -125,12 +128,15 @@ export default function FetchSourcePicker({ open, game, geminiKey, aiModel = 'ge
     { id: 'gog',       label: 'GOG',         hint: 'DRM-free classics + new releases' },
     { id: 'itch',      label: 'itch.io',     hint: 'Indie / Python / RPG-Maker' },
     { id: 'dlsite',    label: 'DLsite',      hint: 'JP indies + RJ-code lookup' },
+    { id: 'jast',      label: 'JAST Store',  hint: 'Mature/indie store · reviewed' },
+    { id: 'gamejolt',  label: 'Game Jolt',   hint: 'Indie game pages · reviewed' },
     { id: 'vndb',      label: 'VNDB',        hint: 'Visual novel database' },
     { id: 'ryuugames', label: 'Ryuugames',   hint: 'VN repackages, JP→EN' },
     { id: 'f95zone',   label: 'F95Zone',     hint: 'Adult-game threads via DDG' },
     { id: 'google',    label: 'Google / DDG', hint: 'Web search fallback' },
     { id: 'ai',        label: 'Ask AI',      hint: 'Gemini identifies the game' },
   ];
+  const sensitivePreview = ['dlsite', 'jast', 'gamejolt', 'f95zone'].includes(current?.source);
 
   return (
     <AnimatePresence>
@@ -283,7 +289,7 @@ export default function FetchSourcePicker({ open, game, geminiKey, aiModel = 'ge
                   <>
                     <button
                       data-testid="fetch-picker-prev"
-                      onClick={() => setCursor((c) => (c - 1 + candidates.length) % candidates.length)}
+                      onClick={() => { setShowMaturePreview(false); setCursor((c) => (c - 1 + candidates.length) % candidates.length); }}
                       className="absolute left-0 top-1/2 -translate-y-1/2 grid h-9 w-9 place-items-center rounded-full hairline bg-panel/80 backdrop-blur hover:border-[rgb(var(--accent)/0.7)] hover:bg-[rgb(var(--accent)/0.12)] transition-colors"
                       title="Previous result"
                     >
@@ -291,7 +297,7 @@ export default function FetchSourcePicker({ open, game, geminiKey, aiModel = 'ge
                     </button>
                     <button
                       data-testid="fetch-picker-next"
-                      onClick={() => setCursor((c) => (c + 1) % candidates.length)}
+                      onClick={() => { setShowMaturePreview(false); setCursor((c) => (c + 1) % candidates.length); }}
                       className="absolute right-0 top-1/2 -translate-y-1/2 grid h-9 w-9 place-items-center rounded-full hairline bg-panel/80 backdrop-blur hover:border-[rgb(var(--accent)/0.7)] hover:bg-[rgb(var(--accent)/0.12)] transition-colors"
                       title="Next result"
                     >
@@ -309,11 +315,11 @@ export default function FetchSourcePicker({ open, game, geminiKey, aiModel = 'ge
                     className="mx-12 flex gap-4 rounded-lg hairline bg-surface/40 p-4"
                     data-testid="fetch-picker-result-card"
                   >
-                    {current.image ? (
+                    {current.image && (!sensitivePreview || showMaturePreview) ? (
                       <img src={current.image} alt="" className="h-32 w-24 shrink-0 rounded-md object-cover hairline" />
                     ) : (
                       <div className="h-32 w-24 shrink-0 rounded-md hairline bg-panel/60 grid place-items-center text-[10px] text-muted/60">
-                        no cover
+                        {sensitivePreview && !showMaturePreview ? 'cover hidden' : 'no cover'}
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
@@ -327,8 +333,10 @@ export default function FetchSourcePicker({ open, game, geminiKey, aiModel = 'ge
                         {current.name}
                       </div>
                       <p className="mt-1.5 text-[11.5px] text-muted/90 line-clamp-5">
-                        {current.shortDescription || 'No preview text available. Pick this to load full details.'}
+                        {sensitivePreview && !showMaturePreview ? 'Mature-source preview hidden until you choose to reveal it.' : current.shortDescription || 'No preview text available. Pick this to load full details.'}
                       </p>
+                      {sensitivePreview && <button type="button" onClick={() => setShowMaturePreview((value) => !value)} className="mt-2 text-[10px] font-bold text-[rgb(var(--accent-2))] hover:underline">{showMaturePreview ? 'Hide mature previews' : 'Show mature previews'}</button>}
+                      {['jast', 'gamejolt', 'dlsite'].includes(current.source) && <p className="mt-1 break-all text-[9px] text-muted/70">Source page · {current.id}</p>}
                     </div>
                   </motion.div>
                 </AnimatePresence>
@@ -411,6 +419,8 @@ function prettyName(src) {
     gog: 'GOG',
     itch: 'itch.io',
     dlsite: 'DLsite',
+    jast: 'JAST Store',
+    gamejolt: 'Game Jolt',
     vndb: 'VNDB',
     ryuugames: 'Ryuugames',
     f95zone: 'F95Zone',

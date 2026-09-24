@@ -45,6 +45,11 @@ Library and Wall easier to use.
   fetch earned and total counts from Steam on demand. A personal Steam Web API
   key stays only in app memory for this session. Account, app ID and ownership
   must agree; NEO-LIB never guesses progress or changes it after a failed sync.
+- **More reviewed indie metadata sources** — JAST Store and Game Jolt join
+  DLsite in the manual source picker. Results link to official game pages and
+  require your review before applying. Mature-source covers and snippets start
+  hidden until you reveal them; existing-library refresh keeps its small review
+  batches. Live store-page and Windows-app checks are still pending.
 - **Optional navigation sidebar** — keep the familiar top navigation or move
   Home, Library, Wall and Tools into a slim left icon rail. The rail reveals
   its labels on hover, and the same saved choice is available in Visual Tweaks

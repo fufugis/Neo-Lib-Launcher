@@ -56,7 +56,7 @@ export function selectedRefreshPatch(field, candidates, game = {}) {
 
 export function createRefreshSearch(api, game, field, options = {}) {
   const found = [], seen = new Set(), failures = [];
-  const native = [game.launcher, game.source].find(source => ['itch', 'itchio', 'gog', 'f95zone', 'vndb', 'dlsite', 'ryuugames'].includes(source));
+  const native = [game.launcher, game.source].find(source => ['itch', 'itchio', 'gog', 'f95zone', 'vndb', 'dlsite', 'jast', 'gamejolt', 'ryuugames'].includes(source));
   const sources = [...new Set([native === 'itchio' ? 'itch' : native || 'steam', 'steam', 'gog', 'google'])];
   const pending = [];
   let initial = true;

@@ -1,6 +1,6 @@
 const { guardHandler, guardResult, isBoolean, isBoundedArray, isBoundedString, isHttpUrl, isIdentifier, isJsonObjectWithin, isPath, isPlainObject } = require('./contract-guards.cjs');
 
-const METADATA_SOURCES = new Set(['steam', 'gog', 'itch', 'dlsite', 'vndb', 'ryuugames', 'f95zone', 'google', 'ai']);
+const METADATA_SOURCES = new Set(['steam', 'gog', 'itch', 'dlsite', 'jast', 'gamejolt', 'vndb', 'ryuugames', 'f95zone', 'google', 'ai']);
 const validSecret = value => isBoundedString(value, { max: 4096 });
 const isMetadata = value => value === null || (isJsonObjectWithin(value, { maxDepth: 12, maxEntries: 2000, maxString: 50000 })
   && isBoundedString(value.source, { required: true, max: 100 })

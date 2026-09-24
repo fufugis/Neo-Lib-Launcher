@@ -79,7 +79,56 @@ function createSpecialistMetadataProviderService({ httpGetText, httpPostJson, cl
     } catch { return null; }
   }
 
-  return Object.freeze({ itchSearch, extractDLsiteCode, dlsiteLookup, vndbLookup, ryuugamesSearch, itchDetails });
+  const nichePage = (source, value) => {
+    try {
+      const url = new URL(value);
+      if (url.protocol !== 'https:' || url.username || url.password) return null;
+      if (source === 'jast' && url.hostname === 'jaststore.com' && /^\/games\/[a-z0-9-]+\/[a-z0-9-]+\/?$/i.test(url.pathname)) return url.toString();
+      if (source === 'gamejolt' && url.hostname === 'gamejolt.com' && /^\/games\/[a-z0-9-]+\/\d+\/?$/i.test(url.pathname)) return url.toString();
+    } catch { /* invalid URL */ }
+    return null;
+  };
+
+  function nicheStoreCandidates(source, results = []) {
+    const seen = new Set(); const candidates = [];
+    for (const result of Array.isArray(results) ? results : []) {
+      const url = nichePage(source, result?.url);
+      if (!url || seen.has(url)) continue;
+      const name = cleanTitle(String(result?.title || ''))
+        .replace(/\s+by\s+[^|–—-]+(?=\s*[-|–—]|\s*$)/i, '')
+        .replace(/\s*[|–—-]\s*(?:JAST(?: Store)?|Game Jolt).*$/i, '').trim();
+      if (!name) continue;
+      seen.add(url);
+      candidates.push({ source, id: url, name: name.slice(0, 300), image: '', year: '',
+        shortDescription: String(result.snippet || '').slice(0, 320), raw: { pageUrl: url } });
+      if (candidates.length >= 8) break;
+    }
+    return candidates;
+  }
+
+  async function nicheStoreDetails(source, pageUrl) {
+    const url = nichePage(source, pageUrl);
+    if (!url) return null;
+    try {
+      const html = await httpGetText(url);
+      const tag = key => {
+        const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const a = html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']+)["']`, 'i'));
+        const b = html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${escaped}["']`, 'i'));
+        return (a?.[1] || b?.[1] || '').replace(/&amp;/g, '&').trim();
+      };
+      const name = tag('og:title').replace(/\s*[|–—-]\s*(?:JAST|Game Jolt).*$/i, '').trim();
+      if (!name || name.length > 500) return null;
+      const description = (tag('og:description') || tag('description')).slice(0, 3000);
+      const image = tag('og:image');
+      const safeImage = /^https:\/\//i.test(image) ? image : '';
+      return { source, name, shortDescription: description.slice(0, 320), about: description,
+        headerImage: safeImage, capsuleImage: safeImage, background: safeImage,
+        screenshots: [], genres: [], developers: [], publishers: [], releaseDate: '', website: url };
+    } catch { return null; }
+  }
+
+  return Object.freeze({ itchSearch, extractDLsiteCode, dlsiteLookup, vndbLookup, ryuugamesSearch, itchDetails, nichePage, nicheStoreCandidates, nicheStoreDetails });
 }
 
 module.exports = { createSpecialistMetadataProviderService };

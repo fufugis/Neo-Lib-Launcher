@@ -24,6 +24,7 @@ have a written accepted deferral.
 ## Windows interaction
 
 - [ ] With a personal Steam Web API key, sync a confirmed owned game with achievements; check earned/total, account ID and sync time, then try a private account or invalid key without changing the prior record. Restart NEO-LIB and verify the key was forgotten. No live-key test has run here.
+- [ ] In the rebuilt app, search one known JAST Store and one known Game Jolt title in the manual metadata picker. Confirm only official game-page candidates appear, mature-source previews start hidden, candidate title/page are readable, and accepting a candidate still opens the normal review before changing a game. Check a matching existing-library entry in the five-at-a-time refresh flow. No live-page test has run here.
 
 - [ ] Wizard opens and offers manual add, folder scan, launcher import and
   existing-library refresh actions.
