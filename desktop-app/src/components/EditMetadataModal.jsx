@@ -1,10 +1,11 @@
 import React from 'react';
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
-import { Check, GripVertical, Image as ImageIcon, Plus, RefreshCw, Save, Trash2, Upload, X } from 'lucide-react';
+import { Check, GripVertical, History, Image as ImageIcon, Lock, LockOpen, Plus, RefreshCw, RotateCcw, Save, Trash2, Upload, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { JOURNEY_STATUSES, normalizeJourneyStatus } from '../lib/game-journey-model.mjs';
 import { LAUNCH_ROUTE_KINDS, normalizeLaunchRoutes, primaryLaunchRoute } from '../lib/game-launch-routes-model.mjs';
 import { GAME_SIGNAL_DEFINITIONS, gameSignals } from '../lib/game-signals-model.mjs';
+import { appendArtworkRevision, artworkSnapshot, normalizeArtworkLocks } from '../lib/artwork-revision-model.mjs';
 
 const isElectron = typeof window !== 'undefined' && !!window.api;
 const TABS = [
@@ -36,12 +37,20 @@ export default function EditMetadataModal({ open, game, onClose, onSave }) {
 
   if (!open || !game) return null;
 
-  const set = (key, value) => setForm((previous) => ({ ...previous, [key]: value }));
+  const set = (key, value) => setForm((previous) => (
+    typeof key === 'object' ? { ...previous, ...key } : { ...previous, [key]: value }
+  ));
 
   const pickImageFor = async (field) => {
     if (!isElectron || !window.api?.pickImage) return;
     const result = await window.api.pickImage();
-    if (result?.url) set(field, result.url);
+    if (result?.url) {
+      const slot = artworkSlotForField(field);
+      set({
+        [field]: result.url,
+        artworkSources: { ...form.artworkSources, [slot]: 'Player selected' },
+      });
+    }
   };
 
   const pickExeFor = async () => {
@@ -60,6 +69,16 @@ export default function EditMetadataModal({ open, game, onClose, onSave }) {
         ...(form.exePath.trim() ? { exePath: form.exePath.trim() } : {}),
         ...(form.launchArgs !== (game.launchArgs || '') ? { launchArgs: form.launchArgs } : {}),
       };
+    const currentArtwork = artworkSnapshot(game);
+    const nextArtwork = artworkSnapshot({
+      icon: form.icon,
+      coverUrl: form.coverUrl,
+      headerImage: form.headerImage,
+      background: form.background,
+      logo: form.logo,
+      artworkSources: form.artworkSources,
+    });
+    const artworkChanged = !sameArtwork(currentArtwork, nextArtwork);
     onSave({
       name: form.name.trim() || game.name,
       icon: form.icon.trim() || null,
@@ -68,6 +87,11 @@ export default function EditMetadataModal({ open, game, onClose, onSave }) {
       headerImage: form.headerImage.trim() || null,
       background: form.background.trim() || null,
       logo: form.logo.trim() || null,
+      artworkSources: form.artworkSources,
+      artworkLocks: normalizeArtworkLocks(form.artworkLocks),
+      artworkRevisions: artworkChanged
+        ? appendArtworkRevision(form.artworkRevisions, artworkSnapshot(game, { reason: 'before-player-artwork-change' }))
+        : form.artworkRevisions,
       shortDescription: form.shortDescription.trim(),
       about: form.about.trim(),
       genres: splitList(form.genres),
@@ -198,16 +222,33 @@ function Overview({ form, set }) {
 }
 
 function Artwork({ form, set, onPick }) {
+  const updateArtwork = (slot, field, value) => set({
+    [field]: value,
+    artworkSources: { ...form.artworkSources, [slot]: value ? 'Player selected' : '' },
+  });
+  const toggleLock = (slot) => set('artworkLocks', {
+    ...form.artworkLocks,
+    [slot]: !form.artworkLocks?.[slot],
+  });
+  const restore = (revision) => set({
+    icon: revision.icon || '',
+    coverUrl: revision.cover || '',
+    headerImage: revision.hero || '',
+    background: revision.background || '',
+    logo: revision.logo || '',
+    artworkSources: { ...form.artworkSources, ...(revision.sources || {}) },
+  });
   return <div className="space-y-4">
-    <Section title="Artwork" description="Choose local files or paste a URL. Artwork Workshop comparisons come next.">
+    <Section title="Artwork Workshop" description="Choose local files or paste a URL. Protected artwork is kept out of future repair suggestions, and nothing replaces it without your review.">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <ImageSlot label="Icon" value={form.icon} onChange={(value) => set('icon', value)} onPick={() => onPick('icon')} aspect="1/1" />
-        <ImageSlot label="Cover" value={form.coverUrl} onChange={(value) => set('coverUrl', value)} onPick={() => onPick('coverUrl')} aspect="3/4" />
-        <ImageSlot label="Hero / header" value={form.headerImage} onChange={(value) => set('headerImage', value)} onPick={() => onPick('headerImage')} aspect="16/9" />
-        <ImageSlot label="Background" value={form.background} onChange={(value) => set('background', value)} onPick={() => onPick('background')} aspect="16/9" />
-        <ImageSlot label="Logo" value={form.logo} onChange={(value) => set('logo', value)} onPick={() => onPick('logo')} aspect="16/9" />
+        <ImageSlot label="Icon" value={form.icon} onChange={(value) => updateArtwork('icon', 'icon', value)} onPick={() => onPick('icon')} protected={form.artworkLocks?.icon} onToggleProtect={() => toggleLock('icon')} source={form.artworkSources?.icon} aspect="1/1" />
+        <ImageSlot label="Cover" value={form.coverUrl} onChange={(value) => updateArtwork('cover', 'coverUrl', value)} onPick={() => onPick('coverUrl')} protected={form.artworkLocks?.cover} onToggleProtect={() => toggleLock('cover')} source={form.artworkSources?.cover} aspect="3/4" />
+        <ImageSlot label="Hero / header" value={form.headerImage} onChange={(value) => updateArtwork('hero', 'headerImage', value)} onPick={() => onPick('headerImage')} protected={form.artworkLocks?.hero} onToggleProtect={() => toggleLock('hero')} source={form.artworkSources?.hero} aspect="16/9" />
+        <ImageSlot label="Background" value={form.background} onChange={(value) => updateArtwork('background', 'background', value)} onPick={() => onPick('background')} protected={form.artworkLocks?.background} onToggleProtect={() => toggleLock('background')} source={form.artworkSources?.background} aspect="16/9" />
+        <ImageSlot label="Logo" value={form.logo} onChange={(value) => updateArtwork('logo', 'logo', value)} onPick={() => onPick('logo')} protected={form.artworkLocks?.logo} onToggleProtect={() => toggleLock('logo')} source={form.artworkSources?.logo} aspect="16/9" />
       </div>
     </Section>
+    <ArtworkHistory revisions={form.artworkRevisions} onRestore={restore} />
     <Section title="Screenshots" description="One public image URL per line.">
       <Field label="Screenshot URLs"><textarea value={form.screenshots} onChange={(event) => set('screenshots', event.target.value)} rows={5} placeholder={'https://…/shot1.png\nhttps://…/shot2.png'} className={cn(inputCls, 'h-auto resize-y py-2 font-mono text-[11px]')} /></Field>
     </Section>
@@ -345,12 +386,25 @@ function Fact({ label, value, mono = false }) {
   return <div className="rounded-md border border-[rgb(var(--border)/0.55)] bg-panel/30 px-2.5 py-2"><span className="block text-[9px] uppercase tracking-wider text-muted">{label}</span><span className={cn('mt-0.5 block truncate text-[11px] text-ink', mono && 'font-mono')} title={String(value)}>{value}</span></div>;
 }
 
-function ImageSlot({ label, value, onChange, onPick, aspect = '1/1' }) {
+function ArtworkHistory({ revisions, onRestore }) {
+  const list = Array.isArray(revisions) ? revisions.slice().reverse() : [];
+  return <Section title="Restore previous artwork" description="The last eight artwork states are kept locally when you change artwork. Restoring is staged until you save the game.">
+    {list.length ? <div className="space-y-2">{list.map((revision, index) => <div key={`${revision.at}-${index}`} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[rgb(var(--border)/0.65)] bg-panel/30 px-3 py-2">
+      <div className="min-w-0"><p className="flex items-center gap-1.5 text-xs text-ink"><History size={12} /> Previous artwork</p><p className="mt-0.5 text-[10px] text-muted">{new Date(revision.at).toLocaleString()} · {revision.reason === 'before-player-artwork-change' ? 'Before your artwork change' : revision.reason || 'Saved artwork'}</p></div>
+      <button onClick={() => onRestore(revision)} className="inline-flex items-center gap-1.5 rounded-md hairline px-2.5 py-1.5 text-[10px] text-muted hover:border-[rgb(var(--accent)/0.5)] hover:text-ink"><RotateCcw size={11} /> Restore</button>
+    </div>)}</div> : <p className="text-xs text-muted">No prior artwork state yet. Your first artwork change creates one restore point.</p>}
+  </Section>;
+}
+
+function ImageSlot({ label, value, onChange, onPick, protected: isProtected, onToggleProtect, source, aspect = '1/1' }) {
+  const [dimensions, setDimensions] = React.useState('');
+  React.useEffect(() => setDimensions(''), [value]);
   return <div className="space-y-1.5">
-    <span className="block text-[10px] uppercase tracking-wider text-muted">{label}</span>
+    <div className="flex items-center justify-between gap-2"><span className="block text-[10px] uppercase tracking-wider text-muted">{label}</span><button onClick={onToggleProtect} className={cn('inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px]', isProtected ? 'bg-[rgb(var(--accent)/0.16)] text-ink' : 'text-muted hover:bg-panel hover:text-ink')} title="Protect this artwork from future repair suggestions">{isProtected ? <Lock size={10} /> : <LockOpen size={10} />}{isProtected ? ' Protected' : ' Protect mine'}</button></div>
     <div className="relative overflow-hidden rounded-md hairline bg-surface/60" style={{ aspectRatio: aspect }}>
-      {value ? <img src={value} alt={`${label} preview`} className="h-full w-full object-cover" /> : <div className="grid h-full w-full place-items-center text-muted/50"><ImageIcon size={20} /></div>}
+      {value ? <img src={value} alt={`${label} preview`} onLoad={(event) => setDimensions(`${event.currentTarget.naturalWidth} × ${event.currentTarget.naturalHeight}`)} className="h-full w-full object-cover" /> : <div className="grid h-full w-full place-items-center text-muted/50"><ImageIcon size={20} /></div>}
     </div>
+    <p className="min-h-3 truncate text-[9px] text-muted" title={source || ''}>{source ? `Source: ${source}` : 'Source not recorded'}{dimensions ? ` · ${dimensions}` : ''}</p>
     <div className="flex gap-1">
       <button onClick={onPick} className="inline-flex flex-1 items-center justify-center gap-1 rounded-md hairline px-1 py-1.5 text-[10px] text-muted hover:border-[rgb(var(--accent)/0.5)] hover:text-ink"><Upload size={10} /> File</button>
       {value && <button onClick={() => onChange('')} className="grid w-7 place-items-center rounded-md hairline text-muted hover:border-red-400/40 hover:text-red-400" title="Clear"><RefreshCw size={10} /></button>}
@@ -370,6 +424,9 @@ function emptyForm(game) {
     headerImage: game.headerImage || game.hero || '',
     background: game.background || '',
     logo: game.logo || '',
+    artworkSources: { ...(game.artworkSources || {}) },
+    artworkLocks: normalizeArtworkLocks(game.artworkLocks),
+    artworkRevisions: Array.isArray(game.artworkRevisions) ? game.artworkRevisions.slice(-8) : [],
     shortDescription: game.shortDescription || '',
     about: game.about || '',
     genres: (game.genres || []).join(', '),
@@ -388,6 +445,20 @@ function emptyForm(game) {
     installedVersion: game.installedVersion || '',
     updateWatchUrl: game.updateWatchUrl || '',
   };
+}
+
+function artworkSlotForField(field) {
+  return ({
+    icon: 'icon',
+    coverUrl: 'cover',
+    headerImage: 'hero',
+    background: 'background',
+    logo: 'logo',
+  })[field] || field;
+}
+
+function sameArtwork(left, right) {
+  return ['icon', 'cover', 'hero', 'background', 'logo'].every((slot) => left?.[slot] === right?.[slot]);
 }
 
 function splitList(value) {

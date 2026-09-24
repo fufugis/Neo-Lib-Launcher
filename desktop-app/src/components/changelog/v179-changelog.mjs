@@ -34,6 +34,10 @@ export const V179_CHANGELOG = {
       title: 'Detailed Wall can be tailored to you',
       body: 'Click a Detailed Wall heading to sort it, then open Columns to hide optional facts or adjust their width. Your chosen layout stays local, while Game identity always remains visible.',
     },
+    {
+      title: 'Artwork Workshop protects your choices',
+      body: 'Each icon, cover, hero, background and logo can now be protected from future repair suggestions. NEO-LIB keeps up to eight local restore points whenever you change artwork, shows recorded source and image dimensions when available, and stages every restore until you save.',
+    },
   ],
   fixes: [
     'Wall controls now fit in one slim wrapping toolbar instead of a tall introduction and two oversized view cards.',

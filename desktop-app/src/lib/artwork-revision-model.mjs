@@ -10,7 +10,7 @@ export function artworkSnapshot(game = {}, { at = Date.now(), reason = 'player-c
     cover: text(game.portraitImage || game.coverUrl),
     hero: text(game.headerImage),
     background: text(game.background),
-    logo: text(game.logoImage),
+    logo: text(game.logoImage || game.logo),
     sources: Object.freeze({ ...(game.artworkSources || {}) }),
   });
 }

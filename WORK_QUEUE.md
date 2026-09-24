@@ -59,7 +59,9 @@ This is the authoritative live queue. New user requests are appended here and re
 
 - [x] **Detailed Wall layouts P1** — Detailed Wall now consumes the prepared persisted column contract. Players can sort on headings, show/hide non-identity columns and adjust each bounded column width from the compact Columns panel; Game remains mandatory. Focused renderer, Wall and visual-boundary checks pass; rebuilt Windows interaction acceptance remains required.
 
-- [ ] **Artwork Workshop P0** — compare Current and Suggested Icon/Cover/Hero/Background/Logo assets with source and dimensions when known; support Protect mine, Use this, Clear and bounded Restore. Every provider/catalogue result remains review-first and player artwork is never silently replaced.
+- [x] **Artwork Workshop safety P0** — Game Workshop now keeps per-slot Protect mine choices for Icon/Cover/Hero/Background/Logo, source/dimension context when known and up to eight local restore points. Clear and Restore are staged until Save; no artwork is silently replaced.
+
+- [ ] **Artwork Workshop suggestions P0** — add a visual Current/Suggested comparison for candidate Icon/Cover/Hero/Background/Logo assets, including source and resolution, with explicit Use this decisions. Every provider/catalogue result remains review-first and player artwork is never silently replaced.
 
 - [ ] **Collection Mode P1** — add explicit multi-select to Library and Wall for category, favorite, Journey Status, metadata/artwork review queues, hide/private and future external-root changes. Ordinary click behavior stays unchanged and every destructive or identity-changing batch receives a scope summary and confirmation.
 

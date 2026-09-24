@@ -34,8 +34,9 @@ assert.equal(columns.find(({ id }) => id === 'rating').width, 70);
 assert.equal(visibleWallColumns([{ id: 'mainGenre', visible: false }]).some(({ id }) => id === 'mainGenre'), false);
 assert.equal(WALL_COLUMN_DEFINITIONS.some(({ id }) => id === 'journeyStatus'), true);
 
-const snapshot = artworkSnapshot({ icon: 'icon.png', portraitImage: 'cover.jpg', artworkSources: { cover: 'Player' } }, { at: 5, reason: 'before-repair' });
+const snapshot = artworkSnapshot({ icon: 'icon.png', portraitImage: 'cover.jpg', logo: 'logo.png', artworkSources: { cover: 'Player' } }, { at: 5, reason: 'before-repair' });
 assert.equal(snapshot.cover, 'cover.jpg');
+assert.equal(snapshot.logo, 'logo.png');
 assert.deepEqual(appendArtworkRevision([1, 2], snapshot, 2), [2, snapshot]);
 assert.deepEqual(normalizeArtworkLocks({ cover: true, hero: 1 }), { icon: false, cover: true, hero: false, background: false, logo: false });
 
@@ -46,6 +47,10 @@ assert.match(workshop, /normalizeLaunchRoutes/);
 assert.match(workshop, /journeyStatus/);
 assert.match(workshop, /contentFlags/);
 assert.match(workshop, /game-workshop-save/);
+assert.match(workshop, /Artwork Workshop/);
+assert.match(workshop, /artworkLocks/);
+assert.match(workshop, /artworkRevisions/);
+assert.match(workshop, /Restore previous artwork/);
 
 const app = fs.readFileSync(path.join(import.meta.dirname, '../src/App.jsx'), 'utf8');
 assert.match(app, /journeyStatusAfterFirstLaunch\(g\.journeyStatus, g\.playtime\)/);
