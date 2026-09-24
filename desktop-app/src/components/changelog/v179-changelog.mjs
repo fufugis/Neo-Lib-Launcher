@@ -19,6 +19,10 @@ export const V179_CHANGELOG = {
       body: 'Imported widgets start disabled. Enable each one in Widgets and decide separately whether it can use private widget storage, redacted Library summaries or HTTPS. Widgets run in restricted frames, show a Reload control after a failure, require update review and can be restored after uninstall.',
     },
     {
+      title: 'See your verified Steam achievement progress',
+      body: 'For a confirmed Steam-owned game, open its Preview and choose Connect Steam achievements. Enter your own Steam Web API key for this app session and press Verify and sync. NEO-LIB checks the signed-in Steam account and game ownership before showing earned and total counts; failed or private responses never become made-up progress.',
+    },
+    {
       title: 'Choose top or Sidebar navigation',
       body: 'Keep the familiar top Home, Library, Wall and Tools buttons, or switch to a slim left icon rail that reveals labels on hover. Visual Tweaks and Control Center → Personalise share the same saved Sidebar setting.',
     },

@@ -116,7 +116,8 @@ Work currently being prepared includes:
 - an Artwork Workshop with comparison, protection, restore controls, and an
   optional player-keyed SteamGridDB selection gallery;
 - Windows acceptance for community widget isolation and permissions;
-- optional achievement connectors;
+- a Windows/live-key acceptance pass for opt-in Steam achievement progress,
+  followed by other launchers only where account and game evidence is reliable;
 - expanded reviewed emulator presets and retro metadata/artwork sources;
 - a documented folder-based custom theme format.
 

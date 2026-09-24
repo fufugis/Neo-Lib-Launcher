@@ -41,6 +41,10 @@ Library and Wall easier to use.
   summaries and HTTPS access each require a separate choice in Widgets.
   Broken widgets can be reloaded, updates require review, and uninstall keeps
   a recoverable copy. See the Home Widgets guide before using community code.
+- **Opt-in Steam achievement progress** — confirmed Steam-owned games can now
+  fetch earned and total counts from Steam on demand. A personal Steam Web API
+  key stays only in app memory for this session. Account, app ID and ownership
+  must agree; NEO-LIB never guesses progress or changes it after a failed sync.
 - **Optional navigation sidebar** — keep the familiar top navigation or move
   Home, Library, Wall and Tools into a slim left icon rail. The rail reveals
   its labels on hover, and the same saved choice is available in Visual Tweaks

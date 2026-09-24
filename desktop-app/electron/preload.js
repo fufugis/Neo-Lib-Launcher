@@ -140,6 +140,7 @@ contextBridge.exposeInMainWorld('api', {
   scanGameUpdates: (opts) => ipcRenderer.invoke('updates:scan', opts),
   fetchUpdateHistory: (opts) => ipcRenderer.invoke('updates:history', opts),
   importSteamPlaytime: (opts) => ipcRenderer.invoke('steam:importPlaytime', opts),
+  syncSteamAchievements: (request) => ipcRenderer.invoke('steam:achievements', request),
   playtimeHistory: (opts) => ipcRenderer.invoke('playtime:history', opts),
 
   // launcher process detection

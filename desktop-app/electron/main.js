@@ -43,6 +43,7 @@ const { registerReleasesIpc } = require('./ipc/releases-ipc.cjs');
 const { registerSavesIpc } = require('./ipc/saves-ipc.cjs');
 const { registerScanIpc } = require('./ipc/scan-ipc.cjs');
 const { registerSteamIpc } = require('./ipc/steam-ipc.cjs');
+const { createSteamAchievementService } = require('./providers/steam-achievement-service.cjs');
 const { registerStorageIpc } = require('./ipc/storage-ipc.cjs');
 const { registerToolsIpc } = require('./ipc/tools-ipc.cjs');
 const { registerUpdatesIpc } = require('./ipc/updates-ipc.cjs');
@@ -107,6 +108,8 @@ const isDev = process.env.NODE_ENV === 'development';
 let reportIpcFailure = () => {};
 const { handle: registerIpc } = createIpcRegistry({ ipcMain, onFailure: failure => reportIpcFailure(failure) });
 const remainingIpcServices = Object.create(null);
+const steamAchievements = createSteamAchievementService();
+remainingIpcServices['steam:achievements'] = (_event, request) => steamAchievements.sync(request);
 
 // Keep the running window, taskbar group, installed EXE, Start shortcut, and
 // desktop shortcut under one stable Windows identity. This matches the
@@ -3156,6 +3159,7 @@ remainingIpcServices["steam:importPlaytime"] = async (_e, { force = false } = {}
   debug.loginPath = loginUsersPath;
   let currentSteamId3 = null;
   let currentPersonaName = null;
+  let loginConfirmed = false;
   try {
     if (fs.existsSync(loginUsersPath)) {
       const raw = fs.readFileSync(loginUsersPath, 'utf8');
@@ -3180,6 +3184,7 @@ remainingIpcServices["steam:importPlaytime"] = async (_e, { force = false } = {}
       if (best) {
         currentSteamId3 = String(BigInt(best.steamid64) - 76561197960265728n);
         currentPersonaName = best.personaName;
+        loginConfirmed = best.mostRecent === true;
       }
     }
   } catch { /* fall through */ }
@@ -3295,7 +3300,7 @@ remainingIpcServices["steam:importPlaytime"] = async (_e, { force = false } = {}
   const payload = {
     data: merged,
     ownedAppids: Array.from(ownedAppids),
-    currentAccount: { steamid3: currentSteamId3, personaName: currentPersonaName },
+    currentAccount: { steamid3: currentSteamId3, personaName: currentPersonaName, loginConfirmed },
     count: Object.keys(merged).length,
     ownedCount: ownedAppids.size,
     debug: {

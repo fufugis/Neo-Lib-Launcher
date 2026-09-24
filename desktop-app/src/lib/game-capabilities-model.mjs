@@ -50,10 +50,13 @@ export function gameCapabilities(game = {}) {
 export function achievementAvailability(game = {}) {
   const record = game.achievementSummary;
   if (!record?.supported) return null;
-  const total = Number(record.total);
+  const linked = record.syncState === 'linked' && record.source === 'steam' && Boolean(record.appid) && String(record.appid) === String(game.appid || '');
+  const total = record.total == null ? Number.NaN : Number(record.total);
   return Object.freeze({
     source: capabilitySourceLabel(record.source || game.source),
     total: Number.isFinite(total) && total >= 0 ? total : null,
-    syncState: record.syncState === 'linked' ? 'linked' : 'not-linked',
+    syncState: linked ? 'linked' : 'not-linked',
+    earned: linked && Number.isSafeInteger(record.earned) && record.earned >= 0 ? record.earned : null,
+    syncedAt: linked && Number.isSafeInteger(record.syncedAt) ? record.syncedAt : null,
   });
 }

@@ -132,7 +132,11 @@ export function createMetadataWorkflow({
       screenshots: result.screenshots?.length ? result.screenshots : g.screenshots || [],
       website: result.website || g.website || '',
       capabilities: result.capabilities?.length ? result.capabilities : g.capabilities || [],
-      achievementSummary: result.achievementSummary?.supported ? result.achievementSummary : g.achievementSummary || null,
+      achievementSummary: result.achievementSummary?.supported
+        ? (g.achievementSummary?.syncState === 'linked' && g.achievementSummary.source === 'steam' && String(result.appid || g.appid || '') === String(g.achievementSummary.appid || '')
+          ? { ...result.achievementSummary, appid: g.achievementSummary.appid, earned: g.achievementSummary.earned, steamid64: g.achievementSummary.steamid64, syncedAt: g.achievementSummary.syncedAt, syncState: 'linked' }
+          : result.achievementSummary)
+        : g.achievementSummary || null,
       metadataFetchedAt: Date.now(),
     });
     setFetching(false);
@@ -149,6 +153,11 @@ export function createMetadataWorkflow({
     }
     updateGame(g.id, {
       ...patch,
+      ...(patch.achievementSummary?.supported && g.achievementSummary?.syncState === 'linked'
+        && g.achievementSummary.source === 'steam'
+        && String(patch.appid || g.appid || '') === String(g.achievementSummary.appid || '')
+        ? { achievementSummary: { ...patch.achievementSummary, appid: g.achievementSummary.appid, earned: g.achievementSummary.earned, steamid64: g.achievementSummary.steamid64, syncedAt: g.achievementSummary.syncedAt, syncState: 'linked' } }
+        : {}),
       ...(patch.shortDescription != null ? { shortDescription: cleanDescriptionText(patch.shortDescription) } : {}),
       ...(patch.about != null ? { about: cleanDescriptionText(patch.about) } : {}),
       coverUrl: coverUrl || g.coverUrl,

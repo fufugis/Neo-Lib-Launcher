@@ -242,19 +242,23 @@ async function main() {
   await verifyResponseGuard(releases, 'releases:weekly', [{ force: true }], { ok: true, items: [], tier: 'unknown', criteria: '', fetchedAt: 1 }, { items: [] });
   await verifyServiceResultPreserved(releases, 'releases:weekly', [{ force: true }], { ok: false, items: [], error: 'Unavailable.' });
 
-  const steamChannels = ['steam:importPlaytime', 'steam:manifest', 'steam:details', 'steam:search'];
+  const steamChannels = ['steam:achievements', 'steam:importPlaytime', 'steam:manifest', 'steam:details', 'steam:search'];
   const steamResults = {
+    'steam:achievements': { ok: true, source: 'steam', appid: '620', steamid64: '76561197960278073', earned: 1, total: 2, syncedAt: 1 },
     'steam:importPlaytime': { ok: true, data: { 620: { playtime: 120, lastPlayed: 1 } }, ownedAppids: ['620'], currentAccount: { steamid3: '12345', personaName: 'Player' }, count: 1, ownedCount: 1, debug: {}, cached: false },
     'steam:manifest': { ok: true, appid: '620', name: 'Portal 2', buildid: '42', lastUpdated: 1, sizeOnDisk: 2, stateFlags: 4, bytesToDownload: 0, bytesDownloaded: 0, updateResult: '', library: 'C:\\Steam', cached: false },
     'steam:details': { appid: '620', name: 'Portal 2', screenshots: [] },
     'steam:search': [{ appid: 620, name: 'Portal 2', tinyImage: 'https://cdn.example/620.jpg', price: 999 }],
   };
   const steam = register(registerSteamIpc, steamChannels, steamResults);
+  const achievementRequest = { apiKey: 'a'.repeat(32), appid: '620', steamid3: '12345' };
+  await verifyGuard(steam, 'steam:achievements', [achievementRequest], [{ ...achievementRequest, apiKey: 'not-a-key' }], { ok: false, code: 'INVALID_REQUEST' });
   await verifyGuard(steam, 'steam:importPlaytime', [{ force: true }], [{ force: 1 }], { ok: false, code: 'INVALID_REQUEST' });
   await verifyGuard(steam, 'steam:manifest', [620], ['../../secret'], { ok: false, code: 'INVALID_REQUEST' });
   await verifyGuard(steam, 'steam:details', ['620'], [{}], {}, null);
   await verifyGuard(steam, 'steam:search', ['Portal 2'], [new Array(600).fill('x').join('')], {}, []);
   await verifyResponseGuard(steam, 'steam:importPlaytime', [{ force: true }], { ok: true, data: [], ownedAppids: [] }, { data: {}, ownedAppids: [], currentAccount: null });
+  await verifyResponseGuard(steam, 'steam:achievements', [achievementRequest], { ok: true, source: 'steam', earned: 99, total: 2 });
   await verifyResponseGuard(steam, 'steam:manifest', ['620'], { ok: true, appid: '620' });
   await verifyResponseGuard(steam, 'steam:details', ['620'], { appid: '620', name: [] }, {}, null);
   await verifyResponseGuard(steam, 'steam:search', ['Portal 2'], [{ appid: 'bad', name: 'Wrong' }], {}, []);
@@ -533,7 +537,7 @@ async function main() {
   assert.equal((await widgetHandlers['widgets:list']({})).widgets[0].id, widget.id);
   assert.equal((await widgetHandlers['widgets:update']({}, 'C:\\Widget\\widget.json')).replacedVersion, '0.9.0');
 
-  console.log('PASS: all 59 renderer payload contracts reject malformed input before native services, and all 94 native commands enforce response contracts while preserving valid success and failure results. The other 35 native commands are intentionally no-payload.');
+  console.log('PASS: all 60 renderer payload contracts reject malformed input before native services, and all 95 native commands enforce response contracts while preserving valid success and failure results. The other 35 native commands are intentionally no-payload.');
 }
 
 main().catch(error => {

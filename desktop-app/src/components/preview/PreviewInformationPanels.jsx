@@ -80,15 +80,39 @@ export function DetailList({ game }) {
 }
 
 /** Provider-declared platform/features only. Never inferred from prose or AI copy. */
-export function GameCapabilities({ game }) {
+let steamKeyForThisSession = '';
+
+export function GameCapabilities({ game, onUpdateGame }) {
   const capabilities = gameCapabilities(game);
   const achievement = achievementAvailability(game);
+  const [key, setKey] = React.useState(steamKeyForThisSession);
+  const [showSync, setShowSync] = React.useState(false);
+  const [syncing, setSyncing] = React.useState(false);
+  const [syncMessage, setSyncMessage] = React.useState('');
+  const canSyncSteam = game.steamOwned === true && Boolean(game.appid) && Boolean(achievement) && Boolean(window.api?.syncSteamAchievements);
+  const syncSteam = async () => {
+    if (syncing) return;
+    if (!/^[a-f0-9]{32}$/i.test(key.trim())) { setSyncMessage('Enter your 32-character personal Steam Web API key.'); return; }
+    setSyncing(true); setSyncMessage('');
+    try {
+      const account = await window.api.importSteamPlaytime({ force: true });
+      if (!account?.ok || account.currentAccount?.loginConfirmed !== true || !account.currentAccount?.steamid3 || !account.ownedAppids?.map(String).includes(String(game.appid))) {
+        setSyncMessage('This game is not confirmed owned by the currently signed-in Steam account. Nothing was changed.'); return;
+      }
+      const result = await window.api.syncSteamAchievements({ apiKey: key.trim(), appid: String(game.appid), steamid3: String(account.currentAccount.steamid3) });
+      if (!result?.ok || String(result.appid) !== String(game.appid)) { setSyncMessage(result?.error || 'Steam progress could not be verified.'); return; }
+      steamKeyForThisSession = key.trim();
+      onUpdateGame?.(game.id, { achievementSummary: { ...game.achievementSummary, source: 'steam', supported: true, appid: result.appid, total: result.total, earned: result.earned, steamid64: result.steamid64, syncedAt: result.syncedAt, syncState: 'linked' } });
+      setSyncMessage(`Verified ${result.earned} of ${result.total} from Steam.`);
+    } catch { setSyncMessage('Steam sync failed. Nothing was changed.'); }
+    finally { setSyncing(false); }
+  };
   if (!capabilities.length && !achievement) return null;
   return (
     <section className="mb-5 overflow-hidden rounded-xl border border-[rgb(var(--border)/0.7)] bg-[rgb(var(--surface)/0.16)]" data-testid="game-capabilities">
       <div className="flex items-center justify-between gap-3 border-b border-[rgb(var(--border)/0.55)] px-3.5 py-2">
         <div><h3 className="text-[9px] font-bold uppercase tracking-[0.24em] text-muted">Capabilities</h3><p className="mt-0.5 text-[9px] text-muted/75">Reported by the selected game source</p></div>
-        {achievement && <span className="inline-flex items-center gap-1 rounded-full border border-[rgb(var(--accent)/0.28)] bg-[rgb(var(--accent)/0.08)] px-2 py-1 text-[8.5px] font-bold text-[rgb(var(--accent-2))]" title={`${achievement.source} achievement source`}><Trophy size={10} />{achievement.total == null ? 'Achievements' : `${achievement.total} achievements`}</span>}
+        {achievement && <span className="inline-flex items-center gap-1 rounded-full border border-[rgb(var(--accent)/0.28)] bg-[rgb(var(--accent)/0.08)] px-2 py-1 text-[8.5px] font-bold text-[rgb(var(--accent-2))]" title={`${achievement.source} achievement source`}><Trophy size={10} />{achievement.earned == null ? (achievement.total == null ? 'Achievements' : `${achievement.total} achievements`) : `${achievement.earned} / ${achievement.total} earned`}</span>}
       </div>
       <div className="flex flex-wrap gap-2 px-3.5 py-3">
         {capabilities.map((item) => {
@@ -96,7 +120,14 @@ export function GameCapabilities({ game }) {
           return <span key={item.id} title={`${item.label} · ${item.source}${item.detail ? ` · ${item.detail}` : ''}`} className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--border)/0.62)] bg-[rgb(var(--panel)/0.35)] px-2 py-1.5 text-[10px] font-semibold text-ink"><Icon size={13} className="text-[rgb(var(--accent-2))]" />{item.label}</span>;
         })}
       </div>
-      {achievement && achievement.syncState !== 'linked' && <p className="border-t border-[rgb(var(--border)/0.45)] px-3.5 py-2 text-[9px] leading-relaxed text-muted"><Trophy size={10} className="mr-1 inline text-[rgb(var(--accent-2))]" />{achievement.source} confirms achievement support{achievement.total == null ? '' : ` (${achievement.total} available)`}. Earned progress will appear only after the future opt-in {achievement.source} connection—NEO-LIB does not guess it.</p>}
+      {achievement && achievement.syncState !== 'linked' && <p className="border-t border-[rgb(var(--border)/0.45)] px-3.5 py-2 text-[9px] leading-relaxed text-muted"><Trophy size={10} className="mr-1 inline text-[rgb(var(--accent-2))]" />{achievement.source} confirms achievement support{achievement.total == null ? '' : ` (${achievement.total} available)`}. Earned progress is shown only after a verified opt-in sync, where available.</p>}
+      {achievement?.earned != null && <p className="border-t border-[rgb(var(--border)/0.45)] px-3.5 py-2 text-[9px] text-muted">Verified from Steam account {game.achievementSummary?.steamid64 || 'unknown'}{achievement.syncedAt ? ` · ${new Date(achievement.syncedAt).toLocaleString()}` : ''}. Not live until you sync again.</p>}
+      {canSyncSteam && <div className="border-t border-[rgb(var(--border)/0.45)] px-3.5 py-2 text-[10px] text-muted">
+        <button type="button" onClick={() => setShowSync((value) => !value)} className="font-bold text-[rgb(var(--accent-2))] hover:underline">{showSync ? 'Close Steam sync' : achievement?.earned == null ? 'Connect Steam achievements' : 'Sync Steam achievements'}</button>
+        {achievement?.earned != null && <button type="button" onClick={() => { onUpdateGame?.(game.id, { achievementSummary: { supported: true, source: 'steam', total: null, syncState: 'not-linked' } }); setSyncMessage('Saved Steam progress removed from this game.'); }} className="ml-3 hover:text-ink">Remove saved progress</button>}
+        {showSync && <div className="mt-2 flex flex-wrap items-center gap-2"><input type="password" autoComplete="off" spellCheck={false} value={key} onChange={(event) => setKey(event.target.value.trim())} placeholder="Personal Steam Web API key" aria-label="Personal Steam Web API key" className="h-8 min-w-52 flex-1 rounded border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.4)] px-2 text-ink" /><button type="button" disabled={syncing} onClick={syncSteam} className="rounded border border-[rgb(var(--accent)/0.5)] px-2 py-1.5 font-bold text-ink disabled:opacity-50">{syncing ? 'Checking Steam…' : 'Verify and sync'}</button><button type="button" onClick={() => { steamKeyForThisSession = ''; setKey(''); }} className="px-2 py-1.5 hover:text-ink">Forget key</button><p className="basis-full text-[9px]">The key stays in memory for this app session, is sent only to Steam when you press Verify, and is never saved with your library. <a href="#" onClick={(event) => { event.preventDefault(); window.api?.openExternal?.('https://steamcommunity.com/dev/apikey'); }} className="text-[rgb(var(--accent-2))] hover:underline">Get a personal key ↗</a></p></div>}
+        {syncMessage && <p role="status" className="mt-1">{syncMessage}</p>}
+      </div>}
     </section>
   );
 }

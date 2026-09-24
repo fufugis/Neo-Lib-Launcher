@@ -18,10 +18,12 @@ have a written accepted deferral.
 - [x] Renderer-binding checks pass.
 - [x] Metadata workflow checks pass.
 - [x] Clean update contract expects exact tag `v1.7.9`.
-- [x] 94 native commands have one registration and request/response contracts. This includes the bounded player-triggered ROM scan, opt-in SteamGridDB artwork search, and community-widget controls.
+- [x] 95 native commands have one registration and request/response contracts. This includes the bounded player-triggered ROM scan, opt-in SteamGridDB artwork and achievement sync, and community-widget controls.
 - [x] Candidate inspector passes against the newly built package (GitHub Actions run `35636774870`, commit `a3f3d6d`).
 
 ## Windows interaction
+
+- [ ] With a personal Steam Web API key, sync a confirmed owned game with achievements; check earned/total, account ID and sync time, then try a private account or invalid key without changing the prior record. Restart NEO-LIB and verify the key was forgotten. No live-key test has run here.
 
 - [ ] Wizard opens and offers manual add, folder scan, launcher import and
   existing-library refresh actions.

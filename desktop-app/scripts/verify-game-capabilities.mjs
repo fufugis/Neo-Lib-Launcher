@@ -16,7 +16,10 @@ const steamGame = {
 };
 assert.deepEqual(gameCapabilities(steamGame).map((item) => item.id), ['controller-full', 'achievements', 'cloud-saves', 'online-multiplayer']);
 assert.equal(gameCapabilities(steamGame)[0].source, 'Steam');
-assert.deepEqual(achievementAvailability(steamGame), { source: 'Steam', total: 47, syncState: 'not-linked' });
+assert.deepEqual(achievementAvailability(steamGame), { source: 'Steam', total: 47, syncState: 'not-linked', earned: null, syncedAt: null });
+assert.deepEqual(achievementAvailability({ appid: '620', achievementSummary: { supported: true, source: 'steam', appid: '620', total: 47, earned: 3, syncedAt: 100, syncState: 'linked' } }), { source: 'Steam', total: 47, syncState: 'linked', earned: 3, syncedAt: 100 });
+assert.equal(achievementAvailability({ appid: '621', achievementSummary: { supported: true, source: 'steam', appid: '620', total: 47, earned: 3, syncedAt: 100, syncState: 'linked' } }).earned, null);
+assert.equal(achievementAvailability({ achievementSummary: { supported: true, total: null } }).total, null);
 
 assert.deepEqual(gameCapabilities({ source: 'battlenet', genreTags: ['MMORPG', 'Multiplayer', 'Co-op'] }).map((item) => item.id), ['online-multiplayer', 'co-op']);
 assert.equal(achievementAvailability({ achievementSummary: { supported: false } }), null);

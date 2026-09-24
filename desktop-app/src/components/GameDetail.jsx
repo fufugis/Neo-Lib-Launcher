@@ -191,7 +191,7 @@ export default function GameDetail({
           <UpdateAvailablePill game={game} />
           <LatestNewsPill game={game} />
           <DetailList game={game} />
-          <GameCapabilities game={game} />
+          <GameCapabilities game={game} onUpdateGame={onUpdateGame} />
           <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(460px,560px)]">
             <div className="min-w-0">
               <GameStory game={game} profile={game.genreProfile} />

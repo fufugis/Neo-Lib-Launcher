@@ -36,6 +36,17 @@ function registerSteamIpc({ registerIpc, services }) {
     if (typeof handler !== 'function') throw new TypeError(`Missing service for ${channel}.`);
     return handler;
   };
+  registerIpc('steam:achievements', guardResult(guardHandler(
+    requireService(services, 'steam:achievements'),
+    payload => isPlainObject(payload)
+      && isBoundedString(payload.apiKey, { required: true, max: 64 }) && /^[a-f0-9]{32}$/i.test(payload.apiKey)
+      && validAppid(payload.appid) && validAppid(payload.steamid3),
+    invalidRequest('The Steam achievement request was malformed.'),
+  ), result => isErrorResult(result) || (isPlainObject(result) && result.ok === true
+    && result.source === 'steam' && validAppid(result.appid)
+    && /^\d{17}$/.test(String(result.steamid64 || ''))
+    && isCount(result.earned) && isCount(result.total) && result.earned <= result.total
+    && isCount(result.syncedAt)), invalidResponse('Steam achievement progress was invalid.')));
   registerIpc("steam:importPlaytime", guardResult(guardHandler(
     requireService(services, "steam:importPlaytime"),
     payload => payload === undefined || (isPlainObject(payload) && isBoolean(payload.force)),
