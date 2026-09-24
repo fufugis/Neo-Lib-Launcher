@@ -78,6 +78,7 @@ const { createInstalledVersionEvidenceService } = require('./providers/installed
 const { createUpdatePageVersionService } = require('./providers/update-page-version-service.cjs');
 const { createIndependentUpdateAssessmentService } = require('./providers/independent-update-assessment-service.cjs');
 const { createWidgetPackageService } = require('./widgets/widget-package-service.cjs');
+const { createRomScanService } = require('./emulation/rom-scan-service.cjs');
 
 // ---- Optional Discord Rich Presence (native IPC, no third-party deps) ----
 // Talks to the local Discord client over a named pipe (Windows) or Unix
@@ -149,6 +150,7 @@ const systemHealth = createSystemHealthService({ os });
 const playtimeHistory = createPlaytimeHistoryService({ documents });
 const imageCache = createImageCacheService({ path, coversDir, download: httpDownload });
 const widgetPackages = createWidgetPackageService({ fsp, path, widgetsDir: () => path.join(dataDir(), 'widgets') });
+const romScanner = createRomScanService({ fsp, path });
 const appOs = createAppOsService({ app, shell, fsp, path, execPath: process.execPath, recordLaunchSafety });
 const appLifecycle = createAppLifecycleService({
   buildTray,
@@ -975,6 +977,7 @@ const MANAGED_TOOL_PATHS = {
     path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'CPUID', 'CPU-Z', 'cpuz.exe'),
   ],
 };
+remainingIpcServices['scan:roms'] = (_event, request) => romScanner.scan(request);
 
 function installedManagedToolPath(toolId) {
   return firstExistingPath(MANAGED_TOOL_PATHS[toolId]?.() || []);

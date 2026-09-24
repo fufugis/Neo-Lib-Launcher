@@ -88,7 +88,7 @@ export default function CoverWall({ games = [], favoriteIds = [], density = 5, o
     </header>
     {detailed && columnMenuOpen && <ColumnMenu columns={columns} onChange={onWallColumnsChange} />}
     {lockedCategories.length > 0 && <section className="mb-5 flex flex-wrap items-center gap-2 rounded-xl border border-[rgb(var(--accent)/0.32)] bg-[rgb(var(--accent)/0.07)] px-3 py-2.5" data-testid="cover-wall-private-categories"><span className="inline-flex items-center gap-1.5 pr-1 text-[9px] font-black uppercase tracking-[0.16em] text-[rgb(var(--accent-2))]"><LockKeyhole size={13} />Protected categories</span>{lockedCategories.map((category) => <button key={category.id} type="button" onClick={() => onUnlockCategory?.(category)} className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.44)] bg-[rgb(var(--panel)/0.54)] px-2.5 py-1.5 text-[10px] font-bold text-ink transition hover:border-[rgb(var(--accent))] hover:bg-[rgb(var(--accent)/0.16)]" title={`Enter PIN to show ${category.name} games`}><LockKeyhole size={12} className="text-[rgb(var(--accent))]" /><span>Show hidden category</span><span className="max-w-36 truncate text-[rgb(var(--accent-2))]">{category.name}</span></button>)}</section>}
-    {detailed ? <WallDetails games={visible} columns={shownColumns} sort={sort} onSort={(id) => setSort((current) => ({ id, direction: current.id === id && current.direction === 'asc' ? 'desc' : 'asc' }))} onSelect={(id) => selectionMode ? toggleSelected(id) : setPeekId((current) => current === id ? '' : id)} selectionMode={selectionMode} selectedIds={selectedIds} /> : <WallCovers games={visible} tiles={tiles} onSelect={(id) => selectionMode ? toggleSelected(id) : setPeekId((current) => current === id ? '' : id)} selectionMode={selectionMode} selectedIds={selectedIds} />}
+    {detailed ? <WallDetailSections games={visible} columns={shownColumns} sort={sort} onSort={(id) => setSort((current) => ({ id, direction: current.id === id && current.direction === 'asc' ? 'desc' : 'asc' }))} onSelect={(id) => selectionMode ? toggleSelected(id) : setPeekId((current) => current === id ? '' : id)} selectionMode={selectionMode} selectedIds={selectedIds} /> : <WallCoverSections games={visible} tiles={tiles} onSelect={(id) => selectionMode ? toggleSelected(id) : setPeekId((current) => current === id ? '' : id)} selectionMode={selectionMode} selectedIds={selectedIds} />}
     {peekGame && <WallPeek game={peekGame} onClose={() => setPeekId('')} onOpenPreview={() => onOpenPreview?.(peekGame.id)} onLaunch={() => onLaunch?.(peekGame)} />}
   </section>;
 }
@@ -114,6 +114,39 @@ function WallCovers({ games, tiles, onSelect, selectionMode, selectedIds }) {
       </motion.button>;
     })}
   </div>;
+}
+
+function WallCoverSections({ games, ...props }) {
+  if (!games.length) return <EmptyWall />;
+  const standard = games.filter(game => game.source !== 'emulation');
+  const retro = retroGameGroups(games);
+  return <div className="space-y-7" data-testid="wall-platform-sections">
+    {standard.length > 0 && <WallCovers games={standard} {...props} />}
+    {retro.map(([platform, platformGames]) => <section key={platform} data-testid={`wall-retro-${platform}`}>
+      <RetroSectionHeading games={platformGames} />
+      <WallCovers games={platformGames} {...props} />
+    </section>)}
+  </div>;
+}
+
+function WallDetailSections({ games, ...props }) {
+  if (!games.length) return <EmptyWall />;
+  const standard = games.filter(game => game.source !== 'emulation');
+  const retro = retroGameGroups(games);
+  return <div className="space-y-7" data-testid="wall-detail-platform-sections">
+    {standard.length > 0 && <WallDetails games={standard} {...props} />}
+    {retro.map(([platform, platformGames]) => <section key={platform}><RetroSectionHeading games={platformGames} /><WallDetails games={platformGames} {...props} /></section>)}
+  </div>;
+}
+
+function retroGameGroups(games) {
+  const groups = new Map();
+  games.filter(game => game.source === 'emulation').forEach((game) => { const key = game.retroPlatform || 'generic'; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(game); });
+  return [...groups.entries()].sort((left, right) => String(left[1][0]?.platform || left[0]).localeCompare(String(right[1][0]?.platform || right[0])));
+}
+
+function RetroSectionHeading({ games }) {
+  return <div className="mb-2 flex items-center gap-2 border-b border-[rgb(var(--accent)/0.32)] pb-2"><Gamepad2 size={13} className="text-[rgb(var(--accent))]" /><h2 className="text-[11px] font-black uppercase tracking-[0.16em] text-ink">{games[0]?.platform || 'Retro games'}</h2><span className="rounded-full bg-[rgb(var(--accent)/0.12)] px-2 py-0.5 text-[9px] text-muted">{games.length}</span></div>;
 }
 
 function WallDetails({ games, columns, sort, onSort, onSelect, selectionMode, selectedIds }) {
@@ -233,7 +266,7 @@ function CoverArtwork({ game, eager }) {
     {backdrop && !backdropFailed && <img src={backdrop} alt="" className="absolute inset-0 h-full w-full scale-[1.04] object-cover saturate-[1.14] contrast-[1.06] transition duration-300 group-hover:scale-[1.09]" decoding="async" loading={eager ? 'eager' : 'lazy'} onError={() => setBackdropFailed(true)} />}
     <span className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/18 to-transparent" />
     {!backdrop || backdropFailed ? <span className="absolute -right-8 top-7 h-28 w-28 rotate-12 rounded-[30%] border border-white/20 bg-white/10" /> : null}
-    <span className="relative w-full [text-shadow:0_1px_3px_rgb(0_0_0/.88)]"><ImageOff size={15} className="mb-2 text-white/80" /><b className="block break-words text-[12px] font-bold leading-tight text-white">{game.name || 'Untitled game'}</b><small className="mt-1 block text-[8px] font-bold uppercase tracking-[0.12em] text-white/70">{backdrop && !backdropFailed ? 'Backdrop artwork' : 'NEO-LIB fallback cover'}</small></span>
+    <span className="relative w-full [text-shadow:0_1px_3px_rgb(0_0_0/.88)]">{game.source === 'emulation' ? <span className="mb-2 inline-flex items-center gap-1 rounded border border-white/30 bg-black/35 px-1.5 py-1 text-[8px] font-black uppercase tracking-[0.12em] text-white"><Gamepad2 size={10} />{game.platform || 'Retro'}</span> : <ImageOff size={15} className="mb-2 text-white/80" />}<b className="block break-words text-[12px] font-bold leading-tight text-white">{game.name || 'Untitled game'}</b><small className="mt-1 block text-[8px] font-bold uppercase tracking-[0.12em] text-white/70">{backdrop && !backdropFailed ? 'Backdrop artwork' : game.source === 'emulation' ? 'Awaiting reviewed case art' : 'NEO-LIB fallback cover'}</small></span>
   </span>;
 }
 

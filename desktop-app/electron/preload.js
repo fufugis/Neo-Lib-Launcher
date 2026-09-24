@@ -63,6 +63,7 @@ contextBridge.exposeInMainWorld('api', {
 
   // scan
   scanDirectory: (root, excludes, options) => ipcRenderer.invoke('scan:directory', root, excludes, options),
+  scanRoms: (request) => ipcRenderer.invoke('scan:roms', request),
 
   // steam
   searchSteam: (q) => ipcRenderer.invoke('steam:search', q),

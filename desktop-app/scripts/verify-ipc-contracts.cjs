@@ -109,7 +109,7 @@ async function main() {
   const game = register(registerGameIpc, gameChannels, gameResults);
   await verifyGuard(game, 'game:watchExternal', [{ games: [{ id: 'g1', name: 'Game', exePath: 'C:\\Games\\Game.exe' }] }], [{ games: 'not-an-array' }], { ok: false, code: 'INVALID_REQUEST' });
   assert.deepEqual(await game.handlers['game:watchExternal']({}, {}), gameResults['game:watchExternal'], 'empty watch payload must retain stop-watching behavior');
-  await verifyGuard(game, 'game:launch', [{ exePath: 'C:\\Games\\Game.exe', launchArgs: '--safe', gameId: 'g1', name: 'Game', launchToken: 'token' }], [{ exePath: ['C:\\Games\\Game.exe'] }], { ok: false, code: 'INVALID_REQUEST' });
+  await verifyGuard(game, 'game:launch', [{ exePath: 'C:\\Games\\Game.exe', launchArgs: '--safe', workingDirectory: 'C:\\Games', gameId: 'g1', name: 'Game', launchToken: 'token' }], [{ exePath: ['C:\\Games\\Game.exe'] }], { ok: false, code: 'INVALID_REQUEST' });
   assert.deepEqual(await game.handlers['game:scanExternalNow']({}), gameResults['game:scanExternalNow']);
   assert.deepEqual(await game.handlers['game:armLaunch']({ sender: { id: 7 } }), gameResults['game:armLaunch']);
   await verifyResponseGuard(game, 'game:scanExternalNow', [], { ok: true, active: 'no' }, { active: false, gameId: null, name: '' });
@@ -175,10 +175,13 @@ async function main() {
   await verifyResponseGuard(storage, 'storage:scanGames', [{ games: [] }], { ok: true, results: [], skipped: [] }, { results: [], skipped: [] });
 
   const scanResult = [{ folder: 'D:\\Games\\Game', folderName: 'Game', exe: 'D:\\Games\\Game\\Game.exe', alternativeExes: [] }];
-  const scan = register(registerScanIpc, ['scan:directory'], { 'scan:directory': scanResult });
+  const romScanResult = { ok: true, items: [{ path: 'D:\\ROMs\\Mario.sfc', extension: '.sfc', sizeBytes: 10, modifiedAt: 5 }], truncated: false, visitedFiles: 2 };
+  const scan = register(registerScanIpc, ['scan:directory', 'scan:roms'], { 'scan:directory': scanResult, 'scan:roms': romScanResult });
   await verifyGuard(scan, 'scan:directory', ['D:\\Games', ['steamapps'], { deep: true }], ['D:\\Games', 'steamapps', { deep: true }], { length: 0 });
   assert.deepEqual(await scan.handlers['scan:directory']({}, 'D:\\Games'), scanResult);
   await verifyResponseGuard(scan, 'scan:directory', ['D:\\Games'], [{ folder: 'D:\\Games', exe: [] }], {}, []);
+  await verifyGuard(scan, 'scan:roms', [{ root: 'D:\\ROMs', extensions: ['.sfc'], maxDepth: 6, maxFiles: 2000 }], [{ root: 'D:\\ROMs', extensions: ['exe'] }], { ok: false });
+  await verifyResponseGuard(scan, 'scan:roms', [{ root: 'D:\\ROMs', extensions: ['.sfc'] }], { ok: true, items: [{ path: [], extension: '.sfc', sizeBytes: 1, modifiedAt: 1 }], truncated: false, visitedFiles: 1 }, { ok: false, items: [] });
 
   const metadataChannels = ['metadata:auto', 'metadata:expandCandidate', 'metadata:listCandidates', 'metadata:deriveHints'];
   const metadataResults = {
@@ -503,7 +506,7 @@ async function main() {
   healthResult = { cpuPercent: 120, ramPercent: 50, memoryUsedGb: 8, memoryFreeGb: 8, memoryTotalGb: 16 };
   assert.deepEqual(await systemHandlers['system:health']({}), { cpuPercent: null, ramPercent: null, memoryUsedGb: 0, memoryFreeGb: 0, memoryTotalGb: 0, code: 'INVALID_RESPONSE' });
 
-  console.log('PASS: all 53 renderer payload contracts reject malformed input before native services, and all 88 native commands enforce response contracts while preserving valid success and failure results. The other 35 native commands are intentionally no-payload.');
+  console.log('PASS: all 54 renderer payload contracts reject malformed input before native services, and all 89 native commands enforce response contracts while preserving valid success and failure results. The other 35 native commands are intentionally no-payload.');
 }
 
 main().catch(error => {

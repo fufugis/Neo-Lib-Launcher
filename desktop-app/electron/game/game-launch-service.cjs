@@ -26,7 +26,7 @@ function createGameLaunchService({
     return { ok: true, token };
   }
 
-  async function launch(event, { exePath, launchArgs, gameId, name, launchToken } = {}) {
+  async function launch(event, { exePath, launchArgs, workingDirectory, gameId, name, launchToken } = {}) {
     if (!exePath || typeof exePath !== 'string') return { ok: false, error: 'No exePath provided' };
     try {
       if (/^(?:ms-settings:|shell:)/i.test(exePath)) {
@@ -71,7 +71,7 @@ function createGameLaunchService({
       recordSafety('accepted', { gameId, name: safeName });
       const argv = parseLaunchArguments(launchArgs || '');
       if (platform === 'win32') {
-        const child = spawn(exePath, argv, { detached: true, stdio: 'ignore', cwd: path.dirname(exePath) });
+        const child = spawn(exePath, argv, { detached: true, stdio: 'ignore', cwd: workingDirectory || path.dirname(exePath) });
         const startedAt = nowMs();
         const key = gameId || exePath;
         runningGames.set(key, { startedAt });

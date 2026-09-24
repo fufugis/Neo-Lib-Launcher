@@ -7,6 +7,7 @@ import { JOURNEY_STATUSES, journeyStatusAfterFirstLaunch, normalizeJourneyStatus
 import { gameSignals, GAME_SIGNAL_DEFINITIONS } from '../src/lib/game-signals-model.mjs';
 import { normalizeWallColumns, visibleWallColumns, WALL_COLUMN_DEFINITIONS } from '../src/components/library/wall-columns-model.mjs';
 import { collectionCategoryAssignment } from '../src/services/collection-mode.mjs';
+import { mergeRetroImport } from '../src/state/retro-import-state.mjs';
 
 assert.deepEqual(JOURNEY_STATUSES.map(({ id }) => id), ['not-started', 'backlog', 'in-progress', 'on-hold', 'finished', 'mastered', 'dropped']);
 assert.equal(normalizeJourneyStatus('unknown'), 'not-started');
@@ -36,6 +37,9 @@ assert.equal(visibleWallColumns([{ id: 'mainGenre', visible: false }]).some(({ i
 assert.equal(WALL_COLUMN_DEFINITIONS.some(({ id }) => id === 'journeyStatus'), true);
 
 assert.deepEqual(collectionCategoryAssignment([{ id: 'a', categoryIds: ['first'] }, { id: 'b' }], ['a', 'b'], 'second'), [{ id: 'a', categoryIds: ['first', 'second'] }, { id: 'b', categoryIds: ['second'] }]);
+const retroImport = mergeRetroImport({ games: [{ id: 'old', romPath: 'D:\\ROMs\\Old.sfc' }], categories: [] }, [{ name: 'Old duplicate', exePath: 'C:\\emu.exe', romPath: 'd:/roms/old.sfc', retroPlatform: 'snes', platform: 'Super Nintendo', categoryIds: ['retro-snes'] }, { name: 'New', exePath: 'C:\\emu.exe', romPath: 'D:\\ROMs\\New.sfc', retroPlatform: 'snes', platform: 'Super Nintendo', categoryIds: ['retro-snes'] }], () => 'new-id', 10);
+assert.equal(retroImport.imported.length, 1);
+assert.equal(retroImport.library.categories[0].id, 'retro-snes');
 
 const snapshot = artworkSnapshot({ icon: 'icon.png', portraitImage: 'cover.jpg', logo: 'logo.png', artworkSources: { cover: 'Player' } }, { at: 5, reason: 'before-repair' });
 assert.equal(snapshot.cover, 'cover.jpg');
@@ -70,10 +74,14 @@ assert.match(sidebar, /onBulkJourneyStatus/);
 assert.match(sidebar, /onBulkAddCategory/);
 
 const wizard = fs.readFileSync(path.join(import.meta.dirname, '../src/components/WizardModal.jsx'), 'utf8');
-assert.match(wizard, /Retro Profiles/);
-assert.match(wizard, /retro-profile-save/);
-assert.match(wizard, /NEO-LIB never supplies or searches for emulators, BIOS files or ROMs/);
-assert.doesNotMatch(wizard, /scanRom|scanROM|importRom|importROM/, 'The profile setup surface must not scan/import ROMs yet.');
+assert.match(wizard, /Retro Library/);
+assert.match(wizard, /onImportRoms/);
+const retroPanel = fs.readFileSync(path.join(import.meta.dirname, '../src/components/wizard/RetroProfilesPanel.jsx'), 'utf8');
+assert.match(retroPanel, /scanRoms/);
+assert.match(retroPanel, /retro-rom-review/);
+assert.match(retroPanel, /retro-profile-save/);
+assert.match(retroPanel, /NEO-LIB never supplies emulators, BIOS files or ROMs/);
+assert.match(wall, /wall-platform-sections/);
 
 const metadataReview = fs.readFileSync(path.join(import.meta.dirname, '../src/components/AcceptMetadataModal.jsx'), 'utf8');
 assert.match(metadataReview, /Artwork review/);

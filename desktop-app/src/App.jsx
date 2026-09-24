@@ -32,6 +32,7 @@ import { createCategoryPrivacyWorkflow } from './services/category-privacy-workf
 import { pickDetectedLauncher } from './services/launcher-detection-workflow.mjs';
 import { createAutoSortWorkflow } from './services/auto-sort-workflow.mjs';
 import { collectionCategoryAssignment, collectionFavoriteIds, collectionJourneyStatus } from './services/collection-mode.mjs';
+import { mergeRetroImport } from './state/retro-import-state.mjs';
 import { journeyStatusAfterFirstLaunch } from './lib/game-journey-model.mjs';
 
 // Read app version once — used by the update checker for comparison.
@@ -933,6 +934,7 @@ export default function App() {
   const updateBulkFavorite = (ids, favorite) => { const picked = Array.isArray(ids) ? ids : []; if (!picked.length) return; updateSetting({ pinnedGameIds: collectionFavoriteIds(settings.pinnedGameIds || [], picked, favorite) }); notify(`${favorite ? 'Favorited' : 'Unfavorited'} ${picked.length} game${picked.length === 1 ? '' : 's'}.`); };
   const updateBulkJourneyStatus = (ids, journeyStatus) => { const picked = Array.isArray(ids) ? ids : []; if (!picked.length || !journeyStatus) return; setLibrary((previous) => ({ ...previous, [sliceK.items]: collectionJourneyStatus(previous[sliceK.items] || [], picked, journeyStatus) })); notify(`Updated Journey Status for ${picked.length} game${picked.length === 1 ? '' : 's'}.`); };
   const addBulkCategory = (ids, categoryId) => { const picked = Array.isArray(ids) ? ids : []; const category = (library.categories || []).find((item) => item.id === categoryId && !item.private); if (!picked.length || !category) return; setLibrary((previous) => ({ ...previous, [sliceK.items]: collectionCategoryAssignment(previous[sliceK.items] || [], picked, categoryId) })); notify(`Added ${picked.length} game${picked.length === 1 ? '' : 's'} to ${category.name}.`); };
+  const importRetroGames = (entries) => { const requested = Array.isArray(entries) ? entries : []; if (!requested.length) return 0; setLibrary((previous) => mergeRetroImport(previous, requested, uid).library); notify(`Imported ${requested.length} retro game${requested.length === 1 ? '' : 's'} by platform.`); return requested.length; };
   const addTool = (data) => {
     const tool = {
       id: uid(),
@@ -1031,7 +1033,7 @@ export default function App() {
         return;
       }
       const res = await nativeApi.launchGame({
-        exePath: g.exePath, launchArgs: g.launchArgs || '', gameId: g.id, name: g.name, launchToken,
+        exePath: g.exePath, launchArgs: g.launchArgs || '', workingDirectory: g.workingDirectory || '', gameId: g.id, name: g.name, launchToken,
       });
       if (!res.ok) {
         recordLaunchProblem(g.id, res.error || 'could not start');
@@ -1681,6 +1683,7 @@ export default function App() {
           requestMetadataRefresh,
           openTidyUp: () => setTidyOpen(true),
           onRetroProfilesChange: (retroProfiles) => updateSetting({ retroProfiles }),
+          importRetroGames,
           setMascotActivity,
           addToGames,
           library,

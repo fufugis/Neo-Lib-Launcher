@@ -43,6 +43,11 @@ Library and Wall easier to use.
 - **Wall quick filters** — switch between All, Favorites, Most played and
   Recently played directly from the Wall toolbar. The active filter is clearly
   highlighted and works in both Covers and Details.
+- **Reviewed Retro Library import** — connect a player-installed emulator to a
+  chosen ROM folder, scan only its supported file types, edit the title/platform
+  review list, and import without duplicate ROM paths. Library shelves and Wall
+  sections are created per platform. Launching passes the selected ROM directly
+  to that profile through NEO-LIB's normal guarded Play route.
 - **Clearer GitHub project page** — the oversized internal development diary has
   been replaced by a concise player-facing overview with honest download status,
   supported sources, privacy, installation, feedback and roadmap information.
@@ -51,8 +56,10 @@ Library and Wall easier to use.
 
 ## Verification
 
-Focused Home-widget, visual-boundary, renderer-binding and metadata-workflow
-checks pass, and the complete renderer prebuild source gate passes.
+Focused Home-widget, emulation, launch, IPC, visual-boundary, renderer-binding
+and metadata-workflow checks pass. The managed workspace cannot start Vite's
+build helper (`spawn EPERM`), so a rebuilt Windows scan/import/launch pass remains
+required.
 Rebuilt Windows visual and interaction acceptance remains required before this
 candidate is published as a public release.
 

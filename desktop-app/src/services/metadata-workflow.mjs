@@ -37,7 +37,7 @@ export function createMetadataWorkflow({
       return null;
     }
     setFetching(true);
-    const query = opts.query || g.name || guessNameFromPath(g.exePath);
+    const query = opts.query || g.metadataQuery || g.name || guessNameFromPath(g.exePath);
     const skip = [];
     if (opts.skipCurrentSource && g.source) skip.push(g.source);
     // SAFETY: if game already has a Steam appid, lock to that appid so refetch can NEVER

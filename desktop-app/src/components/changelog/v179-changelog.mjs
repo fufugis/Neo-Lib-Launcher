@@ -43,8 +43,8 @@ export const V179_CHANGELOG = {
       body: 'Choose Select in Library or Select games in Wall to mark several titles without changing normal browsing. Batch favorite/unfavorite actions, Journey Status updates and adding to an existing normal category apply only to the selected games, in Library, covers and detailed Wall.',
     },
     {
-      title: 'Retro Profiles are ready for your own setup',
-      body: 'Wizard now saves player-chosen emulator paths, ROM folders, platform extensions, argument prefixes, working folders and tracking preferences. NEO-LIB does not supply, search, scan, import or launch ROMs from this setup screen; reviewed ROM importing follows separately.',
+      title: 'Retro Library connects your ROMs to your emulators',
+      body: 'Wizard now scans only a ROM folder you choose, detects supported platform formats, lets you review titles and platforms, prevents duplicates, and imports each game into its platform shelf. Wall groups retro covers by platform. Play opens the selected ROM through your saved emulator profile; NEO-LIB never supplies ROMs, BIOS files or emulators.',
     },
     {
       title: 'Artwork refreshes are easier to trust',

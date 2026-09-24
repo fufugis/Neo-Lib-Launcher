@@ -11,7 +11,7 @@ import { guessNameFromPath } from '../lib/utils';
 import { genreDisplayGroups, normalizeGenreProfile } from '../lib/genreTaxonomy';
 import { createBoundedOperation } from '../services/bounded-operation.mjs';
 import { OPERATION_STATUS } from '../state/operation-state.mjs';
-import { ROM_EXTENSION_GROUPS, romExtensions } from '../lib/emulation-library-model.mjs';
+import RetroProfilesPanel from './wizard/RetroProfilesPanel';
 
 /**
  * Auto-import Wizard
@@ -42,7 +42,7 @@ function operationFailureMessage(operation, label) {
   return operation?.message || `${label} failed.`;
 }
 
-export default function WizardModal({ open, onClose, onImport, onAccept, onAddManual, onRefreshLibrary, onTidyLibrary, onRetroProfilesChange, retroProfiles = [], geminiKey, aiModel = 'gemini-2.5-flash', existingExePaths = [], existingGames = [], prefilledRoot = '', autoScan = false }) {
+export default function WizardModal({ open, onClose, onImport, onAccept, onAddManual, onRefreshLibrary, onTidyLibrary, onRetroProfilesChange, onImportRoms, retroProfiles = [], geminiKey, aiModel = 'gemini-2.5-flash', existingExePaths = [], existingGames = [], prefilledRoot = '', autoScan = false }) {
   const [step, setStep] = React.useState(1);
   const [root, setRoot] = React.useState('');
   const [candidates, setCandidates] = React.useState([]);
@@ -492,10 +492,10 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
 
           <div className="rounded-lg hairline bg-surface/50 p-4" data-testid="wizard-retro-profiles-section">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><div className="text-[10px] uppercase tracking-wider text-muted">Retro Profiles</div><p className="mt-1 text-xs text-muted">Save your own emulator, supported ROM types and folder now. ROM scanning and import review remain a separate upcoming step.</p></div>
+              <div><div className="text-[10px] uppercase tracking-wider text-muted">Retro Library</div><p className="mt-1 text-xs text-muted">Choose your own emulator and ROM folder, then scan, review and import games by platform.</p></div>
               <button type="button" data-testid="wizard-retro-profiles-toggle" onClick={() => setRetroProfilesOpen((value) => !value)} className="inline-flex shrink-0 items-center gap-2 rounded-full hairline px-4 py-2 text-xs font-semibold text-ink hover:border-[rgb(var(--accent)/0.6)] hover:bg-[rgb(var(--accent)/0.10)]"><Gamepad2 size={13} className="text-[rgb(var(--accent))]" />{retroProfilesOpen ? 'Close profiles' : 'Manage profiles'}</button>
             </div>
-            {retroProfilesOpen && <RetroProfilesPanel profiles={retroProfiles} onChange={onRetroProfilesChange} />}
+            {retroProfilesOpen && <RetroProfilesPanel profiles={retroProfiles} onChange={onRetroProfilesChange} onImportRoms={onImportRoms} existingGames={existingGames} />}
           </div>
 
           <div className="rounded-lg hairline bg-surface/50 p-4" data-testid="wizard-library-care-section">
@@ -920,68 +920,6 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
     </AnimatePresence>)}
     </>
   );
-}
-
-function RetroProfilesPanel({ profiles, onChange }) {
-  const [drafts, setDrafts] = React.useState(() => normalizeRetroProfiles(profiles));
-  React.useEffect(() => setDrafts(normalizeRetroProfiles(profiles)), [profiles]);
-  const update = (id, patch) => setDrafts((current) => current.map((profile) => profile.id === id ? { ...profile, ...patch } : profile));
-  const save = () => onChange?.(normalizeRetroProfiles(drafts));
-  const add = () => setDrafts((current) => [...current, {
-    id: `retro-${Date.now()}`,
-    name: 'New Retro Profile',
-    platform: 'generic',
-    emulatorPath: '',
-    romFolder: '',
-    argumentPrefix: '',
-    workingDirectory: '',
-    trackingMethod: 'emulator-process',
-  }]);
-  const remove = (id) => { const next = drafts.filter((profile) => profile.id !== id); setDrafts(next); onChange?.(normalizeRetroProfiles(next)); };
-  const chooseExecutable = async (id) => {
-    const result = await window.api?.pickExe?.();
-    const path = typeof result === 'string' ? result : result?.exePath;
-    if (path) update(id, { emulatorPath: path });
-  };
-  const chooseFolder = async (id) => {
-    const path = await window.api?.pickDirectory?.();
-    if (path) update(id, { romFolder: path });
-  };
-  return <div className="mt-4 space-y-3 border-t border-[rgb(var(--border)/0.52)] pt-4">
-    <p className="text-[10.5px] leading-relaxed text-muted">NEO-LIB never supplies or searches for emulators, BIOS files or ROMs. These fields only remember choices you make. Every future ROM import will show a review list before it adds anything.</p>
-    {drafts.map((profile) => <div key={profile.id} className="rounded-lg border border-[rgb(var(--border)/0.68)] bg-panel/35 p-3">
-      <div className="mb-2 flex items-center gap-2"><input aria-label="Retro Profile name" value={profile.name} onChange={(event) => update(profile.id, { name: event.target.value })} className="min-w-0 flex-1 rounded-md bg-panel/60 hairline px-2.5 py-1.5 text-xs text-ink focus:border-[rgb(var(--accent)/0.6)] focus:outline-none" /><button type="button" onClick={() => remove(profile.id)} className="rounded-md px-2 py-1.5 text-[10px] text-muted hover:bg-red-400/10 hover:text-red-300">Remove</button></div>
-      <div className="grid gap-2 sm:grid-cols-2">
-        <label className="text-[10px] text-muted">Platform<select value={profile.platform} onChange={(event) => update(profile.id, { platform: event.target.value })} className="mt-1 w-full rounded-md bg-panel/60 hairline px-2.5 py-1.5 text-xs text-ink focus:border-[rgb(var(--accent)/0.6)] focus:outline-none">{Object.keys(ROM_EXTENSION_GROUPS).map((platform) => <option key={platform} value={platform}>{platform.toUpperCase()}</option>)}</select><span className="mt-1 block text-[9px] text-muted">{romExtensions(profile.platform).join(' ')}</span></label>
-        <label className="text-[10px] text-muted">Tracking<select value={profile.trackingMethod} onChange={(event) => update(profile.id, { trackingMethod: event.target.value })} className="mt-1 w-full rounded-md bg-panel/60 hairline px-2.5 py-1.5 text-xs text-ink focus:border-[rgb(var(--accent)/0.6)] focus:outline-none"><option value="emulator-process">Emulator process</option><option value="manual">Manual only</option></select></label>
-      </div>
-      <PathField label="Installed emulator" value={profile.emulatorPath} onChoose={() => chooseExecutable(profile.id)} onChange={(value) => update(profile.id, { emulatorPath: value })} chooseLabel="Choose .exe" />
-      <PathField label="ROM folder" value={profile.romFolder} onChoose={() => chooseFolder(profile.id)} onChange={(value) => update(profile.id, { romFolder: value })} chooseLabel="Choose folder" />
-      <div className="mt-2 grid gap-2 sm:grid-cols-2"><label className="text-[10px] text-muted">Argument before ROM path<input value={profile.argumentPrefix} onChange={(event) => update(profile.id, { argumentPrefix: event.target.value })} placeholder="Optional, e.g. -L core.dll" className="mt-1 w-full rounded-md bg-panel/60 hairline px-2.5 py-1.5 text-xs text-ink focus:border-[rgb(var(--accent)/0.6)] focus:outline-none" /></label><label className="text-[10px] text-muted">Working folder<input value={profile.workingDirectory} onChange={(event) => update(profile.id, { workingDirectory: event.target.value })} placeholder="Optional" className="mt-1 w-full rounded-md bg-panel/60 hairline px-2.5 py-1.5 text-xs text-ink focus:border-[rgb(var(--accent)/0.6)] focus:outline-none" /></label></div>
-    </div>)}
-    <div className="flex flex-wrap gap-2"><button type="button" data-testid="retro-profile-add" onClick={add} className="rounded-md hairline px-3 py-2 text-xs text-muted hover:border-[rgb(var(--accent)/0.5)] hover:text-ink">Add profile</button><button type="button" data-testid="retro-profile-save" onClick={save} className="rounded-md bg-[rgb(var(--accent))] px-3 py-2 text-xs font-bold text-[rgb(var(--surface))] hover:brightness-110">Save Retro Profiles</button></div>
-  </div>;
-}
-
-function PathField({ label, value, onChoose, onChange, chooseLabel }) {
-  return <label className="mt-2 block text-[10px] text-muted">{label}<div className="mt-1 flex gap-2"><input value={value} onChange={(event) => onChange(event.target.value)} className="min-w-0 flex-1 rounded-md bg-panel/60 hairline px-2.5 py-1.5 font-mono text-[10px] text-ink focus:border-[rgb(var(--accent)/0.6)] focus:outline-none" /><button type="button" onClick={onChoose} className="shrink-0 rounded-md hairline px-2 text-[10px] text-muted hover:border-[rgb(var(--accent)/0.5)] hover:text-ink">{chooseLabel}</button></div></label>;
-}
-
-function normalizeRetroProfiles(profiles) {
-  return (Array.isArray(profiles) ? profiles : []).slice(0, 20).flatMap((profile, index) => {
-    const id = String(profile?.id || `retro-${index + 1}`).replace(/[^a-z0-9-]/gi, '-').slice(0, 64);
-    if (!id) return [];
-    return [{
-      id,
-      name: String(profile?.name || 'Retro Profile').trim().slice(0, 80) || 'Retro Profile',
-      platform: Object.hasOwn(ROM_EXTENSION_GROUPS, profile?.platform) ? profile.platform : 'generic',
-      emulatorPath: String(profile?.emulatorPath || '').trim().slice(0, 1024),
-      romFolder: String(profile?.romFolder || '').trim().slice(0, 1024),
-      argumentPrefix: String(profile?.argumentPrefix || '').trim().slice(0, 240),
-      workingDirectory: String(profile?.workingDirectory || '').trim().slice(0, 1024),
-      trackingMethod: profile?.trackingMethod === 'manual' ? 'manual' : 'emulator-process',
-    }];
-  });
 }
 
 function LauncherBtn({ label, onClick, disabled = false, testid }) {

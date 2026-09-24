@@ -8,7 +8,7 @@ the shared request guards in `contract-guards.cjs`.
 
 ## Current checkpoint
 
-- 88 native commands across 29 named domains are inventoried by
+- 89 native commands across 29 named domains are inventoried by
   `scripts/verify-ipc-registry.cjs`.
 - Every command invoked by `preload.js` resolves to exactly one native handler.
 - `gemini:metadata` is the one documented native-only command and should be

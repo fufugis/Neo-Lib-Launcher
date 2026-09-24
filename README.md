@@ -23,6 +23,9 @@ launcher or executable.
 
 - **One library for many sources** — import installed games from the major PC
   launchers, scan a chosen folder, or add a standalone game through one Wizard.
+- **A reviewed Retro Library** — connect your own emulator and ROM folder,
+  review detected titles/platforms, then browse them in platform shelves and
+  launch each ROM through the emulator profile you selected.
 - **A library you can make your own** — categories, favorites, personal ratings,
   sorting, icon-only browsing, cover Wall, detailed Wall, and compact quick filters.
 - **Reviewed metadata instead of silent guesses** — compare proposed titles,
@@ -67,6 +70,7 @@ Current local import coverage includes:
 - Rockstar Games Launcher
 - itch.io installed folders
 - standalone games and tools selected by the player
+- player-owned ROM folders through player-installed emulator profiles
 
 Import coverage does not mean NEO-LIB replaces a store client. Games that require
 their original launcher still use it.
@@ -110,7 +114,7 @@ Work currently being prepared includes:
 - an Artwork Workshop with comparison, protection, and restore controls;
 - reviewed community widget execution with strict permissions and crash isolation;
 - optional achievement connectors and external artwork catalogues;
-- player-owned emulator profiles and ROM-folder imports;
+- expanded reviewed emulator presets and retro metadata/artwork sources;
 - a documented folder-based custom theme format.
 
 The active development queue is public in [WORK_QUEUE.md](WORK_QUEUE.md). Planned

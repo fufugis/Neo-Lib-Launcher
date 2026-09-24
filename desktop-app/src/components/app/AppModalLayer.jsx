@@ -52,6 +52,7 @@ export default function AppModalLayer({ context }) {
     requestMetadataRefresh,
     openTidyUp,
     onRetroProfilesChange,
+    importRetroGames,
     addToGames,
     library,
     wizardPrefillRoot,
@@ -172,6 +173,7 @@ export default function AppModalLayer({ context }) {
         onRefreshLibrary={requestMetadataRefresh}
         onTidyLibrary={openTidyUp}
         onRetroProfilesChange={onRetroProfilesChange}
+        onImportRoms={importRetroGames}
         retroProfiles={settings.retroProfiles || []}
         existingExePaths={(library.games || []).map((g) => g.exePath).filter(Boolean)}
         existingGames={library.games || []}

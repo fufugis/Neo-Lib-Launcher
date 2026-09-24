@@ -18,7 +18,7 @@ have a written accepted deferral.
 - [x] Renderer-binding checks pass.
 - [x] Metadata workflow checks pass.
 - [x] Clean update contract expects exact tag `v1.7.9`.
-- [x] 88 native commands have one registration and request/response contracts.
+- [x] 89 native commands have one registration and request/response contracts. This includes the bounded player-triggered ROM scan.
 - [x] Candidate inspector passes against the newly built package (GitHub Actions run `35636774870`, commit `a3f3d6d`).
 
 ## Windows interaction
@@ -34,6 +34,11 @@ have a written accepted deferral.
 - [ ] Locked games remain hidden in Wall until their category is unlocked.
 - [ ] Control Center gear opens on the first click.
 - [ ] Delayed hover text remains entirely inside every screen edge.
+- [ ] Retro Library scans only the chosen folder and shows the editable review list.
+- [ ] Re-scanning refuses already imported ROM paths and preserves existing entries.
+- [ ] NES/SNES/GBA/3DS or other available fixtures enter their correct platform shelves and appear in platform sections at the end of Wall.
+- [ ] A ROM path containing spaces launches as one argument through the selected emulator and uses its optional working folder.
+- [ ] Retro metadata review uses title plus platform, preserves the fallback until accepted, and saves the chosen case art.
 
 ## Steam update truth
 
