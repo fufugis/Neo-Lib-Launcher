@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "id": "pro",
+  "name": "Industrial",
+  "tone": "special",
+  "palette": {
+    "ink": [
+      244,
+      244,
+      238
+    ],
+    "muted": [
+      166,
+      168,
+      168
+    ],
+    "accent": [
+      255,
+      190,
+      18
+    ],
+    "accent2": [
+      255,
+      111,
+      24
+    ],
+    "accentSoft": [
+      232,
+      232,
+      224
+    ],
+    "hairlineGlow": [
+      255,
+      190,
+      18
+    ],
+    "grad1": [
+      10,
+      4,
+      22
+    ],
+    "grad2": [
+      36,
+      8,
+      60
+    ],
+    "accentText": [
+      255,
+      190,
+      18
+    ],
+    "accent2Text": [
+      255,
+      111,
+      24
+    ]
+  },
+  "panels": {
+    "surface": [
+      25,
+      27,
+      31
+    ],
+    "panel": [
+      39,
+      42,
+      46
+    ],
+    "border": [
+      95,
+      98,
+      102
+    ]
+  },
+  "layers": {
+    "canvas": {
+      "type": "gradient",
+      "from": "grad1",
+      "to": "grad2",
+      "opacity": 1
+    },
+    "atmosphere": {
+      "type": "image",
+      "asset": "assets/industrial-atmosphere.png",
+      "opacity": 0.5
+    },
+    "sidebar": {
+      "type": "image",
+      "asset": "assets/industrial-atmosphere.png",
+      "opacity": 0.18
+    },
+    "decoration": {
+      "type": "image",
+      "asset": "assets/industrial-control-machinery-v1.png",
+      "opacity": 0.46
+    },
+    "navigationFrame": {
+      "type": "image",
+      "asset": "assets/industrial-chain-button-v4.png",
+      "opacity": 1
+    },
+    "navigationFlourish": {
+      "type": "image",
+      "asset": "assets/industrial-control-machinery-v1.png",
+      "opacity": 1
+    },
+    "controlFrame": {
+      "type": "image",
+      "asset": "assets/industrial-button-frame-v2.png",
+      "opacity": 1
+    }
+  },
+  "motion": {
+    "cadence": "energetic",
+    "reducedMotion": "still"
+  },
+  "license": {
+    "name": "Bundled NEO-LIB artwork; see desktop-app/LICENSE",
+    "attribution": "NEO-LIB"
+  }
+}

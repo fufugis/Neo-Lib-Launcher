@@ -99,7 +99,7 @@ assert.match(stylesSource, /\[data-theme='monochrome'\]/, 'Monochrome needs its 
 assert.match(stylesSource, /\.amb-monochrome/, 'Monochrome needs a dedicated grayscale ambience.');
 assert.match(stylesSource, /\.particles--monochrome/, 'Monochrome needs theme-owned particle language.');
 assert.match(read('src/components/ThemeVisuals.jsx'), /monochrome: 'amb-monochrome'/);
-assert.match(read('src/components/Sidebar.jsx'), /monochrome: 'generic-gray-atmosphere\.png'/, 'Monochrome must carry its grayscale atmosphere into the Library.');
+assert.equal(JSON.parse(read('src/themes/stock/monochrome/theme.json')).layers.sidebar.asset, 'assets/generic-gray-atmosphere.png', 'Monochrome must carry its grayscale atmosphere into the Library.');
 assert.ok(lines('src/components/Sidebar.jsx') < 850, 'Library Visuals, live tree and reusable toolbar controls must remain outside the Sidebar composition root');
 assert.ok(lines('src/components/library/LibraryVisualsPopover.jsx') < 520, 'Library Visuals should remain a focused presentation boundary');
 assert.match(sidebarSource, /library\/LibraryVisualsPopover/);

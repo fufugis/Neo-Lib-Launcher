@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { stockThemeAssetUrl } from '../themes/stock-theme-registry.mjs';
 
 export function BgAmbience({ theme, settings = {}, game = null, resting = false }) {
   // `synthGridEnabled` and `particlesEnabled` were retired legacy switches.
@@ -207,25 +208,8 @@ export function BgAmbience({ theme, settings = {}, game = null, resting = false 
  * FX level so readability remains the priority.
  */
 function ThemeArtwork({ theme, level = 2, cadence = 'full' }) {
-  const filename = {
-    synthwave: 'synthwave-atmosphere.png',
-    'synthwave-day': 'synthwave-day-atmosphere.png',
-    midnight: 'midnight-atmosphere.png',
-    daybreak: 'daybreak-atmosphere.png',
-    mint: 'mint-atmosphere.png',
-    ocean: 'ocean-atmosphere.png',
-    crimson: 'crimson-atmosphere.png',
-    anime: 'anime-atmosphere.png',
-    gaming: 'gaming-atmosphere.png',
-    modern: 'modern-atmosphere.png',
-    colorful: 'colorful-atmosphere.png',
-    pro: 'industrial-atmosphere.png',
-    home: 'home-atmosphere.png',
-    'generic-gray': 'generic-gray-atmosphere.png',
-    'generic-blue': 'generic-blue-atmosphere.png',
-    monochrome: 'generic-gray-atmosphere.png',
-  }[theme];
-  if (!filename) return null;
+  const artwork = stockThemeAssetUrl(theme, 'atmosphere');
+  if (!artwork) return null;
   const motionClass = cadence === 'calm' ? '' : 'theme-artwork-drift';
   // The earlier treatment was too dim to read as actual art beneath glass
   // panels. This stays below every interaction layer, but is now deliberately
@@ -238,7 +222,7 @@ function ThemeArtwork({ theme, level = 2, cadence = 'full' }) {
       className={`theme-artwork theme-artwork-${theme} ${motionClass}`}
       style={{
         opacity,
-        backgroundImage: `url(${import.meta.env.BASE_URL}theme-art/${filename})`,
+        backgroundImage: `url("${artwork}")`,
       }}
     />
   );
@@ -248,17 +232,13 @@ function ThemeArtwork({ theme, level = 2, cadence = 'full' }) {
 // They are decorative background actors only: no event listeners, no polling,
 // and Rest Mode removes the whole ambient layer before they can render.
 function SpecialThemeDecoration({ theme, opacity = 0.46 }) {
-  const asset = {
-    anime: 'anime-control-vine-v1.png',
-    pro: 'industrial-control-machinery-v1.png',
-    colorful: 'magical-control-runes-v1.png',
-  }[theme];
+  const asset = stockThemeAssetUrl(theme, 'decoration');
   if (!asset) return null;
   // The atmosphere layer already respects FX level. Give the showpiece art a
   // slightly stronger presence than a normal particle so an ordinary 46%
   // player setting still reads as deliberate illustration rather than a faint
   // colour wash. At 0% the component is not mounted at all.
-  return <div aria-hidden className={`special-theme-decoration special-decoration--${theme}`} style={{ opacity: Math.min(0.92, Math.max(0, opacity * 1.35)) }}><img src={`${import.meta.env.BASE_URL}theme-art/${asset}`} alt="" className="special-theme-decoration-art" /></div>;
+  return <div aria-hidden className={`special-theme-decoration special-decoration--${theme}`} style={{ opacity: Math.min(0.92, Math.max(0, opacity * 1.35)) }}><img src={asset} alt="" className="special-theme-decoration-art" /></div>;
 }
 
 export function WorkspaceEmpty({ kind }) {

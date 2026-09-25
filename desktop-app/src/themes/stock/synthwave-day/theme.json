@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "id": "synthwave-day",
+  "name": "Vaporwave Day",
+  "tone": "bright",
+  "palette": {
+    "ink": [
+      32,
+      18,
+      62
+    ],
+    "muted": [
+      110,
+      96,
+      158
+    ],
+    "accent": [
+      138,
+      79,
+      255
+    ],
+    "accent2": [
+      22,
+      176,
+      176
+    ],
+    "accentSoft": [
+      216,
+      204,
+      250
+    ],
+    "hairlineGlow": [
+      138,
+      79,
+      255
+    ],
+    "grad1": [
+      240,
+      232,
+      255
+    ],
+    "grad2": [
+      200,
+      220,
+      250
+    ],
+    "accentText": [
+      94,
+      47,
+      182
+    ],
+    "accent2Text": [
+      4,
+      108,
+      108
+    ]
+  },
+  "panels": {
+    "surface": [
+      240,
+      232,
+      255
+    ],
+    "panel": [
+      250,
+      246,
+      255
+    ],
+    "border": [
+      208,
+      190,
+      240
+    ]
+  },
+  "layers": {
+    "canvas": {
+      "type": "gradient",
+      "from": "grad1",
+      "to": "grad2",
+      "opacity": 1
+    },
+    "atmosphere": {
+      "type": "image",
+      "asset": "assets/synthwave-day-atmosphere.png",
+      "opacity": 0.5
+    },
+    "sidebar": {
+      "type": "image",
+      "asset": "assets/synthwave-day-atmosphere.png",
+      "opacity": 0.18
+    },
+    "decoration": {
+      "type": "none"
+    },
+    "navigationFrame": {
+      "type": "none"
+    },
+    "navigationFlourish": {
+      "type": "none"
+    },
+    "controlFrame": {
+      "type": "none"
+    }
+  },
+  "motion": {
+    "cadence": "normal",
+    "reducedMotion": "still"
+  },
+  "license": {
+    "name": "Bundled NEO-LIB artwork; see desktop-app/LICENSE",
+    "attribution": "NEO-LIB"
+  }
+}

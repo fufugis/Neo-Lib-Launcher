@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "id": "gaming",
+  "name": "Gaming",
+  "tone": "middle",
+  "palette": {
+    "ink": [
+      240,
+      245,
+      255
+    ],
+    "muted": [
+      190,
+      201,
+      229
+    ],
+    "accent": [
+      184,
+      137,
+      255
+    ],
+    "accent2": [
+      114,
+      214,
+      255
+    ],
+    "accentSoft": [
+      169,
+      135,
+      236
+    ],
+    "hairlineGlow": [
+      184,
+      137,
+      255
+    ],
+    "grad1": [
+      10,
+      4,
+      22
+    ],
+    "grad2": [
+      36,
+      8,
+      60
+    ],
+    "accentText": [
+      184,
+      137,
+      255
+    ],
+    "accent2Text": [
+      114,
+      214,
+      255
+    ]
+  },
+  "panels": {
+    "surface": [
+      47,
+      51,
+      93
+    ],
+    "panel": [
+      65,
+      71,
+      121
+    ],
+    "border": [
+      107,
+      120,
+      183
+    ]
+  },
+  "layers": {
+    "canvas": {
+      "type": "gradient",
+      "from": "grad1",
+      "to": "grad2",
+      "opacity": 1
+    },
+    "atmosphere": {
+      "type": "image",
+      "asset": "assets/gaming-atmosphere.png",
+      "opacity": 0.5
+    },
+    "sidebar": {
+      "type": "image",
+      "asset": "assets/gaming-atmosphere.png",
+      "opacity": 0.18
+    },
+    "decoration": {
+      "type": "none"
+    },
+    "navigationFrame": {
+      "type": "none"
+    },
+    "navigationFlourish": {
+      "type": "none"
+    },
+    "controlFrame": {
+      "type": "none"
+    }
+  },
+  "motion": {
+    "cadence": "normal",
+    "reducedMotion": "still"
+  },
+  "license": {
+    "name": "Bundled NEO-LIB artwork; see desktop-app/LICENSE",
+    "attribution": "NEO-LIB"
+  }
+}

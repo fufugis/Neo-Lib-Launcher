@@ -1,25 +1,14 @@
 import React from 'react';
 import { DecorationLayer } from './ui/VisualBoundary';
-
-const FRAME_FILES = {
-  anime: 'anime-button-frame-v2.png',
-  pro: 'industrial-chain-button-v4.png',
-  colorful: 'magical-button-frame-v2.png',
-};
-const FLOURISH_FILES = {
-  anime: 'anime-control-vine-v1.png',
-  pro: 'industrial-control-machinery-v1.png',
-  colorful: 'magical-corner-wisp-v2.png',
-};
+import { stockThemeAssetUrl } from '../themes/stock-theme-registry.mjs';
 
 // HTML image URLs resolve against the document, including Electron file://.
 // Keep them out of stylesheet-relative CSS custom properties.
 export default function NavButtonArtwork({ theme, opacity = 0.46, active = false }) {
-  const filename = FRAME_FILES[theme];
+  const src = stockThemeAssetUrl(theme, 'navigationFrame');
+  const flourish = stockThemeAssetUrl(theme, 'navigationFlourish');
   const strength = Number.isFinite(opacity) ? Math.max(0, Math.min(1, opacity)) : 0.46;
-  if (!filename || strength === 0) return null;
-  const src = new URL(`${import.meta.env.BASE_URL}theme-art/${filename}`, document.baseURI).href;
-  const flourish = new URL(`${import.meta.env.BASE_URL}theme-art/${FLOURISH_FILES[theme]}`, document.baseURI).href;
+  if (!src || strength === 0) return null;
   const outward = theme === 'anime' ? 6 : 5;
   const imageStyle = {
     // Stretch with the individual button, including horizontal sidebar resizing.

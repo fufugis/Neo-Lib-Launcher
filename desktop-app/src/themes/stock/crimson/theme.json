@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "id": "crimson",
+  "name": "Crimson",
+  "tone": "dark",
+  "palette": {
+    "ink": [
+      240,
+      230,
+      230
+    ],
+    "muted": [
+      150,
+      130,
+      130
+    ],
+    "accent": [
+      220,
+      38,
+      60
+    ],
+    "accent2": [
+      255,
+      90,
+      110
+    ],
+    "accentSoft": [
+      80,
+      14,
+      22
+    ],
+    "hairlineGlow": [
+      220,
+      38,
+      60
+    ],
+    "grad1": [
+      10,
+      4,
+      22
+    ],
+    "grad2": [
+      36,
+      8,
+      60
+    ],
+    "accentText": [
+      220,
+      38,
+      60
+    ],
+    "accent2Text": [
+      255,
+      90,
+      110
+    ]
+  },
+  "panels": {
+    "surface": [
+      23,
+      16,
+      19
+    ],
+    "panel": [
+      35,
+      24,
+      28
+    ],
+    "border": [
+      67,
+      30,
+      37
+    ]
+  },
+  "layers": {
+    "canvas": {
+      "type": "gradient",
+      "from": "grad1",
+      "to": "grad2",
+      "opacity": 1
+    },
+    "atmosphere": {
+      "type": "image",
+      "asset": "assets/crimson-atmosphere.png",
+      "opacity": 0.5
+    },
+    "sidebar": {
+      "type": "image",
+      "asset": "assets/crimson-atmosphere.png",
+      "opacity": 0.18
+    },
+    "decoration": {
+      "type": "none"
+    },
+    "navigationFrame": {
+      "type": "none"
+    },
+    "navigationFlourish": {
+      "type": "none"
+    },
+    "controlFrame": {
+      "type": "none"
+    }
+  },
+  "motion": {
+    "cadence": "normal",
+    "reducedMotion": "still"
+  },
+  "license": {
+    "name": "Bundled NEO-LIB artwork; see desktop-app/LICENSE",
+    "attribution": "NEO-LIB"
+  }
+}

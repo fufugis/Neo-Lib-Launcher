@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "id": "anime",
+  "name": "Anime",
+  "tone": "special",
+  "palette": {
+    "ink": [
+      255,
+      238,
+      251
+    ],
+    "muted": [
+      230,
+      187,
+      218
+    ],
+    "accent": [
+      255,
+      151,
+      207
+    ],
+    "accent2": [
+      211,
+      157,
+      255
+    ],
+    "accentSoft": [
+      255,
+      213,
+      236
+    ],
+    "hairlineGlow": [
+      255,
+      151,
+      207
+    ],
+    "grad1": [
+      10,
+      4,
+      22
+    ],
+    "grad2": [
+      36,
+      8,
+      60
+    ],
+    "accentText": [
+      255,
+      151,
+      207
+    ],
+    "accent2Text": [
+      211,
+      157,
+      255
+    ]
+  },
+  "panels": {
+    "surface": [
+      40,
+      22,
+      43
+    ],
+    "panel": [
+      57,
+      31,
+      60
+    ],
+    "border": [
+      190,
+      112,
+      176
+    ]
+  },
+  "layers": {
+    "canvas": {
+      "type": "gradient",
+      "from": "grad1",
+      "to": "grad2",
+      "opacity": 1
+    },
+    "atmosphere": {
+      "type": "image",
+      "asset": "assets/anime-atmosphere.png",
+      "opacity": 0.5
+    },
+    "sidebar": {
+      "type": "image",
+      "asset": "assets/anime-atmosphere.png",
+      "opacity": 0.18
+    },
+    "decoration": {
+      "type": "image",
+      "asset": "assets/anime-control-vine-v1.png",
+      "opacity": 0.46
+    },
+    "navigationFrame": {
+      "type": "image",
+      "asset": "assets/anime-button-frame-v2.png",
+      "opacity": 1
+    },
+    "navigationFlourish": {
+      "type": "image",
+      "asset": "assets/anime-control-vine-v1.png",
+      "opacity": 1
+    },
+    "controlFrame": {
+      "type": "image",
+      "asset": "assets/anime-button-frame-v2.png",
+      "opacity": 1
+    }
+  },
+  "motion": {
+    "cadence": "energetic",
+    "reducedMotion": "still"
+  },
+  "license": {
+    "name": "Bundled NEO-LIB artwork; see desktop-app/LICENSE",
+    "attribution": "NEO-LIB"
+  }
+}

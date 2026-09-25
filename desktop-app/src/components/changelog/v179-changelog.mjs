@@ -31,6 +31,10 @@ export const V179_CHANGELOG = {
       body: 'Wizard can remember a named external drive, NAS or local game folder. Check its availability when you want; NEO-LIB will not scan it automatically. A game inside an offline root will not launch until the drive returns. Cloud links remain catalogue bookmarks only.',
     },
     {
+      title: 'Built-in themes are ready for a shared package format',
+      body: 'Every built-in theme now has a versioned manifest and its own artwork folder. The palette and decorative layers are validated before packaging. Theme Studio should look unchanged; importing community themes is still coming later.',
+    },
+    {
       title: 'Choose top or Sidebar navigation',
       body: 'Keep the familiar top Home, Library, Wall and Tools buttons, or switch to a slim left icon rail that reveals labels on hover. Visual Tweaks and Control Center → Personalise share the same saved Sidebar setting.',
     },

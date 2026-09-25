@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "id": "modern",
+  "name": "Modern",
+  "tone": "middle",
+  "palette": {
+    "ink": [
+      239,
+      243,
+      248
+    ],
+    "muted": [
+      187,
+      197,
+      211
+    ],
+    "accent": [
+      184,
+      58,
+      69
+    ],
+    "accent2": [
+      145,
+      177,
+      217
+    ],
+    "accentSoft": [
+      75,
+      87,
+      105
+    ],
+    "hairlineGlow": [
+      184,
+      58,
+      69
+    ],
+    "grad1": [
+      10,
+      4,
+      22
+    ],
+    "grad2": [
+      36,
+      8,
+      60
+    ],
+    "accentText": [
+      244,
+      125,
+      133
+    ],
+    "accent2Text": [
+      176,
+      203,
+      235
+    ]
+  },
+  "panels": {
+    "surface": [
+      53,
+      62,
+      78
+    ],
+    "panel": [
+      75,
+      86,
+      104
+    ],
+    "border": [
+      120,
+      133,
+      153
+    ]
+  },
+  "layers": {
+    "canvas": {
+      "type": "gradient",
+      "from": "grad1",
+      "to": "grad2",
+      "opacity": 1
+    },
+    "atmosphere": {
+      "type": "image",
+      "asset": "assets/modern-atmosphere.png",
+      "opacity": 0.5
+    },
+    "sidebar": {
+      "type": "image",
+      "asset": "assets/modern-atmosphere.png",
+      "opacity": 0.18
+    },
+    "decoration": {
+      "type": "none"
+    },
+    "navigationFrame": {
+      "type": "none"
+    },
+    "navigationFlourish": {
+      "type": "none"
+    },
+    "controlFrame": {
+      "type": "none"
+    }
+  },
+  "motion": {
+    "cadence": "normal",
+    "reducedMotion": "still"
+  },
+  "license": {
+    "name": "Bundled NEO-LIB artwork; see desktop-app/LICENSE",
+    "attribution": "NEO-LIB"
+  }
+}

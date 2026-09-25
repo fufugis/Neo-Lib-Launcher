@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "id": "colorful",
+  "name": "Magical",
+  "tone": "special",
+  "palette": {
+    "ink": [
+      250,
+      246,
+      255
+    ],
+    "muted": [
+      205,
+      190,
+      230
+    ],
+    "accent": [
+      255,
+      90,
+      190
+    ],
+    "accent2": [
+      90,
+      160,
+      255
+    ],
+    "accentSoft": [
+      255,
+      255,
+      255
+    ],
+    "hairlineGlow": [
+      255,
+      90,
+      190
+    ],
+    "grad1": [
+      10,
+      4,
+      22
+    ],
+    "grad2": [
+      36,
+      8,
+      60
+    ],
+    "accentText": [
+      255,
+      90,
+      190
+    ],
+    "accent2Text": [
+      90,
+      160,
+      255
+    ]
+  },
+  "panels": {
+    "surface": [
+      24,
+      22,
+      35
+    ],
+    "panel": [
+      36,
+      32,
+      52
+    ],
+    "border": [
+      188,
+      132,
+      224
+    ]
+  },
+  "layers": {
+    "canvas": {
+      "type": "gradient",
+      "from": "grad1",
+      "to": "grad2",
+      "opacity": 1
+    },
+    "atmosphere": {
+      "type": "image",
+      "asset": "assets/colorful-atmosphere.png",
+      "opacity": 0.5
+    },
+    "sidebar": {
+      "type": "image",
+      "asset": "assets/colorful-atmosphere.png",
+      "opacity": 0.18
+    },
+    "decoration": {
+      "type": "image",
+      "asset": "assets/magical-control-runes-v1.png",
+      "opacity": 0.46
+    },
+    "navigationFrame": {
+      "type": "image",
+      "asset": "assets/magical-button-frame-v2.png",
+      "opacity": 1
+    },
+    "navigationFlourish": {
+      "type": "image",
+      "asset": "assets/magical-corner-wisp-v2.png",
+      "opacity": 1
+    },
+    "controlFrame": {
+      "type": "image",
+      "asset": "assets/magical-button-frame-v2.png",
+      "opacity": 1
+    }
+  },
+  "motion": {
+    "cadence": "energetic",
+    "reducedMotion": "still"
+  },
+  "license": {
+    "name": "Bundled NEO-LIB artwork; see desktop-app/LICENSE",
+    "attribution": "NEO-LIB"
+  }
+}

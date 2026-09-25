@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "id": "synthwave",
+  "name": "Synthwave",
+  "tone": "dark",
+  "palette": {
+    "ink": [
+      235,
+      232,
+      255
+    ],
+    "muted": [
+      150,
+      140,
+      195
+    ],
+    "accent": [
+      255,
+      42,
+      138
+    ],
+    "accent2": [
+      0,
+      229,
+      255
+    ],
+    "accentSoft": [
+      60,
+      16,
+      60
+    ],
+    "hairlineGlow": [
+      255,
+      42,
+      138
+    ],
+    "grad1": [
+      10,
+      4,
+      22
+    ],
+    "grad2": [
+      36,
+      8,
+      60
+    ],
+    "accentText": [
+      255,
+      42,
+      138
+    ],
+    "accent2Text": [
+      0,
+      229,
+      255
+    ]
+  },
+  "panels": {
+    "surface": [
+      20,
+      14,
+      32
+    ],
+    "panel": [
+      30,
+      22,
+      47
+    ],
+    "border": [
+      59,
+      41,
+      96
+    ]
+  },
+  "layers": {
+    "canvas": {
+      "type": "gradient",
+      "from": "grad1",
+      "to": "grad2",
+      "opacity": 1
+    },
+    "atmosphere": {
+      "type": "image",
+      "asset": "assets/synthwave-atmosphere.png",
+      "opacity": 0.5
+    },
+    "sidebar": {
+      "type": "image",
+      "asset": "assets/synthwave-atmosphere.png",
+      "opacity": 0.18
+    },
+    "decoration": {
+      "type": "none"
+    },
+    "navigationFrame": {
+      "type": "none"
+    },
+    "navigationFlourish": {
+      "type": "none"
+    },
+    "controlFrame": {
+      "type": "none"
+    }
+  },
+  "motion": {
+    "cadence": "normal",
+    "reducedMotion": "still"
+  },
+  "license": {
+    "name": "Bundled NEO-LIB artwork; see desktop-app/LICENSE",
+    "attribution": "NEO-LIB"
+  }
+}

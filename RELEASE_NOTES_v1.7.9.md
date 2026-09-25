@@ -55,6 +55,10 @@ Library and Wall easier to use.
   demand; games inside an offline root refuse to launch with a clear message.
   Stored paths start hidden in the manager. Cloud entries are bookmarks only,
   with no account connection or cloud-game launching.
+- **Theme package groundwork** — all built-in themes now use versioned folders
+  with validated palettes, named artwork layers and local assets. They should
+  look the same as before. A new theme-format guide explains future image,
+  GIF and video rules; community-theme importing is not enabled yet.
 - **Optional navigation sidebar** — keep the familiar top navigation or move
   Home, Library, Wall and Tools into a slim left icon rail. The rail reveals
   its labels on hover, and the same saved choice is available in Visual Tweaks

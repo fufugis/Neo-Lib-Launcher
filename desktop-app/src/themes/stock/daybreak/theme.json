@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "id": "daybreak",
+  "name": "Daybreak",
+  "tone": "bright",
+  "palette": {
+    "ink": [
+      48,
+      35,
+      35
+    ],
+    "muted": [
+      130,
+      104,
+      92
+    ],
+    "accent": [
+      231,
+      117,
+      85
+    ],
+    "accent2": [
+      70,
+      151,
+      202
+    ],
+    "accentSoft": [
+      255,
+      200,
+      108
+    ],
+    "hairlineGlow": [
+      231,
+      117,
+      85
+    ],
+    "grad1": [
+      10,
+      4,
+      22
+    ],
+    "grad2": [
+      36,
+      8,
+      60
+    ],
+    "accentText": [
+      160,
+      65,
+      38
+    ],
+    "accent2Text": [
+      31,
+      104,
+      149
+    ]
+  },
+  "panels": {
+    "surface": [
+      255,
+      246,
+      231
+    ],
+    "panel": [
+      255,
+      252,
+      245
+    ],
+    "border": [
+      241,
+      203,
+      164
+    ]
+  },
+  "layers": {
+    "canvas": {
+      "type": "gradient",
+      "from": "grad1",
+      "to": "grad2",
+      "opacity": 1
+    },
+    "atmosphere": {
+      "type": "image",
+      "asset": "assets/daybreak-atmosphere.png",
+      "opacity": 0.5
+    },
+    "sidebar": {
+      "type": "image",
+      "asset": "assets/daybreak-atmosphere.png",
+      "opacity": 0.18
+    },
+    "decoration": {
+      "type": "none"
+    },
+    "navigationFrame": {
+      "type": "none"
+    },
+    "navigationFlourish": {
+      "type": "none"
+    },
+    "controlFrame": {
+      "type": "none"
+    }
+  },
+  "motion": {
+    "cadence": "normal",
+    "reducedMotion": "still"
+  },
+  "license": {
+    "name": "Bundled NEO-LIB artwork; see desktop-app/LICENSE",
+    "attribution": "NEO-LIB"
+  }
+}

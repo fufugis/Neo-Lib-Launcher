@@ -35,6 +35,7 @@ import { collectionCategoryAssignment, collectionFavoriteIds, collectionJourneyS
 import { mergeRetroImport } from './state/retro-import-state.mjs';
 import { journeyStatusAfterFirstLaunch } from './lib/game-journey-model.mjs';
 import { externalRootForGame, normalizeExternalLibraryRoots } from './lib/externalLibraryRoots.mjs';
+import { applyStockThemePalette, stockThemeAssetUrl } from './themes/stock-theme-registry.mjs';
 
 // Read app version once — used by the update checker for comparison.
 const APP_VERSION = '1.7.9';
@@ -485,6 +486,7 @@ export default function App() {
 
   React.useEffect(() => {
     document.documentElement.setAttribute('data-theme', settings.theme || 'synthwave');
+    applyStockThemePalette(document.documentElement, settings.theme || 'synthwave');
   }, [settings.theme]);
   React.useEffect(() => {
     const cursor = ['windows', 'neon', 'petal', 'pixel'].includes(settings.cursorTheme)
@@ -1394,12 +1396,12 @@ export default function App() {
     <div className="neolib-app-shell relative flex h-screen w-screen flex-col bg-surface text-ink" data-neolib-resting={gameRestActive ? 'true' : 'false'} data-special-theme={specialUiTheme || undefined} style={{
       '--special-ui-decoration-opacity': specialUiOpacity,
       '--special-nav-decoration-opacity': specialNavDecorationOpacity,
-      '--special-anime-art': `url(${import.meta.env.BASE_URL}theme-art/anime-control-vine-v1.png)`,
-      '--special-industrial-art': `url(${import.meta.env.BASE_URL}theme-art/industrial-control-machinery-v1.png)`,
-      '--special-magical-art': `url(${import.meta.env.BASE_URL}theme-art/magical-control-runes-v1.png)`,
-      '--special-anime-button-frame': `url(${import.meta.env.BASE_URL}theme-art/anime-button-frame-v2.png)`,
-      '--special-industrial-button-frame': `url(${import.meta.env.BASE_URL}theme-art/industrial-button-frame-v2.png)`,
-      '--special-magical-button-frame': `url(${import.meta.env.BASE_URL}theme-art/magical-button-frame-v2.png)`,
+      '--special-anime-art': `url("${stockThemeAssetUrl('anime', 'decoration')}")`,
+      '--special-industrial-art': `url("${stockThemeAssetUrl('pro', 'decoration')}")`,
+      '--special-magical-art': `url("${stockThemeAssetUrl('colorful', 'decoration')}")`,
+      '--special-anime-button-frame': `url("${stockThemeAssetUrl('anime', 'controlFrame')}")`,
+      '--special-industrial-button-frame': `url("${stockThemeAssetUrl('pro', 'controlFrame')}")`,
+      '--special-magical-button-frame': `url("${stockThemeAssetUrl('colorful', 'controlFrame')}")`,
     }}>
       <HoverTips />
       {/* Window edge glow — soft inner halo around the frameless window (Riot/Discord style) */}

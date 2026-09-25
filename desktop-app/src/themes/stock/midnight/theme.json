@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "id": "midnight",
+  "name": "Midnight",
+  "tone": "dark",
+  "palette": {
+    "ink": [
+      241,
+      244,
+      255
+    ],
+    "muted": [
+      151,
+      163,
+      190
+    ],
+    "accent": [
+      255,
+      229,
+      135
+    ],
+    "accent2": [
+      101,
+      151,
+      255
+    ],
+    "accentSoft": [
+      37,
+      57,
+      108
+    ],
+    "hairlineGlow": [
+      255,
+      229,
+      135
+    ],
+    "grad1": [
+      10,
+      4,
+      22
+    ],
+    "grad2": [
+      36,
+      8,
+      60
+    ],
+    "accentText": [
+      255,
+      229,
+      135
+    ],
+    "accent2Text": [
+      101,
+      151,
+      255
+    ]
+  },
+  "panels": {
+    "surface": [
+      17,
+      21,
+      35
+    ],
+    "panel": [
+      27,
+      34,
+      52
+    ],
+    "border": [
+      52,
+      69,
+      108
+    ]
+  },
+  "layers": {
+    "canvas": {
+      "type": "gradient",
+      "from": "grad1",
+      "to": "grad2",
+      "opacity": 1
+    },
+    "atmosphere": {
+      "type": "image",
+      "asset": "assets/midnight-atmosphere.png",
+      "opacity": 0.5
+    },
+    "sidebar": {
+      "type": "image",
+      "asset": "assets/midnight-atmosphere.png",
+      "opacity": 0.18
+    },
+    "decoration": {
+      "type": "none"
+    },
+    "navigationFrame": {
+      "type": "none"
+    },
+    "navigationFlourish": {
+      "type": "none"
+    },
+    "controlFrame": {
+      "type": "none"
+    }
+  },
+  "motion": {
+    "cadence": "normal",
+    "reducedMotion": "still"
+  },
+  "license": {
+    "name": "Bundled NEO-LIB artwork; see desktop-app/LICENSE",
+    "attribution": "NEO-LIB"
+  }
+}

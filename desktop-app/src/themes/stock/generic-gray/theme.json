@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "id": "generic-gray",
+  "name": "Generic Gray",
+  "tone": "middle",
+  "palette": {
+    "ink": [
+      241,
+      243,
+      246
+    ],
+    "muted": [
+      168,
+      174,
+      182
+    ],
+    "accent": [
+      220,
+      224,
+      230
+    ],
+    "accent2": [
+      158,
+      166,
+      177
+    ],
+    "accentSoft": [
+      84,
+      89,
+      97
+    ],
+    "hairlineGlow": [
+      220,
+      224,
+      230
+    ],
+    "grad1": [
+      10,
+      4,
+      22
+    ],
+    "grad2": [
+      36,
+      8,
+      60
+    ],
+    "accentText": [
+      220,
+      224,
+      230
+    ],
+    "accent2Text": [
+      158,
+      166,
+      177
+    ]
+  },
+  "panels": {
+    "surface": [
+      30,
+      32,
+      36
+    ],
+    "panel": [
+      48,
+      51,
+      56
+    ],
+    "border": [
+      100,
+      105,
+      113
+    ]
+  },
+  "layers": {
+    "canvas": {
+      "type": "gradient",
+      "from": "grad1",
+      "to": "grad2",
+      "opacity": 1
+    },
+    "atmosphere": {
+      "type": "image",
+      "asset": "assets/generic-gray-atmosphere.png",
+      "opacity": 0.5
+    },
+    "sidebar": {
+      "type": "image",
+      "asset": "assets/generic-gray-atmosphere.png",
+      "opacity": 0.18
+    },
+    "decoration": {
+      "type": "none"
+    },
+    "navigationFrame": {
+      "type": "none"
+    },
+    "navigationFlourish": {
+      "type": "none"
+    },
+    "controlFrame": {
+      "type": "none"
+    }
+  },
+  "motion": {
+    "cadence": "normal",
+    "reducedMotion": "still"
+  },
+  "license": {
+    "name": "Bundled NEO-LIB artwork; see desktop-app/LICENSE",
+    "attribution": "NEO-LIB"
+  }
+}

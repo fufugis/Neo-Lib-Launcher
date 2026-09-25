@@ -5,6 +5,7 @@ import {
   Library as LibIcon, Boxes, CheckSquare, Columns, Home, Check, ListTree,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { stockThemeAssetUrl } from '../themes/stock-theme-registry.mjs';
 import SystemHealthBar from './SystemHealthBar';
 import LibraryVisualsPopover from './library/LibraryVisualsPopover';
 import LibraryIconGrid from './library/LibraryIconGrid';
@@ -84,17 +85,6 @@ const BG_TEXTURE_PATTERNS = {
 // A quiet copy of the active theme art gives the Library its own atmosphere
 // without turning the sidebar into a second Home canvas. It is intentionally
 // much dimmer than the main backdrop and disappears with visual effects.
-const SIDEBAR_THEME_ART = {
-  synthwave: 'synthwave-atmosphere.png',
-  'synthwave-day': 'synthwave-day-atmosphere.png',
-  midnight: 'midnight-atmosphere.png', daybreak: 'daybreak-atmosphere.png',
-  mint: 'mint-atmosphere.png', ocean: 'ocean-atmosphere.png', crimson: 'crimson-atmosphere.png',
-  anime: 'anime-atmosphere.png', gaming: 'gaming-atmosphere.png', modern: 'modern-atmosphere.png',
-  colorful: 'colorful-atmosphere.png', pro: 'industrial-atmosphere.png', home: 'home-atmosphere.png',
-  'generic-gray': 'generic-gray-atmosphere.png', 'generic-blue': 'generic-blue-atmosphere.png',
-  monochrome: 'generic-gray-atmosphere.png',
-};
-
 /**
  * Sidebar (tree view)
  * - Top toolbar: Wizard · Library settings (size, etc.) · App settings
@@ -321,13 +311,13 @@ export default function Sidebar({
           data-testid="sidebar-bg-texture"
         />
       )}
-      {Number(effectsLevel) > 0 && SIDEBAR_THEME_ART[currentTheme] && (
+      {Number(effectsLevel) > 0 && stockThemeAssetUrl(currentTheme, 'sidebar') && (
         <span
           aria-hidden
           className={`sidebar-theme-art ${motionCadence === 'calm' ? '' : 'sidebar-theme-art-drift'}`}
           style={{
             opacity: Math.min(0.12, 0.035 + (Number(effectsLevel) * 0.022)),
-            backgroundImage: `url(${import.meta.env.BASE_URL}theme-art/${SIDEBAR_THEME_ART[currentTheme]})`,
+            backgroundImage: `url("${stockThemeAssetUrl(currentTheme, 'sidebar')}")`,
           }}
           data-testid="sidebar-theme-art"
         />

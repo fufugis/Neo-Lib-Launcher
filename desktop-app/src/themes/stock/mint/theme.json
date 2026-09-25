@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "id": "mint",
+  "name": "Mint Garden",
+  "tone": "bright",
+  "palette": {
+    "ink": [
+      14,
+      38,
+      26
+    ],
+    "muted": [
+      90,
+      130,
+      110
+    ],
+    "accent": [
+      52,
+      201,
+      138
+    ],
+    "accent2": [
+      18,
+      142,
+      200
+    ],
+    "accentSoft": [
+      255,
+      158,
+      138
+    ],
+    "hairlineGlow": [
+      52,
+      201,
+      138
+    ],
+    "grad1": [
+      10,
+      4,
+      22
+    ],
+    "grad2": [
+      36,
+      8,
+      60
+    ],
+    "accentText": [
+      17,
+      120,
+      76
+    ],
+    "accent2Text": [
+      8,
+      102,
+      148
+    ]
+  },
+  "panels": {
+    "surface": [
+      244,
+      252,
+      246
+    ],
+    "panel": [
+      234,
+      248,
+      240
+    ],
+    "border": [
+      188,
+      226,
+      200
+    ]
+  },
+  "layers": {
+    "canvas": {
+      "type": "gradient",
+      "from": "grad1",
+      "to": "grad2",
+      "opacity": 1
+    },
+    "atmosphere": {
+      "type": "image",
+      "asset": "assets/mint-atmosphere.png",
+      "opacity": 0.5
+    },
+    "sidebar": {
+      "type": "image",
+      "asset": "assets/mint-atmosphere.png",
+      "opacity": 0.18
+    },
+    "decoration": {
+      "type": "none"
+    },
+    "navigationFrame": {
+      "type": "none"
+    },
+    "navigationFlourish": {
+      "type": "none"
+    },
+    "controlFrame": {
+      "type": "none"
+    }
+  },
+  "motion": {
+    "cadence": "normal",
+    "reducedMotion": "still"
+  },
+  "license": {
+    "name": "Bundled NEO-LIB artwork; see desktop-app/LICENSE",
+    "attribution": "NEO-LIB"
+  }
+}
