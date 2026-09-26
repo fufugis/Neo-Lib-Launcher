@@ -15,7 +15,7 @@ export const EMPTY_GAME_UPDATES = Object.freeze({ loading: false, items: [], nee
 
 export function normaliseGameUpdates(value) {
   if (!value || typeof value !== 'object') return { ...EMPTY_GAME_UPDATES };
-  return { ...EMPTY_GAME_UPDATES, items: Array.isArray(value.items) ? value.items : [], needsSetup: Array.isArray(value.needsSetup) ? value.needsSetup : [], ledger: Array.isArray(value.ledger) ? value.ledger : [], checked: Number(value.checked || 0), launcherManagedCount: Number(value.launcherManagedCount || 0), scannedAt: Number(value.scannedAt || 0), error: value.error || '' };
+  return { ...EMPTY_GAME_UPDATES, loading: Boolean(value.loading), items: Array.isArray(value.items) ? value.items : [], needsSetup: Array.isArray(value.needsSetup) ? value.needsSetup : [], ledger: Array.isArray(value.ledger) ? value.ledger : [], checked: Number(value.checked || 0), launcherManagedCount: Number(value.launcherManagedCount || 0), scannedAt: Number(value.scannedAt || 0), error: value.error || '' };
 }
 
 export function maskHomeNews(item, lockedGameCategories) {

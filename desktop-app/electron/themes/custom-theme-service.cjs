@@ -1,5 +1,6 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 const blankTheme = require('./blank-theme.json');
 const { validateThemeGif } = require('./validate-theme-gif.cjs');
 const { validateThemeWebm, MAX_WEBM_BYTES } = require('./validate-theme-webm.cjs');
@@ -8,8 +9,10 @@ const LAYERS = ['canvas', 'atmosphere', 'sidebar', 'decoration', 'navigationFram
 const PALETTE = ['ink', 'muted', 'accent', 'accent2', 'accentSoft', 'hairlineGlow', 'grad1', 'grad2', 'accentText', 'accent2Text'];
 const PANELS = ['surface', 'panel', 'border'];
 const MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif', webm: 'video/webm' };
+const STOCK_FX = new Set(['anime', 'colorful', 'crimson', 'daybreak', 'gaming', 'generic-blue', 'generic-gray', 'home', 'midnight', 'mint', 'modern', 'monochrome', 'ocean', 'pro', 'synthwave', 'synthwave-day']);
 const MAX_MANIFEST = 32 * 1024;
-const MAX_ASSET = 2 * 1024 * 1024;
+const MAX_ASSET = 3 * 1024 * 1024;
+const MAX_GIF = 2 * 1024 * 1024;
 const MAX_PACKAGE = 12 * 1024 * 1024;
 
 function imageLooksValid(bytes, ext) {
@@ -60,6 +63,7 @@ function validateManifest(manifest) {
   if (manifest.effects !== undefined) {
     const emitters = manifest.effects?.particles;
     if (!manifest.effects || typeof manifest.effects !== 'object' || Array.isArray(manifest.effects) || !Array.isArray(emitters) || emitters.length > 3) throw new Error('At most three particle emitters are allowed.');
+    if (manifest.effects.stockFx !== undefined && manifest.effects.stockFx !== '' && !STOCK_FX.has(manifest.effects.stockFx)) throw new Error('Unknown built-in effect preset.');
     const seen = new Set();
     for (const emitter of emitters) {
       if (!emitter || typeof emitter !== 'object' || Array.isArray(emitter) || !/^[a-z0-9][a-z0-9-]{0,31}$/.test(emitter.id || '') || seen.has(emitter.id)) throw new Error('Particle emitters need unique lowercase IDs.');
@@ -81,15 +85,15 @@ function validateManifest(manifest) {
   return [...assets];
 }
 
-function createCustomThemeService({ root, reservedIds = [] }) {
+function createCustomThemeService({ root, stockRoot, workbenchRoot, openPath, showItemInFolder, reservedIds = [] }) {
   const targetRoot = () => root();
-  async function readPackage(manifestPath, includeData = false) {
+  async function readPackage(manifestPath, includeData = false, allowStock = false) {
     if (typeof manifestPath !== 'string' || path.basename(manifestPath).toLowerCase() !== 'theme.json') throw new Error('Select a theme.json file.');
     const stat = await fs.lstat(manifestPath);
     if (!stat.isFile() || stat.isSymbolicLink() || stat.size > MAX_MANIFEST) throw new Error('Theme manifest is not a regular, bounded file.');
     const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
     const assets = validateManifest(manifest);
-    if (reservedIds.includes(manifest.id)) throw new Error('A built-in theme already uses this ID.');
+    if (reservedIds.includes(manifest.id) && !allowStock) throw new Error('A built-in theme already uses this ID.');
     const source = path.dirname(manifestPath);
     let bytes = stat.size;
     const files = [];
@@ -99,7 +103,7 @@ function createCustomThemeService({ root, reservedIds = [] }) {
       const folderStat = await fs.lstat(path.dirname(file));
       const fileStat = await fs.lstat(file);
       const ext = path.extname(file).slice(1).toLowerCase();
-      if (!folderStat.isDirectory() || folderStat.isSymbolicLink() || !fileStat.isFile() || fileStat.isSymbolicLink() || fileStat.size > (ext === 'webm' ? MAX_WEBM_BYTES : MAX_ASSET)) throw new Error(`Invalid or oversized artwork: ${asset}`);
+      if (!folderStat.isDirectory() || folderStat.isSymbolicLink() || !fileStat.isFile() || fileStat.isSymbolicLink() || fileStat.size > (ext === 'webm' ? MAX_WEBM_BYTES : ext === 'gif' ? MAX_GIF : MAX_ASSET)) throw new Error(`Invalid or oversized artwork: ${asset}`);
       bytes += fileStat.size;
       if (bytes > MAX_PACKAGE) throw new Error('Theme package exceeds 12 MB.');
       const data = await fs.readFile(file);
@@ -147,13 +151,16 @@ function createCustomThemeService({ root, reservedIds = [] }) {
   }
   async function fork(request) {
     try {
-      const { sourceId, newId, newName, creator, tone, particles, palette, panels, layers } = request || {};
+      const { sourceId, newId, newName, creator, tone, particles, palette, panels, layers, stockFx } = request || {};
       if (!/^[a-z0-9][a-z0-9-]{1,63}$/.test(sourceId || '') || !/^[a-z0-9][a-z0-9-]{1,63}$/.test(newId || '') || sourceId === newId || reservedIds.includes(newId)) throw new Error('Choose a new lowercase theme ID.');
       if (typeof newName !== 'string' || !newName.trim() || newName.length > 80 || typeof creator !== 'string' || !creator.trim() || creator.length > 80) throw new Error('Theme name and creator credit are required.');
       if (!Array.isArray(particles) || particles.length > 3) throw new Error('Choose at most three particle emitters.');
+      if (stockFx !== undefined && stockFx !== '' && !STOCK_FX.has(stockFx)) throw new Error('Choose a built-in effect preset.');
       const source = sourceId === 'blank-starter'
         ? { manifest: blankTheme, files: [] }
-        : await readPackage(path.join(targetRoot(), sourceId, 'theme.json'));
+        : reservedIds.includes(sourceId)
+          ? await readPackage(path.join(stockRoot(), sourceId, 'theme.json'), false, true)
+          : await readPackage(path.join(targetRoot(), sourceId, 'theme.json'));
       if (source.manifest.id !== sourceId) throw new Error('Source theme identity is invalid.');
       const existing = new Set(source.files.map(file => file.asset));
       const added = [];
@@ -194,7 +201,7 @@ function createCustomThemeService({ root, reservedIds = [] }) {
       const attribution = sourceId === 'blank-starter' ? creator.trim() : `${source.manifest.license.attribution} · Remix: ${creator.trim()}`;
       const manifest = { ...source.manifest, id: newId, name: newName.trim(), tone: tone || source.manifest.tone,
         palette: palette || source.manifest.palette, panels: panels || source.manifest.panels, layers: artwork,
-        license: { ...source.manifest.license, attribution }, effects: { particles: emitters } };
+        license: { ...source.manifest.license, attribution }, effects: { particles: emitters, ...(stockFx ? { stockFx } : {}) } };
       const referenced = new Set(validateManifest(manifest));
       await fs.mkdir(targetRoot(), { recursive: true });
       const destination = path.join(targetRoot(), newId);
@@ -207,7 +214,7 @@ function createCustomThemeService({ root, reservedIds = [] }) {
         for (const entry of added) {
           const stat = await fs.lstat(entry.file);
           const ext = path.extname(entry.file).slice(1).toLowerCase();
-          if (!stat.isFile() || stat.isSymbolicLink() || stat.size > (ext === 'webm' ? MAX_WEBM_BYTES : MAX_ASSET)) throw new Error('Theme artwork is invalid or too large.');
+          if (!stat.isFile() || stat.isSymbolicLink() || stat.size > (ext === 'webm' ? MAX_WEBM_BYTES : ext === 'gif' ? MAX_GIF : MAX_ASSET)) throw new Error('Theme artwork is invalid or too large.');
           const data = await fs.readFile(entry.file);
           if (ext === 'gif') validateThemeGif(data);
           else if (ext === 'webm') validateThemeWebm(data);
@@ -219,6 +226,27 @@ function createCustomThemeService({ root, reservedIds = [] }) {
         await fs.rename(staging, destination);
       } finally { await fs.rm(staging, { recursive: true, force: true }); }
       return { ok: true, id: newId };
+    } catch (error) { return { ok: false, error: error.message }; }
+  }
+  async function prepareAsset({ sourceId, asset, action = 'copy' } = {}) {
+    try {
+      if (!/^[a-z0-9][a-z0-9-]{1,63}$/.test(sourceId || '') || !['copy', 'edit', 'reveal'].includes(action)) throw new Error('Choose a valid source theme and action.');
+      const stock = reservedIds.includes(sourceId) && sourceId !== 'blank-starter';
+      const source = await readPackage(path.join(stock ? stockRoot() : targetRoot(), sourceId, 'theme.json'), false, stock);
+      if (source.manifest.id !== sourceId) throw new Error('Source theme identity is invalid.');
+      const selected = source.files.find(file => file.asset === asset);
+      const ext = path.extname(asset || '').toLowerCase();
+      if (!selected || !['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) throw new Error('Choose a still-image asset from the selected theme.');
+      await fs.mkdir(workbenchRoot(), { recursive: true });
+      const folder = await fs.mkdtemp(path.join(workbenchRoot(), 'copy-'));
+      const file = path.join(folder, path.basename(asset));
+      await fs.copyFile(selected.file, file);
+      if (action === 'edit' && openPath) {
+        const error = await openPath(file);
+        if (error) throw new Error(`The copy was made, but its editor could not open: ${error}`);
+      }
+      if (action === 'reveal' && showItemInFolder) showItemInFolder(file);
+      return { ok: true, path: file, url: pathToFileURL(file).href };
     } catch (error) { return { ok: false, error: error.message }; }
   }
   async function list() {
@@ -234,7 +262,7 @@ function createCustomThemeService({ root, reservedIds = [] }) {
     } catch (error) { if (error.code !== 'ENOENT') throw error; }
     return { ok: true, themes };
   }
-  return { inspect, install, fork, list };
+  return { inspect, install, fork, list, prepareAsset };
 }
 
 module.exports = { createCustomThemeService, validateManifest };

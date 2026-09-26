@@ -168,6 +168,7 @@ export function BgAmbience({ theme, settings = {}, game = null, resting = false,
     monochrome: 'amb-monochrome',
   }[theme];
   const isSpecial = ['anime', 'colorful', 'pro'].includes(theme);
+  const customFx = customThemeManifest(theme)?.effects?.stockFx;
   const specialDecorationOpacity = Math.max(0, Math.min(100, Number(settings.specialDecorationOpacity ?? 46))) / 100;
   // Special themes bump particle count so they always feel "extra"
   const particleCount = isSpecial
@@ -199,7 +200,11 @@ export function BgAmbience({ theme, settings = {}, game = null, resting = false,
           </div>
         )}
         {customThemeManifest(theme)
-          ? <CustomThemeParticles theme={theme} level={level} cadence={cadence} eventPulse={eventPulse} />
+          ? <>{customFx && level > 0 && <div className="custom-stock-fx absolute inset-0 pointer-events-none">
+            {customFx === 'anime' && sakuraCount > 0 && <Sakura count={sakuraCount} />}
+            {customFx === 'colorful' && <div className="shooting-stars">{Array.from({ length: Math.max(2, level + 1) }).map((_, i) => <span key={i} style={{ top: `${8 + i * 22}%`, animationDelay: `${i * 1.6}s`, animationDuration: `${5 + (i % 3)}s` }} />)}</div>}
+            {showParticles && <Particles count={particleBaseCount} theme={customFx} />}
+          </div>}<CustomThemeParticles theme={theme} level={level} cadence={cadence} eventPulse={eventPulse} /></>
           : showParticles && <Particles count={particleCount} theme={theme} />}
       </div>
       {edgeGlowLayer}

@@ -58,6 +58,11 @@ function registerGameIpc({ registerIpc, services }) {
       && isPath(payload.libraryRootPath, { required: false })
       && isIdentifier(payload.gameId, { required: false })
       && isBoundedString(payload.name, { max: 500 })
+      && isBoundedString(payload.launcher, { max: 100 })
+      && isBoundedString(payload.source, { max: 100 })
+      && isBoundedString(payload.appid, { max: 20 })
+      && isBoolean(payload.steamOwned)
+      && isIdentifier(payload.launchRouteId, { required: false })
       && isBoundedString(payload.launchToken, { max: 256 }),
     invalidRequest('The game launch request was malformed.'),
   ), isLaunchResult, invalidResponse('The game launch service returned an invalid result.')));

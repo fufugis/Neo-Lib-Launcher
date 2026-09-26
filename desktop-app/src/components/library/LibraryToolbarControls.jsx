@@ -1,6 +1,6 @@
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, Filter } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import NavButtonArtwork from '../NavButtonArtwork';
 
@@ -11,10 +11,11 @@ export const SideBtn = React.forwardRef(function SideBtn({ icon, label, labelSty
       data-testid={testid}
       onClick={onClick}
       title={title || label}
+      aria-label={title || label}
       className="library-toolbar-control group inline-flex items-center gap-1.5 rounded-md hairline px-3 h-8 text-[12px] font-semibold text-ink/90 hover:text-ink hover:border-[rgb(var(--accent)/0.62)] transition-all"
     >
       <span className="text-[rgb(var(--accent))] transition-transform group-hover:scale-110">{icon}</span>
-      {label && <span className="overflow-hidden whitespace-nowrap" style={labelStyle}>{label}</span>}
+      {label && <span className="library-action-label overflow-hidden whitespace-nowrap" style={labelStyle}>{label}</span>}
     </button>
   );
 });
@@ -25,6 +26,7 @@ export function TabPill({ label, icon, active, onClick, testid, big = false, bad
       data-testid={testid}
       onClick={onClick}
       title={label}
+      aria-label={label}
       aria-pressed={active}
       className={cn(
         'neolib-nav-tab group relative inline-flex flex-1 min-w-0 items-center justify-center gap-1.5 rounded-lg transition-all overflow-visible',
@@ -70,7 +72,7 @@ export function TabPill({ label, icon, active, onClick, testid, big = false, bad
         {icon}
       </span>
       {showLabel && (
-        <span className="relative overflow-hidden whitespace-nowrap" style={labelStyle}>
+        <span className="library-nav-label relative overflow-hidden whitespace-nowrap" style={labelStyle}>
           {label}
         </span>
       )}
@@ -121,7 +123,7 @@ const LAUNCHER_OPTIONS = [
   { id: 'itch', label: 'itch.io' },
   { id: 'other', label: 'Other' },
 ];
-export function LauncherDropdown({ value = 'all', onChange }) {
+export function LauncherDropdown({ value = 'all', onChange, compact = false }) {
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef(null);
   React.useEffect(() => {
@@ -137,20 +139,24 @@ export function LauncherDropdown({ value = 'all', onChange }) {
   }, [open]);
   const current = LAUNCHER_OPTIONS.find((o) => o.id === value) || LAUNCHER_OPTIONS[0];
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative shrink-0">
       <button
         type="button"
         data-testid="launcher-dropdown-toggle"
         onClick={() => setOpen((v) => !v)}
+        aria-label={`Filter launchers: ${current.label}`}
+        title={`Filter launchers: ${current.label}`}
         className={cn(
-          'inline-flex items-center gap-1 rounded-md hairline px-2.5 h-6 text-[10.5px] font-semibold tracking-wide transition-all',
+          'inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-md hairline text-[10.5px] font-semibold tracking-wide transition-all',
+          compact ? 'w-7 p-0' : 'px-2.5',
+          'library-filter-control',
           open || value !== 'all'
             ? 'text-ink border-[rgb(var(--accent-2)/0.78)]'
             : 'text-ink/85 hover:text-ink hover:border-[rgb(var(--accent)/0.62)]'
         )}
       >
-        <ChevronDown size={10} className={cn('transition-transform', open && 'rotate-180')} />
-        {current.label}
+        <Filter size={14} className={compact ? '' : 'library-compact-only hidden'} />
+        {!compact && <span className="library-filter-text inline-flex items-center gap-1 whitespace-nowrap"><ChevronDown size={10} className={cn('transition-transform', open && 'rotate-180')} />{current.label}</span>}
       </button>
       <AnimatePresence>
         {open && (
@@ -185,5 +191,3 @@ export function LauncherDropdown({ value = 'all', onChange }) {
     </div>
   );
 }
-
-

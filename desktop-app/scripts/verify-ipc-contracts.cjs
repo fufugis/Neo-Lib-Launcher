@@ -559,6 +559,7 @@ async function main() {
     async inspect() { return { ok: true }; }, async install() { return { ok: true }; },
     async list() { return { ok: true, themes: [] }; },
     async fork() { forkCalls += 1; return { ok: true, id: 'new-theme' }; },
+    async prepareAsset() { return { ok: true, path: 'C:\\Theme\\copy.png', url: 'file:///C:/Theme/copy.png' }; },
   } });
   const remixRequest = { sourceId: 'source-theme', newId: 'new-theme', newName: 'New Theme', creator: 'Tester', tone: 'dark',
     palette: Object.fromEntries(Array.from({ length: 10 }, (_, index) => [`colour${index}`, [1, 2, 3]])),
@@ -567,8 +568,11 @@ async function main() {
   assert.equal(forkCalls, 0);
   assert.equal((await themeHandlers['themes:fork']({}, remixRequest)).ok, true);
   assert.equal(forkCalls, 1);
+  assert.equal((await themeHandlers['themes:prepareAsset']({}, { sourceId: 'home', asset: '../private.png', action: 'copy' })).code, 'INVALID_REQUEST');
+  assert.equal((await themeHandlers['themes:prepareAsset']({}, { sourceId: 'home', asset: 'assets/art.png', action: 'copy' })).ok, true);
+  assert.equal((await themeHandlers['themes:prepareAsset']({}, { sourceId: 'home', asset: 'assets/art.png', action: 'run' })).code, 'INVALID_REQUEST');
 
-  console.log('PASS: renderer payload contracts reject malformed input before native services, and all 104 native commands enforce response contracts while preserving valid success and failure results.');
+  console.log('PASS: renderer payload contracts reject malformed input before native services, and all 105 native commands enforce response contracts while preserving valid success and failure results.');
 }
 
 main().catch(error => {

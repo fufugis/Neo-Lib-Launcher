@@ -13,7 +13,7 @@ export default function LoungeDetails({ game, updateLedger, view, mascotId = 'fu
   const context = loungeSessionContext(game, updateLedger);
   if (!context) return null;
   const mascotName = mascotId === 'fifi' ? 'FiFi' : 'Fungist';
-  return <footer className="max-h-[40vh] shrink-0 overflow-y-auto border-t border-[rgb(var(--border))] bg-[rgb(var(--panel))] px-4 py-4 sm:px-8" data-testid="lounge-details">
+  return <footer className="relative z-10 max-h-[40vh] shrink-0 overflow-y-auto border-t border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.88)] px-4 py-4 backdrop-blur-xl sm:px-8" data-testid="lounge-details">
     <div className="flex flex-wrap items-center gap-4">
       <div className="min-w-40 flex-1"><p className="truncate text-2xl font-bold">{game.name}</p><p className="text-sm text-muted">{game.launcher || game.source || 'Library game'}</p></div>
       <div className="grid min-w-48 flex-[2] grid-cols-1 gap-2 sm:grid-cols-3"><Fact label="Played" value={context.playtime} /><Fact label="Last session" value={context.lastPlayed} /><Fact label="Journey" value={context.journey} /></div>

@@ -35,7 +35,17 @@ const webmBytes = Buffer.concat([
     await fs.copyFile(sourceImage, path.join(source, 'assets/home-atmosphere.png'));
     await fs.copyFile(sourceImage, path.join(source, 'assets/firefly.png'));
     await fs.writeFile(manifestPath, JSON.stringify(manifest));
-    const service = createCustomThemeService({ root: () => path.join(temp, 'installed'), reservedIds: ['home'] });
+    const stockRoot = path.join(__dirname, '../src/themes/stock');
+    const workbenchRoot = path.join(temp, 'workbench');
+    const editorOpened = [];
+    const service = createCustomThemeService({ root: () => path.join(temp, 'installed'), stockRoot: () => stockRoot, workbenchRoot: () => workbenchRoot,
+      openPath: async file => { editorOpened.push(file); return ''; }, reservedIds: ['home', 'anime'] });
+    const stockCopy = await service.prepareAsset({ sourceId: 'home', asset: 'assets/home-atmosphere.png', action: 'edit' });
+    assert.equal(stockCopy.ok, true, stockCopy.error);
+    assert.equal(editorOpened[0], stockCopy.path);
+    assert.notEqual(stockCopy.path, sourceImage, 'editing must open a copy, never built-in artwork');
+    assert.deepEqual(await fs.readFile(stockCopy.path), await fs.readFile(sourceImage));
+    assert.equal((await service.prepareAsset({ sourceId: 'home', asset: '../outside.png', action: 'copy' })).ok, false);
     assert.match((await service.inspect(manifestPath)).previewUrl, /^data:image\/png;base64,/);
     assert.equal((await service.install(manifestPath)).ok, true);
     assert.equal((await service.install(manifestPath)).ok, false, 'an existing user theme must not be overwritten');
@@ -184,6 +194,15 @@ const webmBytes = Buffer.concat([
     assert.equal((await service.inspect(manifestPath)).ok, false, 'path traversal must be rejected');
     await fs.writeFile(path.join(temp, 'installed/example-theme/assets/home-atmosphere.png'), 'not an image');
     assert.equal((await service.list()).themes.some(theme => theme.manifest.id === 'example-theme'), false, 'modified installed artwork must not load');
+    const stockRemix = await service.fork({ sourceId: 'home', newId: 'home-remix', newName: 'Home Remix', creator: 'Tester',
+      layers: { ...stock.layers, navigationFrame: { type: 'image', sourcePath: stockCopy.path, opacity: 1 } }, particles: [] });
+    assert.equal(stockRemix.ok, true, stockRemix.error);
+    assert.equal((await fs.stat(sourceImage)).isFile(), true);
+    const animeCopy = await service.prepareAsset({ sourceId: 'anime', asset: 'assets/anime-button-frame-v2.png', action: 'copy' });
+    assert.equal(animeCopy.ok, true, animeCopy.error);
+    const animeRemix = await service.fork({ sourceId: 'anime', newId: 'anime-remix', newName: 'Anime Remix', creator: 'Tester', stockFx: 'anime', particles: [] });
+    assert.equal(animeRemix.ok, true, animeRemix.error);
+    assert.equal((await service.list()).themes.find(theme => theme.manifest.id === 'anime-remix')?.manifest.effects.stockFx, 'anime');
     console.log('PASS: custom themes inspect, install without overwrite, survive reload, and reject script, reserved ID, traversal and tampering.');
   } finally { await fs.rm(temp, { recursive: true, force: true }); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

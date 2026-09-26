@@ -9,6 +9,7 @@ import { Bluetooth, CheckCircle2, Gamepad2, Radio, RefreshCw, Settings2 } from '
 export default function ControllerCenterPrototype({ inventory, selectedFingerprint = '', navigationEnabled = false, onNavigationEnabledChange, onSelect, onManageWindows, onOpenSteamController, onRefresh, refreshedAt = 0 }) {
   const controllers = Array.isArray(inventory?.controllers) ? inventory.controllers : [];
   const selected = controllers.find((controller) => controller.fingerprint === selectedFingerprint) || controllers.find((controller) => controller.index === inventory?.selectedIndex) || controllers[0] || null;
+  const eventOnly = selected && inventory?.eventOnlyIndexes?.includes(selected.index);
   const pressed = Array.isArray(inventory?.selectedInput?.pressed) ? inventory.selectedInput.pressed : [];
   const axes = Array.isArray(inventory?.selectedInput?.axes) ? inventory.selectedInput.axes : [];
 
@@ -16,7 +17,7 @@ export default function ControllerCenterPrototype({ inventory, selectedFingerpri
     <header className="flex flex-wrap items-start justify-between gap-3">
       <div className="flex items-center gap-3">
         <span className="grid h-10 w-10 place-items-center rounded-xl bg-[rgb(var(--accent)/0.13)] text-[rgb(var(--accent))]"><Gamepad2 size={20} /></span>
-        <div><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">Controller Center</p><h2 className="mt-0.5 text-sm font-black">{controllers.length ? `${controllers.length} connected` : 'No controller detected'}</h2></div>
+        <div><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">Controller Center</p><h2 className="mt-0.5 text-sm font-black">{controllers.length ? `${controllers.length} detected` : inventory?.access === 'blocked' ? 'Controller access blocked' : inventory?.access === 'unavailable' ? 'Controller input unavailable' : 'No controller available to NEO-LIB'}</h2></div>
       </div>
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={onRefresh} className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--surface)/0.62)] px-3 py-2 text-[10px] font-black text-ink hover:border-[rgb(var(--accent)/0.5)]"><RefreshCw size={13} />Refresh</button>
@@ -39,9 +40,10 @@ export default function ControllerCenterPrototype({ inventory, selectedFingerpri
           {active && <CheckCircle2 size={15} className="shrink-0 text-emerald-300" />}
         </button>;
       })}
-      {!controllers.length && <div className="sm:col-span-2 grid min-h-28 place-items-center rounded-xl border border-dashed border-[rgb(var(--border)/0.75)] px-5 text-center"><div><Settings2 size={18} className="mx-auto text-muted" /><p className="mt-2 text-[10px] text-muted">Connect a controller, press one of its buttons, then refresh this panel.</p></div></div>}
+      {!controllers.length && <div className="sm:col-span-2 grid min-h-28 place-items-center rounded-xl border border-dashed border-[rgb(var(--border)/0.75)] px-5 text-center"><div><Settings2 size={18} className="mx-auto text-muted" /><p className="mt-2 text-[10px] text-muted">Focus NEO-LIB and press a controller button, then Refresh. Windows or Steam can see a device that this app cannot yet read.</p><p className="mt-2 text-[10px] text-muted">8BitDo Ultimate 2 Wireless on Windows: use the 2.4G switch with its USB receiver/dock, or connect by USB cable. Bluetooth through Steam Input is a separate route.</p></div></div>}
     </div>
 
+    {eventOnly && <p className="mt-3 rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-[10px] text-amber-100">A connection event arrived, but live input is not yet available. Try another button press or the controller's Windows-compatible mode before enabling navigation.</p>}
     {selected && <div className="mt-3 rounded-xl border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--surface)/0.34)] p-3" data-testid="controller-input-test">
       <div className="flex items-center justify-between gap-3"><div><p className="text-[9px] font-black uppercase tracking-[0.18em] text-[rgb(var(--accent-2))]">Live input test</p><p className="mt-0.5 text-[10px] text-muted">Press a button or move a stick on the preferred controller.</p></div><span className={`rounded-full border px-2 py-1 text-[9px] font-black ${pressed.length || axes.some(Boolean) ? 'border-emerald-400/45 bg-emerald-400/10 text-emerald-300' : 'border-[rgb(var(--border)/0.7)] text-muted'}`}>{pressed.length || axes.some(Boolean) ? 'Input detected' : 'Waiting'}</span></div>
       <div className="mt-2 grid gap-2 sm:grid-cols-2">

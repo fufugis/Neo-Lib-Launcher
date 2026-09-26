@@ -26,7 +26,7 @@ function createGameLaunchService({
     return { ok: true, token };
   }
 
-  async function launch(event, { exePath, launchArgs, workingDirectory, gameId, name, launchToken, libraryRootPath } = {}) {
+  async function launch(event, { exePath, launchArgs, workingDirectory, gameId, name, launchToken, libraryRootPath, launcher, source, appid, steamOwned, launchRouteId } = {}) {
     if (!exePath || typeof exePath !== 'string') return { ok: false, error: 'No exePath provided' };
     try {
       if (/^(?:ms-settings:|shell:)/i.test(exePath)) {
@@ -81,6 +81,16 @@ function createGameLaunchService({
       safety.lastAt = now;
       writeSharedSafety({ lastAt: now, lockedUntil: 0 });
       recordSafety('accepted', { gameId, name: safeName });
+      // A Steam import must enter through Steam, not its discovered EXE: Steam
+      // owns launch choices, cloud saves and the Steamworks app context. Build
+      // the URL from a numeric ID rather than accepting an arbitrary URI.
+      const steamImport = String(launcher || '').toLowerCase() === 'steam'
+        && (source === 'steam-import' || steamOwned === true)
+        && steamOwned !== false && !launchRouteId && /^\d{1,10}$/.test(String(appid || ''));
+      if (steamImport) {
+        await shell.openExternal(`steam://run/${appid}`);
+        return { ok: true, target: 'steam' };
+      }
       const argv = parseLaunchArguments(launchArgs || '');
       if (platform === 'win32') {
         const child = spawn(exePath, argv, { detached: true, stdio: 'ignore', cwd: workingDirectory || path.dirname(exePath) });

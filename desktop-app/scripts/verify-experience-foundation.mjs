@@ -108,6 +108,19 @@ listeners.get('gamepadconnected')();
 assert.equal(notified, 2);
 unsubscribe();
 assert.equal(listeners.size, 0);
+const eventPad = { index: 1, id: '8BitDo-style HID pad', connected: true, mapping: '', buttons: Array(12), axes: Array(4) };
+const eventAdapter = createControllerInput({
+  navigatorRef: { getGamepads: () => [] },
+  windowRef: { addEventListener: (name, fn) => listeners.set(name, fn), removeEventListener: (name) => listeners.delete(name) },
+});
+const stopEventAdapter = eventAdapter.subscribe(() => {});
+listeners.get('gamepadconnected')({ gamepad: eventPad });
+assert.equal(eventAdapter.snapshot().connectedCount, 1, 'a connection event must not vanish when browser enumeration lags');
+assert.deepEqual(eventAdapter.snapshot().eventOnlyIndexes, [1], 'event-only pads must not be presented as live navigation-ready');
+listeners.get('gamepaddisconnected')({ gamepad: eventPad });
+assert.equal(eventAdapter.snapshot().connectedCount, 0, 'disconnect must clear the event fallback');
+stopEventAdapter();
+assert.equal(createControllerInput({ navigatorRef: { getGamepads: () => { throw new Error('blocked'); } } }).snapshot().access, 'blocked');
 
 const frameQueue = [];
 const emittedCommands = [];
@@ -246,6 +259,11 @@ assert.match(lounge, /shownGames\.some\(\(game\) => game\.id === focusedGameId\.
 assert.match(lounge, /document\.hasFocus\(\) && !surfaceRef\.current\?\.contains\(document\.activeElement\)/, 'Lounge must not steal focus from another visible control or an unfocused window');
 assert.match(lounge, /querySelector\('\[data-lounge-game\]:focus'\)/, 'mouse hover cannot silently replace a keyboard- or pad-focused game');
 assert.match(lounge, /clamp\(170px, 18vw, 320px\)/, 'Lounge cover width must scale for couch browsing and remain bounded');
+assert.match(lounge, /data-lounge-layout=\{layout\}/, 'Lounge must expose its active Wall or browser layout');
+assert.match(lounge, /\['wall', 'Wall'\], \['browser', 'Game browser'\]/, 'players can choose both Lounge layouts');
+assert.match(lounge, /<BgAmbience theme=\{theme\} settings=\{themeSettings\}/, 'Lounge reuses the active theme effects');
+assert.match(lounge, /data-lounge-selected=\{selected\?\.id === game\.id/, 'the targeted cover must have an explicit selection state');
+assert.match(app, /onLayoutChange=\{\(loungeLayout\) => updateSetting\(\{ loungeLayout \}\)\}/, 'Lounge layout preference is saved');
 assert.match(bridge, /data-controller-surface'\) === 'lounge'/);
 assert.match(bridge, /targets\.includes\(document\.activeElement\) && document\.activeElement !== focused/, 'pad navigation must follow focus moved by Lounge or keyboard');
 assert.match(bridge, /if \(canControllerActivate\(target\)\) target\.click\(\)/, 'shoulders use only the existing safe view buttons');

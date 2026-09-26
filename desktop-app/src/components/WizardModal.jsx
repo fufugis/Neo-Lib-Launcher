@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   FolderSearch, Loader2, Check, X as XIcon, ChevronRight, Sparkles,
   Search, ArrowRight, ArrowLeft, PlusCircle, FolderOpen, Gamepad2,
+  HardDrive, RefreshCw, RotateCw, ListChecks, LayoutGrid, Disc3,
+  Zap, Orbit, Swords, Crosshair, MonitorPlay, Star, Heart, FolderCog,
 } from 'lucide-react';
 import Modal from './Modal';
 import { guessNameFromPath } from '../lib/utils';
@@ -465,22 +467,26 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
 
   return (
     <>
-    <Modal open={open && !launcherConfirm} onClose={onClose} title="Auto-import Wizard" wide testid="wizard-modal">
+    <Modal open={open && !launcherConfirm} onClose={onClose} title="Add Games · Wizard" wide testid="wizard-modal">
       {step === 1 && (
         <div className="space-y-4 p-6">
-          <div className="flex items-start gap-3">
-            <Sparkles size={18} className="mt-0.5 text-[rgb(var(--accent))]" />
-            <p className="text-sm text-muted">
-              Add one executable manually, pick a folder to scan, or import directly from your installed launchers below.
-              Launcher imports add installed games using local records after confirmation. Use Refresh info afterwards to choose artwork and descriptions. Folder scans let you review each match.
-            </p>
+          <div className="flex items-start gap-3 rounded-xl border border-[rgb(var(--accent)/0.3)] bg-[rgb(var(--accent)/0.08)] p-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[rgb(var(--accent)/0.16)] text-[rgb(var(--accent))]"><Sparkles size={19} /></span>
+            <p className="text-sm leading-relaxed text-ink"><strong className="block font-bold">How would you like to add games?</strong><span className="text-xs text-muted">Pick a route below. NEO-LIB lets you review matches before adding them.</span></p>
           </div>
+          <nav aria-label="Jump to a Wizard task" className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+            {[
+              ['manual', 'One game', PlusCircle], ['launchers', 'Launchers', LayoutGrid],
+              ['folder', 'Folder', FolderSearch], ['retro', 'Retro', Gamepad2],
+              ['external', 'External', HardDrive], ['care', 'Care', RefreshCw],
+            ].map(([id, label, Icon]) => <button key={id} type="button" title={`Go to ${label}`} aria-label={`Go to ${label}`} onClick={() => document.getElementById(`wizard-${id}-section`)?.scrollIntoView({ block: 'start' })} className="group flex flex-col items-center gap-1 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.55)] px-2 py-2 text-[10.5px] font-semibold text-ink hover:border-[rgb(var(--accent)/0.7)] hover:bg-[rgb(var(--accent)/0.12)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[rgb(var(--accent))]"><Icon size={18} className="text-[rgb(var(--accent))] transition-transform group-hover:scale-110" /><span>{label}</span></button>)}
+          </nav>
 
-          <div className="rounded-lg border border-[rgb(var(--accent)/0.32)] bg-[rgb(var(--accent)/0.055)] p-4" data-testid="wizard-manual-add-section">
+          <div id="wizard-manual-section" className="rounded-xl border border-[rgb(var(--accent)/0.38)] bg-[rgb(var(--accent)/0.08)] p-4" data-testid="wizard-manual-add-section">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="text-[10px] uppercase tracking-wider text-muted">Add one game manually</div>
-                <p className="mt-1 text-xs text-muted">Choose a game .exe or shortcut, then review its metadata before adding it.</p>
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[rgb(var(--accent)/0.2)] text-[rgb(var(--accent))]"><PlusCircle size={23} /></span>
+                <div><div className="text-sm font-black text-ink">One game</div><p className="mt-0.5 text-xs text-muted">Pick an EXE or shortcut, then review its details.</p></div>
               </div>
               <button
                 data-testid="wizard-add-manual-start-btn"
@@ -492,32 +498,31 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
             </div>
           </div>
 
-          <div className="rounded-lg hairline bg-surface/50 p-4" data-testid="wizard-retro-profiles-section">
+          <div id="wizard-retro-section" className="rounded-xl hairline bg-surface/50 p-4" data-testid="wizard-retro-profiles-section">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><div className="text-[10px] uppercase tracking-wider text-muted">Retro Library</div><p className="mt-1 text-xs text-muted">Choose your own emulator and ROM folder, then scan, review and import games by platform.</p></div>
+              <div className="flex min-w-0 items-center gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[rgb(var(--accent-2)/0.15)] text-[rgb(var(--accent-2))]"><Gamepad2 size={24} /></span><div><div className="text-sm font-black text-ink">Retro Library</div><p className="mt-0.5 text-xs text-muted">Choose an emulator and ROM folder for each platform.</p></div></div>
               <button type="button" data-testid="wizard-retro-profiles-toggle" onClick={() => setRetroProfilesOpen((value) => !value)} className="inline-flex shrink-0 items-center gap-2 rounded-full hairline px-4 py-2 text-xs font-semibold text-ink hover:border-[rgb(var(--accent)/0.6)] hover:bg-[rgb(var(--accent)/0.10)]"><Gamepad2 size={13} className="text-[rgb(var(--accent))]" />{retroProfilesOpen ? 'Close profiles' : 'Manage profiles'}</button>
             </div>
             {retroProfilesOpen && <RetroProfilesPanel profiles={retroProfiles} onChange={onRetroProfilesChange} onImportRoms={onImportRoms} existingGames={existingGames} />}
           </div>
 
-          <div className="rounded-lg hairline bg-surface/50 p-4" data-testid="wizard-external-roots-section">
+          <div id="wizard-external-section" className="rounded-xl hairline bg-surface/50 p-4" data-testid="wizard-external-roots-section">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><div className="text-[10px] uppercase tracking-wider text-muted">External libraries</div><p className="mt-1 text-xs text-muted">Keep pointers to your external drive, NAS or cloud catalogue without importing files.</p></div>
-              <button type="button" onClick={() => setExternalRootsOpen((value) => !value)} className="rounded-full hairline px-4 py-2 text-xs font-semibold text-ink hover:border-[rgb(var(--accent)/0.6)]">{externalRootsOpen ? 'Close roots' : 'Manage roots'}</button>
+              <div className="flex min-w-0 items-center gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[rgb(var(--accent-2)/0.15)] text-[rgb(var(--accent-2))]"><HardDrive size={23} /></span><div><div className="text-sm font-black text-ink">External libraries</div><p className="mt-0.5 text-xs text-muted">Link a drive, NAS or cloud catalogue without copying files.</p></div></div>
+              <button type="button" onClick={() => setExternalRootsOpen((value) => !value)} className="inline-flex items-center gap-2 rounded-full hairline px-4 py-2 text-xs font-semibold text-ink hover:border-[rgb(var(--accent)/0.6)]"><FolderCog size={13} />{externalRootsOpen ? 'Close roots' : 'Manage roots'}</button>
             </div>
             {externalRootsOpen && <ExternalLibraryRootsPanel roots={externalLibraryRoots} onChange={onExternalLibraryRootsChange} />}
           </div>
 
-          <div className="rounded-lg hairline bg-surface/50 p-4" data-testid="wizard-library-care-section">
-            <div className="mb-2 text-[10px] uppercase tracking-wider text-muted">Existing library care</div>
-            <p className="mb-3 text-xs text-muted">Refresh existing game information or check your library for duplicates and missing details.</p>
+          <div id="wizard-care-section" className="rounded-lg hairline bg-surface/50 p-4" data-testid="wizard-library-care-section">
+            <div className="mb-3 flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[rgb(var(--accent)/0.14)] text-[rgb(var(--accent))]"><RefreshCw size={17} /></span><div><div className="text-sm font-bold text-ink">Care for your library</div><p className="text-[11px] text-muted">Improve games already added.</p></div></div>
             <div className="grid gap-2 sm:grid-cols-3">
               <button
                 data-testid="wizard-refresh-missing-btn"
                 onClick={() => { onClose(); onRefreshLibrary?.('missing'); }}
                 className="flex flex-col items-start rounded-md hairline px-3 py-2 text-left hover:border-[rgb(var(--accent)/0.55)] hover:bg-[rgb(var(--accent)/0.07)]"
               >
-                <span className="text-xs font-semibold text-ink">Refresh missing info</span>
+                <span className="inline-flex items-center gap-2 text-xs font-semibold text-ink"><Sparkles size={15} className="text-[rgb(var(--accent))]" />Refresh missing info</span>
                 <span className="mt-0.5 text-[10.5px] leading-snug text-muted">Updates incomplete or older metadata first.</span>
               </button>
               <button
@@ -525,7 +530,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
                 onClick={() => { onClose(); onRefreshLibrary?.('full'); }}
                 className="flex flex-col items-start rounded-md hairline px-3 py-2 text-left hover:border-[rgb(var(--accent-2)/0.55)] hover:bg-[rgb(var(--accent-2)/0.07)]"
               >
-                <span className="text-xs font-semibold text-ink">Full metadata refresh</span>
+                <span className="inline-flex items-center gap-2 text-xs font-semibold text-ink"><RotateCw size={15} className="text-[rgb(var(--accent-2))]" />Full metadata refresh</span>
                 <span className="mt-0.5 text-[10.5px] leading-snug text-muted">Shows the affected count before it starts.</span>
               </button>
               <button
@@ -533,26 +538,26 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
                 onClick={() => { onClose(); onTidyLibrary?.(); }}
                 className="flex flex-col items-start rounded-md hairline px-3 py-2 text-left hover:border-[rgb(var(--accent-2)/0.55)] hover:bg-[rgb(var(--accent-2)/0.07)]"
               >
-                <span className="text-xs font-semibold text-ink">Tidy up library</span>
+                <span className="inline-flex items-center gap-2 text-xs font-semibold text-ink"><ListChecks size={15} className="text-[rgb(var(--accent-2))]" />Tidy up library</span>
                 <span className="mt-0.5 text-[10.5px] leading-snug text-muted">Review duplicates and entries needing attention.</span>
               </button>
             </div>
           </div>
 
           {/* Launcher imports */}
-          <div className="rounded-lg hairline bg-surface/50 p-4">
-            <div className="mb-2 text-[10px] uppercase tracking-wider text-muted">Import from a launcher (installed games only)</div>
+          <div id="wizard-launchers-section" className="rounded-lg hairline bg-surface/50 p-4">
+            <div className="mb-3 flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[rgb(var(--accent)/0.14)] text-[rgb(var(--accent))]"><LayoutGrid size={17} /></span><div><div className="text-sm font-bold text-ink">Import from a launcher</div><p className="text-[11px] text-muted">Installed games only · confirm before adding</p></div></div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              <LauncherBtn label="Steam"       onClick={() => requestLauncherImport('steam')}     disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-steam" />
-              <LauncherBtn label="Epic Games"  onClick={() => requestLauncherImport('epic')}      disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-epic" />
-              <LauncherBtn label="GOG Galaxy"  onClick={() => requestLauncherImport('gog')}       disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-gog" />
-              <LauncherBtn label="EA App"      onClick={() => requestLauncherImport('ea')}        disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-ea" />
-              <LauncherBtn label="Ubisoft"     onClick={() => requestLauncherImport('ubisoft')}   disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-ubi" />
-              <LauncherBtn label="Battle.net"  onClick={() => requestLauncherImport('battlenet')} disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-bnet" />
-              <LauncherBtn label="Riot Client" onClick={() => requestLauncherImport('riot')}      disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-riot" />
-              <LauncherBtn label="Xbox / GP"   onClick={() => requestLauncherImport('xbox')}      disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-xbox" />
-              <LauncherBtn label="Rockstar"    onClick={() => requestLauncherImport('rockstar')}  disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-rockstar" />
-              <LauncherBtn label="itch.io"     onClick={() => requestLauncherImport('itch')}      disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-itch" />
+              <LauncherBtn kind="steam" label="Steam"       onClick={() => requestLauncherImport('steam')}     disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-steam" />
+              <LauncherBtn kind="epic" label="Epic Games"  onClick={() => requestLauncherImport('epic')}      disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-epic" />
+              <LauncherBtn kind="gog" label="GOG Galaxy"  onClick={() => requestLauncherImport('gog')}       disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-gog" />
+              <LauncherBtn kind="ea" label="EA App"      onClick={() => requestLauncherImport('ea')}        disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-ea" />
+              <LauncherBtn kind="ubisoft" label="Ubisoft"     onClick={() => requestLauncherImport('ubisoft')}   disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-ubi" />
+              <LauncherBtn kind="battlenet" label="Battle.net"  onClick={() => requestLauncherImport('battlenet')} disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-bnet" />
+              <LauncherBtn kind="riot" label="Riot Client" onClick={() => requestLauncherImport('riot')}      disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-riot" />
+              <LauncherBtn kind="xbox" label="Xbox / GP"   onClick={() => requestLauncherImport('xbox')}      disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-xbox" />
+              <LauncherBtn kind="rockstar" label="Rockstar"    onClick={() => requestLauncherImport('rockstar')}  disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-rockstar" />
+              <LauncherBtn kind="itch" label="itch.io"     onClick={() => requestLauncherImport('itch')}      disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-itch" />
             </div>
             {launcherStatus && <div role="status" className="mt-3 text-sm text-ink">{launcherStatus}</div>}
             {launcherImportBusy && <button type="button" className="mt-2 rounded-md hairline px-3 py-2 text-xs" onClick={() => {
@@ -565,8 +570,8 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
           </div>
 
           {/* Manual folder pick */}
-          <div className="rounded-lg hairline bg-surface/50 p-4">
-            <div className="mb-2 text-[10px] uppercase tracking-wider text-muted">…or scan a folder / drive</div>
+          <div id="wizard-folder-section" className="rounded-lg hairline bg-surface/50 p-4">
+            <div className="mb-3 flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[rgb(var(--accent)/0.14)] text-[rgb(var(--accent))]"><FolderSearch size={17} /></span><div><div className="text-sm font-bold text-ink">Scan a folder or drive</div><p className="text-[11px] text-muted">Find local games, then review each match.</p></div></div>
 
             {/* Exclude paths */}
             <div className="mb-3 rounded-md hairline bg-panel/40 px-3 py-2">
@@ -575,9 +580,12 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
                 <button
                   data-testid="wizard-add-exclude"
                   onClick={addExclude}
-                  className="text-[10px] text-[rgb(var(--accent))] hover:underline"
+                  type="button"
+                  title="Add a folder to skip during scans"
+                  aria-label="Add a folder to skip during scans"
+                  className="grid h-7 w-7 place-items-center rounded-md border border-[rgb(var(--border))] text-[rgb(var(--accent))] hover:border-[rgb(var(--accent)/0.6)] hover:bg-[rgb(var(--accent)/0.12)]"
                 >
-                  + Add path
+                  <PlusCircle size={15} />
                 </button>
               </div>
               <div className="space-y-1">
@@ -613,9 +621,12 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
                       <button
                         data-testid={`wizard-remove-exclude-${i}`}
                         onClick={() => setCustomExcludes((cs) => cs.filter((_, j) => j !== i))}
-                        className="text-muted/60 hover:text-red-400"
+                        type="button"
+                        title={`Stop skipping ${p}`}
+                        aria-label={`Stop skipping ${p}`}
+                        className="grid h-6 w-6 shrink-0 place-items-center rounded text-muted/60 hover:bg-red-400/10 hover:text-red-400"
                       >
-                        ✕
+                        <XIcon size={13} />
                       </button>
                     </div>
                   ))}
@@ -932,16 +943,25 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
   );
 }
 
-function LauncherBtn({ label, onClick, disabled = false, testid }) {
+const LAUNCHER_MARKS = {
+  steam: [Gamepad2, '#79b8eb'], epic: [Zap, '#e7e7e7'], gog: [Disc3, '#ba8add'],
+  ea: [Sparkles, '#ef8e78'], ubisoft: [Orbit, '#7fc6ee'], battlenet: [Swords, '#7bb8ed'],
+  riot: [Crosshair, '#ee787b'], xbox: [XIcon, '#86d096'], rockstar: [Star, '#f0c76d'], itch: [Heart, '#ef8f98'],
+};
+
+function LauncherBtn({ kind, label, onClick, disabled = false, testid }) {
+  const [Icon, color] = LAUNCHER_MARKS[kind] || [MonitorPlay, '#a4afbf'];
   return (
     <button
       data-testid={testid}
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex items-center gap-2 rounded-md hairline px-3 py-2 text-[11.5px] text-ink transition-colors hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)] hover:text-[rgb(var(--accent))] disabled:cursor-wait disabled:opacity-45"
+      title={`Import installed games from ${label}`}
+      aria-label={`Import installed games from ${label}`}
+      className="group inline-flex items-center gap-2.5 rounded-lg hairline px-2.5 py-2 text-left text-[11.5px] font-semibold text-ink transition-colors hover:border-[rgb(var(--accent)/0.5)] hover:bg-[rgb(var(--accent)/0.08)] disabled:cursor-wait disabled:opacity-45"
     >
-      <Gamepad2 size={12} />
-      {label}
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-transform group-hover:scale-110" style={{ color, backgroundColor: `${color}20` }}><Icon size={17} strokeWidth={2.2} /></span>
+      <span className="min-w-0 truncate">{label}</span>
     </button>
   );
 }

@@ -18,6 +18,7 @@ function registerThemesIpc({ registerIpc, themes }) {
       && isBoundedString(request.newId, { required: true, max: 64 })
       && isBoundedString(request.newName, { required: true, max: 80 })
       && isBoundedString(request.creator, { required: true, max: 80 })
+      && isBoundedString(request.stockFx, { max: 64 })
       && ['bright', 'middle', 'dark', 'special'].includes(request.tone)
       && isPlainObject(request.palette) && Object.keys(request.palette).length === 10
       && isPlainObject(request.panels) && Object.keys(request.panels).length === 3
@@ -35,6 +36,16 @@ function registerThemesIpc({ registerIpc, themes }) {
         && isBoundedString(particle.sourcePath, { max: 32767 })),
     invalidRequest('Theme remix details are malformed.'),
   ), isResult, invalidResponse('Theme remix failed.')));
+  registerIpc('themes:prepareAsset', guardResult(guardHandler(
+    (_event, request) => themes.prepareAsset(request),
+    request => isPlainObject(request)
+      && isBoundedString(request.sourceId, { required: true, max: 64 })
+      && isBoundedString(request.asset, { required: true, max: 240 })
+      && /^assets\/[a-z0-9][a-z0-9._-]*\.(?:png|jpe?g|webp)$/i.test(request.asset)
+      && ['copy', 'edit', 'reveal'].includes(request.action),
+    invalidRequest('Choose a valid theme image and action.'),
+  ), result => isResult(result) && isBoundedString(result.path, { max: 32767 })
+    && isBoundedString(result.url, { max: 32767 }), invalidResponse('Theme artwork copy failed.')));
   registerIpc('themes:list', guardResult(() => themes.list(),
     result => isPlainObject(result) && result.ok === true && isBoundedArray(result.themes, 100, isPlainObject),
     invalidResponse('Could not list installed themes.', { themes: [] })));

@@ -9,7 +9,7 @@ export default function ToolDetail({ tool, onLaunch, onRefetch, onRevealFolder, 
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   if (!tool) return null;
   const icon = tool.icon || tool.coverUrl || '';
-  const showSupporting = !minimalistic || moreOpen || tool.availability === 'missing';
+  const showSupporting = !minimalistic || moreOpen || tool.availability === 'missing' || tool.referenceOnly;
   const showDetails = !minimalistic || detailsOpen;
   const launch = async () => {
     let token = '';
@@ -30,13 +30,14 @@ export default function ToolDetail({ tool, onLaunch, onRefetch, onRevealFolder, 
         </div>
       </header>
       <div className="flex flex-wrap gap-2 border-b border-[rgb(var(--border)/0.7)] bg-[rgb(var(--surface)/0.20)] px-5 py-3 sm:px-7">
-        <button data-neolib-launch onClick={launch} disabled={tool.availability === 'missing'} className="inline-flex items-center gap-2 rounded-full bg-[rgb(var(--accent))] px-4 py-2 text-xs font-bold text-[rgb(var(--surface))] disabled:opacity-50"><Play size={14} /> {tool.availability === 'missing' ? 'Set up required' : 'Open tool'}</button>
-        {minimalistic && tool.availability !== 'missing' && <button type="button" data-testid="tool-minimalistic-more" aria-expanded={showSupporting} onClick={() => setMoreOpen((open) => !open)} className="inline-flex items-center rounded-full border border-[rgb(var(--border)/0.72)] px-3 py-2 text-xs text-ink">{moreOpen ? 'Fewer actions' : 'More actions'}</button>}
+        {!tool.referenceOnly ? <button data-neolib-launch onClick={launch} disabled={tool.availability === 'missing'} className="inline-flex items-center gap-2 rounded-full bg-[rgb(var(--accent))] px-4 py-2 text-xs font-bold text-[rgb(var(--surface))] disabled:opacity-50"><Play size={14} /> {tool.availability === 'missing' ? 'Set up required' : 'Open tool'}</button> : <span className="inline-flex items-center rounded-full border border-[rgb(var(--border)/0.72)] px-3 py-2 text-xs text-muted">Game-specific files · no standalone launch</span>}
+        {minimalistic && tool.availability !== 'missing' && !tool.referenceOnly && <button type="button" data-testid="tool-minimalistic-more" aria-expanded={showSupporting} onClick={() => setMoreOpen((open) => !open)} className="inline-flex items-center rounded-full border border-[rgb(var(--border)/0.72)] px-3 py-2 text-xs text-ink">{moreOpen ? 'Fewer actions' : 'More actions'}</button>}
         {showSupporting && <>
         <button onClick={() => onRefetch?.(tool)} className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--border)/0.72)] px-3 py-2 text-xs hover:border-[rgb(var(--accent)/0.65)]"><RefreshCw size={14} /> Re-fetch info</button>
         {tool.exePath && <button onClick={() => onRevealFolder?.(tool)} className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--border)/0.72)] px-3 py-2 text-xs hover:border-[rgb(var(--accent)/0.65)]"><FolderOpen size={14} /> Locate</button>}
-        {tool.website && <button onClick={() => window.api?.openExternal?.(tool.website)} className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--border)/0.72)] px-3 py-2 text-xs hover:border-[rgb(var(--accent)/0.65)]"><ExternalLink size={14} /> Official page</button>}
+        {tool.website && !(tool.recommendedTool && (tool.availability === 'missing' || tool.referenceOnly)) && <button onClick={() => window.api?.openExternal?.(tool.website)} className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--border)/0.72)] px-3 py-2 text-xs hover:border-[rgb(var(--accent)/0.65)]"><ExternalLink size={14} /> Official page</button>}
         {tool.managedTool && tool.availability === 'missing' && <><button onClick={() => onLocateManagedTool?.(tool)} className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--border)/0.72)] px-3 py-2 text-xs"><FolderOpen size={14} /> Locate app</button><button disabled={installing} onClick={() => onInstallManagedTool?.(tool)} className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--border)/0.72)] px-3 py-2 text-xs"><Settings2 size={14} /> {installing ? 'Preparing…' : 'Official install'}</button></>}
+        {tool.recommendedTool && (tool.availability === 'missing' || tool.referenceOnly) && <><button onClick={() => onLocateManagedTool?.(tool)} className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--border)/0.72)] px-3 py-2 text-xs"><FolderOpen size={14} /> {tool.referenceOnly ? 'Locate files' : 'Find installed app'}</button><button onClick={() => window.api?.openExternal?.(tool.website)} className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--border)/0.72)] px-3 py-2 text-xs"><ExternalLink size={14} /> Get it here</button></>}
         </>}
       </div>
       {minimalistic && <button type="button" data-testid="tool-minimalistic-details" aria-expanded={showDetails} onClick={() => setDetailsOpen((open) => !open)} className="mx-5 mt-4 rounded-lg border border-[rgb(var(--border)/0.72)] px-3 py-2 text-xs font-semibold text-ink sm:mx-7">{detailsOpen ? 'Hide details' : 'Show details'}</button>}
@@ -44,7 +45,7 @@ export default function ToolDetail({ tool, onLaunch, onRefetch, onRevealFolder, 
         <section className="min-w-0 rounded-xl border border-[rgb(var(--border)/0.65)] bg-[rgb(var(--surface)/0.16)] p-4"><div className="flex items-center gap-2"><FileText size={15} className="text-[rgb(var(--accent))]" /><h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">About this tool</h2></div><p className="mt-3 whitespace-pre-line text-sm leading-7 text-ink/90">{tool.about || tool.shortDescription || 'No description yet. Re-fetch info to identify this program from its executable and public software sources.'}</p></section>
         {showDetails && <aside className="overflow-hidden rounded-xl border border-[rgb(var(--border)/0.65)] bg-[rgb(var(--surface)/0.16)]"><Meta label="Category" value={tool.toolCategory || tool.genres?.[0] || 'Windows utility'} /><Meta label="Publisher" value={tool.publisher || tool.developers?.[0] || 'Not reported'} /><Meta label="Version" value={tool.version || 'Not reported'} /><Meta label="Details source" value={tool.metadataSource || tool.source || 'Manual'} /><Meta label="Evidence" value={(tool.metadataEvidence || []).join(' · ') || 'Awaiting refresh'} /></aside>}
       </div>
-      {showDetails && <p className="mx-5 mb-5 break-all rounded-lg border border-[rgb(var(--border)/0.44)] bg-[rgb(var(--surface)/0.18)] px-3 py-2 text-[10px] text-muted sm:mx-7">{tool.exePath || 'No local program path is configured.'}</p>}
+      {showDetails && <p className="mx-5 mb-5 break-all rounded-lg border border-[rgb(var(--border)/0.44)] bg-[rgb(var(--surface)/0.18)] px-3 py-2 text-[10px] text-muted sm:mx-7">{tool.exePath || tool.installFolderPath || 'No local program path is configured.'}</p>}
     </section>
   </div>;
 }

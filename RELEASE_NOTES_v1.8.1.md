@@ -1,11 +1,42 @@
-# NEO-LIB v1.8.0 — First major test candidate
+# NEO-LIB v1.8.1 — First major test candidate
 
-v1.8.0 brings the unreleased v1.7.9 candidate work forward with the latest
+v1.8.1 brings the unreleased v1.7.9 candidate work forward with the latest
 Retro Library, Wall, theme and NEO Lounge source changes. It is a Windows test
 candidate, not an installed-app acceptance claim. The original
 [v1.7.9 notes](RELEASE_NOTES_v1.7.9.md) remain available for comparison.
 
+Home no longer shows saved Steam update warnings as current before rechecking the launcher; old cards clear during Refresh, and the delayed check is no longer postponed by Home rerenders.
+
+Home widget dragging now keeps one pointer session across neighbouring widgets. A held card follows the mouse while the grid opens space, and larger coloured title-bar icons make widgets easier to identify. Dedicated preview header art now takes priority over generic backgrounds when no custom hero is chosen; playtime and install-size facts have clearer plain text on a compact solid backing. Detailed Wall gains Your Rating, Metacritic, achievements and Added columns plus a saved Big icons option. Tools includes optional DLSS Swapper and ReShade executable pointers, an OptiScaler folder pointer, and official download links; NEO-LIB does not install or inject them into games. These changes still need installed Windows visual and interaction acceptance.
+
 ## What changed
+
+- Home's private-games-locked notice is now a compact status pill instead of a full-width banner.
+
+- Removed the redundant appearance-location banner from Settings, leaving more room for actual controls.
+
+- **A more visual Add Games Wizard (source candidate)** — jump directly to one-game add, launcher import, folder scan, Retro, external libraries or library care. Distinct route icons and launcher marks make choices easier to spot; simple skip-path controls become accessible icon buttons. Installed visual acceptance remains pending.
+
+- **Steam game launch fix (source candidate)** — normal Launch for Steam imports now asks Steam to start the app by ID, preserving Steam's own launch-choice prompt and Steamworks context instead of directly opening a discovered game EXE. Explicit custom routes and non-owned copies are unchanged. Verify Icarus's DX choice, sign-in and saves in the rebuilt Windows app.
+
+- Preview playtime now displays rounded minutes or hours instead of raw fractional values imported from launchers.
+
+- **NEO Lounge begins its two-mode design (source candidate)** — switch between cover Wall and a focused Game Browser shelf with a larger game-art stage. The active game now stands out with an outline, glow, lift and label; Lounge reuses the chosen theme's ambient FX and remembers the layout. Activating a cover still opens Preview, not a game directly. Installed fullscreen and controller acceptance remain pending.
+
+- **Theme Creator artwork workbench (source candidate)** — start a remix from any built-in theme, browse its button frames and other artwork, reuse a working copy as a layer or particle, and open that copy in a desktop editor. Canva and ChatGPT Images shortcuts support a manual upload/download round trip; NEO-LIB never uploads artwork to those sites. Existing theme artwork stays untouched, while a saved theme gets validated copies and can reuse a built-in FX style. Installed visual/editor acceptance remains pending.
+
+- **Wide game previews stay readable (source candidate)** — the hero facts, action controls and game information now use a centered reading width when the window is expanded. Live news stays a compact card with a two-line teaser, and Special-theme action artwork no longer stretches indefinitely across ultra-wide previews. Installed visual acceptance remains pending.
+
+- **Wider Theme Creator (source candidate)** — opening Creator Lab widens the Themes window and places the larger live preview in its own right-hand pane beside the editors. On narrow screens, the preview stacks below the editors. Installed visual acceptance remains pending.
+
+- **Clearer controller discovery (source candidate)** — Controller Center retains a controller connection event even when Chromium's device list lags, distinguishes blocked/unavailable browser access, and no longer claims a Windows/Steam-visible pad is disconnected merely because NEO-LIB cannot read it. The empty state gives 8BitDo Ultimate 2 Wireless Windows connection guidance. This does not make Steam-only Bluetooth input a NEO-LIB navigation device; physical-pad acceptance remains pending.
+
+- **Clean narrow Library controls (source candidate)** — icon-only Library mode and narrow panel widths use dedicated icons for launcher filter, sorting, categories and auto-sort. Wizard, Rest and Select keep stable icon buttons, while navigation labels disappear cleanly rather than shrinking into unreadable fragments. The filter icons stay grouped during live resizing; titles and accessible names preserve their meaning. Installed visual acceptance is pending.
+
+- **Sidebar navigation placement corrected (source candidate)** — the optional icon rail now occupies its own full-height strip at the far left instead of taking space inside or above Library. It expands smoothly on hover or keyboard focus and stays available in Wall. Visual Tweaks opens beside the combined rail and Library. Installed visual acceptance is pending.
+
+- **More direct Home editing (source candidate)** — the widget being moved or resized now has a clear theme-coloured outline. With Home unlocked, drag any edge or corner to resize; Free move adjusts the dragged edge, while Snap changes grid-cell dimensions. Wall cover density now reaches 14×14. Installed mouse and high-density visual acceptance remain pending.
+- **Lighter Mid themes (source candidate)** — Generic Gray is substantially brighter; Generic Blue, Gaming, Modern and Home receive smaller lifts to surfaces and theme backgrounds.
 
 - **NEO Lounge fullscreen browser (source candidate)** — choose NEO Lounge in Control Center for a large-cover view of your unlocked games, with All/Favorites/Recently played filters, last-game focus and cautious update flags. Browse with mouse, keyboard or an opted-in controller; Exit or Esc returns to Desktop, and Open Preview leaves fullscreen first. It never starts automatically, and controller game launch is still disabled pending its separate safety work. Installed Windows acceptance is pending.
 
@@ -150,4 +181,4 @@ candidate is published as a public release.
 ## Release status
 
 This is a testing candidate. Publish only from the exact clean Git tag
-`v1.8.0` after the Windows acceptance record is complete.
+`v1.8.1` after the Windows acceptance record is complete.

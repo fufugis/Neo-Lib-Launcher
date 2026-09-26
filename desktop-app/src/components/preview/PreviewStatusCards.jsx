@@ -99,7 +99,7 @@ export function LatestNewsPill({ game }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28 }}
       onClick={() => setExpanded((v) => !v)}
-      className="group relative mb-4 cursor-pointer overflow-hidden rounded-xl"
+      className="group relative mb-4 max-w-[1050px] cursor-pointer overflow-hidden rounded-xl"
       style={{
         border: '1.5px solid rgb(var(--accent)/0.55)',
         background:
@@ -170,7 +170,7 @@ export function LatestNewsPill({ game }) {
             {item.title}
           </h4>
           {!expanded && item.snippet && (
-            <p className="mt-0.5 truncate text-[11.5px] text-muted leading-relaxed">
+            <p className="mt-0.5 line-clamp-2 text-[12px] leading-relaxed text-muted">
               {item.snippet}
             </p>
           )}

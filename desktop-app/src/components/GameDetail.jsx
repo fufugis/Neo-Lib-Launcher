@@ -38,7 +38,7 @@ export default function GameDetail({
     } finally { setMeasuringSize(false); }
   }, [game, measuringSize, onUpdateGame]);
   if (!game) return <EmptyState />;
-  const bg = game.hero || game.background || game.headerImage || game.coverUrl;
+  const bg = game.hero || game.headerImage || game.background || game.coverUrl;
   // Hero parallax — subtle 3D tilt as mouse moves over the hero. CSS-only, no rerenders.
   const heroRef = React.useRef(null);
   // Hero auto-brighten — sample the loaded image's average luminance. If it's
@@ -184,7 +184,7 @@ export default function GameDetail({
           game artwork has its own fuller gallery on the right. */}
       <div className="flex min-h-0 flex-1 justify-start overflow-y-auto px-3 py-5 sm:px-4 sm:py-6">
         <section
-          className="min-h-min w-full max-w-none rounded-2xl border border-[rgb(var(--border)/0.88)] bg-[rgb(var(--panel)/0.56)] px-4 py-4 shadow-[0_28px_80px_-52px_rgba(0,0,0,.96)] backdrop-blur-md sm:px-6 sm:py-5"
+          className="mx-auto min-h-min w-full max-w-[1500px] rounded-2xl border border-[rgb(var(--border)/0.88)] bg-[rgb(var(--panel)/0.56)] px-4 py-4 shadow-[0_28px_80px_-52px_rgba(0,0,0,.96)] backdrop-blur-md sm:px-6 sm:py-5"
           data-testid="game-text-panel"
         >
           <ManagedToolSetup game={game} onLocate={onLocateManagedTool} onInstall={onInstallManagedTool} installing={managedToolInstalling} />

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { BUILTIN_HOME_WIDGETS, HOME_WIDGET_API_VERSION, HOME_WIDGET_GRID, homeWidget, normaliseWidgetSize, widgetSizeIsAllowed, widgetsForSegment } from '../src/components/home/home-widget-registry.mjs';
+import { WIDGET_RESIZE_DIRECTIONS, resizeFreeWidget, resizeGridWidget } from '../src/components/home/home-widget-resize.mjs';
 
 const homeSource = readFileSync(new URL('../src/components/HomeHub.jsx', import.meta.url), 'utf8');
 const managerSource = readFileSync(new URL('../src/components/home/WidgetManagerModal.jsx', import.meta.url), 'utf8');
@@ -33,7 +34,17 @@ assert.match(homeSource, /data-testid="home-layout-snap-toggle"/, 'Home must exp
 assert.match(homeSource, /data-home-layout-unlocked=/, 'Home must expose its grid editing state');
 assert.match(homeSource, /data-home-snap=/, 'Home must expose the active placement mode');
 assert.match(homeSource, /onContextMenu=\{openContextMenu\}/, 'widget title bars must expose the context menu');
-assert.match(homeSource, /Drag to resize/, 'unlocked widgets must expose a resize grip');
+assert.deepEqual(WIDGET_RESIZE_DIRECTIONS, ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']);
+assert.match(homeSource, /data-resize-direction=\{direction\}/, 'unlocked widgets must expose directional resize grips');
+assert.match(homeSource, /data-home-widget-held=/, 'the held widget must be visibly identifiable');
+assert.match(homeSource, /data-testid="home-widget-drag-ghost"/, 'a grabbed widget must show a pointer-following drag card');
+assert.match(homeSource, /window\.addEventListener\('pointercancel', onCancel\)/, 'a canceled grid drag must clean up its pointer session');
+assert.match(homeSource, /window\.addEventListener\('blur', onBlur\)/, 'a grid drag must not stay stuck after window focus is lost');
+assert.deepEqual(resizeFreeWidget({ x: 40, y: 50, width: 300, height: 200 }, 'nw', 20, 30), { x: 60, y: 80, width: 280, height: 170 });
+assert.deepEqual(resizeFreeWidget({ x: 40, y: 50, width: 300, height: 200 }, 'w', -30, 0), { x: 10, y: 50, width: 330, height: 200 });
+assert.deepEqual(resizeFreeWidget({ x: 40, y: 50, width: 300, height: 200 }, 'se', 20, 30), { x: 40, y: 50, width: 320, height: 230 });
+assert.deepEqual(resizeFreeWidget({ x: 40, y: 50, width: 300, height: 200 }, 'nw', 500, 500), { x: 180, y: 170, width: 160, height: 80 });
+assert.deepEqual(resizeGridWidget(homeWidget('updates'), { cols: 4, rows: 3 }, 12, 'nw', 100, 120, 100, 120), { cols: 3, rows: 2 });
 assert.match(homeSource, /onPointerCancel=\{cancelResize\}/, 'canceled widget resizing must not save a partial size');
 assert.match(homeSource, /onPointerCancel=\{cancelFreeMove\}/, 'canceled free movement must not save a partial position');
 assert.match(homeSource, /onLostPointerCapture=\{cancelResize\}/, 'lost resize capture must restore the saved size');

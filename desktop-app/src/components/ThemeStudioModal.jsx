@@ -14,6 +14,7 @@ const THEME_GROUPS = [
 
 export default function ThemeStudioModal({ open, onClose, settings, setSettings, installedCustomThemes = [], refreshCustomThemes }) {
   const setKey = (patch) => setSettings({ ...settings, ...patch });
+  const [creatorExpanded, setCreatorExpanded] = React.useState(false);
   const [pending, setPending] = React.useState(null);
   const [error, setError] = React.useState('');
   const [busy, setBusy] = React.useState(false);
@@ -36,7 +37,7 @@ export default function ThemeStudioModal({ open, onClose, settings, setSettings,
     setPending(null);
     setError('');
   }
-  return <Modal open={open} onClose={onClose} title="Themes" wide testid="theme-studio-modal">
+  return <Modal open={open} onClose={onClose} title="Themes" wide={creatorExpanded ? 'xl' : true} testid="theme-studio-modal">
     <div className="p-5">
       <div className="mb-5 flex items-start gap-3 rounded-xl border border-[rgb(var(--accent)/0.24)] bg-[rgb(var(--accent)/0.055)] p-3">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[rgb(var(--accent)/0.13)] text-[rgb(var(--accent))]"><Palette size={18} /></span>
@@ -66,7 +67,7 @@ export default function ThemeStudioModal({ open, onClose, settings, setSettings,
       </div>}
       {error && <p role="alert" className="mt-2 text-[10px] text-red-300">{error}</p>}
       {installedCustomThemes.length > 0 && <div className="mt-3"><p className="mb-1.5 text-[9px] uppercase tracking-widest text-muted">Installed custom themes</p><div className="flex flex-wrap gap-2">{installedCustomThemes.map(theme => <button type="button" key={theme.id} onClick={() => setKey({ theme: `custom:${theme.id}` })} className={`rounded-lg border px-2.5 py-1.5 text-[11px] ${settings.theme === `custom:${theme.id}` ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent)/0.12)]' : 'border-[rgb(var(--border))]'}`} title={`By ${theme.license.attribution}`}>{theme.name}</button>)}</div></div>}
-      <ThemeCreatorPanel themes={installedCustomThemes} onSaved={async id => { await refreshCustomThemes?.(); setKey({ theme: `custom:${id}` }); }} />
+      <ThemeCreatorPanel themes={installedCustomThemes} onExpandedChange={setCreatorExpanded} onSaved={async id => { await refreshCustomThemes?.(); setKey({ theme: `custom:${id}` }); }} />
       <div className="mt-5 rounded-xl border border-[rgb(var(--border)/0.7)] bg-[rgb(var(--surface)/0.42)] p-3" data-testid="special-decoration-control">
         <div className="flex items-start justify-between gap-3"><div className="flex items-start gap-2"><Sparkles size={14} className="mt-0.5 shrink-0 text-[rgb(var(--accent))]" /><div><p className="text-[12px] font-medium text-ink">Special theme decoration</p><p className="mt-0.5 text-[10px] leading-relaxed text-muted">Controls Anime blossoms, Industrial chains/cogs and Magical corner effects. Set it to 0% for colour-only themes.</p></div></div><span className="shrink-0 text-[11px] font-black text-[rgb(var(--accent-2))]">{Math.round(Number(settings.specialDecorationOpacity ?? 46))}%</span></div>
         <input aria-label="Special theme decoration" type="range" min="0" max="100" step="1" value={Number(settings.specialDecorationOpacity ?? 46)} onChange={(event) => setKey({ specialDecorationOpacity: Number(event.target.value) })} className="mt-3 w-full accent-[rgb(var(--accent))]" />

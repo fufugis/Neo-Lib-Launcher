@@ -1,28 +1,36 @@
-# NEO-LIB v1.8.0 Windows acceptance record
+# NEO-LIB v1.8.1 Windows acceptance record
 
 This record separates automated source evidence from checks that require a
-rebuilt Windows app. Do not publish v1.8.0 until release-blocking checks pass or
+rebuilt Windows app. Do not publish v1.8.1 until release-blocking checks pass or
 have a written accepted deferral.
 
 ## Candidate identity
 
 - [ ] `npm run build:release` completed from current source.
 - [ ] Installer and portable folder came from the same renderer generation.
-- [ ] `npm run inspect:release` passed and produced `dist/release-candidate-v1.8.0.json`.
-- [ ] `dist/SHA256SUMS-v1.8.0.txt` lists installer and portable ZIP.
-- [ ] Settings → About shows version `1.8.0`.
+- [ ] `npm run inspect:release` passed and produced `dist/release-candidate-v1.8.1.json`.
+- [ ] `dist/SHA256SUMS-v1.8.1.txt` lists installer and portable ZIP.
+- [ ] Settings → About shows version `1.8.1`.
 
 ## Automated gate
 
 - [x] Focused visual-boundary checks pass.
 - [x] Renderer-binding checks pass.
 - [x] Metadata workflow checks pass.
-- [x] Clean update contract expects exact tag `v1.8.0`.
-- [x] 104 native commands have one registration and request/response contracts. This includes the session-only fullscreen entry/exit, bounded player-triggered ROM scan, opt-in SteamGridDB artwork and achievement sync, external-root check, community-widget controls, custom-theme import/remix and video picker.
+- [x] Clean update contract expects exact tag `v1.8.1`.
+- [x] 105 native commands have one registration and request/response contracts. This includes the session-only fullscreen entry/exit, bounded player-triggered ROM scan, opt-in SteamGridDB artwork and achievement sync, external-root check, community-widget controls, custom-theme import/remix, artwork working copies and video picker.
 - [x] Candidate inspector passed for the earlier package at GitHub Actions run `35636774870`, commit `a3f3d6d`. This does **not** validate the current Wall, divider, theme or Lounge source changes.
 - [ ] Rebuild and inspect a fresh package from the current source before testing or publishing it. The managed environment still stops Vite at `esbuild spawn EPERM` after pre-build checks; use the normal Windows build or GitHub Actions and record its new Build ID.
 
 ## Windows interaction
+
+### September UI batch
+
+- [ ] Unlock Home, drag one widget across several others, pause over a neighbour and release. The held card must follow the cursor, other widgets must open space, and the drag must never stick. Repeat with Snap off, then cancel a drag and confirm no partial save. Check the larger coloured title icons in two themes.
+- [ ] In a rebuilt Preview, compare a game with a dedicated header (including Medieval Dynasty) against the former generic background. Confirm no unwanted gameplay HUD is used when a better header exists, and verify playtime/install-size facts are sharp at normal and maximized widths. Use Artwork Repair for titles whose actual source art remains poor.
+- [ ] In Tools, find DLSS Swapper and ReShade, link their own executables and open them. For OptiScaler, select its downloaded folder and confirm no standalone Launch is offered. Open all three official links; no game files should change.
+- [ ] In Detailed Wall, toggle Big icons, inspect Your Rating, Metacritic, achievements and Added columns, then hide/reorder one column. Restart and confirm icon size and layout persist. Unverified achievement progress must remain blank rather than estimated.
+- [ ] Open the in-app v1.8.1 patch notes and confirm the major Wizard, Home, Retro, Wall, metadata, achievement, Theme, Lounge and Tools changes are represented.
 
 ### First test pass — Wall and Library resizing
 
@@ -53,6 +61,7 @@ player choices rather than changing everyone's saved layout during a hotfix.
 - [ ] In the rebuilt app, switch through all 16 built-in themes and compare palette, Library sidebar artwork, atmosphere, special control decoration, FX intensity and Rest Mode against the previous build. Import a local still-image theme, inspect its review, activate it, restart and confirm it persists; reject an invalid theme and an existing ID without replacing files. No installed-app visual comparison has run here.
 - [ ] Import a custom theme with transparent particle artwork. Check rise/fall/drift across None–Max Effects, Balanced/Calm, Rest Mode, Windows reduced motion and a modest PC/GPU load. Confirm particles stay behind all controls and never intercept clicks. No installed-app particle acceptance has run here.
 - [ ] Open Theme Creator Lab, start blank, change colours, add a transparent PNG, move the sliders, check the live preview, save and restart. Then remix an installed theme and confirm both the remix and unchanged original remain selectable. Try a duplicate ID and invalid image; neither may replace existing artwork. No installed-app Creator Lab acceptance has run here.
+- [ ] In Theme Creator Lab, start from Anime, choose a built-in button-frame image, use a working copy, edit it in the default image app or via Open With, refresh the preview, then save a new theme. Confirm the original Anime image remains unchanged and the remix still works after restart. Test a downloaded Canva/AI image only through explicit manual import, plus a built-in FX preset under Rest and Windows reduced motion. No installed editor or web round-trip acceptance has run here.
 - [ ] In Theme Creator Lab, choose images for all six artwork layers, adjust opacity, remove one, save as a new theme and restart. Confirm each saved layer appears in the app, the removed layer is gone, and the source theme is unchanged. Check the picker rejects a renamed non-image file. No installed-app artwork-layer acceptance has run here.
 - [ ] Try each particle placement and near/far depth in Theme Creator Lab and a saved theme. Check rotation and glow at their limits, Effects None–Max, Calm/Balanced, Rest Mode and Windows reduced motion; confirm readability and resource use on the installed app. No installed-app P2a particle acceptance has run here.
 - [ ] Configure separate launch and celebration particle emitters. Preview both bursts in Theme Creator Lab, save/restart, trigger a NEO-LIB celebration, and launch a game with automatic Rest both on and off. Confirm no burst while resting, at Effects None or with Windows reduced motion, and no stale launch burst after waking. No installed-app P2b event acceptance has run here.
@@ -100,7 +109,7 @@ player choices rather than changing everyone's saved layout during a hotfix.
 
 - [ ] All release blockers pass or have an accepted deferral.
 - [ ] Commit and push accepted source.
-- [ ] Point exact clean tag `v1.8.0` at the accepted v1.8.0 commit; the already-pushed tag on `74732bc` is invalid because that commit still declares package version `1.7.9`.
+- [ ] Create a new clean tag `v1.8.1` at the accepted v1.8.1 commit. Leave the failed `v1.8.0` tag on `74732bc` alone; that older commit still declares package version `1.7.9`.
 - [ ] GitHub Release is non-draft and contains installer, portable ZIP, evidence
   JSON and checksum file.
 

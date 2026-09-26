@@ -4,7 +4,43 @@ This is the authoritative live queue. New user requests are appended here and re
 
 ## In progress
 
-- [ ] **v1.8.0 release recovery** — the first tag failed before packaging because the tagged source still declared package version `1.7.9`. The local release identity is now aligned to `1.8.0` and the previous v1.7.9 notes are preserved. Re-run the complete source gate, commit the fix, then explicitly choose whether to replace the failed `v1.8.0` tag or use a fresh version. Only a newly built installer/portable pair with matching candidate evidence and Windows acceptance can close this item; the screenshot's missing-artifact warning is downstream of the tag rejection.
+- [x] **v1.8.1 release identity (source pass)** — app/package/About, in-app notes, README, release notes, acceptance checklist, workflow body and version gates now target fresh tag `v1.8.1`; the failed historical `v1.8.0` tag is left untouched. A current-source package and installed acceptance remain open.
+
+- [x] **Home widget drag feedback and pointer stability (source pass)** — a single pointer session stays active while crossing other widgets, a theme-coloured held card follows the mouse, and the grid reorders around its placeholder. Title bars have larger coloured identity icons. Focused source checks pass; installed mouse acceptance remains open.
+- [x] **v1.8.1 in-app patch-note expansion (source pass)** — changelog now covers the Wizard, Home canvas, reviewed artwork/metadata, Journey Status, achievement sync, Wall, Themes, Lounge and graphics utilities instead of a short feature teaser.
+- [x] **Preview hero/facts polish (source pass)** — explicit custom heroes stay first, then dedicated header art before generic backgrounds; playtime and install-size facts use a legible plain font on a compact solid surface. Installed artwork comparison remains open, including Medieval Dynasty.
+- [x] **Graphics utilities in Tools (source pass)** — optional DLSS Swapper and ReShade entries can locate an executable; OptiScaler stores its downloaded folder because it has no standalone launch. All three open official download pages. No game DLLs are changed automatically; installed path/launch acceptance remains open.
+- [x] **Detailed Wall data and art controls (source pass)** — Rating is now Your Rating; optional Metacritic, achievements and Added columns join Journey Status. A saved Big icons toggle enlarges row art. Steam achievement counts are shown only from the stored source result. Installed visual/persistence acceptance remains open.
+
+- [x] **Compact Home private-lock status** — replaced the full-width privacy banner with a small inline status pill while retaining its Library-unlock guidance. Source checks pass; installed visual acceptance remains open.
+
+- [x] **Remove redundant Settings appearance banner** — the explanatory box above Sounds is gone; settings controls are unchanged. Focused source checks pass; installed visual acceptance remains open.
+
+- [x] **Wizard visual navigation pass** — the entry screen now has six icon-led jump targets, distinct route/maintenance cards and per-launcher visual marks rather than identical gamepad icons. Minor skip-path actions become labelled icon buttons. Library and Wall quick controls were reviewed; they already use icon-plus-tooltip patterns. Source checks pass; rebuilt Windows visual acceptance remains open.
+
+- [x] **Steam-owned game launch handoff** — normal Launch for an imported Steam game now passes its verified numeric app ID through NEO-LIB's existing one-use safety gate to Steam, rather than spawning the discovered EXE. Explicit custom routes and non-owned copies keep their own targets. Source tests pass; installed Icarus DX11/DX12, Steam connection, saves and Rest Mode acceptance remain open.
+
+- [x] **Preview playtime decimal cleanup** — use the established rounded-minute formatter so imported fractional minutes appear as readable minutes/hours rather than long decimals. Focused source checks pass; installed visual acceptance remains open.
+
+- [x] **Lounge Wall and Game Browser source pass** — add a saved Wall/console-style browser switch, a compact horizontal game shelf and selected-game stage, a strong selected-cover outline/glow/label, and reuse active theme FX inside fullscreen Lounge. Safe Preview-only activation remains. Source checks pass; installed couch/controller visual acceptance remains open.
+
+- [x] **Stale Steam update cards** — checked the user's completed Steam manifests for Medieval Dynasty and Planet Coaster 2; Home no longer treats its saved update list as a live alert, clears old cards during Refresh, and runs its delayed check without a rerender repeatedly postponing it. Source-verified; installed Windows UI acceptance remains open.
+
+- [x] **Theme artwork reuse and editing foundation** — stock button/art assets are browseable and copyable into a new theme, desktop editing opens a working copy, web/AI handoff is manual, and existing procedural FX styles are selectable. Source checks pass; packaged Windows editor and visual acceptance remain open.
+
+- [x] **Wide game-preview cleanup** — constrain reading width, keep live news compact, and prevent Special-theme action artwork from stretching indefinitely. Source checks pass; rebuilt Windows visual acceptance remains open.
+
+- [x] **Theme Creator side-by-side preview** — Creator Lab widens the Themes modal and moves its larger live preview into a second column, stacking it on narrow screens. Source checks pass; rebuilt Windows visual acceptance remains open.
+
+- [ ] **8BitDo Ultimate 2 Wireless physical-pad acceptance** — source discovery and guidance improved; test the controller in 2.4G receiver or USB Windows mode against a rebuilt app, confirm live input/navigation and determine whether a native fallback is needed for Steam-only Bluetooth mode.
+
+- [x] **Narrow/icon-only Library toolbar cleanup** — compact actions and filter buttons use distinct icons, no squeezed label fragments, grouped spacing and live divider-resize response. Source checks pass; rebuilt Windows visual acceptance remains open.
+
+- [x] **Sidebar rail in the correct workspace position** — moved to a dedicated far-left full-height strip with smooth hover/focus expansion and Wall availability. Source checks pass; rebuilt Windows visual acceptance remains open.
+
+- [x] **Home directional widget resize, held highlight, Wall 14×14 and brighter Mid themes** — source and focused checks complete. Rebuilt Windows pointer and visual acceptance remains open.
+
+- [ ] **v1.8.1 release recovery** — the first `v1.8.0` tag failed before packaging because its commit still declared package version `1.7.9`. This source now targets fresh version/tag `v1.8.1`; leave the failed tag untouched. Re-run the complete source gate, commit and push, then create the new tag from that commit. Only a newly built installer/portable pair with matching candidate evidence and Windows acceptance can close this item.
 
 - [x] **Collection Mode reviewed changes P1** — selected Library or Wall games can enter confirmed, one-at-a-time metadata and artwork review queues. Manual metadata is excluded, protected artwork slots remain untouched, previous artwork stays restorable, and assigning games to an unlocked private category requires a scope summary and preserves normal categories. A guarded external-root assignment contract accepts only a future reviewed root catalogue; no arbitrary path or fake action is exposed before that separate feature exists. Focused review, Library Experience, renderer and visual-boundary checks pass; rebuilt Windows queue/private interaction acceptance remains required.
 

@@ -5,6 +5,7 @@ const PANEL_NAMES = ['surface', 'panel', 'border'];
 const MEDIA_EXTENSIONS = { image: ['png', 'jpg', 'jpeg', 'webp'], gif: ['gif'], video: ['webm'] };
 const LOOP_MODES = new Set(['once', 'always', 'while-visible']);
 const PARTICLE_DIRECTIONS = new Set(['rise', 'fall', 'drift']);
+const STOCK_FX = new Set(['anime', 'colorful', 'crimson', 'daybreak', 'gaming', 'generic-blue', 'generic-gray', 'home', 'midnight', 'mint', 'modern', 'monochrome', 'ocean', 'pro', 'synthwave', 'synthwave-day']);
 const STILL_ASSET = /^assets\/[a-z0-9][a-z0-9._-]*\.(?:png|jpe?g|webp)$/i;
 
 export function validateThemeManifest(input, { assetExists = () => true } = {}) {
@@ -42,6 +43,7 @@ export function validateThemeManifest(input, { assetExists = () => true } = {}) 
   if (input.effects !== undefined) {
     const emitters = input.effects?.particles;
     if (!input.effects || typeof input.effects !== 'object' || Array.isArray(input.effects) || !Array.isArray(emitters) || emitters.length > 3) errors.push('effects.particles must contain at most three emitters.');
+    if (input.effects?.stockFx !== undefined && !STOCK_FX.has(input.effects.stockFx)) errors.push('effects.stockFx must name a built-in visual preset.');
     else {
       const seen = new Set();
       for (const [index, emitter] of emitters.entries()) {

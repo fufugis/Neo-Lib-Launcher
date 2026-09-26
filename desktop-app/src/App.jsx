@@ -1,7 +1,7 @@
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import TitleBar from './components/TitleBar';
-import Sidebar from './components/Sidebar';
+import Sidebar, { SideNavigationRail } from './components/Sidebar';
 import GameDetail from './components/GameDetail';
 import DealsBar from './components/DealsBar';
 import ToolDetail from './components/ToolDetail';
@@ -20,7 +20,7 @@ import { EMPTY_REFRESH_QUEUE } from './state/metadata-refresh-state.mjs';
 import { sessionResult, applyPlaytimeImport } from './state/playtime-state.mjs';
 import { getRendererApi } from './services/renderer-api.mjs';
 import { useRendererStore } from './state/use-renderer-store.mjs';
-import { withGpuSetupTools } from './state/tool-bootstrap-state.mjs';
+import { withGpuSetupTools, withRecommendedGraphicsTools } from './state/tool-bootstrap-state.mjs';
 import { mascotLibraryContext } from './services/mascot-library-context.mjs';
 import { LAUNCHER_LABELS, assignLauncherCategory, ensureLauncherCategory } from './state/launcher-category-state.mjs';
 import { mergeUpdateStatusLedger } from './state/update-ledger-state.mjs';
@@ -40,7 +40,7 @@ import { journeyStatusAfterFirstLaunch } from './lib/game-journey-model.mjs';
 import { externalRootForGame, normalizeExternalLibraryRoots } from './lib/externalLibraryRoots.mjs';
 import { applyStockThemePalette, stockThemeAssetUrl, customThemeCanvas } from './themes/stock-theme-registry.mjs';
 import { useCustomThemes } from './themes/use-custom-themes';
-const APP_VERSION = '1.8.0';
+const APP_VERSION = '1.8.1';
 import { uid, guessNameFromPath, hashPin, formatPlaytime } from './lib/utils';
 import { normalizeGenreProfile, GENRE_TAXONOMY_VERSION } from './lib/genreTaxonomy';
 import { setSoundPack } from './lib/sound';
@@ -150,6 +150,7 @@ export default function App() {
   /* --- Tutorial state (first-time popup) --- */
   const [tutorialOpen, setTutorialOpen] = React.useState(false);
   const [tutorialVisualsOpen, setTutorialVisualsOpen] = React.useState(false);
+  const [openVisualsRequest, setOpenVisualsRequest] = React.useState(0);
   const [introHiddenThisSession, setIntroHiddenThisSession] = React.useState(false);
   const [fungistWelcomeKey, setFungistWelcomeKey] = React.useState(0);
   const postIntroGreetingScheduled = React.useRef(false);
@@ -345,11 +346,13 @@ export default function App() {
           now: Date.now(), resetRatings, normalizeGenres: normalizeGenreProfile,
           taxonomyVersion: GENRE_TAXONOMY_VERSION,
         });
-        setLibrary(loadedLibrary);
+        const addGraphicsSuggestions = Number(s.graphicsSuggestionsVersion || 0) < 1;
+        const initialLibrary = addGraphicsSuggestions ? withRecommendedGraphicsTools(loadedLibrary) : loadedLibrary; setLibrary(initialLibrary);
         // Home stays the default landing screen while last safe selections are
         // restored behind it for seamless Home/Library/Wall navigation.
         const cleanSettings = hydrateSettings(s, { resetRatings });
-        const restoredNavigation = hydrateNavigation(cleanSettings, loadedLibrary);
+        if (addGraphicsSuggestions) cleanSettings.graphicsSuggestionsVersion = 1;
+        const restoredNavigation = hydrateNavigation(cleanSettings, initialLibrary);
         setSettings(cleanSettings);
         setSelectedId(restoredNavigation.selectedGameId);
         setSelectedToolId(restoredNavigation.selectedToolId);
@@ -384,9 +387,9 @@ export default function App() {
         // The normal persistence effect skips its first hydration write. Save
         // this intentional migration directly so ratings cannot reappear on a
         // subsequent boot if the user closes NEO-LIB immediately.
-        if (resetRatings) {
+        if (resetRatings || addGraphicsSuggestions) {
           await Promise.all([
-            nativeApi.saveLibrary(loadedLibrary),
+            nativeApi.saveLibrary(initialLibrary),
             nativeApi.saveSettings(cleanSettings),
           ]);
         }
@@ -394,7 +397,7 @@ export default function App() {
         // "What's new" toast — show once per installed version. First-ever
         // run sets the version silently so the tutorial owns the welcome moment.
         if (!s.lastSeenVersion) {
-          nativeApi.saveSettings({ ...s, lastSeenVersion: APP_VERSION });
+          nativeApi.saveSettings({ ...cleanSettings, lastSeenVersion: APP_VERSION });
         } else if (s.lastSeenVersion !== APP_VERSION) {
           // Slight delay so it doesn't collide with the tutorial / CRT boot.
           setTimeout(() => setChangelogOpen(true), 2200);
@@ -963,10 +966,18 @@ export default function App() {
     setLibrary((prev) => ({ ...prev, tools: (prev.tools || []).map((tool) => tool.id === id ? { ...tool, ...patch } : tool) }));
   };
   const locateManagedTool = async (tool) => {
-    if (!isElectron || !tool?.managedTool) return;
+    if (!isElectron || (!tool?.managedTool && !tool?.recommendedTool)) return;
+    if (tool.referenceOnly) {
+      const installFolderPath = await nativeApi.pickDirectory();
+      if (!installFolderPath) return;
+      updateTool(tool.id, { installFolderPath, availability: 'installed' }); notify(`${tool.name} files located. Game setup is still manual.`);
+      return;
+    }
     const exePath = await nativeApi.pickExe();
     if (!exePath) return;
-    const result = await nativeApi.verifyManagedTool({ toolId: tool.managedTool, exePath });
+    const exeName = String(exePath).split(/[\\/]/).pop() || '';
+    const expectedName = tool.name === 'DLSS Swapper' ? /dlss[\s_-]*swapper/i : /reshade/i;
+    const result = tool.recommendedTool ? { ok: /\.exe$/i.test(exeName) && expectedName.test(exeName), exePath, error: `Choose the ${tool.name} executable (.exe), not another program.` } : await nativeApi.verifyManagedTool({ toolId: tool.managedTool, exePath });
     if (!result?.ok) { notify(result?.error || 'That executable could not be used.'); return; }
     updateTool(tool.id, { exePath: result.exePath, availability: 'installed', managedInstalledAt: Date.now(), managedInstallMode: 'located' });
     notify(`${tool.name} located and ready.`);
@@ -1032,6 +1043,7 @@ export default function App() {
       }
       const res = await nativeApi.launchGame({
         exePath: g.exePath, launchArgs: g.launchArgs || '', workingDirectory: g.workingDirectory || '', gameId: g.id, name: g.name, launchToken,
+        launcher: g.launcher || '', source: g.source || '', appid: g.appid || '', steamOwned: g.steamOwned, launchRouteId: g.launchRouteId || '',
         libraryRootPath: externalRootForGame(g, settings.externalLibraryRoots)?.location || '',
       });
       if (!res.ok) {
@@ -1039,9 +1051,12 @@ export default function App() {
         notify('Launch failed: ' + (res.error || ''));
       }
       else {
-        if (isTools || g.launchTargetType === 'uri') {
+        if (isTools || g.launchTargetType === 'uri' || res.target === 'steam') {
           if (isTools) updateSetting({ lastToolId: g.id });
-          notify(`${g.name} opened.`);
+          if (res.target === 'steam') {
+            updateGame(g.id, { lastPlayedAt: Date.now(), journeyStatus: journeyStatusAfterFirstLaunch(g.journeyStatus, g.playtime) });
+            notify(`Opening ${g.name} through Steam…`);
+          } else notify(`${g.name} opened.`);
           return;
         }
         if (settings.fungistEnabled !== false && settings.soundsEnabled !== false && (settings.soundPack || 'synthwave') !== 'none' && settings.fungistVoiceEnabled !== false && settings.fungistNotifications?.gameLaunch !== false) {
@@ -1403,7 +1418,7 @@ export default function App() {
       <ControllerNavigationBridge enabled={settings.controllerNavigationEnabled === true} preferredFingerprint={settings.preferredControllerFingerprint || ''} resting={gameRestActive} privacyEpoch={unlockedCategories.join('|')} onBlockedLaunch={() => notify('Controller launch needs its own safety confirmation. Use mouse or keyboard for now.')} />
       {/* Window edge glow — soft inner halo around the frameless window (Riot/Discord style) */}
       <div className="window-edge-glow" aria-hidden="true" />
-      <BgAmbience theme={settings.theme} settings={settings} game={selected} resting={gameRestActive} eventPulse={fungistLaunchCelebration?.key > confetti.key ? { kind: 'launch', key: fungistLaunchCelebration.key } : { kind: 'celebrate', key: confetti.key }} />
+      {!lounge.active && <BgAmbience theme={settings.theme} settings={settings} game={selected} resting={gameRestActive} eventPulse={fungistLaunchCelebration?.key > confetti.key ? { kind: 'launch', key: fungistLaunchCelebration.key } : { kind: 'celebrate', key: confetti.key }} />}
       {/* v1.6.4 — BgTexture no longer renders as full-viewport overlay.
           Sidebar renders the texture inside its own body via bgTextureStyle. */}
       <div className="neolib-ui-foreground relative z-20" inert={lounge.active ? '' : undefined}>
@@ -1420,6 +1435,27 @@ export default function App() {
       </div>
 
       <div className="neolib-ui-foreground relative z-20 flex min-h-0 flex-1" inert={lounge.active ? '' : undefined}>
+        {settings.navigationLayout === 'sidebar' && <SideNavigationRail
+          mode={settings.mode || 'library'}
+          libraryViewMode={libraryViewMode}
+          onOpenHome={() => { setSelectedId(null); setMode('home'); }}
+          onOpenLibrary={openLibraryDefault}
+          onOpenWall={() => { setSelectedId(null); updateSetting({ mode: 'library', libraryViewMode: 'wall' }); }}
+          onOpenTools={openToolsDefault}
+          onOpenThemes={() => setThemeStudioOpen(true)}
+          onOpenMascot={() => setMascotCenterOpen(true)}
+          onOpenVisuals={() => { if (wallActive) openLibraryDefault(); setOpenVisualsRequest((value) => value + 1); }}
+          onOpenControllers={() => setControllerCenterOpen(true)}
+          onOpenSettings={() => setShowSettings(true)}
+          onOpenChangelog={() => setChangelogOpen(true)}
+          onEnterLounge={() => void lounge.enter().then((ok) => { if (!ok) notify(gameRestActive ? 'Wake NEO-LIB before entering Lounge.' : 'Fullscreen is unavailable right now.'); })}
+          onCheckForUpdates={checkForAppUpdateNow}
+          onOpenFeedback={() => openFeedback('feedback')}
+          onQuit={() => nativeApi?.quit?.()}
+          onDisableSidebar={() => updateSetting({ navigationLayout: 'top' })}
+          minimalisticEnabled={settings.interfaceMode === 'minimalistic'}
+          onToggleMinimalistic={(enabled) => updateSetting({ interfaceMode: enabled ? 'minimalistic' : 'default' })}
+        />}
         {!wallActive && <Sidebar
           games={visibleGames}
           categories={currentCats}
@@ -1498,6 +1534,7 @@ export default function App() {
           libraryViewMode={libraryViewMode}
           onChangeLibraryViewMode={(nextMode) => { updateSetting({ libraryViewMode: nextMode }); if (nextMode === 'wall') { setSelectedId(null); setMode('library'); } else if (nextMode === 'preview') openLibraryDefault(); }}
           tutorialVisualsOpen={tutorialOpen && tutorialVisualsOpen}
+          openVisualsRequest={openVisualsRequest}
           launcherFilter={launcherFilter}
           onSetLauncherFilter={(v) => updateSetting({ launcherFilter: v })}
           onAutoSort={() => setAutoSortOpen(true)}
@@ -1547,7 +1584,7 @@ export default function App() {
         <main className="relative flex min-w-0 flex-1 flex-col">
           <div className="flex-1 min-h-0 overflow-hidden">
             {!isTools && settings.mode === 'home' ? (
-              <HomeHub games={homeGames} lockedGameCategories={lockedHomeCategoryByGameId} hasPrivateCategories={(library.categories || []).some((category) => category.private)} hasLockedPrivateCategories={(library.categories || []).some((category) => category.private && !unlockedCategories.includes(category.id))} onPanicLock={panicLockPrivateLibrary} resting={gameRestActive} minimalistic={settings.interfaceMode === 'minimalistic'} homeLayout={settings.homeLayout || {}} onUpdateHomeLayout={(homeLayout) => updateSetting({ homeLayout })} updatesCache={settings.homeGameUpdatesCache} onUpdateUpdatesCache={(homeGameUpdatesCache) => updateSetting({ homeGameUpdatesCache })} onSelect={(id) => { if (lockedHomeCategoryByGameId[id]) { notify(`Unlock ${lockedHomeCategoryByGameId[id]} in Library to reveal this game.`); return; } setSelectedId(id); setMode('library'); }} onOpenPlaytimeImport={() => openPlaytimeImport({ force: true })} onOpenTidyUp={() => setTidyOpen(true)} />
+              <HomeHub games={homeGames} lockedGameCategories={lockedHomeCategoryByGameId} hasPrivateCategories={(library.categories || []).some((category) => category.private)} hasLockedPrivateCategories={(library.categories || []).some((category) => category.private && !unlockedCategories.includes(category.id))} onPanicLock={panicLockPrivateLibrary} resting={gameRestActive} minimalistic={settings.interfaceMode === 'minimalistic'} homeLayout={settings.homeLayout || {}} onUpdateHomeLayout={(homeLayout) => updateSetting({ homeLayout })} onUpdateUpdatesCache={(homeGameUpdatesCache) => updateSetting({ homeGameUpdatesCache })} onSelect={(id) => { if (lockedHomeCategoryByGameId[id]) { notify(`Unlock ${lockedHomeCategoryByGameId[id]} in Library to reveal this game.`); return; } setSelectedId(id); setMode('library'); }} onOpenPlaytimeImport={() => openPlaytimeImport({ force: true })} onOpenTidyUp={() => setTidyOpen(true)} />
             ) : !isTools && wallActive ? (
               <CoverWall
                 games={coverWallGames}
@@ -1562,6 +1599,8 @@ export default function App() {
                 onChangeView={(wallView) => updateSetting({ wallView })}
                 wallColumns={settings.wallColumns}
                 onWallColumnsChange={(wallColumns) => updateSetting({ wallColumns })}
+                bigDetailIcons={settings.wallBigDetailIcons === true}
+                onBigDetailIconsChange={(wallBigDetailIcons) => updateSetting({ wallBigDetailIcons })}
                 onOpenPreview={(id) => { setSelectedId(id); updateSetting({ mode: 'library', libraryViewMode: 'preview' }); }}
                 onLaunch={(game) => launchGame(game)}
                 onBulkFavorite={updateBulkFavorite} onBulkJourneyStatus={updateBulkJourneyStatus} onBulkAddCategory={addBulkCategory}
@@ -1792,7 +1831,7 @@ export default function App() {
           appVersion: APP_VERSION,
         }}
       />
-      {lounge.active && <NeoLounge games={visibleUnlockedGames(library.games || [], library.categories || [], unlockedCategories)} favoriteIds={settings.pinnedGameIds || []} updateLedger={settings.updateStatusLedger || {}} initialGameId={settings.lastGameId} mascotId={settings.mascotId || 'fungist'} mascotEnabled={settings.fungistEnabled !== false} controllerEnabled={settings.controllerNavigationEnabled === true} onExit={lounge.exit} onOpenPreview={async (id) => { if (!await lounge.exit()) return false; updateSetting({ mode: 'library', libraryViewMode: 'preview', launcherFilter: 'all' }); setSelectedId(id); return true; }} />}
+      {lounge.active && <NeoLounge games={visibleUnlockedGames(library.games || [], library.categories || [], unlockedCategories)} favoriteIds={settings.pinnedGameIds || []} updateLedger={settings.updateStatusLedger || {}} initialGameId={settings.lastGameId} initialLayout={settings.loungeLayout || 'wall'} onLayoutChange={(loungeLayout) => updateSetting({ loungeLayout })} theme={settings.theme || 'synthwave'} themeSettings={settings} mascotId={settings.mascotId || 'fungist'} mascotEnabled={settings.fungistEnabled !== false} controllerEnabled={settings.controllerNavigationEnabled === true} onExit={lounge.exit} onOpenPreview={async (id) => { if (!await lounge.exit()) return false; updateSetting({ mode: 'library', libraryViewMode: 'preview', launcherFilter: 'all' }); setSelectedId(id); return true; }} />}
     </div>
   );
 }

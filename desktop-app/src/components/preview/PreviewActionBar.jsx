@@ -44,8 +44,9 @@ export default function PreviewActionBar({ game, categories, onLaunch, onLaunchE
   const customControlFrame = String(settings.theme || '').startsWith('custom:') ? stockThemeAssetUrl(settings.theme, 'controlFrame') : '';
 
   return (
-    <div className={`special-control-surface neolib-special-action-art relative z-10 flex flex-wrap items-center gap-3 border-y hairline px-6 py-3${customControlFrame ? ' custom-control-frame' : ''}`} style={{ backgroundColor: 'rgb(var(--surface) / 0.24)', backdropFilter: 'blur(8px) saturate(124%)' }}>
+    <div className={`special-control-surface neolib-special-action-art relative z-10 border-y hairline px-6 py-3${customControlFrame ? ' custom-control-frame' : ''}`} style={{ backgroundColor: 'rgb(var(--surface) / 0.24)', backdropFilter: 'blur(8px) saturate(124%)' }}>
       {customControlFrame && <img src={customControlFrame} alt="" draggable={false} aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full object-fill" style={{ opacity: 0.55 * (customThemeManifest(settings.theme)?.layers?.controlFrame?.opacity ?? 1) }} />}
+      <div className="relative mx-auto flex w-full max-w-[1452px] flex-wrap items-center gap-3">
       <motion.button
         data-testid="detail-launch-btn"
         whileTap={{ scale: 0.95 }}
@@ -219,6 +220,7 @@ export default function PreviewActionBar({ game, categories, onLaunch, onLaunchE
             </span>
           );
         })}
+      </div>
       </div>
     </div>
   );

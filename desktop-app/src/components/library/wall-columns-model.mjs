@@ -7,7 +7,10 @@ export const WALL_COLUMN_DEFINITIONS = Object.freeze([
   Object.freeze({ id: 'installSize', label: 'Install size', minWidth: 95, defaultWidth: 110 }),
   Object.freeze({ id: 'playtime', label: 'Time played', minWidth: 95, defaultWidth: 110 }),
   Object.freeze({ id: 'source', label: 'Source', minWidth: 85, defaultWidth: 110 }),
-  Object.freeze({ id: 'rating', label: 'Rating', minWidth: 70, defaultWidth: 82 }),
+  Object.freeze({ id: 'rating', label: 'Your Rating', minWidth: 90, defaultWidth: 108 }),
+  Object.freeze({ id: 'metacritic', label: 'Metacritic', minWidth: 90, defaultWidth: 105 }),
+  Object.freeze({ id: 'achievements', label: 'Achievements', minWidth: 110, defaultWidth: 130 }),
+  Object.freeze({ id: 'added', label: 'Added to library', minWidth: 115, defaultWidth: 135 }),
 ]);
 
 const DEFINITION_BY_ID = new Map(WALL_COLUMN_DEFINITIONS.map((column) => [column.id, column]));

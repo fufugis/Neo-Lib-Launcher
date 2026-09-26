@@ -11,6 +11,7 @@ const app = fs.readFileSync(path.join(root, 'src', 'App.jsx'), 'utf8');
 const rendererEntry = fs.readFileSync(path.join(root, 'src', 'main.jsx'), 'utf8');
 const mascot = fs.readFileSync(path.join(root, 'src', 'components', 'FungistMascot.jsx'), 'utf8');
 const detail = fs.readFileSync(path.join(root, 'src', 'components', 'GameDetail.jsx'), 'utf8');
+const home = fs.readFileSync(path.join(root, 'src', 'components', 'HomeHub.jsx'), 'utf8');
 const previewActionBar = fs.readFileSync(path.join(root, 'src', 'components', 'preview', 'PreviewActionBar.jsx'), 'utf8');
 
 const checks = [
@@ -26,6 +27,7 @@ const checks = [
   ['Main process records renderer load and crash diagnostics', main.includes("'renderer-console'") && main.includes("'renderer-process-gone'") && main.includes("'renderer-load-failed'") && main.includes("'renderer-load-finished'" )],
   ['Steam update handoff uses the documented Downloads route', main.includes("shell.openExternal('steam://open/downloads')") && !main.includes("shell.openExternal('steam://downloads/')")],
   ['Steam pending updates require both remaining bytes and an active Steam update state', main.includes('const steamUpdateStateMask =') && main.includes('const updateActive = (stateFlags & steamUpdateStateMask) !== 0;') && main.includes('if (remainingBytes <= 0 || !updateActive)')],
+  ['Home waits for live update evidence instead of showing saved alerts', home.includes('normaliseGameUpdates(null), loading: true') && !home.includes('normaliseGameUpdates(updatesCache)') && home.includes("items: next.status === OPERATION_STATUS.RUNNING ? [] : value.items")],
 ];
 
 const failed = checks.filter(([, passed]) => !passed);

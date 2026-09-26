@@ -4,6 +4,33 @@ export function sameToolName(a, b) {
   return String(a || '').replace(/[^a-z0-9]/gi, '').toLowerCase() === String(b || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
 }
 
+export function withRecommendedGraphicsTools(current = {}, now = Date.now()) {
+  const graphicsUtilities = [
+    { id: 'recommended-dlss-swapper', name: 'DLSS Swapper', website: 'https://dlss-swapper.com/#download', about: 'Choose your own installed copy of DLSS Swapper to inspect and manage supported upscaler versions. NEO-LIB does not replace game files automatically.' },
+    { id: 'recommended-optiscaler', name: 'OptiScaler', website: 'https://github.com/optiscaler/OptiScaler/releases', referenceOnly: true, about: 'Open the official OptiScaler releases or point NEO-LIB at your own downloaded files. OptiScaler is game-specific, not a standalone application to launch; NEO-LIB does not inject files automatically.' },
+    { id: 'recommended-reshade', name: 'ReShade', website: 'https://reshade.me/#download', about: 'Open the official ReShade installer or locate an installed copy. Presets and per-game installation remain under your control.' },
+  ];
+  const tools = [...(current.tools || [])];
+  for (const utility of graphicsUtilities) {
+    const existingIndex = tools.findIndex((item) => sameToolName(item.name, utility.name));
+    if (existingIndex >= 0) {
+      const existing = tools[existingIndex];
+      tools[existingIndex] = {
+        ...existing,
+        website: existing.website || utility.website,
+        recommendedTool: true,
+        referenceOnly: existing.exePath ? Boolean(existing.referenceOnly) : Boolean(utility.referenceOnly),
+        availability: existing.exePath || existing.installFolderPath ? 'installed' : 'missing',
+      };
+      continue;
+    }
+    tools.push({ ...utility, recommendedTool: true, exePath: '', availability: 'missing', categoryIds: [HARDWARE_TOOLS_CATEGORY.id], shortDescription: 'Optional graphics utility. Locate your copy or get it from the official site.', genres: ['Graphics utility'], source: 'recommended-graphics', addedAt: now });
+  }
+  const toolCategories = (current.toolCategories || []).some((category) => category.id === HARDWARE_TOOLS_CATEGORY.id)
+    ? current.toolCategories : [...(current.toolCategories || []), HARDWARE_TOOLS_CATEGORY];
+  return { ...current, tools, toolCategories };
+}
+
 // Adds first-run hardware conveniences without replacing a player's own tools.
 export function withGpuSetupTools(current = {}, setup = {}, now = Date.now()) {
   const utilities = setup?.utilities || {};
@@ -51,5 +78,5 @@ export function withGpuSetupTools(current = {}, setup = {}, now = Date.now()) {
   const categories = hasManaged && !(current.toolCategories || []).some((category) => category.id === HARDWARE_TOOLS_CATEGORY.id)
     ? [...(current.toolCategories || []), HARDWARE_TOOLS_CATEGORY]
     : (current.toolCategories || []);
-  return { ...current, tools, toolCategories: categories };
+  return withRecommendedGraphicsTools({ ...current, tools, toolCategories: categories }, now);
 }

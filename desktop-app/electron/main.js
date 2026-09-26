@@ -158,6 +158,10 @@ const imageCache = createImageCacheService({ path, coversDir, download: httpDown
 const widgetPackages = createWidgetPackageService({ fsp, path, widgetsDir: () => path.join(dataDir(), 'widgets') });
 const customThemes = createCustomThemeService({
   root: () => path.join(dataDir(), 'themes'),
+  stockRoot: () => path.join(app.getAppPath(), 'src', 'themes', 'stock'),
+  workbenchRoot: () => path.join(dataDir(), 'theme-workbench'),
+  openPath: (file) => shell.openPath(file),
+  showItemInFolder: (file) => shell.showItemInFolder(file),
   reservedIds: ['anime', 'blank-starter', 'colorful', 'crimson', 'daybreak', 'gaming', 'generic-blue', 'generic-gray', 'home', 'midnight', 'mint', 'modern', 'monochrome', 'ocean', 'pro', 'synthwave', 'synthwave-day'],
 });
 const romScanner = createRomScanService({ fsp, path });

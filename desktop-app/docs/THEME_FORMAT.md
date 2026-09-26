@@ -141,21 +141,40 @@ automatic Rest Mode normally starts immediately on launch, launch bursts are
 visible only when the app remains awake; they are never replayed after waking.
 The Theme Creator Lab has a **Preview burst** button for either event.
 
+`effects.stockFx` may name one of NEO-LIB's built-in themes (for example,
+`"anime"` or `"colorful"`) to reuse its declarative particle style. Anime
+also brings its blossom motion and Colorful its shooting stars. This effect
+choice is separate from up to three image-based emitters. It follows Effects
+level, reduced-motion and Rest Mode. These built-in motions are app effects,
+not editable image files; their artwork layers can be copied and edited below.
+
 ## Particle FX Lab in Theme Studio
 
-Open **Theme Creator Lab** in Theme Studio. Start from the built-in blank
-starter, or select an installed custom theme to remix. Enter your name, a new theme name and a
+Open **Theme Creator Lab** in Theme Studio. Start from the blank starter,
+any built-in theme, or an installed custom theme to remix. Enter your name, a new theme name and a
 new lowercase ID and tone. You can edit all palette/panel colours, choose PNG/JPG/WebP
 artwork for the atmosphere, sidebar, decoration, navigation frame/flourish and control frame,
 remove these layers or adjust their opacity. Canvas and Atmosphere also have **GIF + still**
 and **WebM + still** pickers, each with once, visible-only and while-awake choices.
 Only one full-screen layer may animate in a saved theme. You can add a particle
 image, or adjust each emitter's reaction, direction, placement, depth, rotation, glow, count, size, opacity and
-duration while watching a small live preview. **Save as new theme** validates
+duration while watching the larger live preview beside the editor. **Save as new theme** validates
 and copies the result into a new
 user-data folder; it never edits or replaces the source. A saved remix keeps
 the original artwork attribution and adds your creator credit. A source image
 from another artist still requires their permission to redistribute.
+
+Each named layer has **NEO-LIB art** beside **Choose image**. Open the art
+library to pick a built-in or installed-theme image; this includes button
+frames, ornaments and atmosphere art. **Use a copy** places it in the current
+draft. **Edit copy in default app** opens a separate PNG/JPG/WebP copy in the
+Windows default editor; **Show copy / Open with…** reveals it so you can use
+Paint, Photoshop or another app. Edits to the copy can be refreshed in the
+live preview. **Open Canva** and **Open AI Images** open external websites;
+NEO-LIB never uploads the file. Upload the copy yourself, download the result,
+then use **Choose image** to bring it back. The source and built-in assets are
+never overwritten. Working copies live in NEO-LIB's user-data
+`theme-workbench/` folder; the saved theme gets its own validated copy.
 
 Canvas starts as a two-colour gradient controlled by the gradient colour pickers.
 Creators can replace it with a PNG/JPG/WebP image, adjust image opacity over
@@ -168,7 +187,7 @@ remove Canvas animation but retain the still background.
 
 `npm run test:themes` checks built-in folders and the custom-theme install
 service before a renderer build. A custom manifest is limited to 32 KB; each
-still image or GIF to 2 MB, video to 8 MB, and the package to 12 MB. Media must match its file
+still image to 3 MB, GIF to 2 MB, video to 8 MB, and the package to 12 MB. Media must match its file
 type, cannot be symlinks, and only declared `assets/<filename>` files are
 copied. Existing IDs are not overwritten. An invalid or modified installed
 theme is skipped at load. The remaining custom-theme stage is live Windows

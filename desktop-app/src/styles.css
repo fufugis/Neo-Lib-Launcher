@@ -162,9 +162,11 @@
 [data-theme='gaming'] {
   --ink: 240 245 255;
   --muted: 190 201 229;
-  --surface: 47 51 93;
-  --panel: 65 71 121;
-  --border: 107 120 183;
+  --surface: 56 61 104;
+  --panel: 75 82 133;
+  --border: 122 136 194;
+  --grad-1: 45 49 91;
+  --grad-2: 66 73 122;
   --accent: 184 137 255;           /* lifted lavender */
   --accent-2: 114 214 255;         /* brighter ice blue */
   --accent-soft: 169 135 236;
@@ -176,9 +178,11 @@
 [data-theme='modern'] {
   --ink: 239 243 248;
   --muted: 187 197 211;
-  --surface: 53 62 78;
-  --panel: 75 86 104;
-  --border: 120 133 153;
+  --surface: 63 73 91;
+  --panel: 85 98 117;
+  --border: 135 148 168;
+  --grad-1: 52 61 77;
+  --grad-2: 77 88 107;
   --accent: 184 58 69;
   --accent-2: 145 177 217;
   --accent-soft: 75 87 105;
@@ -192,9 +196,11 @@
 [data-theme='home'] {
   --ink: 239 243 246;
   --muted: 190 200 207;
-  --surface: 78 87 94;
-  --panel: 48 57 64;
-  --border: 142 155 164;
+  --surface: 88 98 106;
+  --panel: 67 77 85;
+  --border: 156 168 177;
+  --grad-1: 65 75 83;
+  --grad-2: 92 103 111;
   --accent: 84 190 246;
   --accent-2: 255 203 94;
   --accent-soft: 159 173 182;
@@ -275,9 +281,11 @@
 [data-theme='generic-gray'] {
   --ink: 241 243 246;
   --muted: 168 174 182;
-  --surface: 30 32 36;
-  --panel: 48 51 56;
-  --border: 100 105 113;
+  --surface: 63 67 74;
+  --panel: 81 86 94;
+  --border: 137 145 155;
+  --grad-1: 65 69 76;
+  --grad-2: 88 94 103;
   --accent: 220 224 230;
   --accent-2: 158 166 177;
   --accent-soft: 84 89 97;
@@ -290,9 +298,11 @@
 [data-theme='generic-blue'] {
   --ink: 238 246 255;
   --muted: 190 209 237;
-  --surface: 46 70 108;
-  --panel: 65 91 133;
-  --border: 107 143 198;
+  --surface: 56 82 124;
+  --panel: 76 104 149;
+  --border: 123 158 207;
+  --grad-1: 48 74 112;
+  --grad-2: 72 100 143;
   --accent: 107 165 255;
   --accent-2: 88 139 220;
   --accent-soft: 50 83 141;
@@ -313,7 +323,7 @@
   transform: scale(1.02);
   will-change: transform;
 }
-.theme-artwork-home { filter: saturate(0.92) contrast(0.95) brightness(0.94); }
+.theme-artwork-home { filter: saturate(0.92) contrast(0.95) brightness(1); }
 .theme-artwork-synthwave { filter: saturate(0.86) contrast(0.92) brightness(0.84); }
 .theme-artwork-synthwave-day { filter: saturate(0.72) contrast(0.84) brightness(0.86); mix-blend-mode: multiply; }
 .theme-artwork-midnight { filter: saturate(0.82) contrast(0.92) brightness(0.82); }
@@ -322,12 +332,12 @@
 .theme-artwork-ocean { filter: saturate(0.82) contrast(0.92) brightness(0.82); }
 .theme-artwork-crimson { filter: saturate(0.8) contrast(0.9) brightness(0.8); }
 .theme-artwork-anime { filter: saturate(0.9) contrast(0.92) brightness(0.86); }
-.theme-artwork-gaming { filter: saturate(0.84) contrast(0.92) brightness(0.8); }
-.theme-artwork-modern { filter: saturate(0.7) contrast(0.9) brightness(0.84); }
+.theme-artwork-gaming { filter: saturate(0.84) contrast(0.92) brightness(0.9); }
+.theme-artwork-modern { filter: saturate(0.7) contrast(0.9) brightness(0.94); }
 .theme-artwork-colorful { filter: saturate(0.94) contrast(0.94) brightness(0.84); }
 .theme-artwork-pro { filter: saturate(0.9) contrast(0.92) brightness(0.8); mix-blend-mode: screen; }
-.theme-artwork-generic-gray { mix-blend-mode: luminosity; filter: contrast(0.84) brightness(0.84); }
-.theme-artwork-generic-blue { filter: saturate(0.84) contrast(0.92) brightness(0.86); }
+.theme-artwork-generic-gray { mix-blend-mode: luminosity; filter: contrast(0.9) brightness(1); }
+.theme-artwork-generic-blue { filter: saturate(0.84) contrast(0.92) brightness(0.94); }
 .theme-artwork-monochrome { mix-blend-mode: multiply; filter: grayscale(1) contrast(0.72) brightness(1.18); opacity: 0.18 !important; }
 @keyframes theme-artwork-drift {
   0%, 100% { transform: scale(1.02) translate3d(0, 0, 0); }
@@ -489,6 +499,17 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
 .library-toolbar-control:hover,
 .library-toolbar-control:focus-visible {
   background: rgb(var(--panel) / 0.96);
+}
+.library-sidebar-container { container-type: inline-size; }
+/* Direct width feedback during a Library-divider drag, before settings save. */
+@container (max-width: 389px) {
+  .library-filter-control { width: 28px !important; padding-inline: 0 !important; }
+  .library-filter-text { display: none !important; }
+  .library-compact-only { display: block !important; }
+  .library-filter-spacer { display: none !important; }
+}
+@container (max-width: 299px) {
+  .library-action-label, .library-nav-label { display: none !important; }
 }
 .library-toolbar-popover {
   position: absolute;
@@ -1243,7 +1264,7 @@ html[data-sidebar-resizing='true'], html[data-sidebar-resizing='true'] * { curso
   opacity: var(--special-ui-decoration-opacity, 0);
   width: calc(100% + 42px);
   height: 132px;
-  background-size: 100% 100% !important;
+  background-size: min(100%, 1400px) 100% !important;
   background-repeat: no-repeat !important;
   filter: saturate(1.1) contrast(1.04) drop-shadow(0 0 11px rgb(var(--accent) / .34)) !important;
 }
@@ -1633,6 +1654,7 @@ html[data-sidebar-resizing='true'], html[data-sidebar-resizing='true'] * { curso
 @keyframes custom-particle-drift { 0% { transform: translateX(-12vw) rotate(var(--fx-rotation, 0deg)); opacity: 0; } 15%, 85% { opacity: var(--fx-opacity); } 100% { transform: translateX(112vw) rotate(var(--fx-rotation, 0deg)); opacity: 0; } }
 @keyframes custom-reaction-pop { 0% { transform: translate(-50%, 18px) scale(.7) rotate(var(--fx-rotation, 0deg)); opacity: 0; } 30% { opacity: var(--fx-opacity); } 100% { transform: translate(-50%, -55px) scale(1.05) rotate(var(--fx-rotation, 0deg)); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .custom-theme-particles, .theme-creator-sprite, .theme-creator-reaction { display: none; } }
+@media (prefers-reduced-motion: reduce) { .custom-stock-fx { display: none; } }
 .particles span {
   position: absolute;
   display: block;
@@ -1944,4 +1966,13 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 .neolib-app-shell[data-interface-mode="minimalistic"] .neolib-nav-tab::before,
 .neolib-app-shell[data-interface-mode="minimalistic"] .neolib-nav-tab::after {
   opacity: 0 !important;
+}
+/* Lounge selection stays legible from a couch, even over bright cover art. */
+.lounge-game-card[data-lounge-selected='true'],
+.lounge-game-card:focus-visible {
+  transform: translateY(-4px) scale(1.025);
+  z-index: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lounge-game-card { transition: none !important; }
 }

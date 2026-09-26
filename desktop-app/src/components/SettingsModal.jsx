@@ -7,7 +7,7 @@ import { DONATE_PAYPAL_URL } from './DonateModal';
 import qrUrl from '../assets/donate-qr.png';
 import { SettingsSection as Section, SettingsToggle as Toggle } from './settings/SettingsControls';
 
-export default function SettingsModal({ open, onClose, settings, setSettings, onShowChangelog, currentVersion = '1.8.0' }) {
+export default function SettingsModal({ open, onClose, settings, setSettings, onShowChangelog, currentVersion = '1.8.1' }) {
   const setKey = (patch) => setSettings({ ...settings, ...patch });
   const [showKey, setShowKey] = React.useState(false);
   const [showArtworkKey, setShowArtworkKey] = React.useState(false);
@@ -49,9 +49,6 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
           the grid of theme swatches already tiles nicely. Everything else auto-
           flows into masonry-ish columns via CSS. */}
       <div className="p-5">
-        <div className="mb-5 rounded-xl border border-[rgb(var(--accent)/0.24)] bg-[rgb(var(--accent)/0.055)] p-3">
-          <div className="flex items-start gap-2.5"><Sparkles size={16} className="mt-0.5 shrink-0 text-[rgb(var(--accent))]" /><div><p className="text-[12px] font-black text-ink">Appearance has its own home</p><p className="mt-0.5 text-[10px] leading-relaxed text-muted">Use Themes and Visual Tweaks from the gear menu beside Home. Settings stays focused on how NEO-LIB behaves.</p></div></div>
-        </div>
         {/* All other sections tile into a 2-column grid via CSS columns so
             each Section stays intact and never breaks across columns. */}
         <div className="settings-columns">

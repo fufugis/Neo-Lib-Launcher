@@ -6,6 +6,7 @@ import { PLATFORM, added, getChronicle, getLibraryHealth, getRecommendations, ho
 import { createBoundedOperation } from '../services/bounded-operation.mjs';
 import { OPERATION_STATUS } from '../state/operation-state.mjs';
 import { HOME_WIDGET_BY_ID, HOME_WIDGET_GRID, homeWidget, normaliseWidgetSize, widgetsForSegment } from './home/home-widget-registry.mjs';
+import { WIDGET_RESIZE_DIRECTIONS, resizeFreeWidget, resizeGridWidget } from './home/home-widget-resize.mjs';
 import WidgetManagerModal from './home/WidgetManagerModal';
 import CommunityWidgetHost from './home/CommunityWidgetHost';
 import { renderForegroundPortal } from './ui/VisualBoundary';
@@ -15,6 +16,11 @@ const LEGACY_HOME_SEGMENTS = ['pinned', 'play', 'updates', 'system'];
 const DEFAULT_HOME_WIDGET_ORDER = LEGACY_HOME_SEGMENTS.flatMap((segment) => widgetsForSegment(segment).map((widget) => widget.id));
 const HOME_GRID_ROW_HEIGHT = 108;
 const HOME_GRID_GAP = 12;
+const HOME_WIDGET_ICONS = {
+  'top-played': Trophy, news: Newspaper, 'play-next': Sparkles, recent: Clock3,
+  'best-games': Star, chronicle: Archive, updates: Download,
+  'released-week': CalendarDays, health: ShieldCheck, storage: HardDrive,
+};
 // Home can unmount while a game is previewed. Keep a completed, local session
 // scan so Storage Control does not look empty when the player comes back.
 let STORAGE_SESSION_CACHE = { loading: false, scannedAt: 0, results: [], skipped: [] };
@@ -25,20 +31,23 @@ function operationFailure(operation, label) {
   return operation?.message || `${label} unavailable.`;
 }
 
-export default function HomeHub({ games = [], lockedGameCategories = {}, hasPrivateCategories = false, hasLockedPrivateCategories = false, onPanicLock, onSelect, onOpenPlaytimeImport, onOpenTidyUp, resting = false, minimalistic = false, homeLayout = {}, onUpdateHomeLayout, updatesCache, onUpdateUpdatesCache }) {
+export default function HomeHub({ games = [], lockedGameCategories = {}, hasPrivateCategories = false, hasLockedPrivateCategories = false, onPanicLock, onSelect, onOpenPlaytimeImport, onOpenTidyUp, resting = false, minimalistic = false, homeLayout = {}, onUpdateHomeLayout, onUpdateUpdatesCache }) {
   const [range, setRange] = React.useState('week');
   const [rankingScope, setRankingScope] = React.useState('period');
   const [news, setNews] = React.useState({ loading: false, items: [], error: '', operation: null });
   const [storage, setStorage] = React.useState(() => STORAGE_SESSION_CACHE);
   const [weeklyReleases, setWeeklyReleases] = React.useState({ loading: false, items: [], criteria: '', tier: 'major', fetchedAt: 0, error: '', operation: null });
-  // Home unmounts while the user opens a game. Start from App's local cache so
-  // the update pane does not look empty on return; only a completed scan may
-  // replace this list.
-  const [gameUpdates, setGameUpdates] = React.useState(() => normaliseGameUpdates(updatesCache));
+  // A saved update alert can outlive a Steam download. Never present cached
+  // pending bytes as a current warning before checking the launcher again.
+  const [gameUpdates, setGameUpdates] = React.useState(() => ({ ...normaliseGameUpdates(null), loading: true }));
   const [newsDetail, setNewsDetail] = React.useState(null);
   const [draggedPane, setDraggedPane] = React.useState(null);
   const [dragPreviewOrder, setDragPreviewOrder] = React.useState(null);
   const [dragInsertion, setDragInsertion] = React.useState(null);
+  const [dragGhost, setDragGhost] = React.useState(null);
+  const dragGhostRef = React.useRef(null);
+  const dragSessionRef = React.useRef(null);
+  const dragCleanupRef = React.useRef(null);
   const [widgetManagerOpen, setWidgetManagerOpen] = React.useState(false);
   const [communityWidgets, setCommunityWidgets] = React.useState([]);
   const [recoverableWidgets, setRecoverableWidgets] = React.useState([]);
@@ -154,37 +163,71 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
     const targetIndex = next.indexOf(target);
     if (targetIndex < 0) return order;
     next.splice(targetIndex + (after ? 1 : 0), 0, source);
-    return next;
+    return next.every((id, index) => id === order[index]) ? order : next;
   }, []);
-  const finishPaneDrag = React.useCallback(() => {
-    if (snapToGrid && draggedPane && dragPreviewOrder) updateLayout({ widgetOrder: dragPreviewOrder });
+  const finishPaneDrag = (event, commit = true) => {
+    const session = dragSessionRef.current;
+    if (event?.pointerId != null && session?.pointerId !== event.pointerId) return;
+    dragCleanupRef.current?.();
+    dragCleanupRef.current = null;
+    dragSessionRef.current = null;
+    if (commit && session && session.order !== session.initialOrder) updateLayout({ widgetOrder: session.order });
     setDraggedPane(null);
     setDragPreviewOrder(null);
     setDragInsertion(null);
-  }, [dragPreviewOrder, draggedPane, homeLayout, onUpdateHomeLayout, snapToGrid]);
-  React.useEffect(() => {
-    if (!snapToGrid || !draggedPane) return undefined;
-    const onMove = (event) => {
-      const target = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('[data-home-pane-id]');
-      const targetId = target?.dataset?.homePaneId || '';
-      if (!targetId || targetId === draggedPane) return;
-      const rect = target.getBoundingClientRect();
-      const horizontal = widgetSize(draggedPane)?.cols < gridColumns && widgetSize(targetId)?.cols < gridColumns;
-      const after = horizontal ? event.clientX > rect.left + rect.width / 2 : event.clientY > rect.top + rect.height / 2;
-      setDragInsertion({ id: targetId, after, horizontal });
-      setDragPreviewOrder((order) => reorderPane(order || widgetOrder, draggedPane, targetId, after));
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', finishPaneDrag, { once: true });
-    return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', finishPaneDrag); };
-  }, [draggedPane, finishPaneDrag, gridColumns, reorderPane, snapToGrid, widgetOrder, widgetSize]);
+    setDragGhost(null);
+  };
+  React.useEffect(() => () => dragCleanupRef.current?.(), []);
   const startPaneDrag = (id, event) => {
-    if (!layoutUnlocked || !snapToGrid || event.button !== 0) return;
+    if (!layoutUnlocked || !snapToGrid || event.button !== 0 || dragSessionRef.current) return;
     event.preventDefault();
-    event.currentTarget.setPointerCapture?.(event.pointerId);
+    const pane = event.currentTarget.closest('[data-home-pane-id]');
+    const rect = pane?.getBoundingClientRect();
+    if (!rect) return;
+    const ghostWidth = Math.min(rect.width, 620);
+    const anchorX = Math.min(event.clientX - rect.left, ghostWidth - 24);
+    const anchorY = Math.min(event.clientY - rect.top, 30);
+    const session = { id, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, order: activeWidgetOrder, initialOrder: activeWidgetOrder, lastDrop: '' };
+    dragSessionRef.current = session;
+    setDragGhost({ id, label: widgetDefinitions[id]?.label || id, size: widgetSize(id), left: event.clientX - anchorX, top: event.clientY - anchorY, width: ghostWidth, height: Math.min(rect.height, 140) });
     setDraggedPane(id);
     setDragPreviewOrder(activeWidgetOrder);
     setDragInsertion(null);
+    const onMove = (moveEvent) => {
+      if (moveEvent.pointerId !== session.pointerId) return;
+      if (dragGhostRef.current) dragGhostRef.current.style.transform = `translate3d(${moveEvent.clientX - session.startX}px, ${moveEvent.clientY - session.startY}px, 0)`;
+      const targets = homeGridHostRef.current?.querySelectorAll('[data-home-pane-id]') || [];
+      let target = null;
+      for (const element of targets) {
+        if (element.dataset.homePaneId === id) continue;
+        const bounds = element.getBoundingClientRect();
+        if (moveEvent.clientX >= bounds.left && moveEvent.clientX <= bounds.right && moveEvent.clientY >= bounds.top && moveEvent.clientY <= bounds.bottom) { target = element; break; }
+      }
+      if (!target) return;
+      const targetId = target.dataset.homePaneId;
+      const bounds = target.getBoundingClientRect();
+      const horizontal = widgetSize(id)?.cols < gridColumns && widgetSize(targetId)?.cols < gridColumns;
+      const after = horizontal ? moveEvent.clientX > bounds.left + bounds.width / 2 : moveEvent.clientY > bounds.top + bounds.height / 2;
+      const dropKey = `${targetId}:${after}`;
+      if (session.lastDrop === dropKey) return;
+      session.lastDrop = dropKey;
+      setDragInsertion({ id: targetId, after, horizontal });
+      const next = reorderPane(session.order, id, targetId, after);
+      if (next !== session.order) { session.order = next; setDragPreviewOrder(next); }
+    };
+    const onUp = (upEvent) => finishPaneDrag(upEvent);
+    const onCancel = (cancelEvent) => finishPaneDrag(cancelEvent, false);
+    const onBlur = () => finishPaneDrag(null, false);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
+    window.addEventListener('blur', onBlur);
+    dragCleanupRef.current = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
+      window.removeEventListener('blur', onBlur);
+    };
   };
   const togglePane = (id, hidden) => updateLayout({ hidden: hidden ? [...new Set([...hiddenPanes, id])] : hiddenPanes.filter((item) => item !== id) });
   const updateCommunityConfig = React.useCallback((id, next) => updateLayout({ communityWidgetConfig: { ...communityConfig, [id]: next } }), [communityConfig, homeLayout, onUpdateHomeLayout]);
@@ -224,11 +267,6 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
     if (layoutUnlocked) finishPaneDrag();
     setLayoutUnlocked((value) => !value);
   };
-
-  React.useEffect(() => {
-    const cached = normaliseGameUpdates(updatesCache);
-    setGameUpdates((current) => cached.scannedAt > current.scannedAt ? cached : current);
-  }, [updatesCache]);
 
   React.useEffect(() => {
     if (resting || !window.api?.fetchAllNews) return undefined;
@@ -283,7 +321,7 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
       const result = await window.api.scanGameUpdates({ games: scopedGames.map(({ id, name, appid, launcher, source, steamOwned, installedVersion, updateWatchUrl, website, exePath }) => ({ id, name, appid, launcher, source, steamOwned, installedVersion, updateWatchUrl, website, exePath })), force });
       if (result?.ok === false) throw new Error(result.error || 'Update scan unavailable.');
       return { ...result, operationCompleted: Number(result?.checked || scopedGames.length) };
-    }, onState: (next) => setGameUpdates((value) => ({ ...value, operation: next, loading: next.status === OPERATION_STATUS.RUNNING, error: '' })) });
+    }, onState: (next) => setGameUpdates((value) => ({ ...value, items: next.status === OPERATION_STATUS.RUNNING ? [] : value.items, operation: next, loading: next.status === OPERATION_STATUS.RUNNING, error: '' })) });
     operations.current.updates = operation;
     const outcome = await operation.promise;
     if (operations.current.updates?.id !== operation.id) return;
@@ -294,13 +332,15 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
       onUpdateUpdatesCache?.(next);
     } else setGameUpdates((value) => ({ ...value, loading: false, error: operationFailure(outcome.state, 'Update scan'), operation: outcome.state }));
   }, [onUpdateUpdatesCache, resting, visibleTrackableGames]);
+  const refreshGameUpdatesRef = React.useRef(refreshGameUpdates);
+  refreshGameUpdatesRef.current = refreshGameUpdates;
   React.useEffect(() => {
     if (resting) return undefined;
     // Home is already mounted behind the CRT intro. Do not let that hidden
     // mount start executable/version inspection while NEO-LIB is booting.
-    const timer = window.setTimeout(() => refreshGameUpdates(), 35_000);
+    const timer = window.setTimeout(() => refreshGameUpdatesRef.current(), 35_000);
     return () => window.clearTimeout(timer);
-  }, [refreshGameUpdates, resting]);
+  }, [resting]);
 
   const scrollNews = (direction) => railRef.current?.scrollBy({ left: direction * 420, behavior: 'smooth' });
   const scanStorage = async () => {
@@ -366,7 +406,7 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
       </div>
     </header>
 
-    {hasLockedPrivateCategories && <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-400/35 bg-red-400/[0.065] px-4 py-3 shadow-[0_12px_28px_-22px_rgba(248,113,113,.9)]" data-testid="home-private-categories-locked-notice"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-red-400/40 bg-red-400/[0.10] text-red-200"><LockKeyhole size={15} /></span><span className="min-w-0"><span className="block text-[11px] font-black uppercase tracking-[0.16em] text-red-200">Private categories are locked</span><span className="mt-1 block text-[11px] leading-relaxed text-ink/90">Please unlock them in Library to view stats and news from these games.</span></span></div>}
+    {hasLockedPrivateCategories && <div className="mb-3 inline-flex w-fit max-w-full items-center gap-2 rounded-lg border border-red-400/35 bg-red-400/[0.08] px-2.5 py-1.5 text-[10.5px]" role="status" title="Unlock private categories in Library to include their games in Home stats and news." data-testid="home-private-categories-locked-notice"><LockKeyhole size={13} className="shrink-0 text-red-200" /><span className="font-bold text-red-200">Private games hidden</span><span className="hidden text-muted sm:inline">· Unlock in Library to include them here</span></div>}
 
     {layoutUnlocked && <div className="mb-4 flex items-center gap-3 rounded-xl border border-[rgb(var(--accent)/0.48)] bg-[rgb(var(--accent)/0.09)] px-4 py-3" role="status" data-testid="home-layout-editing"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[rgb(var(--accent)/0.18)] text-[rgb(var(--accent-2))]"><Move size={15} /></span><div className="min-w-0 flex-1"><p className="text-xs font-black text-ink">Widget canvas unlocked · {snapToGrid ? 'snapping to grid' : 'free placement'}</p><p className="mt-0.5 text-[10px] text-muted">Drag any widget title bar and use its corner grip to resize. Turn snapping off to place and overlap widgets freely. Right-click a title bar for more actions.</p></div><span className="font-mono text-[10px] text-muted">{snapToGrid ? `${gridColumns} columns` : 'Free canvas'}</span></div>}
     <div className="overflow-auto rounded-2xl [scrollbar-color:rgb(var(--accent))_transparent] [scrollbar-width:thin]">
@@ -374,6 +414,7 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
         {visibleWidgetIds.length ? visibleWidgetIds.map((id, index) => <HomePane key={id} id={id} widgetDefinition={widgetDefinitions[id]} {...paneProps} freePosition={resolvedFreePositions[id]} stackIndex={index}>{paneContent[id] || communityPaneContent[id]}</HomePane>) : <p className="p-8 text-center text-xs text-muted">Every Home widget is hidden. Open Widgets to bring one back.</p>}
       </div>
     </div>
+    {dragGhost && renderForegroundPortal(<div ref={dragGhostRef} className="pointer-events-none fixed z-[300] select-none overflow-hidden rounded-xl border-2 border-[rgb(var(--accent))] bg-[rgb(var(--panel)/0.94)] text-ink shadow-[0_0_0_4px_rgb(var(--accent)/0.22),0_24px_55px_rgb(0_0_0/0.5),0_0_32px_rgb(var(--accent)/0.5)] backdrop-blur-xl" style={{ left: dragGhost.left, top: dragGhost.top, width: dragGhost.width, height: dragGhost.height }} aria-hidden="true" data-testid="home-widget-drag-ghost"><div className="flex h-9 items-center gap-2 border-b border-[rgb(var(--accent)/0.5)] bg-[rgb(var(--accent)/0.18)] px-3"><GripVertical size={15} className="text-[rgb(var(--accent-2))]" /><span className="min-w-0 flex-1 truncate text-xs font-black uppercase tracking-wide">{dragGhost.label}</span><span className="rounded bg-[rgb(var(--accent)/0.22)] px-1.5 py-0.5 font-mono text-[10px]">{dragGhost.size?.cols}×{dragGhost.size?.rows}</span></div><div className="grid h-[calc(100%-36px)] place-items-center text-xs font-bold text-muted"><span className="inline-flex items-center gap-2"><Move size={18} className="text-[rgb(var(--accent))]" />Moving widget · release to place</span></div></div>)}
     {newsDetail && <NewsDetail item={newsDetail} onClose={() => setNewsDetail(null)} />}
     <WidgetManagerModal open={widgetManagerOpen} onClose={() => setWidgetManagerOpen(false)} communityWidgets={communityWidgets} recoverableWidgets={recoverableWidgets} communityConfig={communityConfig} hiddenIds={hiddenPanes} onToggleBuiltin={togglePane} onImport={importWidget} onCommunityConfig={updateCommunityConfig} onRemove={removeCommunityWidget} onRestore={restoreCommunityWidget} externalNotice={widgetImportNotice} />
   </section>;
@@ -436,13 +477,14 @@ function TopPlayed({ games, scope, onScope, rangeLabel, summary, onSelect, onHid
 }
 function HomePane({ id, widgetDefinition, children, paneOrder, draggedPane, dragInsertion, startPaneDrag, togglePane, layoutUnlocked, setLayoutUnlocked, gridColumns, snapToGrid, sizeForWidget, onResize, onResetSize, freePosition, stackIndex, onFreePosition, onBringFront, onToggleSnap }) {
   const widget = widgetDefinition || homeWidget(id);
+  const WidgetIcon = HOME_WIDGET_ICONS[id] || Puzzle;
   const isDragging = draggedPane === id;
-  const isPeer = !!draggedPane && !isDragging;
   const insertionHere = dragInsertion?.id === id;
   const savedSize = sizeForWidget(id) || { cols: gridColumns, rows: 2 };
   const [draftSize, setDraftSize] = React.useState(null);
   const [draftFreePosition, setDraftFreePosition] = React.useState(null);
   const [movingFreely, setMovingFreely] = React.useState(false);
+  const [resizing, setResizing] = React.useState(false);
   const [contextMenu, setContextMenu] = React.useState(null);
   const resizeSession = React.useRef(null);
   const moveSession = React.useRef(null);
@@ -462,23 +504,20 @@ function HomePane({ id, widgetDefinition, children, paneOrder, draggedPane, drag
   const calculateResize = (event) => {
     const session = resizeSession.current;
     if (!session) return snapToGrid ? savedSize : freePosition;
-    if (!session.snap) return {
-      ...session.position,
-      width: Math.max(160, session.position.width + event.clientX - session.x),
-      height: Math.max(80, session.position.height + event.clientY - session.y),
-    };
-    return normaliseWidgetSize(widget, {
-      cols: session.size.cols + Math.round((event.clientX - session.x) / session.columnStep),
-      rows: session.size.rows + Math.round((event.clientY - session.y) / session.rowStep),
-    }, gridColumns);
+    const dx = event.clientX - session.x;
+    const dy = event.clientY - session.y;
+    return session.snap
+      ? resizeGridWidget(widget, session.size, gridColumns, session.direction, dx, dy, session.columnStep, session.rowStep)
+      : resizeFreeWidget(session.position, session.direction, dx, dy);
   };
   const startResize = (event) => {
     if (!layoutUnlocked || event.button !== 0) return;
     event.preventDefault(); event.stopPropagation();
     const grid = event.currentTarget.closest('[data-home-grid]');
     const width = grid?.getBoundingClientRect().width || 1;
-    resizeSession.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, snap: snapToGrid, size: savedSize, position: freePosition, columnStep: Math.max(1, (width - HOME_GRID_GAP * (gridColumns - 1)) / gridColumns + HOME_GRID_GAP), rowStep: HOME_GRID_ROW_HEIGHT + HOME_GRID_GAP };
+    resizeSession.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, direction: event.currentTarget.dataset.resizeDirection, snap: snapToGrid, size: savedSize, position: freePosition, columnStep: Math.max(1, (width - HOME_GRID_GAP * (gridColumns - 1)) / gridColumns + HOME_GRID_GAP), rowStep: HOME_GRID_ROW_HEIGHT + HOME_GRID_GAP };
     event.currentTarget.setPointerCapture?.(event.pointerId);
+    setResizing(true);
     if (snapToGrid) setDraftSize(savedSize); else { setDraftFreePosition(freePosition); onBringFront(id); }
   };
   const moveResize = (event) => {
@@ -489,6 +528,7 @@ function HomePane({ id, widgetDefinition, children, paneOrder, draggedPane, drag
     if (resizeSession.current?.pointerId !== event.pointerId) return;
     const next = calculateResize(event);
     resizeSession.current = null;
+    setResizing(false);
     setDraftSize(null);
     setDraftFreePosition(null);
     if (snapToGrid) onResize(id, next); else onFreePosition(id, next);
@@ -496,6 +536,7 @@ function HomePane({ id, widgetDefinition, children, paneOrder, draggedPane, drag
   const cancelResize = (event) => {
     if (resizeSession.current?.pointerId !== event.pointerId) return;
     resizeSession.current = null;
+    setResizing(false);
     setDraftSize(null);
     setDraftFreePosition(null);
   };
@@ -544,17 +585,19 @@ function HomePane({ id, widgetDefinition, children, paneOrder, draggedPane, drag
     : `-left-2 -right-2 h-0.5 ${dragInsertion?.after ? '-bottom-3' : '-top-3'}`;
   const placementStyle = snapToGrid
     ? { order: paneOrder.indexOf(id), gridColumn: `span ${displaySize.cols} / span ${displaySize.cols}`, gridRow: `span ${displaySize.rows} / span ${displaySize.rows}` }
-    : { position: 'absolute', left: displayFreePosition.x, top: displayFreePosition.y, width: displayFreePosition.width, height: displayFreePosition.height, zIndex: movingFreely ? 90 : stackIndex + 1 };
+    : { position: 'absolute', left: displayFreePosition.x, top: displayFreePosition.y, width: displayFreePosition.width, height: displayFreePosition.height, zIndex: movingFreely || resizing ? 90 : stackIndex + 1 };
   const sizeLabel = snapToGrid ? `${displaySize.cols}×${displaySize.rows}` : `${Math.round(displayFreePosition.width)}×${Math.round(displayFreePosition.height)}`;
-  return <motion.div layout={snapToGrid} transition={{ layout: { duration: 0.22, ease: 'easeOut' } }} style={placementStyle} className={`group/homepane flex min-h-0 flex-col overflow-hidden rounded-xl border bg-[rgb(var(--surface)/0.16)] transition ${snapToGrid ? 'relative' : ''} ${layoutUnlocked ? 'border-[rgb(var(--accent)/0.48)] ring-1 ring-[rgb(var(--accent)/0.10)]' : 'border-transparent'} ${isDragging || movingFreely ? 'scale-[0.992] opacity-95 shadow-2xl' : isPeer && snapToGrid ? 'opacity-60' : ''}`} data-home-pane-id={id} data-home-widget-size={sizeLabel} data-testid={`home-pane-${id}`}>
+  return <motion.div layout={snapToGrid && !isDragging} transition={{ layout: { duration: 0.22, ease: 'easeOut' } }} style={placementStyle} className={`group/homepane flex min-h-0 flex-col overflow-hidden rounded-xl border bg-[rgb(var(--surface)/0.16)] transition ${snapToGrid ? 'relative' : ''} ${isDragging && snapToGrid ? 'pointer-events-none border-dashed border-[rgb(var(--accent)/0.8)] bg-[rgb(var(--accent)/0.1)]' : movingFreely || resizing ? 'border-[rgb(var(--accent))] ring-2 ring-[rgb(var(--accent)/0.85)] shadow-[0_0_28px_rgb(var(--accent)/0.5)]' : layoutUnlocked ? 'border-[rgb(var(--accent)/0.48)] ring-1 ring-[rgb(var(--accent)/0.10)]' : 'border-transparent'}`} data-home-pane-id={id} data-home-widget-held={isDragging || movingFreely || resizing ? 'true' : 'false'} data-home-widget-size={sizeLabel} data-testid={`home-pane-${id}`}>
     <div onPointerDown={startMove} onPointerMove={moveFree} onPointerUp={finishFreeMove} onPointerCancel={cancelFreeMove} onLostPointerCapture={cancelFreeMove} onContextMenu={openContextMenu} className={`flex h-8 shrink-0 select-none items-center gap-2 border-b px-2 ${layoutUnlocked ? 'cursor-grab border-[rgb(var(--accent)/0.35)] bg-[rgb(var(--accent)/0.12)] active:cursor-grabbing' : 'border-[rgb(var(--border)/0.38)] bg-[rgb(var(--panel)/0.24)]'}`} data-home-widget-titlebar={id}>
       <GripVertical size={13} className={layoutUnlocked ? 'text-[rgb(var(--accent-2))]' : 'text-muted/55'} />
+      <WidgetIcon size={18} strokeWidth={2.2} className="shrink-0 text-[rgb(var(--accent-2))] drop-shadow-[0_0_7px_rgb(var(--accent)/0.65)]" aria-hidden="true" />
       <span className="min-w-0 flex-1 truncate text-[10px] font-black uppercase tracking-[0.13em] text-ink">{widget?.label || id}</span>
       <span className="font-mono text-[9px] text-muted">{sizeLabel}</span>
       <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={openContextMenuButton} className="grid h-6 w-6 place-items-center rounded text-muted hover:bg-[rgb(var(--accent)/0.14)] hover:text-ink" aria-label={`Open ${widget?.label || id} widget menu`} title="Widget options"><Menu size={12} /></button>
     </div>
-    <div className="min-h-0 flex-1 overflow-auto p-1.5 [scrollbar-color:rgb(var(--accent))_transparent] [scrollbar-width:thin]">{children}</div>
-    {layoutUnlocked && <button type="button" onPointerDown={startResize} onPointerMove={moveResize} onPointerUp={finishResize} onPointerCancel={cancelResize} onLostPointerCapture={cancelResize} className="absolute bottom-0 right-0 z-30 grid h-7 w-7 cursor-nwse-resize place-items-center rounded-tl-lg border-l border-t border-[rgb(var(--accent)/0.45)] bg-[rgb(var(--panel)/0.92)] text-[rgb(var(--accent-2))] shadow-[-4px_-4px_14px_-8px_rgb(var(--accent))]" aria-label={`Resize ${widget?.label || id}`} title="Drag to resize"><Grip size={13} /></button>}
+    <div className={`min-h-0 flex-1 overflow-auto p-1.5 [scrollbar-color:rgb(var(--accent))_transparent] [scrollbar-width:thin] ${isDragging && snapToGrid ? 'invisible' : ''}`}>{children}</div>
+    {isDragging && snapToGrid && <span className="pointer-events-none absolute inset-8 grid place-items-center rounded-lg border border-dashed border-[rgb(var(--accent)/0.55)] text-xs font-bold text-[rgb(var(--accent-2))]">Drop {widget?.label || id} here</span>}
+    {layoutUnlocked && WIDGET_RESIZE_DIRECTIONS.map((direction) => <button key={direction} type="button" data-resize-direction={direction} onPointerDown={startResize} onPointerMove={moveResize} onPointerUp={finishResize} onPointerCancel={cancelResize} onLostPointerCapture={cancelResize} className={`absolute z-30 grid h-5 w-5 touch-none place-items-center rounded-md border border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--panel)/0.94)] text-[rgb(var(--accent-2))] shadow-[0_0_9px_rgb(var(--accent)/0.3)] ${direction.includes('n') ? 'top-0' : direction.includes('s') ? 'bottom-0' : 'top-1/2 -translate-y-1/2'} ${direction.includes('w') ? 'left-0' : direction.includes('e') ? 'right-0' : 'left-1/2 -translate-x-1/2'} ${direction === 'n' || direction === 's' ? 'cursor-ns-resize' : direction === 'e' || direction === 'w' ? 'cursor-ew-resize' : direction === 'ne' || direction === 'sw' ? 'cursor-nesw-resize' : 'cursor-nwse-resize'}`} aria-label={`Resize ${widget?.label || id} ${direction}`} title="Drag to resize"><Grip size={11} /></button>)}
     {insertionHere && <span className={`pointer-events-none absolute z-40 rounded-full bg-[rgb(var(--accent))] shadow-[0_0_12px_rgb(var(--accent))] ${insertionClass}`} />}
     {contextMenu && renderForegroundPortal(<WidgetContextMenu x={contextMenu.x} y={contextMenu.y} label={widget?.label || id} unlocked={layoutUnlocked} snapToGrid={snapToGrid} size={snapToGrid ? savedSize : freePosition} widget={widget} columns={gridColumns} onUnlock={() => { setLayoutUnlocked(true); setContextMenu(null); }} onToggleSnap={() => { onToggleSnap(); setContextMenu(null); }} onBringFront={() => { onBringFront(id); setContextMenu(null); }} onHide={() => { togglePane(id, true); setContextMenu(null); }} onAdjust={(width, height) => { adjust(width, height); setContextMenu(null); }} onReset={() => { onResetSize(id); setContextMenu(null); }} />)}
   </motion.div>;

@@ -55,6 +55,8 @@ assert(particleSource.includes('customThemeAssetUrl(theme, emitter.asset)'), 'pa
 assert(particleCss.includes('@media (prefers-reduced-motion: reduce) { .custom-theme-particles, .theme-creator-sprite, .theme-creator-reaction { display: none; } }'), 'reduced motion must hide moving custom particles and preview');
 const emitter = { id: 'petals', asset: 'assets/petal.png', count: 12, sizePx: 24, opacity: 0.5, durationSeconds: 18, direction: 'fall' };
 assert.equal(validateThemeManifest({ ...sample, effects: { particles: [emitter] } }, { assetExists: () => true }).ok, true);
+assert.equal(validateThemeManifest({ ...sample, effects: { particles: [], stockFx: 'anime' } }).ok, true);
+assert.equal(validateThemeManifest({ ...sample, effects: { particles: [], stockFx: 'run-script' } }).ok, false);
 assert.equal(validateThemeManifest({ ...sample, effects: { particles: [{ ...emitter, count: 1000 }] } }, { assetExists: () => true }).ok, false);
 assert.equal(validateThemeManifest({ ...sample, effects: { particles: [emitter, emitter] } }, { assetExists: () => true }).ok, false);
 assert.equal(validateThemeManifest({ ...sample, effects: { particles: [{ ...emitter, placement: 'middle', depth: 'far', rotation: -90, glow: 12 }] } }, { assetExists: () => true }).ok, true);

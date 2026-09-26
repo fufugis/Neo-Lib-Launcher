@@ -23,6 +23,12 @@ export function setCustomThemes(items) {
 }
 export function customThemeManifest(id) { return customThemes.get(id)?.manifest || null; }
 export function customThemeAssetUrl(id, asset) { return customThemes.get(id)?.assetUrls?.[asset] || ''; }
+export function stockThemeFileUrl(id, asset) {
+  const manifest = manifests.get(id);
+  if (!manifest || !Object.values(manifest.layers).some(layer => layer.asset === asset || layer.reducedMotionAsset === asset)
+    && !manifest.effects?.particles?.some(particle => particle.asset === asset)) return '';
+  return assets[`./stock/${id}/${asset}`] || '';
+}
 export function customThemeList() { return [...customThemes.values()].map(item => item.manifest); }
 export function customThemeCanvas(id) {
   const manifest = customThemeManifest(id);

@@ -13,7 +13,7 @@ import { DEFAULT_SETTINGS, hydrateSettings, mergeSettings, visualState } from '.
 import { EMPTY_REFRESH_QUEUE, metadataRefreshTargets, startRefreshQueue, advanceRefreshQueue, stopRefreshQueue } from '../src/state/metadata-refresh-state.mjs';
 import { sessionResult, applyPlaytimeImport } from '../src/state/playtime-state.mjs';
 import { getRendererApi, hasRendererApi, callRendererApi } from '../src/services/renderer-api.mjs';
-import { withGpuSetupTools } from '../src/state/tool-bootstrap-state.mjs';
+import { withGpuSetupTools, withRecommendedGraphicsTools } from '../src/state/tool-bootstrap-state.mjs';
 import { mascotLibraryContext } from '../src/services/mascot-library-context.mjs';
 import { LAUNCHER_CATEGORIES, LAUNCHER_LABELS, assignLauncherCategory, ensureLauncherCategory, launcherCategory } from '../src/state/launcher-category-state.mjs';
 import { mergeUpdateStatusLedger } from '../src/state/update-ledger-state.mjs';
@@ -136,6 +136,17 @@ assert.equal(bootstrappedTools.tools.find(tool => tool.id === 'mine').exePath, '
 assert.equal(bootstrappedTools.tools.find(tool => tool.id === 'mine').custom, 'preserved');
 assert.equal(bootstrappedTools.tools.some(tool => tool.id === 'managed-cpuz'), true);
 assert.equal(bootstrappedTools.tools.some(tool => tool.id === 'managed-gpu-control-center'), true);
+for (const id of ['recommended-dlss-swapper', 'recommended-optiscaler', 'recommended-reshade']) {
+  const tool = bootstrappedTools.tools.find((item) => item.id === id);
+  assert.equal(tool?.availability, 'missing');
+  assert.match(tool.website, /^https:\/\//);
+  assert.equal(withGpuSetupTools(bootstrappedTools, {}, 1234).tools.filter((item) => item.id === id).length, 1);
+}
+const existingGraphics = withRecommendedGraphicsTools({ tools: [{ id: 'mine', name: 'ReShade', exePath: 'D:/Tools/ReShade.exe' }], toolCategories: [] }, 1234);
+assert.equal(existingGraphics.tools.filter((tool) => tool.name === 'ReShade').length, 1, 'do not replace or duplicate a player-installed tool');
+assert.equal(existingGraphics.tools.find((tool) => tool.name === 'ReShade').exePath, 'D:/Tools/ReShade.exe');
+assert.equal(existingGraphics.tools.find((tool) => tool.name === 'ReShade').website, 'https://reshade.me/#download');
+assert.equal(withRecommendedGraphicsTools(existingGraphics, 1234).tools.length, existingGraphics.tools.length, 'graphics suggestions must not duplicate on later starts');
 assert.deepEqual(bootstrappedTools.toolCategories.map(category => category.id), ['__hardware_tools__']);
 assert.equal(withGpuSetupTools(bootstrappedTools, {}, 1234).tools.filter(tool => tool.managedTool === 'gpuz').length, 1, 'hardware bootstrap must be idempotent');
 const mascotContext = mascotLibraryContext([{ name: 'Visible', source: 'steam', genres: ['Action'], myRating: 4.5, playtime: 120, exePath: 'C:/private/path.exe' }]);

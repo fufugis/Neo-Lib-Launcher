@@ -68,5 +68,18 @@ const { createGameLaunchService } = require('../electron/game/game-launch-servic
   assert.deepEqual(service.arm(event), { ok: true, token: 'token-7' });
   assert.deepEqual(await service.launch(event, { exePath: 'D:\\Games\\Online\\game.exe', libraryRootPath: 'D:\\Games', gameId: 'online', launchToken: 'token-7' }), { ok: true });
   assert.equal(spawnCalls.length, 3);
+  clock += 12000;
+  assert.deepEqual(service.arm(event), { ok: true, token: 'token-8' });
+  assert.deepEqual(await service.launch(event, { exePath: 'B:\\SteamLibrary\\steamapps\\common\\Icarus\\Icarus.exe', gameId: 'icarus', name: 'ICARUS', launcher: 'steam', source: 'steam-import', appid: '1149460', launchToken: 'token-8' }), { ok: true, target: 'steam' });
+  assert(safetyEvents.some(([name, target]) => name === 'uri' && target === 'steam://run/1149460'), 'Steam imports must enter through Steam by app ID.');
+  assert.equal(spawnCalls.length, 3, 'a normal Steam launch must not spawn the discovered game EXE.');
+  clock += 12000;
+  assert.deepEqual(service.arm(event), { ok: true, token: 'token-9' });
+  assert.deepEqual(await service.launch(event, { exePath: 'B:\\SteamLibrary\\steamapps\\common\\Icarus\\Icarus.exe', gameId: 'icarus-route', launcher: 'steam', source: 'steam-import', appid: '1149460', launchRouteId: 'custom-dx11', launchToken: 'token-9' }), { ok: true });
+  assert.equal(spawnCalls.length, 4, 'an explicitly selected custom route must keep its executable target.');
+  clock += 12000;
+  assert.deepEqual(service.arm(event), { ok: true, token: 'token-10' });
+  assert.deepEqual(await service.launch(event, { exePath: 'C:\\Games\\Standalone.exe', gameId: 'standalone', launcher: 'steam', source: 'steam-import', appid: '1149460', steamOwned: false, launchToken: 'token-10' }), { ok: true });
+  assert.equal(spawnCalls.length, 5, 'explicitly non-owned copies must not be redirected into Steam.');
   console.log('PASS: extracted launch service enforces startup quarantine, one-use expiry, local/shared cooldown, offline library-root refusal, exact spawn arguments and running-game lifecycle. No process launched.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -135,6 +135,7 @@ export default function Sidebar({
   librarySortMode = 'manual', onChangeLibrarySort,
   libraryViewMode = 'preview', onChangeLibraryViewMode,
   tutorialVisualsOpen = false,
+  openVisualsRequest = 0,
   sidebarWidth = 320,
   onResizeSidebar,
   gameResting = false,
@@ -175,17 +176,11 @@ export default function Sidebar({
   const isTools = mode === 'tools';
   const minimalistic = interfaceMode === 'minimalistic';
   const sideNavigation = navigationLayout === 'sidebar';
-  const [sideNavigationExpanded, setSideNavigationExpanded] = React.useState(false); const [selectionMode, setSelectionMode] = React.useState(false); const [selectedIds, setSelectedIds] = React.useState([]);
-  // Keep toolbar labels legible while the sidebar is resized: they shrink over
-  // the last 80px, then collapse cleanly to icons instead of being clipped.
-  const labelProgress = Math.max(0, Math.min(1, (sidebarWidth - 240) / 80));
-  const labelsVisible = labelProgress > 0;
-  const toolbarLabelStyle = {
-    fontSize: `${8 + (labelProgress * 2.5)}px`,
-    maxWidth: `${Math.round(88 * labelProgress)}px`,
-    opacity: labelProgress,
-    transition: 'font-size 100ms ease, max-width 100ms ease, opacity 100ms ease',
-  };
+  const [selectionMode, setSelectionMode] = React.useState(false); const [selectedIds, setSelectedIds] = React.useState([]);
+  // Never squeeze words into tiny, half-visible text. Compact states keep the
+  // actions discoverable through their icons, titles and accessible names.
+  const labelsVisible = !libraryIconMode && sidebarWidth >= 300;
+  const compactFilters = libraryIconMode || sidebarWidth < 390;
   const pinnedIdsSet = React.useMemo(() => new Set(pinnedIds || []), [pinnedIds]);
   const selectGame = React.useCallback((id) => {
     onGameViewed?.(id);
@@ -212,6 +207,7 @@ export default function Sidebar({
   React.useEffect(() => {
     setLibSettingsOpen(Boolean(tutorialVisualsOpen));
   }, [tutorialVisualsOpen]);
+  React.useEffect(() => { if (openVisualsRequest) setLibSettingsOpen(true); }, [openVisualsRequest]);
 
   // Library reference used by the PinnedStrip (it pulls full game objects by id).
   // We keep it as a plain object since we only need it inside the render.
@@ -288,11 +284,9 @@ export default function Sidebar({
 
   return (
     <aside
-      className="library-font-scope relative flex h-full shrink-0 flex-col overflow-hidden border-r hairline glass-soft"
+      className="library-font-scope library-sidebar-container relative flex h-full shrink-0 flex-col overflow-visible border-r hairline glass-soft"
       style={{
         width: sidebarWidth,
-        paddingLeft: sideNavigation ? 48 : 0,
-        transition: 'padding-left 180ms ease',
         '--library-font-family': libraryFontFamily(libraryFont),
         // Regular must feel genuinely lighter than the old semi-bold Library
         // treatment. Fat is the intentional opt-in weight, not the baseline.
@@ -331,28 +325,6 @@ export default function Sidebar({
           hue, so Colorful gets a pinkish wash while Pro gets a warm steel one. */}
       <span aria-hidden className="sidebar-tint" />
       <SidebarResizeHandle width={sidebarWidth} onCommit={onResizeSidebar} />
-      {sideNavigation && <SideNavigationRail
-        expanded={sideNavigationExpanded}
-        onExpandedChange={setSideNavigationExpanded}
-        mode={mode}
-        libraryViewMode={libraryViewMode}
-        onOpenHome={() => { onSelect?.(null); onSetMode('home'); }}
-        onOpenLibrary={() => { onChangeLibraryViewMode?.('preview'); onSetMode('library'); onSetLauncherFilter?.('all'); }}
-        onOpenWall={() => { onChangeLibraryViewMode?.('wall'); onSelect?.(null); }}
-        onOpenTools={() => onSetMode('tools')}
-        onOpenThemes={onOpenThemes}
-        onOpenMascot={onOpenMascot}
-        onOpenVisuals={() => setLibSettingsOpen(true)}
-        onOpenControllers={onOpenControllerCenter}
-        onOpenSettings={onOpenSettings}
-        onOpenChangelog={onOpenChangelog}
-        onEnterLounge={onEnterLounge}
-        onCheckForUpdates={onCheckForUpdates}
-        onOpenFeedback={() => onOpenFeedback?.('feedback')}
-        onQuit={onQuit}
-        onDisableSidebar={() => onChangeNavigationLayout?.('top')}
-        minimalisticEnabled={interfaceMode === 'minimalistic'} onToggleMinimalistic={(enabled) => onChangeInterfaceMode?.(enabled ? 'minimalistic' : 'default')}
-      />}
       {/* Top toolbar — Home / Library / Tools. Frosted band that stretches
           across the sidebar, gradient underline separates it from category tree.
           v1.6.3 — Labels collapse to icon-only when the sidebar is dragged
@@ -386,16 +358,15 @@ export default function Sidebar({
           onToggleSidebar={(enabled) => onChangeNavigationLayout?.(enabled ? 'sidebar' : 'top')}
           minimalisticEnabled={interfaceMode === 'minimalistic'} onToggleMinimalistic={(enabled) => onChangeInterfaceMode?.(enabled ? 'minimalistic' : 'default')}
         />
-        <TabPill decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} label="Home" icon={<Home size={15} />} showLabel={labelsVisible} labelStyle={toolbarLabelStyle} active={mode === 'home'} onClick={() => { onSelect?.(null); onSetMode('home'); }} testid="tab-home" />
-        <TabPill decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} label="Library" icon={<LibIcon size={15} />} showLabel={labelsVisible} labelStyle={toolbarLabelStyle} active={mode === 'library' && libraryViewMode !== 'wall'} onClick={() => { onChangeLibraryViewMode?.('preview'); onSetMode('library'); onSetLauncherFilter?.('all'); }} testid="tab-library" />
-        <TabPill decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} label="Wall" icon={<Columns size={15} />} showLabel={labelsVisible} labelStyle={toolbarLabelStyle} active={mode === 'library' && libraryViewMode === 'wall'} onClick={() => { onChangeLibraryViewMode?.('wall'); onSelect?.(null); }} testid="tab-cover-wall" />
+        <TabPill decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} label="Home" icon={<Home size={15} />} showLabel={labelsVisible} active={mode === 'home'} onClick={() => { onSelect?.(null); onSetMode('home'); }} testid="tab-home" />
+        <TabPill decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} label="Library" icon={<LibIcon size={15} />} showLabel={labelsVisible} active={mode === 'library' && libraryViewMode !== 'wall'} onClick={() => { onChangeLibraryViewMode?.('preview'); onSetMode('library'); onSetLauncherFilter?.('all'); }} testid="tab-library" />
+        <TabPill decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} label="Wall" icon={<Columns size={15} />} showLabel={labelsVisible} active={mode === 'library' && libraryViewMode === 'wall'} onClick={() => { onChangeLibraryViewMode?.('wall'); onSelect?.(null); }} testid="tab-cover-wall" />
         <TabPill
           decorationTheme={currentTheme}
           decorationOpacity={gameResting ? 0 : navDecorationOpacity}
           label="Tools"
           icon={<Boxes size={15} />}
           showLabel={labelsVisible}
-          labelStyle={toolbarLabelStyle}
           active={mode === 'tools'}
           onClick={() => onSetMode('tools')}
           testid="tab-tools"
@@ -430,17 +401,18 @@ export default function Sidebar({
         }}
       >
         {isTools ? (
-          <SideBtn label={labelsVisible ? "Add tool" : null} labelStyle={toolbarLabelStyle} icon={<Wand2 size={16} />} onClick={onAddManual} testid="sidebar-add-tool-btn" title="Add tool" />
+          <SideBtn label={labelsVisible ? "Add tool" : null} icon={<Wand2 size={16} />} onClick={onAddManual} testid="sidebar-add-tool-btn" title="Add tool" />
         ) : (
-          <SideBtn label={labelsVisible ? "Wizard" : null} labelStyle={toolbarLabelStyle} icon={<Wand2 size={16} />} onClick={onOpenWizard} testid="sidebar-wizard-btn" title="Add games, scan folders, or import launchers" />
+          <SideBtn label={labelsVisible ? "Wizard" : null} icon={<Wand2 size={16} />} onClick={onOpenWizard} testid="sidebar-wizard-btn" title="Add games, scan folders, or import launchers" />
         )}
         <button
           type="button"
           data-testid="sidebar-rest-toggle"
           onClick={onToggleManualRest}
           title={manualResting ? 'Wake NEO-LIB and resume background activity' : 'Rest NEO-LIB and pause non-essential background activity'}
+          aria-label={manualResting ? 'Wake NEO-LIB' : 'Rest NEO-LIB'}
           aria-pressed={manualResting}
-          className="library-toolbar-control group inline-flex h-8 items-center gap-1.5 rounded-md hairline px-3 text-[12px] font-semibold text-ink/90 transition-all hover:text-ink"
+          className="library-toolbar-control group inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md hairline px-3 text-[12px] font-semibold text-ink/90 transition-all hover:text-ink"
           style={manualResting ? {
             borderColor: 'rgb(var(--accent) / 0.92)',
             boxShadow: '0 0 14px rgb(var(--accent) / 0.48), inset 0 0 0 1px rgb(var(--accent) / 0.22)',
@@ -450,9 +422,9 @@ export default function Sidebar({
           <span className="text-[rgb(var(--accent))] transition-transform group-hover:scale-110">
             {manualResting ? <Sun size={16} /> : <Moon size={16} />}
           </span>
-          {labelsVisible && <span className="overflow-hidden whitespace-nowrap" style={toolbarLabelStyle}>{manualResting ? 'Wake up' : 'Rest Zzz'}</span>}
+          {labelsVisible && <span className="library-action-label whitespace-nowrap">{manualResting ? 'Wake up' : 'Rest Zzz'}</span>}
         </button>
-        {!isTools && <button type="button" data-testid="sidebar-select-games" onClick={selectionMode ? finishSelection : startSelection} className={cn('library-toolbar-control inline-flex h-8 items-center gap-1.5 rounded-md hairline px-2 text-[10px] font-semibold transition-colors', selectionMode ? 'border-[rgb(var(--accent)/0.72)] bg-[rgb(var(--accent)/0.12)] text-ink' : 'text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink')} title={selectionMode ? 'Leave selection mode' : 'Select several games'}><CheckSquare size={14} />{labelsVisible && <span style={toolbarLabelStyle}>{selectionMode ? 'Done' : 'Select'}</span>}</button>}
+        {!isTools && <button type="button" data-testid="sidebar-select-games" onClick={selectionMode ? finishSelection : startSelection} className={cn('library-toolbar-control inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md hairline px-2 text-[10px] font-semibold transition-colors', selectionMode ? 'border-[rgb(var(--accent)/0.72)] bg-[rgb(var(--accent)/0.12)] text-ink' : 'text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink')} title={selectionMode ? 'Leave selection mode' : 'Select several games'} aria-label={selectionMode ? 'Leave selection mode' : 'Select several games'}><CheckSquare size={14} />{labelsVisible && <span className="library-action-label whitespace-nowrap">{selectionMode ? 'Done' : 'Select'}</span>}</button>}
         <div className="flex-1" />
         <AnimatePresence>
           {libSettingsOpen && (
@@ -536,17 +508,19 @@ export default function Sidebar({
           <LauncherDropdown
             value={launcherFilter || 'all'}
             onChange={(v) => onSetLauncherFilter?.(v)}
+            compact={compactFilters}
           />
-          <div className="flex-1 min-w-[6px]" />
+          <div className={`library-filter-spacer ${compactFilters ? 'hidden' : 'flex-1 min-w-[6px]'}`} />
           <div ref={sortMenuRef} className="relative shrink-0">
             <button
               type="button"
               data-testid="sidebar-sort-menu"
               onClick={() => setSortMenuOpen((open) => !open)}
               title={showCategories ? 'Sort games inside every visible category' : 'Sort all visible games'}
-              className={`library-toolbar-control inline-flex items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] transition-colors ${sortMenuOpen || librarySortMode !== 'manual' ? 'border-[rgb(var(--accent)/0.72)] text-ink' : 'text-ink/85 hover:text-ink hover:border-[rgb(var(--accent)/0.62)]'}`}
+              aria-label="Sort games"
+              className={`library-toolbar-control library-filter-control inline-flex shrink-0 items-center justify-center gap-1 rounded-md hairline h-7 text-[10px] transition-colors ${compactFilters ? 'w-7 p-0' : 'px-2'} ${sortMenuOpen || librarySortMode !== 'manual' ? 'border-[rgb(var(--accent)/0.72)] text-ink' : 'text-ink/85 hover:text-ink hover:border-[rgb(var(--accent)/0.62)]'}`}
             >
-              <ArrowDownUp size={10} /> Sort <ChevronDown size={10} className={sortMenuOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />
+              <ArrowDownUp size={compactFilters ? 14 : 10} />{!compactFilters && <span className="library-filter-text inline-flex items-center gap-1 whitespace-nowrap">Sort <ChevronDown size={10} className={sortMenuOpen ? 'rotate-180 transition-transform' : 'transition-transform'} /></span>}
             </button>
             <AnimatePresence>
               {sortMenuOpen && (
@@ -569,10 +543,11 @@ export default function Sidebar({
               data-testid="sidebar-category-quick-switch"
               onClick={() => setCategoriesMenuOpen((open) => !open)}
               title="Categories — show shelves or manage your categories"
-              className={`library-toolbar-control inline-flex items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] transition-colors ${categoriesMenuOpen ? 'border-[rgb(var(--accent)/0.72)] text-ink' : 'text-ink/85 hover:text-ink hover:border-[rgb(var(--accent)/0.62)]'}`}
+              aria-label="Categories"
+              className={`library-toolbar-control library-filter-control inline-flex shrink-0 items-center justify-center gap-1 rounded-md hairline h-7 text-[10px] transition-colors ${compactFilters ? 'w-7 p-0' : 'px-2'} ${categoriesMenuOpen ? 'border-[rgb(var(--accent)/0.72)] text-ink' : 'text-ink/85 hover:text-ink hover:border-[rgb(var(--accent)/0.62)]'}`}
             >
-              {showCategories ? <ListTree size={10} /> : <Boxes size={10} />}
-              Categories <ChevronDown size={10} className={categoriesMenuOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />
+              {showCategories ? <ListTree size={compactFilters ? 14 : 10} /> : <Boxes size={compactFilters ? 14 : 10} />}
+              {!compactFilters && <span className="library-filter-text inline-flex items-center gap-1 whitespace-nowrap">Categories <ChevronDown size={10} className={categoriesMenuOpen ? 'rotate-180 transition-transform' : 'transition-transform'} /></span>}
             </button>
             <AnimatePresence>
               {categoriesMenuOpen && (
@@ -607,9 +582,10 @@ export default function Sidebar({
               data-testid="sidebar-autosort-btn"
               onClick={onAutoSort}
               title="Smart auto-sort into 6 default categories"
-              className="library-toolbar-control inline-flex shrink-0 items-center gap-1 rounded-md hairline px-2 h-6 text-[10px] text-ink/85 hover:text-ink hover:border-[rgb(var(--accent)/0.62)]"
+              aria-label="Auto-sort games"
+              className={`library-toolbar-control library-filter-control inline-flex shrink-0 items-center justify-center gap-1 rounded-md hairline h-7 text-[10px] text-ink/85 hover:text-ink hover:border-[rgb(var(--accent)/0.62)] ${compactFilters ? 'w-7 p-0' : 'px-2'}`}
             >
-              <Wand2 size={10} /> Auto-sort
+              <Wand2 size={compactFilters ? 14 : 10} />{!compactFilters && <span className="library-filter-text whitespace-nowrap">Auto-sort</span>}
             </button>
           )}
         </div>
@@ -786,13 +762,17 @@ export default function Sidebar({
   );
 }
 
-function SideNavigationRail({ expanded, onExpandedChange, mode, libraryViewMode, onOpenHome, onOpenLibrary, onOpenWall, onOpenTools, onOpenThemes, onOpenMascot, onOpenVisuals, onOpenControllers, onOpenSettings, onOpenChangelog, onEnterLounge, onCheckForUpdates, onOpenFeedback, onQuit, onDisableSidebar, minimalisticEnabled, onToggleMinimalistic }) {
-  return <nav
+export function SideNavigationRail({ mode, libraryViewMode, onOpenHome, onOpenLibrary, onOpenWall, onOpenTools, onOpenThemes, onOpenMascot, onOpenVisuals, onOpenControllers, onOpenSettings, onOpenChangelog, onEnterLounge, onCheckForUpdates, onOpenFeedback, onQuit, onDisableSidebar, minimalisticEnabled, onToggleMinimalistic }) {
+  const [expanded, setExpanded] = React.useState(false);
+  return <div className="relative z-50 h-full w-12 shrink-0" data-testid="side-navigation-slot"><nav
     data-testid="side-navigation-rail"
     aria-label="Primary navigation"
-    onMouseEnter={() => onExpandedChange?.(true)}
-    onMouseLeave={() => onExpandedChange?.(false)}
-    className="absolute inset-y-0 left-0 z-50 flex flex-col overflow-hidden border-r border-[rgb(var(--border)/0.8)] bg-[rgb(var(--surface)/0.97)] px-1.5 py-2 shadow-[8px_0_24px_-20px_rgba(0,0,0,.95)] backdrop-blur-xl transition-[width] duration-200 ease-out"
+    onMouseEnter={() => setExpanded(true)}
+    onMouseLeave={() => setExpanded(false)}
+    onFocusCapture={() => setExpanded(true)}
+    onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setExpanded(false); }}
+    onKeyDown={(event) => { if (event.key === 'Escape') setExpanded(false); }}
+    className="absolute inset-y-0 left-0 z-50 flex flex-col overflow-hidden border-r border-[rgb(var(--border)/0.8)] bg-[rgb(var(--surface)/0.97)] px-1.5 py-2 shadow-[8px_0_24px_-20px_rgba(0,0,0,.95)] backdrop-blur-xl transition-[width,box-shadow] duration-200 ease-out motion-reduce:transition-none"
     style={{ width: expanded ? 148 : 48 }}
   >
     <AppControlMenu
@@ -818,7 +798,7 @@ function SideNavigationRail({ expanded, onExpandedChange, mode, libraryViewMode,
     <RailNavigationButton icon={<Columns size={17} />} label="Wall" expanded={expanded} active={mode === 'library' && libraryViewMode === 'wall'} onClick={onOpenWall} testid="tab-cover-wall" />
     <RailNavigationButton icon={<Boxes size={17} />} label="Tools" expanded={expanded} active={mode === 'tools'} onClick={onOpenTools} testid="tab-tools" />
     <span className={`mt-auto overflow-hidden whitespace-nowrap px-2 pb-1 text-[8px] font-bold uppercase tracking-[0.16em] text-muted transition-opacity ${expanded ? 'opacity-75' : 'opacity-0'}`}>Navigation</span>
-  </nav>;
+  </nav></div>;
 }
 
 function RailNavigationButton({ icon, label, expanded, active, onClick, testid }) {

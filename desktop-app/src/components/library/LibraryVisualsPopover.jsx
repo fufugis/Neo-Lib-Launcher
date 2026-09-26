@@ -34,7 +34,8 @@ export default function LibraryVisualsPopover({
   const dragControls = useDragControls();
   // Visuals now has three deliberate control lanes on a desktop-sized window.
   // Keep its dimensions in one place so anchoring and drag bounds agree.
-  const availableRight = Math.max(0, window.innerWidth - sidebarWidth - 24);
+  const libraryRight = sidebarWidth + (navigationLayout === 'sidebar' ? 48 : 0);
+  const availableRight = Math.max(0, window.innerWidth - libraryRight - 24);
   const opensBesideLibrary = availableRight >= 300;
   const popoverWidth = Math.min(960, Math.max(280, opensBesideLibrary ? availableRight : window.innerWidth - 32));
   const clampPopoverPosition = (top, left) => ({
@@ -45,12 +46,12 @@ export default function LibraryVisualsPopover({
   // parent stacking context can hide it under the game preview).
   const [pos, setPos] = React.useState(() => {
     const anchorTop = anchorEl ? anchorEl.getBoundingClientRect().bottom + 6 : 80;
-    return clampPopoverPosition(anchorTop, opensBesideLibrary ? sidebarWidth + 12 : 12);
+    return clampPopoverPosition(anchorTop, opensBesideLibrary ? libraryRight + 12 : 12);
   });
   React.useEffect(() => {
     const anchorTop = anchorEl ? anchorEl.getBoundingClientRect().bottom + 6 : 80;
-    setPos(clampPopoverPosition(anchorTop, opensBesideLibrary ? sidebarWidth + 12 : 12));
-  }, [anchorEl, sidebarWidth, opensBesideLibrary, popoverWidth]);
+    setPos(clampPopoverPosition(anchorTop, opensBesideLibrary ? libraryRight + 12 : 12));
+  }, [anchorEl, libraryRight, opensBesideLibrary, popoverWidth]);
   React.useEffect(() => {
     const h = (e) => {
       if (ref.current && !ref.current.contains(e.target)

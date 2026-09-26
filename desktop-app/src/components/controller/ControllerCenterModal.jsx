@@ -3,7 +3,7 @@ import Modal from '../Modal';
 import ControllerCenterPrototype from './ControllerCenterPrototype';
 import { createControllerInput } from '../../services/controller-input.mjs';
 
-const EMPTY_INVENTORY = Object.freeze({ controllers: [], selectedIndex: null, selectedFingerprint: '', selectedInput: { pressed: [], axes: [] }, connectedCount: 0 });
+const EMPTY_INVENTORY = Object.freeze({ controllers: [], selectedIndex: null, selectedFingerprint: '', selectedInput: { pressed: [], axes: [] }, connectedCount: 0, access: 'ready', eventOnlyIndexes: [] });
 
 export default function ControllerCenterModal({ open, onClose, preferredFingerprint = '', navigationEnabled = false, onNavigationEnabledChange, onSelect, onManageWindows, onOpenSteamController, onInventoryChange }) {
   const adapter = React.useMemo(() => createControllerInput(), []);

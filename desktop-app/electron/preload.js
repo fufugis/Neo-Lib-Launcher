@@ -60,6 +60,7 @@ contextBridge.exposeInMainWorld('api', {
   inspectTheme: (path) => ipcRenderer.invoke('themes:inspect', path),
   installTheme: (path) => ipcRenderer.invoke('themes:install', path),
   forkTheme: (request) => ipcRenderer.invoke('themes:fork', request),
+  prepareThemeAsset: (request) => ipcRenderer.invoke('themes:prepareAsset', request),
   listThemes: () => ipcRenderer.invoke('themes:list'),
 
   // shortcuts
