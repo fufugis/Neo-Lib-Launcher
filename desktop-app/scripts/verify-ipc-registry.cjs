@@ -106,7 +106,7 @@ async function main() {
   const registrationSource = ipcSources.join('\n');
 const staticChannels = Array.from(registrationSource.matchAll(/registerIpc\(['"]([^'"]+)['"]/g), match => match[1]);
 const nativeChannels = staticChannels;
-assert.equal(nativeChannels.length, 96, 'known native command count changed; review the contract intentionally');
+assert.equal(nativeChannels.length, 104, 'known native command count changed; review the contract intentionally');
 assert.equal(new Set(nativeChannels).size, nativeChannels.length, 'source contains a duplicate channel');
 
 const rendererChannels = Array.from(new Set(Array.from(preload.matchAll(/ipcRenderer\.invoke\(['"]([^'"]+)['"]/g), match => match[1])));
@@ -116,7 +116,7 @@ const nativeOnly = nativeChannels.filter(channel => !rendererChannels.includes(c
 assert.deepEqual(nativeOnly, ['gemini:metadata'], 'review internal-only/dead native commands intentionally');
 
 const groups = Object.groupBy(nativeChannels, channel => channel.split(':', 1)[0]);
-assert.equal(Object.keys(groups).length, 30, 'domain inventory changed; document the new boundary');
+assert.equal(Object.keys(groups).length, 31, 'domain inventory changed; document the new boundary');
 
 const persistenceHandlers = {};
 const documentCalls = [];
@@ -139,27 +139,34 @@ assert.deepEqual(documentCalls, [
   const windowHandlers = {};
   const windowCalls = [];
   let maximized = false;
+  let fullscreen = false;
   const fakeWindow = {
     minimize() { windowCalls.push('minimize'); },
     close() { windowCalls.push('close'); },
     isMaximized() { return maximized; },
     maximize() { windowCalls.push('maximize'); maximized = true; },
     unmaximize() { windowCalls.push('unmaximize'); maximized = false; },
+    setFullScreen(value) { windowCalls.push(value ? 'enter-fullscreen' : 'exit-fullscreen'); fullscreen = value; },
+    isFullScreen() { return fullscreen; },
   };
   let activeWindow = fakeWindow;
   registerWindowIpc({
     registerIpc(channel, fn) { assert(!windowHandlers[channel]); windowHandlers[channel] = fn; },
     getMainWindow: () => activeWindow,
   });
-  assert.deepEqual(Object.keys(windowHandlers), ['window:minimize', 'window:toggleMaximize', 'window:close']);
+  assert.deepEqual(Object.keys(windowHandlers), ['window:minimize', 'window:toggleMaximize', 'window:enterLounge', 'window:exitLounge', 'window:close']);
   windowHandlers['window:minimize']();
   assert.equal(windowHandlers['window:toggleMaximize'](), true);
   assert.equal(windowHandlers['window:toggleMaximize'](), false);
+  assert.equal(windowHandlers['window:enterLounge'](), true);
+  assert.equal(windowHandlers['window:exitLounge'](), true);
   windowHandlers['window:close']();
-  assert.deepEqual(windowCalls, ['minimize', 'maximize', 'unmaximize', 'close']);
+  assert.deepEqual(windowCalls, ['minimize', 'maximize', 'unmaximize', 'enter-fullscreen', 'exit-fullscreen', 'close']);
   activeWindow = null;
   assert.equal(windowHandlers['window:minimize'](), undefined);
   assert.equal(windowHandlers['window:toggleMaximize'](), false);
+  assert.equal(windowHandlers['window:enterLounge'](), false);
+  assert.equal(windowHandlers['window:exitLounge'](), false);
   assert.equal(windowHandlers['window:close'](), undefined);
 
   const dialogHandlers = {};
@@ -170,8 +177,10 @@ assert.deepEqual(documentCalls, [
     'Select game executable': 'C:\\Games\\One.exe',
     'Select folder': 'D:\\Games',
     'Pick an image (icon / cover / hero)': 'C:\\Art\\cover.png',
+    'Pick a theme atmosphere video': 'C:\\Art\\motion.webm',
     "Select this game's save folder": 'C:\\Saves\\One',
     'Import NEO-LIB widget': 'C:\\Widgets\\example\\widget.json',
+    'Import NEO-LIB theme': 'C:\\Themes\\example\\theme.json',
   };
   registerDialogIpc({
     registerIpc(channel, fn) { assert(!dialogHandlers[channel]); dialogHandlers[channel] = fn; },
@@ -181,19 +190,22 @@ assert.deepEqual(documentCalls, [
     } },
     getMainWindow: () => pickerWindow,
   });
-  assert.deepEqual(Object.keys(dialogHandlers), ['dialog:pickExe', 'dialog:pickDirectory', 'dialog:pickImage', 'dialog:pickSaveFolder', 'dialog:pickWidgetManifest']);
+  assert.deepEqual(Object.keys(dialogHandlers), ['dialog:pickExe', 'dialog:pickDirectory', 'dialog:pickImage', 'dialog:pickThemeVideo', 'dialog:pickSaveFolder', 'dialog:pickWidgetManifest', 'dialog:pickThemeManifest']);
   assert.equal(await dialogHandlers['dialog:pickExe'](), 'C:\\Games\\One.exe');
   pickerWindow = { id: 'replacement-window' };
   assert.equal(await dialogHandlers['dialog:pickDirectory'](), 'D:\\Games');
   assert.deepEqual(await dialogHandlers['dialog:pickImage'](), { path: 'C:\\Art\\cover.png', url: 'file://C:/Art/cover.png' });
+  assert.deepEqual(await dialogHandlers['dialog:pickThemeVideo'](), { path: 'C:\\Art\\motion.webm', url: 'file://C:/Art/motion.webm' });
   assert.equal(await dialogHandlers['dialog:pickSaveFolder'](), 'C:\\Saves\\One');
   assert.equal(await dialogHandlers['dialog:pickWidgetManifest'](), 'C:\\Widgets\\example\\widget.json');
+  assert.equal(await dialogHandlers['dialog:pickThemeManifest'](), 'C:\\Themes\\example\\theme.json');
   assert.equal(dialogCalls[0].parent, firstWindow);
   assert.equal(dialogCalls[1].parent, pickerWindow, 'picker must resolve the current window for every call');
-  assert.deepEqual(dialogCalls.map(call => call.options.properties), [['openFile'], ['openDirectory'], ['openFile'], ['openDirectory'], ['openFile']]);
+  assert.deepEqual(dialogCalls.map(call => call.options.properties), [['openFile'], ['openDirectory'], ['openFile'], ['openFile'], ['openDirectory'], ['openFile'], ['openFile']]);
   assert.deepEqual(dialogCalls[0].options.filters[0].extensions, ['exe', 'lnk', 'bat', 'cmd']);
   assert.deepEqual(dialogCalls[2].options.filters[0].extensions, ['png', 'jpg', 'jpeg', 'webp', 'gif', 'ico']);
-  assert.deepEqual(dialogCalls[4].options.filters[0].extensions, ['json']);
+  assert.deepEqual(dialogCalls[3].options.filters[0].extensions, ['webm']);
+  assert.deepEqual(dialogCalls[5].options.filters[0].extensions, ['json']);
 
   const cancelledHandlers = {};
   registerDialogIpc({

@@ -32,6 +32,7 @@ export default function Modal({ open, onClose, title, children, wide, testid }) 
         <motion.div
           ref={constraintsRef}
           data-testid={testid}
+          data-controller-surface="modal"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1, pointerEvents: 'auto' }}
           exit={{ opacity: 0, pointerEvents: 'none', transition: { duration: 0.1 } }}

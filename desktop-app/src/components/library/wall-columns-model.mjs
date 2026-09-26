@@ -19,13 +19,15 @@ export function normalizeWallColumns(columns = []) {
     if (!definition || supplied.has(definition.id)) continue;
     supplied.set(definition.id, {
       id: definition.id,
+      label: definition.label,
+      minWidth: definition.minWidth,
       visible: definition.required || column.visible !== false,
       width: Math.max(definition.minWidth, Math.min(640, Number(column.width) || definition.defaultWidth)),
     });
   }
   const ordered = [...supplied.values()];
   for (const definition of WALL_COLUMN_DEFINITIONS) {
-    if (!supplied.has(definition.id)) ordered.push({ id: definition.id, visible: true, width: definition.defaultWidth });
+    if (!supplied.has(definition.id)) ordered.push({ id: definition.id, label: definition.label, minWidth: definition.minWidth, visible: true, width: definition.defaultWidth });
   }
   const gameIndex = ordered.findIndex(({ id }) => id === 'game');
   if (gameIndex > 0) ordered.unshift(ordered.splice(gameIndex, 1)[0]);
@@ -34,4 +36,13 @@ export function normalizeWallColumns(columns = []) {
 
 export function visibleWallColumns(columns = []) {
   return Object.freeze(normalizeWallColumns(columns).filter((column) => column.visible));
+}
+
+export function moveWallColumn(columns, id, offset) {
+  const ordered = [...normalizeWallColumns(columns)];
+  const index = ordered.findIndex((column) => column.id === id);
+  const destination = index + offset;
+  if (index <= 0 || destination <= 0 || destination >= ordered.length) return normalizeWallColumns(ordered);
+  ordered.splice(destination, 0, ordered.splice(index, 1)[0]);
+  return normalizeWallColumns(ordered);
 }

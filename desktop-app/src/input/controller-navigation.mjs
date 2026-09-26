@@ -9,7 +9,6 @@ const DPAD_COMMANDS = Object.freeze({ 12: NAVIGATION_COMMANDS.UP, 13: NAVIGATION
 const DEFAULT_TIMING = Object.freeze({ initialDelayMs: 420, repeatEveryMs: 120, deadzone: 0.55 });
 const REPEATABLE_COMMANDS = new Set([
   NAVIGATION_COMMANDS.UP, NAVIGATION_COMMANDS.DOWN, NAVIGATION_COMMANDS.LEFT, NAVIGATION_COMMANDS.RIGHT,
-  CONTROLLER_ACTIONS.PREVIOUS_SECTION, CONTROLLER_ACTIONS.NEXT_SECTION,
 ]);
 
 function pressed(button) {
@@ -32,7 +31,7 @@ function directionalCommands(gamepad, deadzone) {
 
 export function controllerCommands(gamepad, { textEntry = false, modalOpen = false, deadzone = DEFAULT_TIMING.deadzone } = {}) {
   if (!gamepad || gamepad.connected === false || gamepad.mapping !== 'standard') return [];
-  if (textEntry) return [];
+  if (textEntry) return pressed(gamepad.buttons?.[1]) ? [CONTROLLER_ACTIONS.BACK] : [];
   const commands = directionalCommands(gamepad, Math.max(0.25, Math.min(0.9, Number(deadzone) || DEFAULT_TIMING.deadzone)));
   for (const [button, command] of Object.entries(STANDARD_BUTTON_ACTIONS)) {
     if (!pressed(gamepad.buttons?.[Number(button)])) continue;

@@ -34,6 +34,9 @@ assert.match(homeSource, /data-home-layout-unlocked=/, 'Home must expose its gri
 assert.match(homeSource, /data-home-snap=/, 'Home must expose the active placement mode');
 assert.match(homeSource, /onContextMenu=\{openContextMenu\}/, 'widget title bars must expose the context menu');
 assert.match(homeSource, /Drag to resize/, 'unlocked widgets must expose a resize grip');
+assert.match(homeSource, /onPointerCancel=\{cancelResize\}/, 'canceled widget resizing must not save a partial size');
+assert.match(homeSource, /onPointerCancel=\{cancelFreeMove\}/, 'canceled free movement must not save a partial position');
+assert.match(homeSource, /onLostPointerCapture=\{cancelResize\}/, 'lost resize capture must restore the saved size');
 assert.match(homeSource, /widgetSizes:/, 'widget dimensions must persist in Home layout settings');
 assert.match(homeSource, /freePositions:/, 'free canvas coordinates and pixel sizes must persist');
 assert.match(homeSource, /Bring to front/, 'overlapping free widgets must expose stacking control');

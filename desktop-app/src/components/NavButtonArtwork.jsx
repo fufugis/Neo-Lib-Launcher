@@ -1,6 +1,6 @@
 import React from 'react';
 import { DecorationLayer } from './ui/VisualBoundary';
-import { stockThemeAssetUrl } from '../themes/stock-theme-registry.mjs';
+import { stockThemeAssetUrl, customThemeManifest } from '../themes/stock-theme-registry.mjs';
 
 // HTML image URLs resolve against the document, including Electron file://.
 // Keep them out of stylesheet-relative CSS custom properties.
@@ -8,7 +8,7 @@ export default function NavButtonArtwork({ theme, opacity = 0.46, active = false
   const src = stockThemeAssetUrl(theme, 'navigationFrame');
   const flourish = stockThemeAssetUrl(theme, 'navigationFlourish');
   const strength = Number.isFinite(opacity) ? Math.max(0, Math.min(1, opacity)) : 0.46;
-  if (!src || strength === 0) return null;
+  if ((!src && !flourish) || strength === 0) return null;
   const outward = theme === 'anime' ? 6 : 5;
   const imageStyle = {
     // Stretch with the individual button, including horizontal sidebar resizing.
@@ -20,10 +20,10 @@ export default function NavButtonArtwork({ theme, opacity = 0.46, active = false
     <DecorationLayer data-testid="nav-button-artwork" data-art-theme={theme}
       style={{ position: 'absolute', inset: theme === 'pro' ? '-10px -5px' : `-${outward}px`, zIndex: 2, pointerEvents: 'none',
         borderRadius: '10px', overflow: 'visible', opacity: Math.min(1, strength * 1.85) }}>
-      <img src={src} alt="" draggable={false} style={imageStyle} />
-      {theme !== 'pro' && <img src={src} alt="" draggable={false} style={{ ...imageStyle, transform: 'rotate(180deg)' }} />}
+      {src && <img src={src} alt="" draggable={false} style={{ ...imageStyle, opacity: customThemeManifest(theme)?.layers?.navigationFrame?.opacity ?? 1 }} />}
+      {src && theme !== 'pro' && <img src={src} alt="" draggable={false} style={{ ...imageStyle, transform: 'rotate(180deg)', opacity: customThemeManifest(theme)?.layers?.navigationFrame?.opacity ?? 1 }} />}
       {/* The opaque face leaves a narrow illustrated ring on all four sides. */}
-      {theme !== 'pro' && <span style={{ position: 'absolute', inset: `${outward + 4}px`, borderRadius: '5px',
+      {src && theme !== 'pro' && <span style={{ position: 'absolute', inset: `${outward + 4}px`, borderRadius: '5px',
         background: active
           ? 'linear-gradient(rgb(var(--accent)/0.15), rgb(var(--accent)/0.07)), rgb(var(--panel))'
           : 'rgb(var(--panel))', pointerEvents: 'none' }} />}
@@ -37,6 +37,8 @@ export default function NavButtonArtwork({ theme, opacity = 0.46, active = false
       ].map((corner, index) => <img key={index} data-nav-flourish="true" data-magic-corner={index}
         src={flourish} alt="" draggable={false} style={{ position: 'absolute', width: 'min(30px, 24%)',
           height: '30px', objectFit: 'fill', maxWidth: 'none', pointerEvents: 'none', ...corner }} />)}
+      {theme.startsWith('custom:') && flourish && <img src={flourish} alt="" draggable={false} data-nav-flourish="true"
+        style={{ position: 'absolute', right: '-3px', top: '-3px', width: '30px', height: '30px', objectFit: 'contain', pointerEvents: 'none', opacity: customThemeManifest(theme)?.layers?.navigationFlourish?.opacity ?? 1 }} />}
       {theme === 'anime' && [false, true].map(opposite => <span key={String(opposite)} data-nav-flourish="true"
         style={{ position: 'absolute', width: '29px', height: '29px', overflow: 'hidden',
           ...(theme === 'colorful'

@@ -25,7 +25,7 @@ function operationFailure(operation, label) {
   return operation?.message || `${label} unavailable.`;
 }
 
-export default function HomeHub({ games = [], lockedGameCategories = {}, hasPrivateCategories = false, hasLockedPrivateCategories = false, onPanicLock, onSelect, onOpenPlaytimeImport, onOpenTidyUp, resting = false, homeLayout = {}, onUpdateHomeLayout, updatesCache, onUpdateUpdatesCache }) {
+export default function HomeHub({ games = [], lockedGameCategories = {}, hasPrivateCategories = false, hasLockedPrivateCategories = false, onPanicLock, onSelect, onOpenPlaytimeImport, onOpenTidyUp, resting = false, minimalistic = false, homeLayout = {}, onUpdateHomeLayout, updatesCache, onUpdateUpdatesCache }) {
   const [range, setRange] = React.useState('week');
   const [rankingScope, setRankingScope] = React.useState('period');
   const [news, setNews] = React.useState({ loading: false, items: [], error: '', operation: null });
@@ -44,6 +44,7 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
   const [recoverableWidgets, setRecoverableWidgets] = React.useState([]);
   const [widgetImportNotice, setWidgetImportNotice] = React.useState('');
   const [layoutUnlocked, setLayoutUnlocked] = React.useState(false);
+  const [customizeOpen, setCustomizeOpen] = React.useState(false);
   const [gridColumns, setGridColumns] = React.useState(HOME_WIDGET_GRID.desktop);
   const railRef = React.useRef(null);
   const homeGridHostRef = React.useRef(null);
@@ -353,10 +354,13 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
       <div><p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[rgb(var(--accent-2))]">Your NEO-LIB</p><h1 className="font-display text-4xl font-black tracking-tight">Home</h1><p className="mt-1.5 text-[13px] text-muted">Your games, your time, and the updates that matter.</p></div>
       <div className="flex flex-wrap justify-end gap-2">
         {hasPrivateCategories && <button type="button" onClick={onPanicLock} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-400/60 bg-red-400/[0.09] px-3 text-xs font-bold text-red-200 shadow-[0_0_16px_-7px_rgba(248,113,113,.95)] transition hover:bg-red-400/[0.18] hover:text-red-100" title="Lock every private category and return to a safe Library view" aria-label="Lock private categories"><ShieldCheck size={15} />Lock private</button>}
+        {minimalistic && <button type="button" data-testid="home-minimalistic-customize" aria-expanded={customizeOpen || layoutUnlocked} onClick={() => setCustomizeOpen((value) => !value)} className="inline-flex h-9 items-center rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.55)] px-3 text-xs font-bold text-ink">Customize Home</button>}
+        {(!minimalistic || customizeOpen || layoutUnlocked) && <>
         <button type="button" onClick={toggleLayoutLock} data-testid="home-layout-lock-toggle" aria-pressed={layoutUnlocked} className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition ${layoutUnlocked ? 'border-[rgb(var(--accent)/0.82)] bg-[rgb(var(--accent)/0.22)] text-ink shadow-[0_0_18px_-6px_rgb(var(--accent))]' : 'border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] text-ink hover:border-[rgb(var(--accent)/0.65)] hover:bg-[rgb(var(--accent)/0.10)]'}`} title={layoutUnlocked ? 'Save the widget arrangement and lock Home' : 'Unlock Home widgets for moving and resizing'}>{layoutUnlocked ? <Check size={14} /> : <Unlock size={14} />}{layoutUnlocked ? 'Done' : 'Unlock widgets'}</button>
         <button type="button" onClick={toggleSnapping} data-testid="home-layout-snap-toggle" aria-pressed={snapToGrid} className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition ${snapToGrid ? 'border-[rgb(var(--accent)/0.48)] bg-[rgb(var(--accent)/0.10)] text-ink' : 'border-[rgb(var(--accent-2)/0.55)] bg-[rgb(var(--accent-2)/0.10)] text-[rgb(var(--accent-2))]'}`} title={snapToGrid ? 'Turn snapping off for free placement and overlapping' : 'Turn snapping on for automatic alignment'}><Grip size={14} />{snapToGrid ? 'Snap on' : 'Free move'}</button>
         <button type="button" onClick={() => setWidgetManagerOpen(true)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] px-3 text-xs font-bold text-ink transition hover:border-[rgb(var(--accent)/0.65)] hover:bg-[rgb(var(--accent)/0.10)]" title="Inspect and manage Home widgets"><Puzzle size={14} />Widgets</button>
         <button type="button" onClick={startWidgetImport} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.62)] bg-[rgb(var(--accent)/0.10)] px-3 text-xs font-bold text-ink transition hover:bg-[rgb(var(--accent)/0.18)]" title="Choose a widget.json package to import"><FileUp size={14} />Import widget</button>
+        </>}
         <div className="flex rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] p-1">{Object.entries(RANGES).map(([key, meta]) => <button key={key} onClick={() => setRange(key)} className={`rounded-md px-3 py-1.5 text-[11px] font-bold transition ${range === key ? 'bg-[rgb(var(--accent)/0.22)] text-ink shadow-[0_0_12px_-4px_rgb(var(--accent))]' : 'text-muted hover:text-ink'}`}>{meta.label}</button>)}</div>
         {hiddenPanes.length > 0 && <button type="button" onClick={() => setWidgetManagerOpen(true)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] px-3 text-[10px] font-bold text-muted hover:text-ink"><EyeOff size={13} />{hiddenPanes.length} hidden</button>}
       </div>
@@ -489,6 +493,12 @@ function HomePane({ id, widgetDefinition, children, paneOrder, draggedPane, drag
     setDraftFreePosition(null);
     if (snapToGrid) onResize(id, next); else onFreePosition(id, next);
   };
+  const cancelResize = (event) => {
+    if (resizeSession.current?.pointerId !== event.pointerId) return;
+    resizeSession.current = null;
+    setDraftSize(null);
+    setDraftFreePosition(null);
+  };
   const startMove = (event) => {
     if (!layoutUnlocked || event.button !== 0 || event.target.closest('button')) return;
     if (snapToGrid) { startPaneDrag(id, event); return; }
@@ -513,6 +523,12 @@ function HomePane({ id, widgetDefinition, children, paneOrder, draggedPane, drag
     setDraftFreePosition(null);
     onFreePosition(id, next);
   };
+  const cancelFreeMove = (event) => {
+    if (moveSession.current?.pointerId !== event.pointerId) return;
+    moveSession.current = null;
+    setMovingFreely(false);
+    setDraftFreePosition(null);
+  };
   const openContextMenu = (event) => {
     event.preventDefault(); event.stopPropagation();
     setContextMenu({ x: Math.min(event.clientX, window.innerWidth - 224), y: Math.min(event.clientY, window.innerHeight - 324) });
@@ -531,14 +547,14 @@ function HomePane({ id, widgetDefinition, children, paneOrder, draggedPane, drag
     : { position: 'absolute', left: displayFreePosition.x, top: displayFreePosition.y, width: displayFreePosition.width, height: displayFreePosition.height, zIndex: movingFreely ? 90 : stackIndex + 1 };
   const sizeLabel = snapToGrid ? `${displaySize.cols}×${displaySize.rows}` : `${Math.round(displayFreePosition.width)}×${Math.round(displayFreePosition.height)}`;
   return <motion.div layout={snapToGrid} transition={{ layout: { duration: 0.22, ease: 'easeOut' } }} style={placementStyle} className={`group/homepane flex min-h-0 flex-col overflow-hidden rounded-xl border bg-[rgb(var(--surface)/0.16)] transition ${snapToGrid ? 'relative' : ''} ${layoutUnlocked ? 'border-[rgb(var(--accent)/0.48)] ring-1 ring-[rgb(var(--accent)/0.10)]' : 'border-transparent'} ${isDragging || movingFreely ? 'scale-[0.992] opacity-95 shadow-2xl' : isPeer && snapToGrid ? 'opacity-60' : ''}`} data-home-pane-id={id} data-home-widget-size={sizeLabel} data-testid={`home-pane-${id}`}>
-    <div onPointerDown={startMove} onPointerMove={moveFree} onPointerUp={finishFreeMove} onPointerCancel={finishFreeMove} onContextMenu={openContextMenu} className={`flex h-8 shrink-0 select-none items-center gap-2 border-b px-2 ${layoutUnlocked ? 'cursor-grab border-[rgb(var(--accent)/0.35)] bg-[rgb(var(--accent)/0.12)] active:cursor-grabbing' : 'border-[rgb(var(--border)/0.38)] bg-[rgb(var(--panel)/0.24)]'}`} data-home-widget-titlebar={id}>
+    <div onPointerDown={startMove} onPointerMove={moveFree} onPointerUp={finishFreeMove} onPointerCancel={cancelFreeMove} onLostPointerCapture={cancelFreeMove} onContextMenu={openContextMenu} className={`flex h-8 shrink-0 select-none items-center gap-2 border-b px-2 ${layoutUnlocked ? 'cursor-grab border-[rgb(var(--accent)/0.35)] bg-[rgb(var(--accent)/0.12)] active:cursor-grabbing' : 'border-[rgb(var(--border)/0.38)] bg-[rgb(var(--panel)/0.24)]'}`} data-home-widget-titlebar={id}>
       <GripVertical size={13} className={layoutUnlocked ? 'text-[rgb(var(--accent-2))]' : 'text-muted/55'} />
       <span className="min-w-0 flex-1 truncate text-[10px] font-black uppercase tracking-[0.13em] text-ink">{widget?.label || id}</span>
       <span className="font-mono text-[9px] text-muted">{sizeLabel}</span>
       <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={openContextMenuButton} className="grid h-6 w-6 place-items-center rounded text-muted hover:bg-[rgb(var(--accent)/0.14)] hover:text-ink" aria-label={`Open ${widget?.label || id} widget menu`} title="Widget options"><Menu size={12} /></button>
     </div>
     <div className="min-h-0 flex-1 overflow-auto p-1.5 [scrollbar-color:rgb(var(--accent))_transparent] [scrollbar-width:thin]">{children}</div>
-    {layoutUnlocked && <button type="button" onPointerDown={startResize} onPointerMove={moveResize} onPointerUp={finishResize} onPointerCancel={finishResize} className="absolute bottom-0 right-0 z-30 grid h-7 w-7 cursor-nwse-resize place-items-center rounded-tl-lg border-l border-t border-[rgb(var(--accent)/0.45)] bg-[rgb(var(--panel)/0.92)] text-[rgb(var(--accent-2))] shadow-[-4px_-4px_14px_-8px_rgb(var(--accent))]" aria-label={`Resize ${widget?.label || id}`} title="Drag to resize"><Grip size={13} /></button>}
+    {layoutUnlocked && <button type="button" onPointerDown={startResize} onPointerMove={moveResize} onPointerUp={finishResize} onPointerCancel={cancelResize} onLostPointerCapture={cancelResize} className="absolute bottom-0 right-0 z-30 grid h-7 w-7 cursor-nwse-resize place-items-center rounded-tl-lg border-l border-t border-[rgb(var(--accent)/0.45)] bg-[rgb(var(--panel)/0.92)] text-[rgb(var(--accent-2))] shadow-[-4px_-4px_14px_-8px_rgb(var(--accent))]" aria-label={`Resize ${widget?.label || id}`} title="Drag to resize"><Grip size={13} /></button>}
     {insertionHere && <span className={`pointer-events-none absolute z-40 rounded-full bg-[rgb(var(--accent))] shadow-[0_0_12px_rgb(var(--accent))] ${insertionClass}`} />}
     {contextMenu && renderForegroundPortal(<WidgetContextMenu x={contextMenu.x} y={contextMenu.y} label={widget?.label || id} unlocked={layoutUnlocked} snapToGrid={snapToGrid} size={snapToGrid ? savedSize : freePosition} widget={widget} columns={gridColumns} onUnlock={() => { setLayoutUnlocked(true); setContextMenu(null); }} onToggleSnap={() => { onToggleSnap(); setContextMenu(null); }} onBringFront={() => { onBringFront(id); setContextMenu(null); }} onHide={() => { togglePane(id, true); setContextMenu(null); }} onAdjust={(width, height) => { adjust(width, height); setContextMenu(null); }} onReset={() => { onResetSize(id); setContextMenu(null); }} />)}
   </motion.div>;

@@ -11,6 +11,15 @@ const { createRomScanService } = require('../electron/emulation/rom-scan-service
 assert.deepEqual(romExtensions('snes'), ['.sfc', '.smc']);
 assert(romExtensions('unknown').includes('.nes'));
 assert.deepEqual(romExtensions('3ds'), ['.3ds', '.cia', '.cci']);
+assert.deepEqual(romExtensions('atari2600'), ['.a26']);
+assert.deepEqual(romExtensions('c64'), ['.d64', '.t64', '.prg', '.crt']);
+assert.deepEqual(romExtensions('wiiu'), ['.wua', '.wud', '.wux', '.rpx']);
+assert.deepEqual(romExtensions('switch'), ['.nsp', '.xci']);
+assert.equal(detectRomPlatform('D:\\ROMs\\Pitfall.a26'), 'atari2600');
+assert.equal(detectRomPlatform('D:\\ROMs\\Impossible Mission.d64'), 'c64');
+assert.equal(detectRomPlatform('D:\\ROMs\\Mario Kart 8.wua'), 'wiiu');
+assert.equal(detectRomPlatform('D:\\ROMs\\Mario Odyssey.xci'), 'switch');
+assert.equal(retroPlatform('switch2').id, 'generic', 'Switch 2 has no verified import format yet');
 assert.equal(detectRomPlatform('D:\\ROMs\\Zelda.gba'), 'gba');
 assert.equal(detectRomPlatform('D:\\ROMs\\disc.iso'), 'generic');
 assert.equal(detectRomPlatform('D:\\ROMs\\disc.iso', 'gamecube'), 'gamecube');

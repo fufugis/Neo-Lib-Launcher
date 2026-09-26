@@ -13,6 +13,18 @@ function registerWindowIpc({ registerIpc, getMainWindow }) {
     else window.maximize();
     return window.isMaximized();
   }, value => typeof value === 'boolean', false));
+  registerIpc('window:enterLounge', guardResult(() => {
+    const window = getMainWindow();
+    if (!window) return false;
+    window.setFullScreen(true);
+    return window.isFullScreen();
+  }, value => typeof value === 'boolean', false));
+  registerIpc('window:exitLounge', guardResult(() => {
+    const window = getMainWindow();
+    if (!window) return false;
+    window.setFullScreen(false);
+    return !window.isFullScreen();
+  }, value => typeof value === 'boolean', false));
   registerIpc('window:close', guardResult(() => getMainWindow()?.close(), value => value === undefined, undefined));
 }
 

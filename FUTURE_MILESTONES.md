@@ -39,6 +39,12 @@ layer. It receives a distinct NEO-LIB identity rather than copying another launc
 session memory, update awareness, mascot guidance, private shielding and low-use
 launch/resume are first-class parts of the flow.
 
+Source foundation is in place: explicit session-only fullscreen entry/exit,
+unlocked-game cover browsing, favorites/recent views and cautious update flags.
+Session facts, cautious update context, optional silent mascot guidance and
+fullscreen-exit handling are also source-complete. Installed pad/fullscreen
+acceptance and safe low-use controller launch remain.
+
 ## M5 — optional connected intelligence
 
 Revisit only with explicit product approval:
@@ -55,6 +61,9 @@ Revisit only with explicit product approval:
 Measure lounge/desktop idle cost, finish controller glyph and accessibility work,
 run clean/upgrade tests, package installer plus portable output, review diagnostics,
 commit, push and publish only the build whose visible Build ID matches source.
+Before that package is accepted, prioritize hands-on Wall and Library resize
+checks: saved cover shape/density, Details column order/width, divider drag and
+keyboard behavior, private shielding, and readable narrow-window layouts.
 
 ## Items found during the missing-feature audit
 

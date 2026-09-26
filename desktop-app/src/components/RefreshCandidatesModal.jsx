@@ -41,7 +41,7 @@ export default function RefreshCandidatesModal({ game, field, options, progress,
   const currentArtwork = [game.portraitImage || game.coverUrl, game.headerImage, game.background, game.logoImage || game.logo].filter(Boolean);
   return <Modal open onClose={onClose} wide title={`Choose ${reviewLabel} · ${game.name}`} testid="refresh-candidates-modal">
     <div className="p-5 space-y-4 overflow-y-auto max-h-[75vh]">
-      <p className="text-sm text-muted">{progress ? `Game ${progress}. ` : ''}Nothing changes until you apply your selection. Check the title and source: search results may include other editions or games.</p>
+      <p className="text-sm text-muted">{progress ? `Game ${progress}. ` : ''}Nothing changes until you apply your selection. Check the title and source: search results may include other editions or games.{game.source === 'emulation' ? ` This ROM is filed under ${game.platform || 'your chosen console'}; confirm the result belongs to that version.` : ''}</p>
       <div className="rounded-lg hairline p-3 text-xs text-muted">Current: {field === 'description' ? <div className="whitespace-pre-wrap max-h-28 overflow-auto">{game.about || game.shortDescription || 'Missing'}</div>
         : field === 'all-locked' ? game.name
         : field === 'artwork' ? <div className="mt-2 grid grid-cols-4 gap-2">{currentArtwork.length ? currentArtwork.map((url, index) => <img key={`${url}:${index}`} src={url} alt="Current artwork" className="h-20 w-full rounded object-contain bg-black/20" />) : <span>No artwork</span>}</div>

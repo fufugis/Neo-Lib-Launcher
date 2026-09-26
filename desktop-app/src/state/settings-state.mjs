@@ -1,8 +1,9 @@
 export const DEFAULT_SETTINGS = Object.freeze({
   theme: 'synthwave', firstRun: true, geminiKey: '', steamGridDbKey: '', aiModel: 'gemini-2.5-flash',
   fungistNotifications: {}, librarySize: 'medium', showcaseMode: 'recent_added', collapsed: {},
-  interfaceMode: 'default', presentationMode: 'desktop', preferredControllerFingerprint: '',
+  interfaceMode: 'default', presentationMode: 'desktop', preferredControllerFingerprint: '', controllerNavigationEnabled: false,
   navigationLayout: 'top',
+  coverWallShape: 'portrait',
   externalLibraryRoots: [],
   libraryIconMode: false, libraryIconSize: 48, libraryIconSpacing: 8, libraryIconRows: 3,
 });
@@ -11,6 +12,9 @@ export function hydrateSettings(raw = {}, { resetRatings = false } = {}) {
   const next = { ...DEFAULT_SETTINGS, ...(raw && typeof raw === 'object' ? raw : {}) };
   if (!next.categoriesCollapsedDefault) next.collapsed = {};
   if (!['top', 'sidebar'].includes(next.navigationLayout)) next.navigationLayout = 'top';
+  if (!['default', 'minimalistic'].includes(next.interfaceMode)) next.interfaceMode = 'default';
+  if (!['portrait', 'square'].includes(next.coverWallShape)) next.coverWallShape = 'portrait';
+  next.controllerNavigationEnabled = next.controllerNavigationEnabled === true;
   if (next.mode !== 'tools') next.mode = 'home';
   if (resetRatings) next.ratingSystemVersion = 2;
   return next;

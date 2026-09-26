@@ -26,5 +26,6 @@ assert.equal(achievementAvailability({ achievementSummary: { supported: false } 
 assert.deepEqual(gameCapabilities({ source: 'web', genreTags: [] }), []);
 assert.match(previewSource, /achievement && achievement\.syncState !== 'linked'/, 'capability-only games must not read source from a null achievement record');
 assert.doesNotMatch(previewSource, /achievement\?\.syncState !== 'linked'/, 'optional comparison must not make the null achievement branch render');
+assert.match(previewSource, /NEO-LIB cannot verify earned progress for this game yet; check its original launcher\. No progress is estimated\./, 'unsupported launchers must explain the absence of verified progress');
 
 console.log('Game capabilities preserve only exact source-declared feature evidence and never invent achievement progress.');

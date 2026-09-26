@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "blank-starter",
+  "name": "Blank starter",
+  "tone": "dark",
+  "palette": {
+    "ink": [235, 232, 255],
+    "muted": [170, 166, 195],
+    "accent": [125, 190, 255],
+    "accent2": [255, 184, 112],
+    "accentSoft": [134, 142, 176],
+    "hairlineGlow": [125, 190, 255],
+    "grad1": [20, 16, 34],
+    "grad2": [45, 27, 67],
+    "accentText": [154, 209, 255],
+    "accent2Text": [255, 210, 161]
+  },
+  "panels": {
+    "surface": [26, 22, 40],
+    "panel": [39, 31, 55],
+    "border": [95, 75, 121]
+  },
+  "layers": {
+    "canvas": { "type": "gradient", "from": "grad1", "to": "grad2", "opacity": 1 },
+    "atmosphere": { "type": "none" },
+    "sidebar": { "type": "none" },
+    "decoration": { "type": "none" },
+    "navigationFrame": { "type": "none" },
+    "navigationFlourish": { "type": "none" },
+    "controlFrame": { "type": "none" }
+  },
+  "motion": { "cadence": "normal", "reducedMotion": "still" },
+  "license": { "name": "Creator-owned artwork", "attribution": "Original creator" },
+  "effects": { "particles": [] }
+}

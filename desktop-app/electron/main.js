@@ -49,6 +49,8 @@ const { registerToolsIpc } = require('./ipc/tools-ipc.cjs');
 const { registerUpdatesIpc } = require('./ipc/updates-ipc.cjs');
 const { registerWebIpc } = require('./ipc/web-ipc.cjs');
 const { registerWidgetsIpc } = require('./ipc/widgets-ipc.cjs');
+const { registerThemesIpc } = require('./ipc/themes-ipc.cjs');
+const { createCustomThemeService } = require('./themes/custom-theme-service.cjs');
 const { createSystemHealthService } = require('./system/system-health-service.cjs');
 const { createPlaytimeHistoryService, localDayKey } = require('./playtime/playtime-history-service.cjs');
 const { createImageCacheService } = require('./images/image-cache-service.cjs');
@@ -154,6 +156,10 @@ const systemHealth = createSystemHealthService({ os });
 const playtimeHistory = createPlaytimeHistoryService({ documents });
 const imageCache = createImageCacheService({ path, coversDir, download: httpDownload });
 const widgetPackages = createWidgetPackageService({ fsp, path, widgetsDir: () => path.join(dataDir(), 'widgets') });
+const customThemes = createCustomThemeService({
+  root: () => path.join(dataDir(), 'themes'),
+  reservedIds: ['anime', 'blank-starter', 'colorful', 'crimson', 'daybreak', 'gaming', 'generic-blue', 'generic-gray', 'home', 'midnight', 'mint', 'modern', 'monochrome', 'ocean', 'pro', 'synthwave', 'synthwave-day'],
+});
 const romScanner = createRomScanService({ fsp, path });
 const appOs = createAppOsService({ app, shell, fsp, path, execPath: process.execPath, recordLaunchSafety });
 const appLifecycle = createAppLifecycleService({
@@ -436,6 +442,8 @@ function createWindow() {
 
   mainWindow.on('maximize', () => mainWindow.webContents.send('window:maximized', true));
   mainWindow.on('unmaximize', () => mainWindow.webContents.send('window:maximized', false));
+  mainWindow.on('enter-full-screen', () => mainWindow.webContents.send('window:loungeFullscreen', true));
+  mainWindow.on('leave-full-screen', () => mainWindow.webContents.send('window:loungeFullscreen', false));
   // The renderer uses these actual native visibility transitions to enter its
   // no-background-work Rest Mode. This covers close-to-tray, the tray icon,
   // and Windows restore without treating a hidden window as a game launch.
@@ -3354,3 +3362,4 @@ registerToolsIpc({ registerIpc, services: remainingIpcServices });
 registerUpdatesIpc({ registerIpc, services: remainingIpcServices });
 registerWebIpc({ registerIpc, services: remainingIpcServices });
 registerWidgetsIpc({ registerIpc, widgets: widgetPackages });
+registerThemesIpc({ registerIpc, themes: customThemes });

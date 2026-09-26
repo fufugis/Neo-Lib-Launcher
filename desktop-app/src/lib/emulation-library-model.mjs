@@ -1,6 +1,8 @@
 // Pure emulation-library contracts. These functions never inspect a drive or
 // launch anything; the native layer will scan only a player-selected folder.
 export const RETRO_PLATFORMS = Object.freeze({
+  atari2600: Object.freeze({ label: 'Atari 2600', shortLabel: 'Atari 2600', extensions: ['.a26'] }),
+  c64: Object.freeze({ label: 'Commodore 64', shortLabel: 'C64', extensions: ['.d64', '.t64', '.prg', '.crt'] }),
   nes: Object.freeze({ label: 'Nintendo Entertainment System', shortLabel: 'NES', extensions: ['.nes', '.fds'] }),
   snes: Object.freeze({ label: 'Super Nintendo', shortLabel: 'SNES', extensions: ['.sfc', '.smc'] }),
   n64: Object.freeze({ label: 'Nintendo 64', shortLabel: 'N64', extensions: ['.z64', '.n64', '.v64'] }),
@@ -11,6 +13,8 @@ export const RETRO_PLATFORMS = Object.freeze({
   '3ds': Object.freeze({ label: 'Nintendo 3DS', shortLabel: '3DS', extensions: ['.3ds', '.cia', '.cci'] }),
   gamecube: Object.freeze({ label: 'Nintendo GameCube', shortLabel: 'GameCube', extensions: ['.gcm', '.rvz', '.iso'] }),
   wii: Object.freeze({ label: 'Nintendo Wii', shortLabel: 'Wii', extensions: ['.wbfs', '.wia', '.rvz', '.iso'] }),
+  wiiu: Object.freeze({ label: 'Nintendo Wii U', shortLabel: 'Wii U', extensions: ['.wua', '.wud', '.wux', '.rpx'] }),
+  switch: Object.freeze({ label: 'Nintendo Switch', shortLabel: 'Switch', extensions: ['.nsp', '.xci'] }),
   genesis: Object.freeze({ label: 'Sega Genesis / Mega Drive', shortLabel: 'Genesis', extensions: ['.md', '.gen', '.bin'] }),
   dreamcast: Object.freeze({ label: 'Sega Dreamcast', shortLabel: 'Dreamcast', extensions: ['.gdi', '.cdi', '.chd'] }),
   ps1: Object.freeze({ label: 'PlayStation', shortLabel: 'PS1', extensions: ['.cue', '.chd', '.pbp', '.m3u'] }),

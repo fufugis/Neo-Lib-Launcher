@@ -12,9 +12,12 @@ assert.deepEqual(selectedRefreshPatch('banner', fieldCandidates(record, 'banner'
 assert.deepEqual(selectedRefreshPatch('screenshots', fieldCandidates(record, 'screenshots')), { screenshots: [image(4), image(5)] });
 assert.deepEqual(selectedRefreshPatch('description', fieldCandidates(record, 'description')), { about: 'Full description', shortDescription: 'Short description' });
 assert.deepEqual(selectedRefreshPatch('icon', []), {}, 'nothing selected means no patch');
-const malicious = { ...record, id: 'other', appid: 1, exePath: 'bad.exe', launchArgs: '--run', categoryId: 'private', name: 'Other game', screenshots: [] };
+const malicious = { ...record, id: 'other', appid: 1, exePath: 'bad.exe', launchArgs: '--run', categoryId: 'private', romPath: 'bad.rom', retroPlatform: 'wrong', name: 'Other game', screenshots: [] };
 const full = selectedRefreshPatch('all-locked', fieldCandidates(malicious, 'all-locked'));
-for (const key of ['id', 'appid', 'exePath', 'launchArgs', 'categoryId', 'name', 'screenshots']) assert.equal(key in full, false, `preserve ${key}`);
+for (const key of ['id', 'appid', 'exePath', 'launchArgs', 'categoryId', 'romPath', 'retroPlatform', 'name', 'screenshots']) assert.equal(key in full, false, `preserve ${key}`);
+const retroPatch = selectedRefreshPatch('all-locked', fieldCandidates({ source: 'web', name: 'Mario World', headerImage: image(8), about: 'A platform game' }, 'all-locked'), { source: 'emulation' });
+assert.equal(retroPatch.headerImage, image(8));
+assert.equal(retroPatch.coverUrl, undefined, 'wide hero artwork must not masquerade as a ROM case cover');
 const artworkGame = { icon: image(20), portraitImage: image(21), headerImage: image(22), artworkLocks: { hero: true }, artworkSources: { hero: 'Player' }, artworkRevisions: [] };
 const artwork = selectedRefreshPatch('artwork', fieldCandidates({ ...record, portraitImage: image(6), logoImage: image(7) }, 'artwork'), artworkGame);
 assert.equal(artwork.portraitImage, image(6));
@@ -39,6 +42,14 @@ assert.ok(result.candidates.length > 5, 'Show more adds candidates');
 for (let i = 0; i < 10 && result.more; i++) result = await search.next(100);
 assert.equal(result.more, false, 'finite sources eventually report exhaustion');
 assert.equal(new Set(result.candidates.map(c => c.key)).size, result.candidates.length);
+
+const retroQueries = [];
+const retroSearch = createRefreshSearch({
+  fetchMetadata: async ({ query }) => { retroQueries.push(query); return null; },
+  listCandidates: async ({ query }) => { retroQueries.push(query); return { candidates: [] }; },
+}, { name: 'Mario World', metadataQuery: 'Mario World SNES', launcher: 'emulator', source: 'emulation' }, 'all-locked');
+await retroSearch.next(5);
+assert(retroQueries.length > 0 && retroQueries.every(query => query === 'Mario World SNES'), 'Retro review searches with the selected console');
 
 let cancelled = false, release, moreCalls = 0;
 const cancellation = createRefreshSearch({ fetchMetadata: () => new Promise(resolve => { release = resolve; }), listCandidates: async () => { moreCalls++; return {}; } }, { name: 'Test' }, 'icon');

@@ -48,7 +48,8 @@ export function selectedRefreshPatch(field, candidates, game = {}) {
     const v = key === 'about' || key === 'shortDescription' ? cleanDescriptionText(record[key]) : record[key];
     if (v != null && v !== '' && (!Array.isArray(v) || v.length)) patch[key] = v;
   }
-  const cover = record.portraitImage || record.capsuleImage || record.headerImage || record.icon;
+  // A wide header is useful as a hero, but not a fabricated portrait case cover.
+  const cover = record.portraitImage || record.capsuleImage || record.icon || (game.source === 'emulation' ? null : record.headerImage);
   if (record.portraitImage) patch.portraitImage = record.portraitImage;
   if (cover) { patch.coverUrl = cover; patch.icon = record.icon || cover; }
   return patch;
@@ -56,6 +57,7 @@ export function selectedRefreshPatch(field, candidates, game = {}) {
 
 export function createRefreshSearch(api, game, field, options = {}) {
   const found = [], seen = new Set(), failures = [];
+  const query = options.query || game.metadataQuery || game.name;
   const native = [game.launcher, game.source].find(source => ['itch', 'itchio', 'gog', 'f95zone', 'vndb', 'dlsite', 'jast', 'gamejolt', 'ryuugames'].includes(source));
   const sources = [...new Set([native === 'itchio' ? 'itch' : native || 'steam', 'steam', 'gog', 'google'])];
   const pending = [];
@@ -71,7 +73,7 @@ export function createRefreshSearch(api, game, field, options = {}) {
     async next(limit = 5, cancelled = () => false) {
       if (initial) {
         initial = false;
-        add(await bounded(() => api.fetchMetadata({ query: options.query || game.name, launcher: game.launcher || '', launcherProductId: game.launcherProductId || '', lockedAppid: game.launcher === 'battlenet' || options.forceSearch ? null : game.appid || null, force: true, ...options })));
+        add(await bounded(() => api.fetchMetadata({ query, launcher: game.launcher || '', launcherProductId: game.launcherProductId || '', lockedAppid: game.launcher === 'battlenet' || options.forceSearch ? null : game.appid || null, force: true, ...options })));
       }
       // Each click does bounded work; no background crawl through the entire catalogue.
       let expansions = 0;
@@ -79,7 +81,7 @@ export function createRefreshSearch(api, game, field, options = {}) {
         if (!pending.length) {
           if (!sources.length) break;
           const source = sources.shift();
-          const result = await bounded(() => api.listCandidates({ source, query: options.query || game.name }));
+          const result = await bounded(() => api.listCandidates({ source, query }));
           if (result?.error) failures.push(`${source}: ${result.error}`);
           pending.push(...(result?.candidates || []));
           if (!pending.length) continue;

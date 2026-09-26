@@ -34,7 +34,7 @@ function MenuToggle({ icon, label, detail, checked, onChange, testid }) {
  * One home for presentation, devices and app-level actions. It is portalled so
  * game rows, preview panes and theme FX can never cover it.
  */
-export default function AppControlMenu({ onOpenThemes, onOpenVisuals, onOpenControllers, onOpenMascot, onOpenSettings, onOpenChangelog, onCheckForUpdates, onOpenFeedback, onQuit, sidebarMode = false, sidebarExpanded = false, sidebarEnabled = false, onToggleSidebar }) {
+export default function AppControlMenu({ onOpenThemes, onOpenVisuals, onOpenControllers, onOpenMascot, onOpenSettings, onOpenChangelog, onCheckForUpdates, onOpenFeedback, onQuit, onEnterLounge, sidebarMode = false, sidebarExpanded = false, sidebarEnabled = false, onToggleSidebar, minimalisticEnabled = false, onToggleMinimalistic }) {
   const [open, setOpen] = React.useState(false);
   const buttonRef = React.useRef(null);
   const panelRef = React.useRef(null);
@@ -86,6 +86,7 @@ export default function AppControlMenu({ onOpenThemes, onOpenVisuals, onOpenCont
           style={{ position: 'fixed', top: position.top, left: position.left, background: 'rgb(var(--surface))' }}
           className="z-[10000] w-[min(338px,calc(100vw-24px))] overflow-hidden rounded-xl border border-[rgb(var(--border)/0.92)] shadow-2xl"
           data-testid="app-control-menu"
+          data-controller-surface="popover"
           onPointerDown={(event) => event.stopPropagation()}
           onMouseDown={(event) => event.stopPropagation()}
         >
@@ -93,7 +94,7 @@ export default function AppControlMenu({ onOpenThemes, onOpenVisuals, onOpenCont
             <div className="flex items-center gap-2"><span className="grid h-7 w-7 place-items-center rounded-lg bg-[rgb(var(--accent)/0.13)] text-[rgb(var(--accent))]"><Sparkles size={14} /></span><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[rgb(var(--accent-2))]">NEO-LIB</p><p className="text-[11px] font-semibold text-ink">Control Center</p></div></div>
           </div>
           <MenuSection label="Modes">
-            <MenuItem icon={<Tv2 size={15} />} label="TV Mode" detail="Controller-first fullscreen experience" disabled testid="app-menu-tv-mode" />
+            <MenuItem icon={<Tv2 size={15} />} label="NEO Lounge" detail="Opt-in fullscreen browsing · Exit or Esc to return" onClick={() => choose(onEnterLounge)} testid="app-menu-tv-mode" />
           </MenuSection>
           <div className="mx-3 h-px bg-[rgb(var(--border)/0.55)]" />
           <MenuSection label="Personalise">
@@ -101,6 +102,7 @@ export default function AppControlMenu({ onOpenThemes, onOpenVisuals, onOpenCont
             <MenuItem icon={<Palette size={15} />} label="Custom theme" detail="Build and save a personal theme" disabled testid="app-menu-custom-theme" />
             <MenuItem icon={<SlidersHorizontal size={15} />} label="Visual Tweaks" detail="Library type, layout, texture, motion and FX" onClick={() => choose(onOpenVisuals)} testid="app-menu-visuals" />
             <MenuToggle icon={<PanelLeft size={15} />} label="Sidebar" detail="Move Home, Library, Wall and Tools into a left icon rail" checked={sidebarEnabled} onChange={onToggleSidebar} testid="app-menu-sidebar-toggle" />
+            <MenuToggle icon={<Sparkles size={15} />} label="Minimalistic" detail="Calmer Home and presentation; all themes and features remain available" checked={minimalisticEnabled} onChange={onToggleMinimalistic} testid="app-menu-minimalistic-toggle" />
           </MenuSection>
           <div className="mx-3 h-px bg-[rgb(var(--border)/0.55)]" />
           <MenuSection label="Devices">

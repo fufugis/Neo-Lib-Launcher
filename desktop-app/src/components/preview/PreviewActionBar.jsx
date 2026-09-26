@@ -5,6 +5,7 @@ import { cn, colorFromId } from '../../lib/utils';
 import { hoverThrottled, playLaunch } from '../../lib/sound';
 import { renderForegroundPortal } from '../ui/VisualBoundary';
 import { normalizeLaunchRoutes } from '../../lib/game-launch-routes-model.mjs';
+import { stockThemeAssetUrl, customThemeManifest } from '../../themes/stock-theme-registry.mjs';
 
 function openSearch(query, engine = 'google') {
   const url = engine === 'youtube'
@@ -40,9 +41,11 @@ export default function PreviewActionBar({ game, categories, onLaunch, onLaunchE
     onLaunch(target, armed.token, launchOrigin);
   }, [onLaunch, onLaunchError, settings.soundsEnabled]);
   const routes = React.useMemo(() => normalizeLaunchRoutes(game.launchRoutes).filter((route) => route.enabled && route.target), [game.launchRoutes]);
+  const customControlFrame = String(settings.theme || '').startsWith('custom:') ? stockThemeAssetUrl(settings.theme, 'controlFrame') : '';
 
   return (
-    <div className="special-control-surface neolib-special-action-art relative z-10 flex flex-wrap items-center gap-3 border-y hairline px-6 py-3" style={{ backgroundColor: 'rgb(var(--surface) / 0.24)', backdropFilter: 'blur(8px) saturate(124%)' }}>
+    <div className={`special-control-surface neolib-special-action-art relative z-10 flex flex-wrap items-center gap-3 border-y hairline px-6 py-3${customControlFrame ? ' custom-control-frame' : ''}`} style={{ backgroundColor: 'rgb(var(--surface) / 0.24)', backdropFilter: 'blur(8px) saturate(124%)' }}>
+      {customControlFrame && <img src={customControlFrame} alt="" draggable={false} aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full object-fill" style={{ opacity: 0.55 * (customThemeManifest(settings.theme)?.layers?.controlFrame?.opacity ?? 1) }} />}
       <motion.button
         data-testid="detail-launch-btn"
         whileTap={{ scale: 0.95 }}
@@ -59,7 +62,7 @@ export default function PreviewActionBar({ game, categories, onLaunch, onLaunchE
       {routes.length > 0 && <div className="relative">
         <button data-testid="detail-route-picker-btn" onClick={(event) => { const rect = event.currentTarget.getBoundingClientRect(); setRouteAnchor({ x: rect.left, y: rect.bottom + 4 }); setRouteOpen((open) => !open); }} className="grid h-9 w-9 place-items-center rounded-full hairline text-muted hover:border-[rgb(var(--accent)/0.58)] hover:text-ink" title="Choose launch route"><ChevronDown size={15} /></button>
         {routeOpen && routeAnchor && renderForegroundPortal(<div className="fixed z-[220] w-56 overflow-hidden rounded-xl hairline glass p-1 shadow-2xl" style={{ left: routeAnchor.x, top: routeAnchor.y }}>
-          {routes.map((route) => <button key={route.id} onClick={(event) => { setRouteOpen(false); launchWithSafety({ ...game, exePath: route.target, launchArgs: route.arguments || '', launchRouteId: route.id }, event); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink"><Play size={12} /><span className="truncate">{route.label}</span></button>)}
+          {routes.map((route) => <button key={route.id} data-neolib-launch="true" onClick={(event) => { setRouteOpen(false); launchWithSafety({ ...game, exePath: route.target, launchArgs: route.arguments || '', launchRouteId: route.id }, event); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink"><Play size={12} /><span className="truncate">{route.label}</span></button>)}
         </div>)}
       </div>}
 

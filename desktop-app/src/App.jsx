@@ -26,6 +26,9 @@ import { LAUNCHER_LABELS, assignLauncherCategory, ensureLauncherCategory } from 
 import { mergeUpdateStatusLedger } from './state/update-ledger-state.mjs';
 import { appendMascotNotice } from './components/mascot/fungist-model.mjs';
 import AppModalLayer from './components/app/AppModalLayer';
+import ControllerNavigationBridge from './components/controller/ControllerNavigationBridge';
+import NeoLounge from './components/lounge/NeoLounge';
+import { useNeoLounge } from './components/lounge/useNeoLounge';
 import { createDemoLibrary } from './state/demo-library.mjs';
 import { createMetadataWorkflow } from './services/metadata-workflow.mjs';
 import { createCategoryPrivacyWorkflow } from './services/category-privacy-workflow.mjs';
@@ -35,15 +38,13 @@ import { collectionCategoryAssignment, collectionFavoriteIds, collectionJourneyS
 import { mergeRetroImport } from './state/retro-import-state.mjs';
 import { journeyStatusAfterFirstLaunch } from './lib/game-journey-model.mjs';
 import { externalRootForGame, normalizeExternalLibraryRoots } from './lib/externalLibraryRoots.mjs';
-import { applyStockThemePalette, stockThemeAssetUrl } from './themes/stock-theme-registry.mjs';
-
-// Read app version once — used by the update checker for comparison.
+import { applyStockThemePalette, stockThemeAssetUrl, customThemeCanvas } from './themes/stock-theme-registry.mjs';
+import { useCustomThemes } from './themes/use-custom-themes';
 const APP_VERSION = '1.7.9';
 import { uid, guessNameFromPath, hashPin, formatPlaytime } from './lib/utils';
 import { normalizeGenreProfile, GENRE_TAXONOMY_VERSION } from './lib/genreTaxonomy';
 import { setSoundPack } from './lib/sound';
 import { playMascotVoice } from './lib/mascotVoice';
-
 const nativeApi = getRendererApi();
 const isElectron = Boolean(nativeApi);
 const {
@@ -52,7 +53,6 @@ const {
   tools: DEMO_TOOLS,
   toolCategories: DEMO_TOOL_CATEGORIES,
 } = createDemoLibrary(hashPin);
-
 export default function App() {
   const {
     library, setLibrary, settings, setSettings,
@@ -60,12 +60,9 @@ export default function App() {
     unlockedCategories, setUnlockedCategories,
     persistSettings, updateSetting,
   } = useRendererStore(nativeApi);
-  // A game launched by NEO-LIB is still tracked while the window stays open.
-  // Rest Mode uses this to pause every non-essential bit of background work.
+  // A game launched by NEO-LIB stays tracked; Rest Mode pauses background work.
   const [runningGame, setRunningGame] = React.useState(null);
-  // A game started through Steam, Battle.net, or another client is discovered
-  // separately. A confident library match enters Rest Mode automatically and
-  // explains the transition in the dedicated major-event notice.
+  // External game detection enters Rest Mode on a confident library match.
   const [externalRunningGame, setExternalRunningGame] = React.useState(null);
   const [externalRestOverride, setExternalRestOverride] = React.useState(false);
   // Rest Mode can also be a deliberate player choice. Keep manual and tray
@@ -93,6 +90,7 @@ export default function App() {
   // sounds, mascot activity, launcher discovery, news, deals and health
   // polling all sleep together.
   const gameRestActive = automaticGameRestActive || manualRestActive || trayRestActive;
+  const lounge = useNeoLounge(nativeApi, gameRestActive);
   const restReason = trayRestActive
     ? 'NEO-LIB is resting in the background until you reopen it.'
     : manualRestActive
@@ -101,21 +99,19 @@ export default function App() {
         ? `${runningGame.name} is running · background work paused.`
         : 'A tracked game is running · background work paused.';
   const [search, setSearch] = React.useState('');
-
   const [showAdd, setShowAdd] = React.useState(false);
   const [toolMetadataTarget, setToolMetadataTarget] = React.useState(null);
   const [showWizard, setShowWizard] = React.useState(false);
   const [showSettings, setShowSettings] = React.useState(false);
   const [themeStudioOpen, setThemeStudioOpen] = React.useState(false);
+  const { installedCustomThemes, refreshCustomThemes } = useCustomThemes(nativeApi);
   const [mascotCenterOpen, setMascotCenterOpen] = React.useState(false);
   const [controllerCenterOpen, setControllerCenterOpen] = React.useState(false);
-
   const [catModal, setCatModal] = React.useState({ open: false, initial: null });
   const [categoryManagerOpen, setCategoryManagerOpen] = React.useState(false);
   const [catCtx, setCatCtx] = React.useState({ open: false, category: null, anchor: null });
   const [pinModal, setPinModal] = React.useState({ open: false, mode: 'unlock', category: null, error: '' });
   const [pinThen, setPinThen] = React.useState(null);
-
   const [fetching, setFetching] = React.useState(false);
   const [toast, setToast] = React.useState(null);
 
@@ -138,21 +134,6 @@ export default function App() {
 
   /* --- Sidebar resize --- */
   const sidebarWidth = settings.sidebarWidth || 320;
-  const startResize = (e) => {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startW = sidebarWidth;
-    const onMove = (ev) => {
-      const w = Math.max(220, Math.min(640, startW + (ev.clientX - startX)));
-      updateSetting({ sidebarWidth: w });
-    };
-    const onUp = () => {
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-    };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  };
 
   /* --- Sound pack: apply when settings change --- */
   React.useEffect(() => {
@@ -485,9 +466,9 @@ export default function App() {
   }, []);
 
   React.useEffect(() => {
-    document.documentElement.setAttribute('data-theme', settings.theme || 'synthwave');
+    document.documentElement.setAttribute('data-theme', settings.theme?.startsWith('custom:') ? 'custom' : settings.theme || 'synthwave');
     applyStockThemePalette(document.documentElement, settings.theme || 'synthwave');
-  }, [settings.theme]);
+  }, [settings.theme, installedCustomThemes]);
   React.useEffect(() => {
     const cursor = ['windows', 'neon', 'petal', 'pixel'].includes(settings.cursorTheme)
       ? settings.cursorTheme
@@ -938,7 +919,20 @@ export default function App() {
   const updateBulkJourneyStatus = (ids, journeyStatus) => { const picked = Array.isArray(ids) ? ids : []; if (!picked.length || !journeyStatus) return; setLibrary((previous) => ({ ...previous, [sliceK.items]: collectionJourneyStatus(previous[sliceK.items] || [], picked, journeyStatus) })); notify(`Updated Journey Status for ${picked.length} game${picked.length === 1 ? '' : 's'}.`); };
   const addBulkCategory = (ids, categoryId) => { const picked = Array.isArray(ids) ? ids : []; const category = (library.categories || []).find((item) => item.id === categoryId && !item.private); if (!picked.length || !category) return; setLibrary((previous) => ({ ...previous, [sliceK.items]: collectionCategoryAssignment(previous[sliceK.items] || [], picked, categoryId) })); notify(`Added ${picked.length} game${picked.length === 1 ? '' : 's'} to ${category.name}.`); };
   const collectionReview = createCollectionReviewWorkflow({ games: library[sliceK.items] || [], categories: library.categories || [], unlockedCategoryIds: unlockedCategories, setConfirmCfg, setRefreshReview, setLibrary, sliceKey: sliceK.items, notify });
-  const importRetroGames = (entries) => { const requested = Array.isArray(entries) ? entries : []; if (!requested.length) return 0; setLibrary((previous) => mergeRetroImport(previous, requested, uid).library); notify(`Imported ${requested.length} retro game${requested.length === 1 ? '' : 's'} by platform.`); return requested.length; };
+  const importRetroGames = (entries) => {
+    const requested = Array.isArray(entries) ? entries : [];
+    if (!requested.length) return 0;
+    const result = mergeRetroImport(libraryRef.current, requested, uid);
+    if (!result.imported.length) { notify('These ROMs are already in your library.'); return 0; }
+    libraryRef.current = result.library;
+    setLibrary(result.library);
+    setShowWizard(false);
+    setWizardPrefillRoot('');
+    setWizardAutoScan(false);
+    setRefreshReview({ games: result.imported, index: 0, field: 'all-locked' });
+    notify(`Imported ${result.imported.length} retro game${result.imported.length === 1 ? '' : 's'}. Review suggested metadata one game at a time; Skip or Stop leaves your ROMs intact.`);
+    return result.imported.length;
+  };
   const addTool = (data) => {
     const tool = {
       id: uid(),
@@ -1393,7 +1387,9 @@ export default function App() {
   const specialNavDecorationOpacity = activeVisuals.navigationDecorationOpacity;
 
   return (
-    <div className="neolib-app-shell relative flex h-screen w-screen flex-col bg-surface text-ink" data-neolib-resting={gameRestActive ? 'true' : 'false'} data-special-theme={specialUiTheme || undefined} style={{
+    <div className="neolib-app-shell relative flex h-screen w-screen flex-col bg-surface text-ink" data-neolib-resting={gameRestActive ? 'true' : 'false'} data-interface-mode={settings.interfaceMode === 'minimalistic' ? 'minimalistic' : 'default'} data-special-theme={specialUiTheme || undefined} style={{
+      backgroundImage: customThemeCanvas(settings.theme),
+      backgroundSize: settings.theme?.startsWith('custom:') ? 'cover' : undefined, backgroundPosition: settings.theme?.startsWith('custom:') ? 'center' : undefined,
       '--special-ui-decoration-opacity': specialUiOpacity,
       '--special-nav-decoration-opacity': specialNavDecorationOpacity,
       '--special-anime-art': `url("${stockThemeAssetUrl('anime', 'decoration')}")`,
@@ -1404,12 +1400,13 @@ export default function App() {
       '--special-magical-button-frame': `url("${stockThemeAssetUrl('colorful', 'controlFrame')}")`,
     }}>
       <HoverTips />
+      <ControllerNavigationBridge enabled={settings.controllerNavigationEnabled === true} preferredFingerprint={settings.preferredControllerFingerprint || ''} resting={gameRestActive} privacyEpoch={unlockedCategories.join('|')} onBlockedLaunch={() => notify('Controller launch needs its own safety confirmation. Use mouse or keyboard for now.')} />
       {/* Window edge glow — soft inner halo around the frameless window (Riot/Discord style) */}
       <div className="window-edge-glow" aria-hidden="true" />
-      <BgAmbience theme={settings.theme} settings={settings} game={selected} resting={gameRestActive} />
+      <BgAmbience theme={settings.theme} settings={settings} game={selected} resting={gameRestActive} eventPulse={fungistLaunchCelebration?.key > confetti.key ? { kind: 'launch', key: fungistLaunchCelebration.key } : { kind: 'celebrate', key: confetti.key }} />
       {/* v1.6.4 — BgTexture no longer renders as full-viewport overlay.
           Sidebar renders the texture inside its own body via bgTextureStyle. */}
-      <div className="neolib-ui-foreground relative z-20">
+      <div className="neolib-ui-foreground relative z-20" inert={lounge.active ? '' : undefined}>
         <TitleBar
           search={search}
           setSearch={setSearch}
@@ -1422,7 +1419,7 @@ export default function App() {
         />
       </div>
 
-      <div className="neolib-ui-foreground relative z-20 flex min-h-0 flex-1">
+      <div className="neolib-ui-foreground relative z-20 flex min-h-0 flex-1" inert={lounge.active ? '' : undefined}>
         {!wallActive && <Sidebar
           games={visibleGames}
           categories={currentCats}
@@ -1462,6 +1459,7 @@ export default function App() {
           onChangeLibraryFont={(v) => updateSetting({ libraryFont: v })}
           onChangeLibraryFontWeight={(v) => updateSetting({ libraryFontWeight: v })}
           onChangeLibraryFontCursive={(v) => updateSetting({ libraryFontCursive: v })}
+          interfaceMode={settings.interfaceMode || 'default'} onChangeInterfaceMode={(interfaceMode) => updateSetting({ interfaceMode })}
           unseenNewsCount={unseenNewsCount}
           effectsLevel={(() => {
             const map = settings.effectsLevelByTheme || {};
@@ -1514,7 +1512,7 @@ export default function App() {
           onChangeLibraryIconSpacing={(libraryIconSpacing) => updateSetting({ libraryIconSpacing })}
           onChangeLibraryIconRows={(libraryIconRows) => updateSetting({ libraryIconRows })}
           sidebarWidth={sidebarWidth}
-          onStartResize={startResize}
+          onResizeSidebar={(sidebarWidth) => updateSetting({ sidebarWidth })}
           onGameViewed={markGameSeenInLibrary}
           onSelect={(id) => { setCurrentSelectedId(id); if (id && settings.mode === 'home') setMode('library'); }}
           onAddManual={() => { setToolMetadataTarget(null); setShowAdd(true); }}
@@ -1539,6 +1537,7 @@ export default function App() {
           onOpenMascot={() => setMascotCenterOpen(true)}
           onOpenControllerCenter={() => setControllerCenterOpen(true)}
           onOpenChangelog={() => setChangelogOpen(true)}
+          onEnterLounge={() => void lounge.enter().then((ok) => { if (!ok) notify(gameRestActive ? 'Wake NEO-LIB before entering Lounge.' : 'Fullscreen is unavailable right now.'); })}
           onCheckForUpdates={checkForAppUpdateNow}
           onQuit={() => nativeApi?.quit?.()}
           onSystemHealthChange={onMascotHealthChange}
@@ -1548,7 +1547,7 @@ export default function App() {
         <main className="relative flex min-w-0 flex-1 flex-col">
           <div className="flex-1 min-h-0 overflow-hidden">
             {!isTools && settings.mode === 'home' ? (
-              <HomeHub games={homeGames} lockedGameCategories={lockedHomeCategoryByGameId} hasPrivateCategories={(library.categories || []).some((category) => category.private)} hasLockedPrivateCategories={(library.categories || []).some((category) => category.private && !unlockedCategories.includes(category.id))} onPanicLock={panicLockPrivateLibrary} resting={gameRestActive} homeLayout={settings.homeLayout || {}} onUpdateHomeLayout={(homeLayout) => updateSetting({ homeLayout })} updatesCache={settings.homeGameUpdatesCache} onUpdateUpdatesCache={(homeGameUpdatesCache) => updateSetting({ homeGameUpdatesCache })} onSelect={(id) => { if (lockedHomeCategoryByGameId[id]) { notify(`Unlock ${lockedHomeCategoryByGameId[id]} in Library to reveal this game.`); return; } setSelectedId(id); setMode('library'); }} onOpenPlaytimeImport={() => openPlaytimeImport({ force: true })} onOpenTidyUp={() => setTidyOpen(true)} />
+              <HomeHub games={homeGames} lockedGameCategories={lockedHomeCategoryByGameId} hasPrivateCategories={(library.categories || []).some((category) => category.private)} hasLockedPrivateCategories={(library.categories || []).some((category) => category.private && !unlockedCategories.includes(category.id))} onPanicLock={panicLockPrivateLibrary} resting={gameRestActive} minimalistic={settings.interfaceMode === 'minimalistic'} homeLayout={settings.homeLayout || {}} onUpdateHomeLayout={(homeLayout) => updateSetting({ homeLayout })} updatesCache={settings.homeGameUpdatesCache} onUpdateUpdatesCache={(homeGameUpdatesCache) => updateSetting({ homeGameUpdatesCache })} onSelect={(id) => { if (lockedHomeCategoryByGameId[id]) { notify(`Unlock ${lockedHomeCategoryByGameId[id]} in Library to reveal this game.`); return; } setSelectedId(id); setMode('library'); }} onOpenPlaytimeImport={() => openPlaytimeImport({ force: true })} onOpenTidyUp={() => setTidyOpen(true)} />
             ) : !isTools && wallActive ? (
               <CoverWall
                 games={coverWallGames}
@@ -1556,7 +1555,10 @@ export default function App() {
                 collectionCategories={currentCats.filter((category) => !category.private)} privateCollectionCategories={currentCats.filter((category) => category.private && unlockedCategories.includes(category.id))}
                 density={settings.coverWallDensity || 5}
                 onDensityChange={(coverWallDensity) => updateSetting({ coverWallDensity })}
+                coverShape={settings.coverWallShape === 'square' ? 'square' : 'portrait'}
+                onCoverShapeChange={(coverWallShape) => updateSetting({ coverWallShape })}
                 view={settings.wallView || 'covers'}
+                minimalistic={settings.interfaceMode === 'minimalistic'}
                 onChangeView={(wallView) => updateSetting({ wallView })}
                 wallColumns={settings.wallColumns}
                 onWallColumnsChange={(wallColumns) => updateSetting({ wallColumns })}
@@ -1573,12 +1575,11 @@ export default function App() {
             ) : !selected ? (
               <WorkspaceEmpty kind={isTools ? 'tools' : 'library'} />
             ) : (
-              <AnimatePresence mode="wait">{isTools ? <ToolDetail key={selected?.id || 'empty'} tool={selected} onLaunch={(tool, token) => launchGame(tool, token)} onRefetch={(tool) => { setToolMetadataTarget(tool); setShowAdd(true); }} onRevealFolder={async (tool) => { if (!isElectron) return notify('Open: ' + tool.exePath); const result = await nativeApi.revealInFolder(tool.exePath); if (!result?.ok) notify(result?.error || 'Could not open this tool folder.'); }} onLocateManagedTool={locateManagedTool} onInstallManagedTool={installManagedTool} installing={managedToolInstallId === selected?.id} /> : <GameDetail key={selected?.id || 'empty'} game={selected} categories={currentCats.filter((c) => !c.private || unlockedCategories.includes(c.id))} fetching={fetching} settings={settings} onLaunch={(game, token, origin) => { launchOriginRef.current = origin || null; return launchGame(game, token); }} onLaunchError={(error) => notify(`Launch blocked: ${error}`)} onRefetch={(g) => setFetchPickerGame(g)} onRevealFolder={async (g) => { if (!isElectron) return notify('Open: ' + g.exePath); const result = await nativeApi.revealInFolder(g.exePath); if (!result?.ok) notify(result?.error || 'Could not open this game folder.'); else if (result?.missingTarget) notify('The configured game file is missing, so NEO-LIB opened its containing folder instead.'); }} onToggleCategory={toggleGameInCategory} onCustomize={(g) => setEditMetaGame(g)} onOpenSaveManager={(g) => setSaveManagerGame(g)} onUpdateGame={updateGame} onLocateManagedTool={locateManagedTool} onInstallManagedTool={installManagedTool} managedToolInstalling={managedToolInstallId === selected?.id} />}</AnimatePresence>
+              <AnimatePresence mode="wait">{isTools ? <ToolDetail key={selected?.id || 'empty'} tool={selected} minimalistic={settings.interfaceMode === 'minimalistic'} onLaunch={(tool, token) => launchGame(tool, token)} onRefetch={(tool) => { setToolMetadataTarget(tool); setShowAdd(true); }} onRevealFolder={async (tool) => { if (!isElectron) return notify('Open: ' + tool.exePath); const result = await nativeApi.revealInFolder(tool.exePath); if (!result?.ok) notify(result?.error || 'Could not open this tool folder.'); }} onLocateManagedTool={locateManagedTool} onInstallManagedTool={installManagedTool} installing={managedToolInstallId === selected?.id} /> : <GameDetail key={selected?.id || 'empty'} game={selected} categories={currentCats.filter((c) => !c.private || unlockedCategories.includes(c.id))} fetching={fetching} settings={settings} onLaunch={(game, token, origin) => { launchOriginRef.current = origin || null; return launchGame(game, token); }} onLaunchError={(error) => notify(`Launch blocked: ${error}`)} onRefetch={(g) => setFetchPickerGame(g)} onRevealFolder={async (g) => { if (!isElectron) return notify('Open: ' + g.exePath); const result = await nativeApi.revealInFolder(g.exePath); if (!result?.ok) notify(result?.error || 'Could not open this game folder.'); else if (result?.missingTarget) notify('The configured game file is missing, so NEO-LIB opened its containing folder instead.'); }} onToggleCategory={toggleGameInCategory} onCustomize={(g) => setEditMetaGame(g)} onOpenSaveManager={(g) => setSaveManagerGame(g)} onUpdateGame={updateGame} onLocateManagedTool={locateManagedTool} onInstallManagedTool={installManagedTool} managedToolInstalling={managedToolInstallId === selected?.id} />}</AnimatePresence>
             )}
           </div>
         </main>
       </div>
-
       {/* One subtle sponsored rail — all deals remain available from its popover. */}
       <div className="neolib-ui-foreground relative z-20">
         <DealsBar
@@ -1697,6 +1698,8 @@ export default function App() {
           showSettings,
           setShowSettings,
           themeStudioOpen,
+          installedCustomThemes,
+          refreshCustomThemes,
           setThemeStudioOpen,
           mascotCenterOpen,
           setMascotCenterOpen,
@@ -1789,6 +1792,7 @@ export default function App() {
           appVersion: APP_VERSION,
         }}
       />
+      {lounge.active && <NeoLounge games={visibleUnlockedGames(library.games || [], library.categories || [], unlockedCategories)} favoriteIds={settings.pinnedGameIds || []} updateLedger={settings.updateStatusLedger || {}} initialGameId={settings.lastGameId} mascotId={settings.mascotId || 'fungist'} mascotEnabled={settings.fungistEnabled !== false} controllerEnabled={settings.controllerNavigationEnabled === true} onExit={lounge.exit} onOpenPreview={async (id) => { if (!await lounge.exit()) return false; updateSetting({ mode: 'library', libraryViewMode: 'preview', launcherFilter: 'all' }); setSelectedId(id); return true; }} />}
     </div>
   );
 }

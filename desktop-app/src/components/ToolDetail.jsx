@@ -4,9 +4,13 @@ import { ExternalLink, FileText, FolderOpen, Play, RefreshCw, Settings2, Wrench 
 const isElectron = typeof window !== 'undefined' && !!window.api;
 
 /** A software-aware Preview. It deliberately avoids game-specific news, ratings and genres. */
-export default function ToolDetail({ tool, onLaunch, onRefetch, onRevealFolder, onLocateManagedTool, onInstallManagedTool, installing = false }) {
+export default function ToolDetail({ tool, onLaunch, onRefetch, onRevealFolder, onLocateManagedTool, onInstallManagedTool, installing = false, minimalistic = false }) {
+  const [moreOpen, setMoreOpen] = React.useState(false);
+  const [detailsOpen, setDetailsOpen] = React.useState(false);
   if (!tool) return null;
   const icon = tool.icon || tool.coverUrl || '';
+  const showSupporting = !minimalistic || moreOpen || tool.availability === 'missing';
+  const showDetails = !minimalistic || detailsOpen;
   const launch = async () => {
     let token = '';
     if (isElectron && tool.launchTargetType !== 'uri') {
@@ -27,16 +31,20 @@ export default function ToolDetail({ tool, onLaunch, onRefetch, onRevealFolder, 
       </header>
       <div className="flex flex-wrap gap-2 border-b border-[rgb(var(--border)/0.7)] bg-[rgb(var(--surface)/0.20)] px-5 py-3 sm:px-7">
         <button data-neolib-launch onClick={launch} disabled={tool.availability === 'missing'} className="inline-flex items-center gap-2 rounded-full bg-[rgb(var(--accent))] px-4 py-2 text-xs font-bold text-[rgb(var(--surface))] disabled:opacity-50"><Play size={14} /> {tool.availability === 'missing' ? 'Set up required' : 'Open tool'}</button>
+        {minimalistic && tool.availability !== 'missing' && <button type="button" data-testid="tool-minimalistic-more" aria-expanded={showSupporting} onClick={() => setMoreOpen((open) => !open)} className="inline-flex items-center rounded-full border border-[rgb(var(--border)/0.72)] px-3 py-2 text-xs text-ink">{moreOpen ? 'Fewer actions' : 'More actions'}</button>}
+        {showSupporting && <>
         <button onClick={() => onRefetch?.(tool)} className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--border)/0.72)] px-3 py-2 text-xs hover:border-[rgb(var(--accent)/0.65)]"><RefreshCw size={14} /> Re-fetch info</button>
         {tool.exePath && <button onClick={() => onRevealFolder?.(tool)} className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--border)/0.72)] px-3 py-2 text-xs hover:border-[rgb(var(--accent)/0.65)]"><FolderOpen size={14} /> Locate</button>}
         {tool.website && <button onClick={() => window.api?.openExternal?.(tool.website)} className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--border)/0.72)] px-3 py-2 text-xs hover:border-[rgb(var(--accent)/0.65)]"><ExternalLink size={14} /> Official page</button>}
         {tool.managedTool && tool.availability === 'missing' && <><button onClick={() => onLocateManagedTool?.(tool)} className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--border)/0.72)] px-3 py-2 text-xs"><FolderOpen size={14} /> Locate app</button><button disabled={installing} onClick={() => onInstallManagedTool?.(tool)} className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--border)/0.72)] px-3 py-2 text-xs"><Settings2 size={14} /> {installing ? 'Preparing…' : 'Official install'}</button></>}
+        </>}
       </div>
-      <div className="grid gap-5 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_260px]">
+      {minimalistic && <button type="button" data-testid="tool-minimalistic-details" aria-expanded={showDetails} onClick={() => setDetailsOpen((open) => !open)} className="mx-5 mt-4 rounded-lg border border-[rgb(var(--border)/0.72)] px-3 py-2 text-xs font-semibold text-ink sm:mx-7">{detailsOpen ? 'Hide details' : 'Show details'}</button>}
+      <div className={`grid gap-5 p-5 sm:p-7 ${showDetails ? 'lg:grid-cols-[minmax(0,1fr)_260px]' : ''}`}>
         <section className="min-w-0 rounded-xl border border-[rgb(var(--border)/0.65)] bg-[rgb(var(--surface)/0.16)] p-4"><div className="flex items-center gap-2"><FileText size={15} className="text-[rgb(var(--accent))]" /><h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">About this tool</h2></div><p className="mt-3 whitespace-pre-line text-sm leading-7 text-ink/90">{tool.about || tool.shortDescription || 'No description yet. Re-fetch info to identify this program from its executable and public software sources.'}</p></section>
-        <aside className="overflow-hidden rounded-xl border border-[rgb(var(--border)/0.65)] bg-[rgb(var(--surface)/0.16)]"><Meta label="Category" value={tool.toolCategory || tool.genres?.[0] || 'Windows utility'} /><Meta label="Publisher" value={tool.publisher || tool.developers?.[0] || 'Not reported'} /><Meta label="Version" value={tool.version || 'Not reported'} /><Meta label="Details source" value={tool.metadataSource || tool.source || 'Manual'} /><Meta label="Evidence" value={(tool.metadataEvidence || []).join(' · ') || 'Awaiting refresh'} /></aside>
+        {showDetails && <aside className="overflow-hidden rounded-xl border border-[rgb(var(--border)/0.65)] bg-[rgb(var(--surface)/0.16)]"><Meta label="Category" value={tool.toolCategory || tool.genres?.[0] || 'Windows utility'} /><Meta label="Publisher" value={tool.publisher || tool.developers?.[0] || 'Not reported'} /><Meta label="Version" value={tool.version || 'Not reported'} /><Meta label="Details source" value={tool.metadataSource || tool.source || 'Manual'} /><Meta label="Evidence" value={(tool.metadataEvidence || []).join(' · ') || 'Awaiting refresh'} /></aside>}
       </div>
-      <p className="mx-5 mb-5 break-all rounded-lg border border-[rgb(var(--border)/0.44)] bg-[rgb(var(--surface)/0.18)] px-3 py-2 text-[10px] text-muted sm:mx-7">{tool.exePath || 'No local program path is configured.'}</p>
+      {showDetails && <p className="mx-5 mb-5 break-all rounded-lg border border-[rgb(var(--border)/0.44)] bg-[rgb(var(--surface)/0.18)] px-3 py-2 text-[10px] text-muted sm:mx-7">{tool.exePath || 'No local program path is configured.'}</p>}
     </section>
   </div>;
 }

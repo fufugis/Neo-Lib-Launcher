@@ -1,8 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { stockThemeAssetUrl } from '../themes/stock-theme-registry.mjs';
+import { stockThemeAssetUrl, customThemeManifest, customThemeAssetUrl } from '../themes/stock-theme-registry.mjs';
+import CustomThemeParticles from './CustomThemeParticles';
+import ThemeGifMedia from './ThemeGifMedia';
+import ThemeVideoMedia from './ThemeVideoMedia';
 
-export function BgAmbience({ theme, settings = {}, game = null, resting = false }) {
+export function BgAmbience({ theme, settings = {}, game = null, resting = false, eventPulse = null }) {
   // `synthGridEnabled` and `particlesEnabled` were retired legacy switches.
   // They could silently hide every modern FX layer after an upgrade, even when
   // the player selected Low–Max effects. Effects intensity is now the one
@@ -172,11 +175,12 @@ export function BgAmbience({ theme, settings = {}, game = null, resting = false 
     : (theme === 'crimson' ? particleBaseCount + Math.round(lvl.crimsonBoost * cadenceProfile.particle) : particleBaseCount);
   return (
     <>
+      <ThemeCanvasAnimation theme={theme} level={level} cadence={cadence} />
       {extraLayersEl}
       <div aria-hidden data-visual-cadence={cadence} className="fx-cadence-layer pointer-events-none fixed inset-0 z-0 overflow-hidden" style={{ opacity: intensity }}>
         {ambClass && <div className={ambClass} />}
         {level > 0 && <ThemeArtwork theme={theme} level={level} cadence={cadence} />}
-        {isSpecial && level > 0 && specialDecorationOpacity > 0 && <SpecialThemeDecoration theme={theme} opacity={specialDecorationOpacity} />}
+        {(isSpecial || theme.startsWith('custom:')) && level > 0 && specialDecorationOpacity > 0 && <SpecialThemeDecoration theme={theme} opacity={specialDecorationOpacity} />}
         {theme !== 'anime' && level > 0 && <ThemeIllustration theme={theme} level={level} />}
         {theme === 'anime' && sakuraCount > 0 && <Sakura count={sakuraCount} />}
         {/* Shooting stars — Magical only, only if effects level >= Low */}
@@ -194,11 +198,31 @@ export function BgAmbience({ theme, settings = {}, game = null, resting = false 
             ))}
           </div>
         )}
-        {showParticles && <Particles count={particleCount} theme={theme} />}
+        {customThemeManifest(theme)
+          ? <CustomThemeParticles theme={theme} level={level} cadence={cadence} eventPulse={eventPulse} />
+          : showParticles && <Particles count={particleCount} theme={theme} />}
       </div>
       {edgeGlowLayer}
     </>
   );
+}
+
+function ThemeCanvasAnimation({ theme, level, cadence }) {
+  const layer = customThemeManifest(theme)?.layers?.canvas;
+  if (!layer || !['gif', 'video'].includes(layer.type) || level === 0 || cadence === 'calm') return null;
+  const animatedUrl = customThemeAssetUrl(theme, layer.asset);
+  const stillUrl = customThemeAssetUrl(theme, layer.reducedMotionAsset);
+  if (!animatedUrl || !stillUrl) return null;
+  const props = {
+    animatedUrl, stillUrl, loop: layer.loop, showStill: false,
+    className: 'absolute inset-0 h-full w-full object-cover',
+    style: { opacity: layer.opacity ?? 1 },
+  };
+  return <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+    {layer.type === 'gif'
+      ? <ThemeGifMedia key={`${theme}-${layer.loop}`} {...props} playbackMs={layer.playbackMs} />
+      : <ThemeVideoMedia key={`${theme}-${layer.loop}`} {...props} />}
+  </div>;
 }
 
 /**
@@ -210,21 +234,25 @@ export function BgAmbience({ theme, settings = {}, game = null, resting = false 
 function ThemeArtwork({ theme, level = 2, cadence = 'full' }) {
   const artwork = stockThemeAssetUrl(theme, 'atmosphere');
   if (!artwork) return null;
-  const motionClass = cadence === 'calm' ? '' : 'theme-artwork-drift';
+  const mediaLayer = customThemeManifest(theme)?.layers?.atmosphere;
+  const isGif = mediaLayer?.type === 'gif';
+  const isVideo = mediaLayer?.type === 'video';
+  const motionClass = cadence === 'calm' || isGif || isVideo ? '' : 'theme-artwork-drift';
   // The earlier treatment was too dim to read as actual art beneath glass
   // panels. This stays below every interaction layer, but is now deliberately
   // present at normal FX levels instead of behaving like a nearly invisible
   // colour wash.
-  const opacity = Math.min(0.58, 0.22 + (level * 0.08));
+  const opacity = Math.min(0.58, 0.22 + (level * 0.08)) * (customThemeManifest(theme)?.layers?.atmosphere?.opacity ?? 1);
   return (
     <div
       aria-hidden
       className={`theme-artwork theme-artwork-${theme} ${motionClass}`}
       style={{
         opacity,
-        backgroundImage: `url("${artwork}")`,
+        backgroundImage: isGif || isVideo ? undefined : `url("${artwork}")`,
       }}
-    />
+    >{isGif && <ThemeGifMedia key={`${theme}-${mediaLayer.loop}`} animatedUrl={artwork} stillUrl={customThemeAssetUrl(theme, mediaLayer.reducedMotionAsset)} loop={mediaLayer.loop} playbackMs={mediaLayer.playbackMs} forceStill={cadence === 'calm'} className="absolute inset-0 h-full w-full object-cover" />}
+      {isVideo && <ThemeVideoMedia animatedUrl={artwork} stillUrl={customThemeAssetUrl(theme, mediaLayer.reducedMotionAsset)} loop={mediaLayer.loop} forceStill={cadence === 'calm'} className="absolute inset-0 h-full w-full object-cover" />}</div>
   );
 }
 
@@ -238,7 +266,7 @@ function SpecialThemeDecoration({ theme, opacity = 0.46 }) {
   // slightly stronger presence than a normal particle so an ordinary 46%
   // player setting still reads as deliberate illustration rather than a faint
   // colour wash. At 0% the component is not mounted at all.
-  return <div aria-hidden className={`special-theme-decoration special-decoration--${theme}`} style={{ opacity: Math.min(0.92, Math.max(0, opacity * 1.35)) }}><img src={asset} alt="" className="special-theme-decoration-art" /></div>;
+  return <div aria-hidden className={`special-theme-decoration special-decoration--${theme}`} style={{ opacity: Math.min(0.92, Math.max(0, opacity * 1.35)) * (customThemeManifest(theme)?.layers?.decoration?.opacity ?? 1) }}><img src={asset} alt="" className="special-theme-decoration-art" /></div>;
 }
 
 export function WorkspaceEmpty({ kind }) {

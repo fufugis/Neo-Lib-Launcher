@@ -96,10 +96,20 @@ when available. Code signing is planned; it is not currently claimed.
 - **Library** — the everyday list with categories, search, sorting, game actions,
   Preview, and the import Wizard.
 - **Wall** — a full-workspace cover browser or factual details list with All,
-  Favorites, Most played, and Recently played filters.
+  Favorites, Most played, and Recently played filters. Pick portrait or square
+  covers, adjust their size, or arrange the detailed-list columns.
 - **Tools** — focused utilities and system handoffs.
 - **Control Center** — settings, themes, visual tweaks, mascots, controllers,
   patch notes, updates, and shutdown.
+
+The Library and Wall serve different moods: use Library when you want the full
+game Preview; use Wall when you know what you want and prefer to scan your whole
+collection. Wall's cover size and shape are saved. In Details, **Columns** can
+show, hide, reorder, or reset fields; drag a column-header grip to resize it.
+Clicking a game opens a compact
+quick preview without leaving Wall. The divider between Library and Preview has
+a visible grab handle; drag it, use Left/Right while it is focused, or
+double-click it to restore the default width.
 
 ## Current status
 
@@ -120,6 +130,19 @@ Work currently being prepared includes:
   followed by other launchers only where account and game evidence is reliable;
 - expanded reviewed emulator presets and retro metadata/artwork sources;
 - a documented folder-based custom theme format.
+
+### Testing the next candidate
+
+The source has newer changes than the last verified package. For a useful test,
+use a fresh installer or portable build made from the current source, then
+confirm **Settings → About** shows v1.7.9 and record its Build ID. Please do
+not judge a newly changed control from an older installed build. A good first
+pass is: open Library and resize its divider; open Wall and change cover size,
+shape and filters; switch to Details and drag/reorder columns; restart and
+check the layout persists. Then test Home widget movement and NEO Lounge only
+if you have time. The full [Windows acceptance checklist](WINDOWS_ACCEPTANCE_V1.7.9.md)
+tracks what still needs hands-on testing. If anything fails, note the Build ID,
+what you clicked, the expected result, the actual result, and a screenshot.
 
 The active development queue is public in [WORK_QUEUE.md](WORK_QUEUE.md). Planned
 work is not presented as a shipped feature.

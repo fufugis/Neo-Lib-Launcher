@@ -56,9 +56,10 @@ export default function RetroProfilesPanel({ profiles, onChange, onImportRoms, e
     });
     if (!entries.length) return;
     onChange?.(normalizeRetroProfiles(drafts));
-    const imported = Number(onImportRoms?.(entries)) || entries.length;
+    const imported = Number(onImportRoms?.(entries)) || 0;
+    if (!imported) { setScan((current) => ({ ...current, message: 'No new ROMs were imported.' })); return; }
     const importedPaths = new Set(entries.map(entry => normalizedPath(entry.romPath)));
-    setScan((current) => ({ ...current, rows: current.rows.filter(row => !importedPaths.has(normalizedPath(row.path))), message: `Imported ${imported} ROM${imported === 1 ? '' : 's'}. Use the metadata review to choose official descriptions and case art.` }));
+    setScan((current) => ({ ...current, rows: current.rows.filter(row => !importedPaths.has(normalizedPath(row.path))), message: `Imported ${imported} ROM${imported === 1 ? '' : 's'}. Review suggested descriptions and case art before saving.` }));
   };
 
   const selectedCount = scan.rows.filter(row => row.selected && row.platform !== 'generic').length;

@@ -62,6 +62,8 @@ export default function AppModalLayer({ context }) {
     showSettings,
     setShowSettings,
     themeStudioOpen,
+    installedCustomThemes,
+    refreshCustomThemes,
     setThemeStudioOpen,
     mascotCenterOpen,
     setMascotCenterOpen,
@@ -188,12 +190,14 @@ export default function AppModalLayer({ context }) {
       <SettingsRecoveryBoundary open={showSettings} onClose={() => setShowSettings(false)} onReportBug={() => openFeedback('bug')}>
         <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} settings={settings} setSettings={persistSettings} onShowChangelog={() => setChangelogOpen(true)} currentVersion={appVersion} />
       </SettingsRecoveryBoundary>
-      <ThemeStudioModal open={themeStudioOpen} onClose={() => setThemeStudioOpen(false)} settings={settings} setSettings={persistSettings} />
+      <ThemeStudioModal open={themeStudioOpen} onClose={() => setThemeStudioOpen(false)} settings={settings} setSettings={persistSettings} installedCustomThemes={installedCustomThemes} refreshCustomThemes={refreshCustomThemes} />
       <MascotCenterModal open={mascotCenterOpen} onClose={() => setMascotCenterOpen(false)} settings={settings} setSettings={persistSettings} />
       <ControllerCenterModal
         open={controllerCenterOpen}
         onClose={() => setControllerCenterOpen(false)}
         preferredFingerprint={settings.preferredControllerFingerprint || ''}
+        navigationEnabled={settings.controllerNavigationEnabled === true}
+        onNavigationEnabledChange={(controllerNavigationEnabled) => persistSettings({ ...settings, controllerNavigationEnabled })}
         onSelect={(preferredControllerFingerprint) => persistSettings({ ...settings, preferredControllerFingerprint })}
         onManageWindows={async () => {
           const result = await nativeApi?.openExternal?.(WINDOWS_CONTROLLER_SETTINGS);

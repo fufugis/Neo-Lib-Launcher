@@ -6,7 +6,7 @@ import { Bluetooth, CheckCircle2, Gamepad2, Radio, RefreshCw, Settings2 } from '
  * detection, polling, Windows calls or saved settings. A later milestone can
  * place it in the shared modal layer after real desktop acceptance.
  */
-export default function ControllerCenterPrototype({ inventory, selectedFingerprint = '', onSelect, onManageWindows, onOpenSteamController, onRefresh, refreshedAt = 0 }) {
+export default function ControllerCenterPrototype({ inventory, selectedFingerprint = '', navigationEnabled = false, onNavigationEnabledChange, onSelect, onManageWindows, onOpenSteamController, onRefresh, refreshedAt = 0 }) {
   const controllers = Array.isArray(inventory?.controllers) ? inventory.controllers : [];
   const selected = controllers.find((controller) => controller.fingerprint === selectedFingerprint) || controllers.find((controller) => controller.index === inventory?.selectedIndex) || controllers[0] || null;
   const pressed = Array.isArray(inventory?.selectedInput?.pressed) ? inventory.selectedInput.pressed : [];
@@ -26,6 +26,10 @@ export default function ControllerCenterPrototype({ inventory, selectedFingerpri
     </header>
 
     <p className="mt-3 text-[10px] leading-relaxed text-muted">NEO-LIB can show controllers available to its interface. Pairing, removal and device security remain in Windows.</p>
+    <label className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--surface)/0.34)] p-3 text-[10px] text-ink">
+      <span><b className="block">Navigate NEO-LIB with controller</b><span className="mt-1 block text-muted">Optional desktop focus and menu controls. Launching games still requires mouse or keyboard.</span></span>
+      <input type="checkbox" checked={navigationEnabled} onChange={(event) => onNavigationEnabledChange?.(event.target.checked)} aria-label="Navigate NEO-LIB with controller" />
+    </label>
     <div className="mt-3 grid gap-2 sm:grid-cols-2">
       {controllers.map((controller) => {
         const active = controller.fingerprint === selected?.fingerprint;
@@ -45,6 +49,6 @@ export default function ControllerCenterPrototype({ inventory, selectedFingerpri
         <div className="rounded-lg bg-[rgb(var(--panel)/0.55)] px-3 py-2 text-[10px]"><b className="text-ink">Axes</b><span className="ml-2 text-muted">{axes.some(Boolean) ? axes.map((axis, index) => axis ? `${index + 1}: ${axis.toFixed(2)}` : null).filter(Boolean).join(', ') : 'Centered'}</span></div>
       </div>
     </div>}
-    <footer className="mt-3 rounded-lg bg-[rgb(var(--surface)/0.32)] px-3 py-2 text-[9px] leading-relaxed text-muted">Battery level, wireless strength and disconnect controls are not shown because the browser controller API cannot report them reliably. NEO-LIB stores only the preferred device fingerprint, never input history.{refreshedAt ? ` Last checked ${new Date(refreshedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.` : ''}</footer>
+    <footer className="mt-3 rounded-lg bg-[rgb(var(--surface)/0.32)] px-3 py-2 text-[9px] leading-relaxed text-muted">Battery level, wireless strength and disconnect controls are not shown because the browser controller API cannot report them reliably. NEO-LIB stores your preferred-device fingerprint and navigation switch, never input history.{refreshedAt ? ` Last checked ${new Date(refreshedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.` : ''}</footer>
   </section>;
 }

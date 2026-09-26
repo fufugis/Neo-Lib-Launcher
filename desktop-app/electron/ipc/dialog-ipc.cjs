@@ -34,6 +34,17 @@ function registerDialogIpc({ registerIpc, dialog, getMainWindow }) {
   }, value => value === null || (isPlainObject(value) && isPath(value.path)
     && isBoundedString(value.url, { required: true, max: 32767 }) && value.url.startsWith('file://')), null));
 
+  registerIpc('dialog:pickThemeVideo', guardResult(async () => {
+    const selected = await pickFirst({
+      title: 'Pick a theme atmosphere video',
+      properties: ['openFile'],
+      filters: [{ name: 'WebM video', extensions: ['webm'] }],
+    });
+    if (!selected) return null;
+    return { path: selected, url: 'file://' + selected.replace(/\\/g, '/') };
+  }, value => value === null || (isPlainObject(value) && isPath(value.path)
+    && isBoundedString(value.url, { required: true, max: 32767 }) && value.url.startsWith('file://')), null));
+
   registerIpc('dialog:pickSaveFolder', guardResult(() => pickFirst({
     title: 'Select this game\'s save folder',
     properties: ['openDirectory'],
@@ -45,6 +56,12 @@ function registerDialogIpc({ registerIpc, dialog, getMainWindow }) {
     title: 'Import NEO-LIB widget',
     properties: ['openFile'],
     filters: [{ name: 'NEO-LIB widget manifest', extensions: ['json'] }],
+  }), value => value === null || isPath(value), null));
+
+  registerIpc('dialog:pickThemeManifest', guardResult(() => pickFirst({
+    title: 'Import NEO-LIB theme',
+    properties: ['openFile'],
+    filters: [{ name: 'NEO-LIB theme manifest', extensions: ['json'] }],
   }), value => value === null || isPath(value), null));
 }
 

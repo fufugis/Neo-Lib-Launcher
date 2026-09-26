@@ -27,6 +27,7 @@ const { registerWindowIpc } = require('../electron/ipc/window-ipc.cjs');
 const { registerDialogIpc } = require('../electron/ipc/dialog-ipc.cjs');
 const { registerSystemIpc } = require('../electron/ipc/system-ipc.cjs');
 const { registerWidgetsIpc } = require('../electron/ipc/widgets-ipc.cjs');
+const { registerThemesIpc } = require('../electron/ipc/themes-ipc.cjs');
 
 function register(registerDomain, channels, results = {}) {
   const calls = [];
@@ -476,16 +477,21 @@ async function main() {
 
   const windowHandlers = {};
   let windowMode = 'normal';
+  let fullscreen = false;
   const windowMock = {
     minimize() { return windowMode === 'bad-minimize' ? 42 : undefined; },
     close() { return windowMode === 'bad-close' ? 'closed' : undefined; },
     isMaximized() { return windowMode === 'bad-maximize' ? 'yes' : windowMode === 'maximized'; },
     maximize() { if (windowMode !== 'bad-maximize') windowMode = 'maximized'; },
     unmaximize() { if (windowMode !== 'bad-maximize') windowMode = 'normal'; },
+    setFullScreen(value) { fullscreen = value; },
+    isFullScreen() { return fullscreen; },
   };
   registerWindowIpc({ registerIpc(channel, handler) { windowHandlers[channel] = handler; }, getMainWindow: () => windowMock });
   assert.equal(await windowHandlers['window:minimize']({}), undefined);
   assert.equal(await windowHandlers['window:toggleMaximize']({}), true);
+  assert.equal(await windowHandlers['window:enterLounge']({}), true);
+  assert.equal(await windowHandlers['window:exitLounge']({}), true);
   assert.equal(await windowHandlers['window:close']({}), undefined);
   windowMode = 'bad-minimize';
   assert.equal(await windowHandlers['window:minimize']({}), undefined);
@@ -503,15 +509,19 @@ async function main() {
   assert.equal(await dialogHandlers['dialog:pickDirectory']({}), 'C:\\Games');
   assert.equal(await dialogHandlers['dialog:pickSaveFolder']({}), 'C:\\Games');
   assert.equal(await dialogHandlers['dialog:pickWidgetManifest']({}), 'C:\\Games');
+  assert.equal(await dialogHandlers['dialog:pickThemeManifest']({}), 'C:\\Games');
   dialogResult = { canceled: false, filePaths: ['C:\\Images\\cover.png'] };
   assert.deepEqual(await dialogHandlers['dialog:pickImage']({}), { path: 'C:\\Images\\cover.png', url: 'file://C:/Images/cover.png' });
+  assert.deepEqual(await dialogHandlers['dialog:pickThemeVideo']({}), { path: 'C:\\Images\\cover.png', url: 'file://C:/Images/cover.png' });
   dialogResult = { canceled: false, filePaths: [42] };
   assert.equal(await dialogHandlers['dialog:pickExe']({}), null);
   assert.equal(await dialogHandlers['dialog:pickDirectory']({}), null);
   assert.equal(await dialogHandlers['dialog:pickSaveFolder']({}), null);
   assert.equal(await dialogHandlers['dialog:pickWidgetManifest']({}), null);
+  assert.equal(await dialogHandlers['dialog:pickThemeManifest']({}), null);
   dialogResult = { canceled: false, filePaths: [{ replace: () => '' }] };
   assert.equal(await dialogHandlers['dialog:pickImage']({}), null);
+  assert.equal(await dialogHandlers['dialog:pickThemeVideo']({}), null);
 
   const systemHandlers = {};
   let healthResult = { cpuPercent: 20, ramPercent: 50, memoryUsedGb: 8, memoryFreeGb: 8, memoryTotalGb: 16 };
@@ -543,7 +553,22 @@ async function main() {
   assert.equal((await widgetHandlers['widgets:list']({})).widgets[0].id, widget.id);
   assert.equal((await widgetHandlers['widgets:update']({}, 'C:\\Widget\\widget.json')).replacedVersion, '0.9.0');
 
-  console.log('PASS: all 61 renderer payload contracts reject malformed input before native services, and all 96 native commands enforce response contracts while preserving valid success and failure results. The other 35 native commands are intentionally no-payload.');
+  const themeHandlers = {};
+  let forkCalls = 0;
+  registerThemesIpc({ registerIpc(channel, handler) { themeHandlers[channel] = handler; }, themes: {
+    async inspect() { return { ok: true }; }, async install() { return { ok: true }; },
+    async list() { return { ok: true, themes: [] }; },
+    async fork() { forkCalls += 1; return { ok: true, id: 'new-theme' }; },
+  } });
+  const remixRequest = { sourceId: 'source-theme', newId: 'new-theme', newName: 'New Theme', creator: 'Tester', tone: 'dark',
+    palette: Object.fromEntries(Array.from({ length: 10 }, (_, index) => [`colour${index}`, [1, 2, 3]])),
+    panels: { surface: [1, 2, 3], panel: [1, 2, 3], border: [1, 2, 3] }, particles: [] };
+  assert.equal((await themeHandlers['themes:fork']({}, { ...remixRequest, particles: [1, 2, 3, 4] })).code, 'INVALID_REQUEST');
+  assert.equal(forkCalls, 0);
+  assert.equal((await themeHandlers['themes:fork']({}, remixRequest)).ok, true);
+  assert.equal(forkCalls, 1);
+
+  console.log('PASS: renderer payload contracts reject malformed input before native services, and all 104 native commands enforce response contracts while preserving valid success and failure results.');
 }
 
 main().catch(error => {

@@ -5,7 +5,7 @@ import {
   Library as LibIcon, Boxes, CheckSquare, Columns, Home, Check, ListTree,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { stockThemeAssetUrl } from '../themes/stock-theme-registry.mjs';
+import { stockThemeAssetUrl, customThemeManifest } from '../themes/stock-theme-registry.mjs';
 import SystemHealthBar from './SystemHealthBar';
 import LibraryVisualsPopover from './library/LibraryVisualsPopover';
 import LibraryIconGrid from './library/LibraryIconGrid';
@@ -14,6 +14,7 @@ import { libraryFontFamily } from './library/library-visual-model.mjs';
 import { LibraryGameRow, LibrarySection, PinnedStrip, TwoColumnSections } from './library/LibraryTree';
 import { LauncherDropdown, SideBtn, TabPill } from './library/LibraryToolbarControls';
 import CollectionActions from './library/CollectionActions';
+import SidebarResizeHandle from './library/SidebarResizeHandle';
 
 /* v1.6.4 — Background texture styles applied INSIDE the sidebar so the
    texture never covers hero banners / preview images in the main pane. */
@@ -119,7 +120,7 @@ export default function Sidebar({
   bgTextureId, bgTextureOpacity,
   onChangeBgTextureId, onChangeBgTextureOpacity,
   cursorTheme = 'windows', onChangeCursorTheme,
-  navigationLayout = 'top', onChangeNavigationLayout,
+  navigationLayout = 'top', onChangeNavigationLayout, interfaceMode = 'default', onChangeInterfaceMode,
   onSelect, onGameViewed,
   onAddManual, onOpenWizard, manualResting = false, onToggleManualRest, onOpenFeedback,
   onCreateCategory, onCategoryContext, onGameContext,
@@ -135,7 +136,7 @@ export default function Sidebar({
   libraryViewMode = 'preview', onChangeLibraryViewMode,
   tutorialVisualsOpen = false,
   sidebarWidth = 320,
-  onStartResize,
+  onResizeSidebar,
   gameResting = false,
   restReason = '',
   navDecorationOpacity = 0.46,
@@ -146,6 +147,7 @@ export default function Sidebar({
   onOpenMascot,
   onOpenControllerCenter,
   onOpenChangelog,
+  onEnterLounge,
   onCheckForUpdates,
   onQuit,
   onSystemHealthChange,
@@ -166,10 +168,12 @@ export default function Sidebar({
   const libSettingsBtnRef = React.useRef(null);
   const [categoriesMenuOpen, setCategoriesMenuOpen] = React.useState(false);
   const [sortMenuOpen, setSortMenuOpen] = React.useState(false);
+  const [libraryFiltersOpen, setLibraryFiltersOpen] = React.useState(false);
   const categoriesMenuRef = React.useRef(null);
   const sortMenuRef = React.useRef(null);
   const treeScrollRef = React.useRef(null);
   const isTools = mode === 'tools';
+  const minimalistic = interfaceMode === 'minimalistic';
   const sideNavigation = navigationLayout === 'sidebar';
   const [sideNavigationExpanded, setSideNavigationExpanded] = React.useState(false); const [selectionMode, setSelectionMode] = React.useState(false); const [selectedIds, setSelectedIds] = React.useState([]);
   // Keep toolbar labels legible while the sidebar is resized: they shrink over
@@ -316,7 +320,7 @@ export default function Sidebar({
           aria-hidden
           className={`sidebar-theme-art ${motionCadence === 'calm' ? '' : 'sidebar-theme-art-drift'}`}
           style={{
-            opacity: Math.min(0.12, 0.035 + (Number(effectsLevel) * 0.022)),
+            opacity: Math.min(0.12, 0.035 + (Number(effectsLevel) * 0.022)) * (customThemeManifest(currentTheme)?.layers?.sidebar?.opacity ?? 1),
             backgroundImage: `url("${stockThemeAssetUrl(currentTheme, 'sidebar')}")`,
           }}
           data-testid="sidebar-theme-art"
@@ -326,14 +330,7 @@ export default function Sidebar({
           Uses --sidebar-tint CSS var which each theme sets to its own accent
           hue, so Colorful gets a pinkish wash while Pro gets a warm steel one. */}
       <span aria-hidden className="sidebar-tint" />
-      {/* Resize handle on right edge */}
-      <div
-        data-testid="sidebar-resize-handle"
-        onMouseDown={onStartResize}
-        title="Drag to resize sidebar"
-        className="absolute right-0 top-0 z-30 h-full w-1.5 cursor-col-resize hover:bg-[rgb(var(--accent)/0.4)] transition-colors"
-        style={{ touchAction: 'none' }}
-      />
+      <SidebarResizeHandle width={sidebarWidth} onCommit={onResizeSidebar} />
       {sideNavigation && <SideNavigationRail
         expanded={sideNavigationExpanded}
         onExpandedChange={setSideNavigationExpanded}
@@ -349,10 +346,12 @@ export default function Sidebar({
         onOpenControllers={onOpenControllerCenter}
         onOpenSettings={onOpenSettings}
         onOpenChangelog={onOpenChangelog}
+        onEnterLounge={onEnterLounge}
         onCheckForUpdates={onCheckForUpdates}
         onOpenFeedback={() => onOpenFeedback?.('feedback')}
         onQuit={onQuit}
         onDisableSidebar={() => onChangeNavigationLayout?.('top')}
+        minimalisticEnabled={interfaceMode === 'minimalistic'} onToggleMinimalistic={(enabled) => onChangeInterfaceMode?.(enabled ? 'minimalistic' : 'default')}
       />}
       {/* Top toolbar — Home / Library / Tools. Frosted band that stretches
           across the sidebar, gradient underline separates it from category tree.
@@ -379,11 +378,13 @@ export default function Sidebar({
           onOpenControllers={onOpenControllerCenter}
           onOpenSettings={onOpenSettings}
           onOpenChangelog={onOpenChangelog}
+          onEnterLounge={onEnterLounge}
           onCheckForUpdates={onCheckForUpdates}
           onOpenFeedback={() => onOpenFeedback?.('feedback')}
           onQuit={onQuit}
           sidebarEnabled={sideNavigation}
           onToggleSidebar={(enabled) => onChangeNavigationLayout?.(enabled ? 'sidebar' : 'top')}
+          minimalisticEnabled={interfaceMode === 'minimalistic'} onToggleMinimalistic={(enabled) => onChangeInterfaceMode?.(enabled ? 'minimalistic' : 'default')}
         />
         <TabPill decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} label="Home" icon={<Home size={15} />} showLabel={labelsVisible} labelStyle={toolbarLabelStyle} active={mode === 'home'} onClick={() => { onSelect?.(null); onSetMode('home'); }} testid="tab-home" />
         <TabPill decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} label="Library" icon={<LibIcon size={15} />} showLabel={labelsVisible} labelStyle={toolbarLabelStyle} active={mode === 'library' && libraryViewMode !== 'wall'} onClick={() => { onChangeLibraryViewMode?.('preview'); onSetMode('library'); onSetLauncherFilter?.('all'); }} testid="tab-library" />
@@ -529,7 +530,8 @@ export default function Sidebar({
           v1.6.4 — Launcher pills collapsed into a single dropdown to reduce
           horizontal clutter. Category creation stays in the Categories menu,
           while every game-add route starts in Wizard. */}
-      {!isTools && (
+      {!isTools && minimalistic && <button type="button" data-testid="sidebar-minimalistic-filters" aria-expanded={libraryFiltersOpen} onClick={() => { setLibraryFiltersOpen((open) => !open); setSortMenuOpen(false); setCategoriesMenuOpen(false); }} className="mx-3 mb-2 inline-flex h-7 items-center rounded-md hairline px-2.5 text-[10px] font-semibold text-ink">{libraryFiltersOpen ? 'Hide filters' : 'Filters'}{(launcherFilter || 'all') !== 'all' || (librarySortMode || 'manual') !== 'manual' ? ' · Active' : ''}</button>}
+      {!isTools && (!minimalistic || libraryFiltersOpen) && (
         <div className="relative z-40 flex items-center gap-1 px-3 pb-2" data-testid="launcher-pane-row">
           <LauncherDropdown
             value={launcherFilter || 'all'}
@@ -784,7 +786,7 @@ export default function Sidebar({
   );
 }
 
-function SideNavigationRail({ expanded, onExpandedChange, mode, libraryViewMode, onOpenHome, onOpenLibrary, onOpenWall, onOpenTools, onOpenThemes, onOpenMascot, onOpenVisuals, onOpenControllers, onOpenSettings, onOpenChangelog, onCheckForUpdates, onOpenFeedback, onQuit, onDisableSidebar }) {
+function SideNavigationRail({ expanded, onExpandedChange, mode, libraryViewMode, onOpenHome, onOpenLibrary, onOpenWall, onOpenTools, onOpenThemes, onOpenMascot, onOpenVisuals, onOpenControllers, onOpenSettings, onOpenChangelog, onEnterLounge, onCheckForUpdates, onOpenFeedback, onQuit, onDisableSidebar, minimalisticEnabled, onToggleMinimalistic }) {
   return <nav
     data-testid="side-navigation-rail"
     aria-label="Primary navigation"
@@ -798,12 +800,14 @@ function SideNavigationRail({ expanded, onExpandedChange, mode, libraryViewMode,
       sidebarExpanded={expanded}
       sidebarEnabled
       onToggleSidebar={(enabled) => { if (!enabled) onDisableSidebar?.(); }}
+      minimalisticEnabled={minimalisticEnabled} onToggleMinimalistic={onToggleMinimalistic}
       onOpenThemes={onOpenThemes}
       onOpenMascot={onOpenMascot}
       onOpenVisuals={onOpenVisuals}
       onOpenControllers={onOpenControllers}
       onOpenSettings={onOpenSettings}
       onOpenChangelog={onOpenChangelog}
+      onEnterLounge={onEnterLounge}
       onCheckForUpdates={onCheckForUpdates}
       onOpenFeedback={onOpenFeedback}
       onQuit={onQuit}

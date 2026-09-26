@@ -26,6 +26,13 @@ contextBridge.exposeInMainWorld('api', {
   // window
   minimize: () => ipcRenderer.invoke('window:minimize'),
   toggleMaximize: () => ipcRenderer.invoke('window:toggleMaximize'),
+  enterLounge: () => ipcRenderer.invoke('window:enterLounge'),
+  exitLounge: () => ipcRenderer.invoke('window:exitLounge'),
+  onLoungeFullscreenChange: (cb) => {
+    const listener = (_e, value) => cb(value === true);
+    ipcRenderer.on('window:loungeFullscreen', listener);
+    return () => ipcRenderer.removeListener('window:loungeFullscreen', listener);
+  },
   close: () => ipcRenderer.invoke('window:close'),
   onMaximizeChange: (cb) => ipcRenderer.on('window:maximized', (_e, v) => cb(v)),
   onWindowVisibility: (cb) => {
@@ -47,7 +54,13 @@ contextBridge.exposeInMainWorld('api', {
   pickDirectory: () => ipcRenderer.invoke('dialog:pickDirectory'),
   pickSaveFolder: () => ipcRenderer.invoke('dialog:pickSaveFolder'),
   pickImage: () => ipcRenderer.invoke('dialog:pickImage'),
+  pickThemeVideo: () => ipcRenderer.invoke('dialog:pickThemeVideo'),
   pickWidgetManifest: () => ipcRenderer.invoke('dialog:pickWidgetManifest'),
+  pickThemeManifest: () => ipcRenderer.invoke('dialog:pickThemeManifest'),
+  inspectTheme: (path) => ipcRenderer.invoke('themes:inspect', path),
+  installTheme: (path) => ipcRenderer.invoke('themes:install', path),
+  forkTheme: (request) => ipcRenderer.invoke('themes:fork', request),
+  listThemes: () => ipcRenderer.invoke('themes:list'),
 
   // shortcuts
   resolveLnk: (lnkPath) => ipcRenderer.invoke('shell:resolveLnk', lnkPath),
