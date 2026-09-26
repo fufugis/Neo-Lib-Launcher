@@ -7,7 +7,7 @@ import { DONATE_PAYPAL_URL } from './DonateModal';
 import qrUrl from '../assets/donate-qr.png';
 import { SettingsSection as Section, SettingsToggle as Toggle } from './settings/SettingsControls';
 
-export default function SettingsModal({ open, onClose, settings, setSettings, onShowChangelog, currentVersion = '1.7.9' }) {
+export default function SettingsModal({ open, onClose, settings, setSettings, onShowChangelog, currentVersion = '1.8.0' }) {
   const setKey = (patch) => setSettings({ ...settings, ...patch });
   const [showKey, setShowKey] = React.useState(false);
   const [showArtworkKey, setShowArtworkKey] = React.useState(false);

@@ -40,7 +40,7 @@ import { journeyStatusAfterFirstLaunch } from './lib/game-journey-model.mjs';
 import { externalRootForGame, normalizeExternalLibraryRoots } from './lib/externalLibraryRoots.mjs';
 import { applyStockThemePalette, stockThemeAssetUrl, customThemeCanvas } from './themes/stock-theme-registry.mjs';
 import { useCustomThemes } from './themes/use-custom-themes';
-const APP_VERSION = '1.7.9';
+const APP_VERSION = '1.8.0';
 import { uid, guessNameFromPath, hashPin, formatPlaytime } from './lib/utils';
 import { normalizeGenreProfile, GENRE_TAXONOMY_VERSION } from './lib/genreTaxonomy';
 import { setSoundPack } from './lib/sound';

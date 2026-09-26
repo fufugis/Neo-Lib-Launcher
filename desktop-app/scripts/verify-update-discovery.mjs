@@ -22,12 +22,13 @@ assert.equal(isNewerVersion('v1.7.9', '1.7.3'), true);
 assert.equal(isNewerVersion('v.1.7.5', '1.7.3'), true);
 assert.equal(isNewerVersion('v1.7.9', '1.7.9'), false);
 assert.equal(isNewerVersion('v1.7.8', '1.7.9'), false);
+assert.equal(isNewerVersion('v1.8.0', '1.7.9'), true, 'installed v1.7.9 must discover this candidate');
 
 const releaseTag = releaseTagForVersion(packageJson.version);
-assert.equal(releaseTag, 'v1.7.9', 'this release must use the clean legacy-compatible tag');
+assert.equal(releaseTag, 'v1.8.0', 'this release must use the clean legacy-compatible tag');
 assert.equal(isLegacyCompatibleReleaseTag(releaseTag, packageJson.version), true);
 
-// v1.7.3 used the simple parser below. A clean v1.7.9 tag is deliberately
+// v1.7.3 used the simple parser below. A clean v1.8.0 tag is deliberately
 // proven against that exact old behavior because installed copies cannot be patched.
 const legacyParse = value => String(value || '').replace(/^v/i, '').split('.').map(part => Number.parseInt(part, 10) || 0);
 const legacyIsNewer = (latest, current) => {
@@ -40,6 +41,7 @@ const legacyIsNewer = (latest, current) => {
   return false;
 };
 assert.equal(legacyIsNewer(releaseTag, '1.7.3'), true, 'v1.7.3 must recognize the new release');
+assert.equal(legacyIsNewer(releaseTag, '1.7.9'), true, 'v1.7.9 must recognize the new release');
 assert.equal(legacyIsNewer('v.1.7.5', '1.7.3'), false, 'fixture must reproduce the historical dotted-tag bug');
 
 assert(checker.includes('https://api.github.com/repos/${REPO}/releases/latest'), 'app must check GitHub latest release');

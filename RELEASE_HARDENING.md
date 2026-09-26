@@ -14,15 +14,15 @@ or visually accepted.
   pack. This is package-content evidence only; the Windows acceptance below is
   still required.
 
-That package predates the current v1.7.9 source and must not be presented as the
+That package predates the current v1.8.0 source and must not be presented as the
 architecture-finished candidate. The next accepted artifacts require a fresh build,
-new fingerprint/checksum and the exact clean GitHub release tag `v1.7.9`. This clean
-tag is part of backward compatibility: installed v1.7.3 recognizes `v1.7.9`, while
+new fingerprint/checksum and the exact clean GitHub release tag `v1.8.0`. This clean
+tag is part of backward compatibility: installed v1.7.3 recognizes `v1.8.0`, while
 its historical parser does not recognize the dotted `v.1.7.5` form.
 
 ## Automated source gate
 
-The current v1.7.9 build identity is generated from source at build time and carries
+The current v1.8.0 build identity is generated from source at build time and carries
 architecture label `Stage 9B source-frozen`. The complete source gate passes. The
 managed Codex environment cannot start Vite's esbuild child process (`spawn
 EPERM`), and the package freshness hook correctly rejects the older renderer as
@@ -33,14 +33,14 @@ After an unrestricted build, run `npm run inspect:release`. It refuses a missing
 wrong-version installer, stale renderer, changed native main process, missing package
 entry/icon, missing mascot/voice asset, packaged `.env`, known credential signature,
 incorrect feedback configuration or incorrect generated Discord App ID, then records
-installer, portable ZIP and archive SHA-256 evidence in `dist/release-candidate-v1.7.9.json`.
+installer, portable ZIP and archive SHA-256 evidence in `dist/release-candidate-v1.8.0.json`.
 The evidence records only whether integrations are configured, never their values.
 It also hashes the portable ZIP and uses repository-relative artifact paths so an
 uploaded report cannot reveal the local Windows account or checkout location.
 GitHub Actions refuses missing/invalid feedback settings before building, generates
 optional numeric-only Discord configuration before provenance, runs the same inspector
 and retains that JSON beside the installer and portable ZIP.
-Record the human checks in `WINDOWS_ACCEPTANCE_V1.7.9.md`.
+Record the human checks in `WINDOWS_ACCEPTANCE_V1.8.0.md`.
 
 - Run `npm run prebuild:renderer` from `desktop-app`.
 - Confirm the release-hardening check reports aligned versions, valid package
