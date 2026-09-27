@@ -37,7 +37,7 @@ function installSize(game) {
 }
 
 /** Wall is a full-width, quiet browsing mode with no sidebar. */
-export default function CoverWall({ games = [], favoriteIds = [], density = 5, onDensityChange, coverShape = 'portrait', onCoverShapeChange, onOpenPreview, onLaunch, search = '', lockedCategories = [], onUnlockCategory, view = 'covers', onChangeView, onOpenHome, onOpenLibrary, wallColumns, onWallColumnsChange, bigDetailIcons = false, onBigDetailIconsChange, minimalistic = false, collectionCategories = [], privateCollectionCategories = [], onBulkFavorite, onBulkJourneyStatus, onBulkAddCategory, onBulkReviewMetadata, onBulkReviewArtwork, onBulkProtect }) {
+export default function CoverWall({ games = [], favoriteIds = [], density = 5, onDensityChange, coverShape = 'portrait', onCoverShapeChange, onOpenPreview, onLaunch, search = '', lockedCategories = [], onUnlockCategory, view = 'covers', onChangeView, onOpenHome, onOpenLibrary, sideNavigation = false, wallColumns, onWallColumnsChange, bigDetailIcons = false, onBigDetailIconsChange, minimalistic = false, collectionCategories = [], privateCollectionCategories = [], onBulkFavorite, onBulkJourneyStatus, onBulkAddCategory, onBulkReviewMetadata, onBulkReviewArtwork, onBulkProtect }) {
   const [wallFilter, setWallFilter] = React.useState('all');
   const [peekId, setPeekId] = React.useState('');
   const [columnMenuOpen, setColumnMenuOpen] = React.useState(false);
@@ -76,6 +76,7 @@ export default function CoverWall({ games = [], favoriteIds = [], density = 5, o
 
   return <section className="relative h-full overflow-y-auto px-5 py-4 lg:px-7" data-testid="library-cover-wall" data-wall-layout={detailed ? 'details' : 'covers'}>
     <header data-testid="wall-compact-toolbar" className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-[rgb(var(--border)/0.78)] bg-[rgb(var(--panel)/0.52)] px-3 py-2 shadow-[0_10px_28px_-25px_rgba(0,0,0,.9)]">
+      {!sideNavigation && <div className="flex shrink-0 items-center gap-1.5" aria-label="Wall navigation"><button type="button" onClick={onOpenHome} data-testid="wall-open-home" className="inline-flex h-8 items-center gap-1.5 rounded-lg hairline px-2.5 text-[10.5px] font-semibold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink"><Home size={12} /> Home</button><button type="button" onClick={onOpenLibrary} data-testid="wall-open-library" className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.5)] bg-[rgb(var(--accent)/0.09)] px-2.5 text-[10.5px] font-semibold text-ink hover:bg-[rgb(var(--accent)/0.16)]"><Library size={12} /> Library</button></div>}
       <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-[rgb(var(--accent)/0.35)] bg-[rgb(var(--accent)/0.1)] text-[rgb(var(--accent))]"><Grid3X3 size={15} /></span>
       <div className="mr-2 min-w-40"><p className="text-[8px] font-bold uppercase tracking-[0.18em] text-[rgb(var(--accent-2))]">Full library wall</p><h1 className="text-[13px] font-bold leading-tight">Browse your whole collection</h1></div>
       <div className="flex items-center gap-1 rounded-lg border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--surface)/0.34)] p-1" aria-label="Wall view">
@@ -93,7 +94,6 @@ export default function CoverWall({ games = [], favoriteIds = [], density = 5, o
       {detailed && <button type="button" data-testid="wall-big-icons-toggle" aria-pressed={bigDetailIcons} onClick={() => onBigDetailIconsChange?.(!bigDetailIcons)} className={`inline-flex h-8 items-center gap-1.5 rounded-lg hairline px-2.5 text-[10.5px] font-semibold ${bigDetailIcons ? 'text-[rgb(var(--accent-2))]' : 'text-muted hover:text-ink'}`} title="Make Detailed Wall artwork fill the row"><Grid3X3 size={13} /> Big icons</button>}
       {selectionMode ? <CollectionActions count={selectedCount} categories={collectionCategories} privateCategories={privateCollectionCategories} testid="wall-collection-actions" compact onDone={finishSelection} onFavorite={(value) => onBulkFavorite?.(selectedIds, value)} onJourneyStatus={(journeyStatus) => onBulkJourneyStatus?.(selectedIds, journeyStatus)} onAddCategory={(categoryId) => onBulkAddCategory?.(selectedIds, categoryId)} onReviewMetadata={() => onBulkReviewMetadata?.(selectedIds)} onReviewArtwork={() => onBulkReviewArtwork?.(selectedIds)} onProtect={(categoryId) => onBulkProtect?.(selectedIds, categoryId)} /> : <button type="button" data-testid="wall-select-games" onClick={beginSelection} className="inline-flex h-8 items-center gap-1.5 rounded-lg hairline px-2.5 text-[10.5px] font-semibold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink"><CheckSquare size={12} /> Select games</button>}
       </>}
-      <div className="ml-auto flex items-center gap-1.5"><button type="button" onClick={onOpenHome} data-testid="wall-open-home" className="inline-flex h-8 items-center gap-1.5 rounded-lg hairline px-2.5 text-[10.5px] font-semibold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink"><Home size={12} /> Home</button><button type="button" onClick={onOpenLibrary} data-testid="wall-open-library" className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.5)] bg-[rgb(var(--accent)/0.09)] px-2.5 text-[10.5px] font-semibold text-ink hover:bg-[rgb(var(--accent)/0.16)]"><Library size={12} /> Library</button></div>
     </header>
     {detailed && columnMenuOpen && <ColumnMenu columns={columns} onChange={onWallColumnsChange} />}
     {lockedCategories.length > 0 && <section className="mb-5 flex flex-wrap items-center gap-2 rounded-xl border border-[rgb(var(--accent)/0.32)] bg-[rgb(var(--accent)/0.07)] px-3 py-2.5" data-testid="cover-wall-private-categories"><span className="inline-flex items-center gap-1.5 pr-1 text-[9px] font-black uppercase tracking-[0.16em] text-[rgb(var(--accent-2))]"><LockKeyhole size={13} />Protected categories</span>{lockedCategories.map((category) => <button key={category.id} type="button" onClick={() => onUnlockCategory?.(category)} className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.44)] bg-[rgb(var(--panel)/0.54)] px-2.5 py-1.5 text-[10px] font-bold text-ink transition hover:border-[rgb(var(--accent))] hover:bg-[rgb(var(--accent)/0.16)]" title={`Enter PIN to show ${category.name} games`}><LockKeyhole size={12} className="text-[rgb(var(--accent))]" /><span>Show hidden category</span><span className="max-w-36 truncate text-[rgb(var(--accent-2))]">{category.name}</span></button>)}</section>}
@@ -205,11 +205,17 @@ function compareWallGames(left, right, column) {
 }
 
 function WallPeek({ game, onClose, onOpenPreview, onLaunch }) {
+  const [activeScreenshot, setActiveScreenshot] = React.useState(0);
+  const [failedScreenshotUrls, setFailedScreenshotUrls] = React.useState([]);
+  React.useEffect(() => { setActiveScreenshot(0); setFailedScreenshotUrls([]); }, [game.id]);
   const journey = journeyStatusDefinition(game.journeyStatus);
   const signals = gameSignals(game);
   const screenshots = (Array.isArray(game.screenshots) ? game.screenshots : [])
-    .filter((image) => typeof image === 'string' && image.trim())
-    .slice(0, 3);
+    .filter((image) => typeof image === 'string' && image.trim() && !failedScreenshotUrls.includes(image))
+    .slice(0, 4);
+  const selectedIndex = screenshots[activeScreenshot] ? activeScreenshot : 0;
+  const selectedScreenshot = screenshots[selectedIndex];
+  const markScreenshotFailed = (image) => setFailedScreenshotUrls((current) => current.includes(image) ? current : [...current, image]);
   const cover = portraitArtwork(game) || artworkBackdrop(game);
   return <div className="absolute inset-0 z-30 bg-black/38 backdrop-blur-[1px]" data-testid="wall-peek-backdrop" onClick={onClose}>
     <motion.aside
@@ -240,8 +246,8 @@ function WallPeek({ game, onClose, onOpenPreview, onLaunch }) {
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {game.shortDescription || game.about ? <p className="text-xs leading-relaxed text-muted">{game.shortDescription || String(game.about).slice(0, 280)}</p> : null}
-        {signals.length ? <section className="mt-4"><h3 className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted">Game signals</h3><div className="mt-2 flex flex-wrap gap-1.5">{signals.map((signal) => <Signal key={signal.id} signal={signal} />)}</div></section> : null}
-        {screenshots.length ? <section className="mt-4"><h3 className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted">Screenshots</h3><div className="mt-2 grid grid-cols-3 gap-1.5">{screenshots.map((image, index) => <img key={`${image}-${index}`} src={image} alt="" className="aspect-video w-full rounded-md border border-[rgb(var(--border)/0.62)] object-cover" />)}</div></section> : null}
+        {signals.length ? <section className="mt-4"><h3 className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted">Game signals</h3><div className="mt-2 grid grid-cols-3 gap-1.5">{signals.map((signal) => <Signal key={signal.id} signal={signal} />)}</div></section> : null}
+        {screenshots.length ? <section className="mt-4"><h3 className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted">Screenshots</h3><img key={selectedScreenshot} src={selectedScreenshot} onError={() => markScreenshotFailed(selectedScreenshot)} alt={`Screenshot ${selectedIndex + 1} of ${screenshots.length} for ${game.name || 'this game'}`} className="mt-2 aspect-video w-full rounded-xl border border-[rgb(var(--accent)/0.48)] bg-[rgb(var(--surface)/0.55)] object-contain shadow-[0_12px_32px_rgb(0_0_0/0.22)]" />{screenshots.length > 1 && <div className="mt-2 grid grid-cols-3 gap-2" aria-label="Choose screenshot">{screenshots.map((image, index) => index === selectedIndex ? null : <button key={`${image}-${index}`} type="button" onClick={() => setActiveScreenshot(index)} aria-label={`Show screenshot ${index + 1} of ${screenshots.length}`} className="group overflow-hidden rounded-lg border border-[rgb(var(--border)/0.75)] bg-[rgb(var(--surface)/0.4)] transition hover:border-[rgb(var(--accent))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"><img src={image} alt="" loading="lazy" onError={() => markScreenshotFailed(image)} className="aspect-video w-full object-cover transition group-hover:scale-[1.04]" /></button>)}</div>}</section> : null}
         <div className="mt-4 grid grid-cols-2 gap-2 text-[10px] text-muted">
           <PeekFact label="Genre" value={primaryGenre(game)} />
           <PeekFact label="Released" value={friendlyDate(game.releaseDate)} />
@@ -278,11 +284,15 @@ const SIGNAL_ICONS = Object.freeze({
   'sexual-content': ShieldAlert,
   'graphic-violence': ShieldAlert,
   horror: ShieldAlert,
+  installed: HardDrive,
+  emulated: Gamepad2,
+  favorite: Star,
+  private: LockKeyhole,
 });
 
 function Signal({ signal }) {
   const Icon = SIGNAL_ICONS[signal.id] || ShieldAlert;
-  return <span title={`${signal.label} · ${signal.source}${signal.detail ? ` · ${signal.detail}` : ''}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[rgb(var(--border)/0.62)] bg-[rgb(var(--surface)/0.32)] text-[rgb(var(--accent-2))]"><Icon size={14} aria-label={signal.label} /></span>;
+  return <span title={`${signal.label} · ${signal.source}${signal.detail ? ` · ${signal.detail}` : ''}`} className={`flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-lg border px-1 py-1.5 text-center ${signal.group === 'content' ? 'border-amber-400/45 bg-amber-400/10 text-amber-200' : 'border-[rgb(var(--border)/0.62)] bg-[rgb(var(--surface)/0.32)] text-[rgb(var(--accent-2))]'}`}><Icon size={19} aria-hidden="true" className="shrink-0" /><span className="line-clamp-2 text-[10px] font-semibold leading-tight text-ink">{signal.label}</span></span>;
 }
 
 function EmptyWall() { return <div className="grid min-h-64 place-items-center rounded-2xl border border-dashed border-[rgb(var(--border)/0.78)] bg-[rgb(var(--panel)/0.25)] px-6 text-center"><div><ImageOff className="mx-auto text-[rgb(var(--accent-2))]" size={24} /><p className="mt-3 text-sm font-bold text-ink">No visible games here</p><p className="mt-1 text-xs text-muted">Try another launcher filter or clear your search.</p></div></div>; }

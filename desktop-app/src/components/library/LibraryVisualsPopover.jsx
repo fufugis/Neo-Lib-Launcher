@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, useDragControls } from 'framer-motion';
-import { Bug, GripVertical, Lightbulb, MessageCircle } from 'lucide-react';
+import { Bug, GripVertical, Lightbulb, MessageCircle, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { renderForegroundPortal } from '../ui/VisualBoundary';
 import { LIBRARY_FONT_OPTIONS } from './library-visual-model.mjs';
@@ -49,11 +49,16 @@ export default function LibraryVisualsPopover({
     return clampPopoverPosition(anchorTop, opensBesideLibrary ? libraryRight + 12 : 12);
   });
   React.useEffect(() => {
+    if (!anchorEl) {
+      setPos((current) => clampPopoverPosition(current.top, current.left));
+      return;
+    }
     const anchorTop = anchorEl ? anchorEl.getBoundingClientRect().bottom + 6 : 80;
     setPos(clampPopoverPosition(anchorTop, opensBesideLibrary ? libraryRight + 12 : 12));
   }, [anchorEl, libraryRight, opensBesideLibrary, popoverWidth]);
   React.useEffect(() => {
     const h = (e) => {
+      if (e.target.closest?.('[data-testid="tab-home"], [data-testid="tab-library"], [data-testid="tab-cover-wall"], [data-testid="tab-tools"], [data-testid="wall-open-home"], [data-testid="wall-open-library"]')) return;
       if (ref.current && !ref.current.contains(e.target)
         && (!anchorEl || !anchorEl.contains(e.target))) onClose();
     };
@@ -99,6 +104,7 @@ export default function LibraryVisualsPopover({
         title="Drag to move"
       >
         <GripVertical size={10} /> Visuals
+        <button type="button" data-testid="visuals-close" onPointerDown={(event) => event.stopPropagation()} onClick={onClose} aria-label="Close Visuals" title="Close Visuals" className="ml-auto grid h-7 w-7 place-items-center rounded-md border border-[rgb(var(--border))] text-ink hover:border-[rgb(var(--accent))]"><X size={16} /></button>
       </div>
       {/* Three clear lanes replace the tall masonry list. The solid heading on
           each group makes the current control family obvious at a glance. */}
@@ -465,8 +471,6 @@ function bgTexturePreview(id) {
       return {};
   }
 }
-
-
 const EFFECTS_STAGES = ['None', 'Low', 'Medium', 'High', 'Max'];
 const EFFECTS_HINT = {
   0: 'Off — flat & focused.',

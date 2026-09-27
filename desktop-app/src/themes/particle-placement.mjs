@@ -12,3 +12,26 @@ export function particlePosition(emitter, index) {
   const position = `${Math.round(band[0] + (seed / 100) * (band[1] - band[0]))}%`;
   return emitter.direction === 'drift' ? { left: 0, top: position } : { left: position, top: 0 };
 }
+
+// Stable per sprite: changing a control must not reshuffle all particle speeds.
+export function particleDuration(emitter, index, cadence = 'normal') {
+  const variation = (emitter.speedVariation ?? 15) / 100;
+  const seed = (index * 37 + emitter.id.length * 23) % 101;
+  const speed = 1 + ((seed / 50) - 1) * variation;
+  return Math.max(3, Math.min(105, emitter.durationSeconds / speed * (cadence === 'calm' ? 1.5 : 1)));
+}
+
+export function particleMotionStyle(emitter) {
+  const start = emitter.rotation ?? 0;
+  const spin = emitter.spinDegrees ?? 0;
+  const sway = emitter.swayPx ?? 0;
+  return {
+    '--fx-rotation': `${start}deg`,
+    '--fx-angle-25': `${start + spin * 0.25}deg`,
+    '--fx-angle-50': `${start + spin * 0.5}deg`,
+    '--fx-angle-75': `${start + spin * 0.75}deg`,
+    '--fx-angle-100': `${start + spin}deg`,
+    '--fx-sway': `${sway}px`,
+    '--fx-sway-negative': `${-sway}px`,
+  };
+}

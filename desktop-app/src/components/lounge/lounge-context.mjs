@@ -23,8 +23,10 @@ export function loungeSessionContext(game, updateLedger = {}) {
 
 // Static, local guidance only: no auto-voice, network call or private game names.
 export function loungeGuide(view, context) {
-  if (context?.updateFlagged) return 'A possible update was flagged. Open Preview to inspect the evidence before updating.';
-  if (view === 'recent') return 'Your latest tracked sessions are here. Open Preview to see the full game details.';
+  if (context?.updateFlagged) return 'A possible update was flagged. Check its history in Library before updating.';
+  if (view === 'continue') return 'Pick up a game you have played or marked In progress. Open details without leaving Lounge.';
+  if (view === 'recent') return 'Your latest tracked sessions are here. Open game details without leaving Lounge.';
+  if (view === 'most') return 'Games with tracked playtime lead this view. Open details without leaving Lounge.';
   if (view === 'favorites') return 'Your favorites are close at hand. Add or remove favorites in the normal Library.';
-  return 'Browse at your pace. Open Preview when you want the full details or game actions.';
+  return 'Browse at your pace. Open game details or launch without leaving Lounge.';
 }

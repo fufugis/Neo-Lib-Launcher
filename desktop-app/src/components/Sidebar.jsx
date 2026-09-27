@@ -7,7 +7,6 @@ import {
 import { cn } from '../lib/utils';
 import { stockThemeAssetUrl, customThemeManifest } from '../themes/stock-theme-registry.mjs';
 import SystemHealthBar from './SystemHealthBar';
-import LibraryVisualsPopover from './library/LibraryVisualsPopover';
 import LibraryIconGrid from './library/LibraryIconGrid';
 import AppControlMenu from './library/AppControlMenu';
 import { libraryFontFamily } from './library/library-visual-model.mjs';
@@ -134,8 +133,7 @@ export default function Sidebar({
   showCategories = true, onToggleCategories, onManageCategories,
   librarySortMode = 'manual', onChangeLibrarySort,
   libraryViewMode = 'preview', onChangeLibraryViewMode,
-  tutorialVisualsOpen = false,
-  openVisualsRequest = 0,
+  onOpenVisuals,
   sidebarWidth = 320,
   onResizeSidebar,
   gameResting = false,
@@ -165,8 +163,6 @@ export default function Sidebar({
     icon: Math.max(14, Math.round(rowSize * 0.72)),
     font: Number.isFinite(nameTextSize) ? Math.max(9, Math.min(22, nameTextSize)) : derivedFont,
   };
-  const [libSettingsOpen, setLibSettingsOpen] = React.useState(false);
-  const libSettingsBtnRef = React.useRef(null);
   const [categoriesMenuOpen, setCategoriesMenuOpen] = React.useState(false);
   const [sortMenuOpen, setSortMenuOpen] = React.useState(false);
   const [libraryFiltersOpen, setLibraryFiltersOpen] = React.useState(false);
@@ -200,14 +196,6 @@ export default function Sidebar({
     document.addEventListener('keydown', escape);
     return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', escape); };
   }, [categoriesMenuOpen, sortMenuOpen]);
-
-  // Tutorial controls Visuals directly, rather than synthetically clicking
-  // the toggle. That avoids a timer race which used to leave it flickering or
-  // open after the tutorial moved on. Normal player clicks remain unchanged.
-  React.useEffect(() => {
-    setLibSettingsOpen(Boolean(tutorialVisualsOpen));
-  }, [tutorialVisualsOpen]);
-  React.useEffect(() => { if (openVisualsRequest) setLibSettingsOpen(true); }, [openVisualsRequest]);
 
   // Library reference used by the PinnedStrip (it pulls full game objects by id).
   // We keep it as a plain object since we only need it inside the render.
@@ -346,7 +334,7 @@ export default function Sidebar({
         <AppControlMenu
           onOpenThemes={onOpenThemes}
           onOpenMascot={onOpenMascot}
-          onOpenVisuals={() => setLibSettingsOpen(true)}
+          onOpenVisuals={onOpenVisuals}
           onOpenControllers={onOpenControllerCenter}
           onOpenSettings={onOpenSettings}
           onOpenChangelog={onOpenChangelog}
@@ -390,7 +378,7 @@ export default function Sidebar({
       {/* Toolbar row 2 — Wizard / (flex) / Visuals / TwoRow.
           Labels collapse to icon-only when the sidebar is especially narrow so the
           row stays tidy without wrapping or truncating. */}
-      {(() => {
+      {(!sideNavigation || isTools) && (() => {
         return (
       <div
         className="relative z-40 flex items-center gap-1.5 p-3 pt-2"
@@ -402,10 +390,10 @@ export default function Sidebar({
       >
         {isTools ? (
           <SideBtn label={labelsVisible ? "Add tool" : null} icon={<Wand2 size={16} />} onClick={onAddManual} testid="sidebar-add-tool-btn" title="Add tool" />
-        ) : (
+        ) : !sideNavigation ? (
           <SideBtn label={labelsVisible ? "Wizard" : null} icon={<Wand2 size={16} />} onClick={onOpenWizard} testid="sidebar-wizard-btn" title="Add games, scan folders, or import launchers" />
-        )}
-        <button
+        ) : null}
+        {!sideNavigation && <button
           type="button"
           data-testid="sidebar-rest-toggle"
           onClick={onToggleManualRest}
@@ -423,68 +411,9 @@ export default function Sidebar({
             {manualResting ? <Sun size={16} /> : <Moon size={16} />}
           </span>
           {labelsVisible && <span className="library-action-label whitespace-nowrap">{manualResting ? 'Wake up' : 'Rest Zzz'}</span>}
-        </button>
-        {!isTools && <button type="button" data-testid="sidebar-select-games" onClick={selectionMode ? finishSelection : startSelection} className={cn('library-toolbar-control inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md hairline px-2 text-[10px] font-semibold transition-colors', selectionMode ? 'border-[rgb(var(--accent)/0.72)] bg-[rgb(var(--accent)/0.12)] text-ink' : 'text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink')} title={selectionMode ? 'Leave selection mode' : 'Select several games'} aria-label={selectionMode ? 'Leave selection mode' : 'Select several games'}><CheckSquare size={14} />{labelsVisible && <span className="library-action-label whitespace-nowrap">{selectionMode ? 'Done' : 'Select'}</span>}</button>}
+        </button>}
+        {!isTools && !sideNavigation && <button type="button" data-testid="sidebar-select-games" onClick={selectionMode ? finishSelection : startSelection} className={cn('library-toolbar-control inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md hairline px-2 text-[10px] font-semibold transition-colors', selectionMode ? 'border-[rgb(var(--accent)/0.72)] bg-[rgb(var(--accent)/0.12)] text-ink' : 'text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink')} title={selectionMode ? 'Leave selection mode' : 'Select several games'} aria-label={selectionMode ? 'Leave selection mode' : 'Select several games'}><CheckSquare size={14} />{labelsVisible && <span className="library-action-label whitespace-nowrap">{selectionMode ? 'Done' : 'Select'}</span>}</button>}
         <div className="flex-1" />
-        <AnimatePresence>
-          {libSettingsOpen && (
-            <LibraryVisualsPopover
-                anchorEl={libSettingsBtnRef.current}
-                sidebarWidth={sidebarWidth}
-                rowSize={rowSize}
-                catTextSize={catTextSize}
-                catGlow={catGlow}
-                rowGap={rowGap}
-                catGap={catGap}
-                catTopGap={catTopGap}
-                iconPosition={iconPosition}
-                categoryMarkerMode={categoryMarkerMode}
-                onChangeRowSize={onChangeRowSize}
-                onChangeCatTextSize={onChangeCatTextSize}
-                onChangeCatGlow={onChangeCatGlow}
-                onChangeRowGap={onChangeRowGap}
-                onChangeCatGap={onChangeCatGap}
-                onChangeCatTopGap={onChangeCatTopGap}
-                onChangeIconPosition={onChangeIconPosition}
-                onChangeCategoryMarkerMode={onChangeCategoryMarkerMode}
-                showSubcatStrip={showSubcatStrip}
-                onToggleSubcatStrip={onToggleSubcatStrip}
-                nameTextSize={nameTextSize}
-                onChangeNameTextSize={onChangeNameTextSize}
-                libraryFont={libraryFont}
-                libraryFontWeight={libraryFontWeight}
-                libraryFontCursive={libraryFontCursive}
-                onChangeLibraryFont={onChangeLibraryFont}
-                onChangeLibraryFontWeight={onChangeLibraryFontWeight}
-                onChangeLibraryFontCursive={onChangeLibraryFontCursive}
-                effectsLevel={effectsLevel}
-                currentTheme={currentTheme}
-                onChangeEffectsLevel={onChangeEffectsLevel}
-                motionCadence={motionCadence}
-                onChangeMotionCadence={onChangeMotionCadence}
-                bgTextureId={bgTextureId}
-                bgTextureOpacity={bgTextureOpacity}
-                onChangeBgTextureId={onChangeBgTextureId}
-                onChangeBgTextureOpacity={onChangeBgTextureOpacity}
-                cursorTheme={cursorTheme}
-                onChangeCursorTheme={onChangeCursorTheme}
-                navigationLayout={navigationLayout}
-                onChangeNavigationLayout={onChangeNavigationLayout}
-                onClose={() => setLibSettingsOpen(false)}
-                onOpenFeedback={onOpenFeedback}
-                twoRow={twoRow}
-                onToggleTwoRow={onToggleTwoRow}
-                libraryIconMode={libraryIconMode}
-                libraryIconSize={libraryIconSize}
-                libraryIconSpacing={libraryIconSpacing}
-                libraryIconRows={libraryIconRows}
-                onToggleLibraryIconMode={onToggleLibraryIconMode}
-                onChangeLibraryIconSize={onChangeLibraryIconSize}
-                onChangeLibraryIconSpacing={onChangeLibraryIconSpacing}
-                onChangeLibraryIconRows={onChangeLibraryIconRows}
-              />
-          )}
-        </AnimatePresence>
         <button
           data-testid="sidebar-tworow-btn-hidden"
           onClick={() => onToggleTwoRow?.(!twoRow)}
@@ -502,8 +431,8 @@ export default function Sidebar({
           v1.6.4 — Launcher pills collapsed into a single dropdown to reduce
           horizontal clutter. Category creation stays in the Categories menu,
           while every game-add route starts in Wizard. */}
-      {!isTools && minimalistic && <button type="button" data-testid="sidebar-minimalistic-filters" aria-expanded={libraryFiltersOpen} onClick={() => { setLibraryFiltersOpen((open) => !open); setSortMenuOpen(false); setCategoriesMenuOpen(false); }} className="mx-3 mb-2 inline-flex h-7 items-center rounded-md hairline px-2.5 text-[10px] font-semibold text-ink">{libraryFiltersOpen ? 'Hide filters' : 'Filters'}{(launcherFilter || 'all') !== 'all' || (librarySortMode || 'manual') !== 'manual' ? ' · Active' : ''}</button>}
-      {!isTools && (!minimalistic || libraryFiltersOpen) && (
+      {!isTools && minimalistic && !sideNavigation && <button type="button" data-testid="sidebar-minimalistic-filters" aria-expanded={libraryFiltersOpen} onClick={() => { setLibraryFiltersOpen((open) => !open); setSortMenuOpen(false); setCategoriesMenuOpen(false); }} className="mx-3 mb-2 inline-flex h-7 items-center rounded-md hairline px-2.5 text-[10px] font-semibold text-ink">{libraryFiltersOpen ? 'Hide filters' : 'Filters'}{(launcherFilter || 'all') !== 'all' || (librarySortMode || 'manual') !== 'manual' ? ' · Active' : ''}</button>}
+      {!isTools && (!minimalistic || libraryFiltersOpen || sideNavigation) && (
         <div className="relative z-40 flex items-center gap-1 px-3 pb-2" data-testid="launcher-pane-row">
           <LauncherDropdown
             value={launcherFilter || 'all'}
@@ -588,6 +517,7 @@ export default function Sidebar({
               <Wand2 size={compactFilters ? 14 : 10} />{!compactFilters && <span className="library-filter-text whitespace-nowrap">Auto-sort</span>}
             </button>
           )}
+          {sideNavigation && <button type="button" data-testid="sidebar-select-games" onClick={selectionMode ? finishSelection : startSelection} className={cn('library-toolbar-control library-filter-control inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-md hairline text-[10px] font-semibold transition-colors', compactFilters ? 'w-7 p-0' : 'px-2', selectionMode ? 'border-[rgb(var(--accent)/0.72)] bg-[rgb(var(--accent)/0.12)] text-ink' : 'text-ink/85 hover:border-[rgb(var(--accent)/0.62)] hover:text-ink')} title={selectionMode ? 'Leave selection mode' : 'Select several games'} aria-label={selectionMode ? 'Leave selection mode' : 'Select several games'} aria-pressed={selectionMode}><CheckSquare size={14} />{!compactFilters && <span className="library-filter-text whitespace-nowrap">{selectionMode ? 'Done' : 'Select'}</span>}</button>}
         </div>
       )}
 
@@ -762,7 +692,7 @@ export default function Sidebar({
   );
 }
 
-export function SideNavigationRail({ mode, libraryViewMode, onOpenHome, onOpenLibrary, onOpenWall, onOpenTools, onOpenThemes, onOpenMascot, onOpenVisuals, onOpenControllers, onOpenSettings, onOpenChangelog, onEnterLounge, onCheckForUpdates, onOpenFeedback, onQuit, onDisableSidebar, minimalisticEnabled, onToggleMinimalistic }) {
+export function SideNavigationRail({ mode, libraryViewMode, onOpenHome, onOpenLibrary, onOpenWall, onOpenTools, onOpenWizard, manualResting, onToggleManualRest, onOpenThemes, onOpenMascot, onOpenVisuals, onOpenControllers, onOpenSettings, onOpenChangelog, onEnterLounge, onCheckForUpdates, onOpenFeedback, onQuit, onDisableSidebar, minimalisticEnabled, onToggleMinimalistic }) {
   const [expanded, setExpanded] = React.useState(false);
   return <div className="relative z-50 h-full w-12 shrink-0" data-testid="side-navigation-slot"><nav
     data-testid="side-navigation-rail"
@@ -772,7 +702,7 @@ export function SideNavigationRail({ mode, libraryViewMode, onOpenHome, onOpenLi
     onFocusCapture={() => setExpanded(true)}
     onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setExpanded(false); }}
     onKeyDown={(event) => { if (event.key === 'Escape') setExpanded(false); }}
-    className="absolute inset-y-0 left-0 z-50 flex flex-col overflow-hidden border-r border-[rgb(var(--border)/0.8)] bg-[rgb(var(--surface)/0.97)] px-1.5 py-2 shadow-[8px_0_24px_-20px_rgba(0,0,0,.95)] backdrop-blur-xl transition-[width,box-shadow] duration-200 ease-out motion-reduce:transition-none"
+    className="absolute inset-y-0 left-0 z-50 flex flex-col overflow-hidden border-r border-[rgb(var(--border)/0.8)] bg-[rgb(var(--surface)/0.97)] px-1 py-2 shadow-[8px_0_24px_-20px_rgba(0,0,0,.95)] backdrop-blur-xl transition-[width,box-shadow] duration-200 ease-out motion-reduce:transition-none"
     style={{ width: expanded ? 148 : 48 }}
   >
     <AppControlMenu
@@ -793,10 +723,13 @@ export function SideNavigationRail({ mode, libraryViewMode, onOpenHome, onOpenLi
       onQuit={onQuit}
     />
     <span className="mx-1 my-2 h-px shrink-0 bg-[rgb(var(--border)/0.65)]" />
-    <RailNavigationButton icon={<Home size={17} />} label="Home" expanded={expanded} active={mode === 'home'} onClick={onOpenHome} testid="tab-home" />
-    <RailNavigationButton icon={<LibIcon size={17} />} label="Library" expanded={expanded} active={mode === 'library' && libraryViewMode !== 'wall'} onClick={onOpenLibrary} testid="tab-library" />
-    <RailNavigationButton icon={<Columns size={17} />} label="Wall" expanded={expanded} active={mode === 'library' && libraryViewMode === 'wall'} onClick={onOpenWall} testid="tab-cover-wall" />
-    <RailNavigationButton icon={<Boxes size={17} />} label="Tools" expanded={expanded} active={mode === 'tools'} onClick={onOpenTools} testid="tab-tools" />
+    <RailNavigationButton icon={<Home size={21} />} label="Home" expanded={expanded} active={mode === 'home'} onClick={onOpenHome} testid="tab-home" />
+    <RailNavigationButton icon={<LibIcon size={21} />} label="Library" expanded={expanded} active={mode === 'library' && libraryViewMode !== 'wall'} onClick={onOpenLibrary} testid="tab-library" />
+    <RailNavigationButton icon={<Columns size={21} />} label="Wall" expanded={expanded} active={mode === 'library' && libraryViewMode === 'wall'} onClick={onOpenWall} testid="tab-cover-wall" />
+    <RailNavigationButton icon={<Boxes size={21} />} label="Tools" expanded={expanded} active={mode === 'tools'} onClick={onOpenTools} testid="tab-tools" />
+    <span data-testid="side-navigation-actions-divider" className="mx-1 my-2 h-px shrink-0 bg-[rgb(var(--border)/0.65)]" />
+    <RailNavigationButton icon={<Wand2 size={21} />} label="Wizard" expanded={expanded} onClick={onOpenWizard} testid="sidebar-rail-wizard-btn" />
+    <RailNavigationButton icon={manualResting ? <Sun size={21} /> : <Moon size={21} />} label={manualResting ? 'Wake up' : 'Rest Zzz'} expanded={expanded} active={manualResting} onClick={onToggleManualRest} testid="sidebar-rail-rest-toggle" />
     <span className={`mt-auto overflow-hidden whitespace-nowrap px-2 pb-1 text-[8px] font-bold uppercase tracking-[0.16em] text-muted transition-opacity ${expanded ? 'opacity-75' : 'opacity-0'}`}>Navigation</span>
   </nav></div>;
 }
@@ -809,9 +742,9 @@ function RailNavigationButton({ icon, label, expanded, active, onClick, testid }
     aria-label={label}
     aria-pressed={active}
     onClick={onClick}
-    className={`mb-1 flex h-10 w-full shrink-0 items-center gap-3 overflow-hidden rounded-lg border px-2.5 text-left transition ${active ? 'border-[rgb(var(--accent)/0.68)] bg-[rgb(var(--accent)/0.16)] text-ink shadow-[0_0_14px_-8px_rgb(var(--accent))]' : 'border-transparent text-ink/78 hover:border-[rgb(var(--accent)/0.38)] hover:bg-[rgb(var(--accent)/0.08)] hover:text-ink'}`}
+    className={`mb-1 flex h-10 w-full shrink-0 items-center overflow-hidden rounded-lg border text-left transition ${expanded ? 'justify-start gap-2.5 px-2' : 'justify-center gap-0 px-0'} ${active ? 'border-[rgb(var(--accent)/0.68)] bg-[rgb(var(--accent)/0.16)] text-ink shadow-[0_0_14px_-8px_rgb(var(--accent))]' : 'border-transparent text-ink/78 hover:border-[rgb(var(--accent)/0.38)] hover:bg-[rgb(var(--accent)/0.08)] hover:text-ink'}`}
   >
-    <span className={`grid h-5 w-5 shrink-0 place-items-center ${active ? 'text-[rgb(var(--accent))]' : 'text-[rgb(var(--accent-2))]'}`}>{icon}</span>
+    <span className={`grid h-6 w-6 shrink-0 place-items-center ${active ? 'text-[rgb(var(--accent))]' : 'text-[rgb(var(--accent-2))]'}`}>{icon}</span>
     <span className={`overflow-hidden whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.14em] transition-all ${expanded ? 'max-w-20 translate-x-0 opacity-100' : 'max-w-0 -translate-x-1 opacity-0'}`}>{label}</span>
   </button>;
 }

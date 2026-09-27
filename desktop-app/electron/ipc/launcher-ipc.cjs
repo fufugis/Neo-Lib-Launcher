@@ -62,6 +62,15 @@ function registerLauncherIpc({ registerIpc, services }) {
     isActionResult,
     invalidResponse('Opening Steam Input returned an invalid result.'),
   ));
+  registerIpc('controller:scanWindows', guardResult(
+    requireService(services, 'controller:scanWindows'),
+    result => isPlainObject(result) && isBoolean(result.ok, { required: true })
+      && isBoundedString(result.error, { max: 200 })
+      && isBoundedArray(result.devices, 80, device => isPlainObject(device)
+        && isBoundedString(device.name, { required: true, max: 100 })
+        && ['Bluetooth', 'USB / HID', 'Windows device'].includes(device.kind)),
+    invalidResponse('Windows controller scan returned an invalid result.', { devices: [] }),
+  ));
   registerIpc("launcher:pickSocialClient", guardResult(guardHandler(
     requireService(services, "launcher:pickSocialClient"),
     platform => SOCIAL_PLATFORMS.has(platform),

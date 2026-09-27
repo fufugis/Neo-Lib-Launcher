@@ -13,6 +13,11 @@ assert.deepEqual(applyWallFilter(games, 'all', ['favorite']).map(({ id }) => id)
 assert.deepEqual(applyWallFilter(games, 'favorites', ['favorite']).map(({ id }) => id), ['favorite']);
 assert.deepEqual(applyWallFilter(games, 'most-played').map(({ id }) => id), ['favorite', 'middle', 'recent']);
 assert.deepEqual(applyWallFilter(games, 'recently-played').map(({ id }) => id), ['recent', 'middle', 'favorite']);
+assert.deepEqual(applyWallFilter([
+  { id: 'iso-old', lastPlayedAt: '2025-07-01T12:00:00.000Z' },
+  { id: 'iso-new', lastPlayed: '2026-08-01T12:00:00.000Z' },
+  { id: 'invalid', lastPlayedAt: 'not-a-date' },
+], 'recently-played').map(({ id }) => id), ['iso-new', 'iso-old']);
 assert.deepEqual(applyWallFilter(null, 'favorites', null), []);
 
 console.log('PASS: Wall quick filters preserve All order and correctly select favorites, most-played and recently-played games.');

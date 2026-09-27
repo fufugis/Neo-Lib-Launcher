@@ -314,12 +314,13 @@ async function main() {
   assert.deepEqual(await deals.handlers['deals:fetch']({}), dealResults);
   await verifyResponseGuard(deals, 'deals:fetch', [], [{ id: 'deal', platform: 'steam', title: 'Game' }], {}, []);
 
-  const launcherChannels = ['launcher:openDownloads', 'launcher:openSocial', 'launcher:openSteamController', 'launcher:pickSocialClient', 'launcher:inspectSocialClients', 'launcher:detect', 'launcher:scan-steam', 'launcher:scan-epic', 'launcher:scan-gog', 'launcher:scan-ea', 'launcher:scan-ubisoft', 'launcher:scan-battlenet', 'launcher:scan-riot', 'launcher:scan-xbox', 'launcher:scan-rockstar', 'launcher:scan-itch'];
+  const launcherChannels = ['launcher:openDownloads', 'launcher:openSocial', 'launcher:openSteamController', 'controller:scanWindows', 'launcher:pickSocialClient', 'launcher:inspectSocialClients', 'launcher:detect', 'launcher:scan-steam', 'launcher:scan-epic', 'launcher:scan-gog', 'launcher:scan-ea', 'launcher:scan-ubisoft', 'launcher:scan-battlenet', 'launcher:scan-riot', 'launcher:scan-xbox', 'launcher:scan-rockstar', 'launcher:scan-itch'];
   const client = { running: false, installed: true, path: 'C:\\Launcher\\client.exe', pathSource: 'standard', savedPathMissing: false };
   const launcherResults = {
     'launcher:openDownloads': { ok: true },
     'launcher:openSocial': { ok: true },
     'launcher:openSteamController': { ok: true },
+    'controller:scanWindows': { ok: true, devices: [{ name: '8BitDo Ultimate 2 Wireless', kind: 'Bluetooth' }] },
     'launcher:pickSocialClient': 'C:\\Launcher\\client.exe',
     'launcher:inspectSocialClients': { steam: client, epic: client, ea: client, ubisoft: client, battlenet: client },
     'launcher:detect': { steam: false, epic: false, ea: false, ubisoft: false, gog: false, battlenet: false, riot: false, xbox: false, rockstar: false, itch: false },
@@ -335,6 +336,7 @@ async function main() {
   await verifyGuard(launcher, 'launcher:inspectSocialClients', [{ steam: 'C:\\Steam\\steam.exe' }], [{ unknown: 'C:\\Unknown.exe' }], {}, {});
   await verifyResponseGuard(launcher, 'launcher:openDownloads', ['steam'], { ok: 'yes' });
   await verifyResponseGuard(launcher, 'launcher:openSocial', ['epic', 'C:\\Epic\\Launcher.exe'], null);
+  await verifyResponseGuard(launcher, 'controller:scanWindows', [], { ok: true, devices: [{ name: 'Pad', kind: 'unknown' }] });
   await verifyResponseGuard(launcher, 'launcher:pickSocialClient', ['steam'], 42, {}, null);
   await verifyResponseGuard(launcher, 'launcher:inspectSocialClients', [{}], { steam: client }, {}, {});
   await verifyResponseGuard(launcher, 'launcher:detect', [], { steam: 'no' }, {}, {});
@@ -512,6 +514,8 @@ async function main() {
   assert.equal(await dialogHandlers['dialog:pickThemeManifest']({}), 'C:\\Games');
   dialogResult = { canceled: false, filePaths: ['C:\\Images\\cover.png'] };
   assert.deepEqual(await dialogHandlers['dialog:pickImage']({}), { path: 'C:\\Images\\cover.png', url: 'file://C:/Images/cover.png' });
+  assert.equal(await dialogHandlers['dialog:importLoungeBackground']({}), null);
+  assert.equal(await dialogHandlers['dialog:importLoungeAudio']({}), null);
   assert.deepEqual(await dialogHandlers['dialog:pickThemeVideo']({}), { path: 'C:\\Images\\cover.png', url: 'file://C:/Images/cover.png' });
   dialogResult = { canceled: false, filePaths: [42] };
   assert.equal(await dialogHandlers['dialog:pickExe']({}), null);
@@ -572,7 +576,7 @@ async function main() {
   assert.equal((await themeHandlers['themes:prepareAsset']({}, { sourceId: 'home', asset: 'assets/art.png', action: 'copy' })).ok, true);
   assert.equal((await themeHandlers['themes:prepareAsset']({}, { sourceId: 'home', asset: 'assets/art.png', action: 'run' })).code, 'INVALID_REQUEST');
 
-  console.log('PASS: renderer payload contracts reject malformed input before native services, and all 105 native commands enforce response contracts while preserving valid success and failure results.');
+  console.log('PASS: renderer payload contracts reject malformed input before native services, and all 108 native commands enforce response contracts while preserving valid success and failure results.');
 }
 
 main().catch(error => {

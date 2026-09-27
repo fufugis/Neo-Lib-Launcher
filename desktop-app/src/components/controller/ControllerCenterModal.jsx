@@ -9,6 +9,10 @@ export default function ControllerCenterModal({ open, onClose, preferredFingerpr
   const adapter = React.useMemo(() => createControllerInput(), []);
   const [inventory, setInventory] = React.useState(EMPTY_INVENTORY);
   const [refreshedAt, setRefreshedAt] = React.useState(0);
+  const [windowsInventory, setWindowsInventory] = React.useState({ ok: null, devices: [], error: '' });
+  const [windowsScanning, setWindowsScanning] = React.useState(false);
+  const [windowsCheckedAt, setWindowsCheckedAt] = React.useState(0);
+  const scanRequest = React.useRef(0);
   const preferredRef = React.useRef(preferredFingerprint);
   const lastInventoryRef = React.useRef(null);
   preferredRef.current = preferredFingerprint;
@@ -17,6 +21,29 @@ export default function ControllerCenterModal({ open, onClose, preferredFingerpr
     setInventory(adapter.snapshot(preferredRef.current));
     setRefreshedAt(Date.now());
   }, [adapter]);
+  const scanWindows = React.useCallback(async () => {
+    const request = ++scanRequest.current;
+    setWindowsScanning(true);
+    try {
+      const result = await window.api?.scanWindowsControllers?.();
+      if (request !== scanRequest.current) return;
+      setWindowsInventory(result || { ok: false, devices: [], error: 'Windows device scanning is unavailable in this build.' });
+      setWindowsCheckedAt(Date.now());
+    } catch {
+      if (request === scanRequest.current) setWindowsInventory({ ok: false, devices: [], error: 'Windows device scanning failed.' });
+    } finally {
+      if (request === scanRequest.current) setWindowsScanning(false);
+    }
+  }, []);
+  const refreshAll = () => { refresh(); void scanWindows(); };
+
+  React.useEffect(() => {
+    if (!open) return undefined;
+    setWindowsInventory({ ok: null, devices: [], error: '' });
+    setWindowsCheckedAt(0);
+    void scanWindows();
+    return () => { scanRequest.current += 1; };
+  }, [open, scanWindows]);
 
   React.useEffect(() => {
     if (!open) return undefined;
@@ -60,8 +87,11 @@ export default function ControllerCenterModal({ open, onClose, preferredFingerpr
         onSelect={selectController}
         onManageWindows={onManageWindows}
         onOpenSteamController={onOpenSteamController}
-        onRefresh={refresh}
+        onRefresh={refreshAll}
         refreshedAt={refreshedAt}
+        windowsInventory={windowsInventory}
+        windowsScanning={windowsScanning}
+        windowsCheckedAt={windowsCheckedAt}
       />
     </div>
   </Modal>;

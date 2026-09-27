@@ -55,19 +55,19 @@ export function GameMediaGallery({ game }) {
 /** Compact factual rows; only the official-site action reaches the native bridge. */
 export function DetailList({ game }) {
   const rows = [];
-  if (game.developers?.length) rows.push({ icon: <Building2 size={13} />, label: 'Developer', value: game.developers.join(', ') });
-  if (game.publishers?.length && game.publishers.join() !== (game.developers || []).join()) rows.push({ icon: <Building2 size={13} />, label: 'Publisher', value: game.publishers.join(', ') });
-  if (game.releaseDate) rows.push({ icon: <Calendar size={13} />, label: 'Released', value: game.releaseDate });
-  if (game.metacritic) rows.push({ icon: <Award size={13} />, label: 'Metacritic', value: String(game.metacritic) });
-  if (game.website) rows.push({ icon: <Globe size={13} />, label: 'Website', value: 'Open official site', action: () => window.api?.openExternal(game.website) });
+  if (game.developers?.length) rows.push({ icon: <Building2 size={17} />, tone: 'border-sky-400/25 bg-sky-400/10 text-sky-400', label: 'Developer', value: game.developers.join(', ') });
+  if (game.publishers?.length && game.publishers.join() !== (game.developers || []).join()) rows.push({ icon: <Building2 size={17} />, tone: 'border-violet-400/25 bg-violet-400/10 text-violet-400', label: 'Publisher', value: game.publishers.join(', ') });
+  if (game.releaseDate) rows.push({ icon: <Calendar size={17} />, tone: 'border-teal-400/25 bg-teal-400/10 text-teal-400', label: 'Released', value: game.releaseDate });
+  if (game.metacritic) rows.push({ icon: <Award size={17} />, tone: 'border-amber-400/25 bg-amber-400/10 text-amber-400', label: 'Metacritic', value: String(game.metacritic) });
+  if (game.website) rows.push({ icon: <Globe size={17} />, tone: 'border-cyan-400/25 bg-cyan-400/10 text-cyan-400', label: 'Website', value: 'Open official site', action: () => window.api?.openExternal(game.website) });
   if (!rows.length) return null;
   return (
     <section className="mb-5 overflow-hidden rounded-xl border border-[rgb(var(--border)/0.7)] bg-[rgb(var(--surface)/0.16)]" data-testid="game-detail-list">
       <div className="border-b border-[rgb(var(--border)/0.55)] px-3.5 py-2 text-[9px] font-bold uppercase tracking-[0.24em] text-muted">Game details</div>
       <div className="grid grid-cols-1 divide-y divide-[rgb(var(--border)/0.45)] sm:grid-cols-2 sm:divide-y-0 xl:grid-cols-4">
         {rows.map((row) => (
-          <div key={row.label} className="grid min-w-0 grid-cols-[18px_minmax(0,1fr)] items-center gap-x-2 border-[rgb(var(--border)/0.45)] px-3.5 py-2.5 text-[11px] sm:border-r sm:last:border-r-0">
-            <span className="text-[rgb(var(--accent))]">{row.icon}</span>
+          <div key={row.label} className="grid min-w-0 grid-cols-[28px_minmax(0,1fr)] items-center gap-x-2 border-[rgb(var(--border)/0.45)] px-3.5 py-2.5 text-[11px] sm:border-r sm:last:border-r-0">
+            <span className={`grid h-7 w-7 place-items-center rounded-lg border ${row.tone}`} aria-hidden="true">{row.icon}</span>
             <span className="text-[8.5px] font-bold uppercase tracking-[0.12em] text-muted">{row.label}</span>
             {row.action ? (
               <button onClick={row.action} className="col-start-2 min-w-0 justify-self-start truncate text-[rgb(var(--accent-2))] hover:underline">{row.value} ↗</button>

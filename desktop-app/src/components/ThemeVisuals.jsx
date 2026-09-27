@@ -5,7 +5,7 @@ import CustomThemeParticles from './CustomThemeParticles';
 import ThemeGifMedia from './ThemeGifMedia';
 import ThemeVideoMedia from './ThemeVideoMedia';
 
-export function BgAmbience({ theme, settings = {}, game = null, resting = false, eventPulse = null }) {
+export function BgAmbience({ theme, settings = {}, game = null, resting = false, eventPulse = null, particlesEnabled = true }) {
   // `synthGridEnabled` and `particlesEnabled` were retired legacy switches.
   // They could silently hide every modern FX layer after an upgrade, even when
   // the player selected Low–Max effects. Effects intensity is now the one
@@ -40,10 +40,10 @@ export function BgAmbience({ theme, settings = {}, game = null, resting = false,
   const lvl = LEVEL_MAP[level];
   const intensity = ((settings.gridIntensity ?? 100) / 100) * lvl.intensity * cadenceProfile.opacity;
   const particleBaseCount = Math.round(lvl.particles * cadenceProfile.particle);
-  const sakuraCount = Math.round(lvl.sakura * cadenceProfile.sakura);
+  const sakuraCount = particlesEnabled ? Math.round(lvl.sakura * cadenceProfile.sakura) : 0;
   const edgeGlow = lvl.edgeGlow * cadenceProfile.glow;
   const extraLayerCount = Math.round(lvl.extraLayers * cadenceProfile.extraLayers);
-  const showParticles = particleBaseCount > 0;
+  const showParticles = particlesEnabled && particleBaseCount > 0;
   // Per-game custom backdrop — when settings.perGameBg is on, the currently selected
   // game's hero is rendered as a giant blurred wash behind the ambient. Subtle,
   // additive, never overwhelms the theme.
@@ -185,7 +185,7 @@ export function BgAmbience({ theme, settings = {}, game = null, resting = false,
         {theme !== 'anime' && level > 0 && <ThemeIllustration theme={theme} level={level} />}
         {theme === 'anime' && sakuraCount > 0 && <Sakura count={sakuraCount} />}
         {/* Shooting stars — Magical only, only if effects level >= Low */}
-        {theme === 'colorful' && level > 0 && (
+        {particlesEnabled && theme === 'colorful' && level > 0 && (
           <div className="shooting-stars">
             {Array.from({ length: Math.max(2, level + 1) }).map((_, i) => (
               <span
@@ -202,9 +202,9 @@ export function BgAmbience({ theme, settings = {}, game = null, resting = false,
         {customThemeManifest(theme)
           ? <>{customFx && level > 0 && <div className="custom-stock-fx absolute inset-0 pointer-events-none">
             {customFx === 'anime' && sakuraCount > 0 && <Sakura count={sakuraCount} />}
-            {customFx === 'colorful' && <div className="shooting-stars">{Array.from({ length: Math.max(2, level + 1) }).map((_, i) => <span key={i} style={{ top: `${8 + i * 22}%`, animationDelay: `${i * 1.6}s`, animationDuration: `${5 + (i % 3)}s` }} />)}</div>}
+            {particlesEnabled && customFx === 'colorful' && <div className="shooting-stars">{Array.from({ length: Math.max(2, level + 1) }).map((_, i) => <span key={i} style={{ top: `${8 + i * 22}%`, animationDelay: `${i * 1.6}s`, animationDuration: `${5 + (i % 3)}s` }} />)}</div>}
             {showParticles && <Particles count={particleBaseCount} theme={customFx} />}
-          </div>}<CustomThemeParticles theme={theme} level={level} cadence={cadence} eventPulse={eventPulse} /></>
+          </div>}{particlesEnabled && <CustomThemeParticles theme={theme} level={level} cadence={cadence} eventPulse={eventPulse} />}</>
           : showParticles && <Particles count={particleCount} theme={theme} />}
       </div>
       {edgeGlowLayer}

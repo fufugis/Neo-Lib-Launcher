@@ -1,6 +1,9 @@
 // IPC surface for native file/folder pickers. Selection policy stays explicit
 // here while the caller only receives the same path/result shapes as before.
-function registerDialogIpc({ registerIpc, dialog, getMainWindow }) {
+const { importLoungeBackground } = require('../images/lounge-background-import.cjs');
+const { importLoungeAudio } = require('../audio/lounge-audio-import.cjs');
+
+function registerDialogIpc({ registerIpc, dialog, getMainWindow, loungeBackgroundRoot, loungeAudioRoot }) {
   if (typeof registerIpc !== 'function' || typeof dialog?.showOpenDialog !== 'function' || typeof getMainWindow !== 'function') {
     throw new TypeError('registerDialogIpc requires registerIpc, dialog and getMainWindow.');
   }
@@ -33,6 +36,32 @@ function registerDialogIpc({ registerIpc, dialog, getMainWindow }) {
     return { path: selected, url: 'file://' + selected.replace(/\\/g, '/') };
   }, value => value === null || (isPlainObject(value) && isPath(value.path)
     && isBoundedString(value.url, { required: true, max: 32767 }) && value.url.startsWith('file://')), null));
+
+  registerIpc('dialog:importLoungeBackground', guardResult(async () => {
+    const selected = await pickFirst({
+      title: 'Import Lounge background',
+      properties: ['openFile'],
+      filters: [{ name: 'Still images', extensions: ['png', 'jpg', 'jpeg', 'webp'] }],
+    });
+    if (!selected) return null;
+    if (typeof loungeBackgroundRoot !== 'function') return null;
+    return importLoungeBackground(selected, loungeBackgroundRoot());
+  }, value => value === null || (isPlainObject(value) && (value.ok === true
+    ? isBoundedString(value.url, { required: true, max: 2048 }) && value.url.startsWith('file:///')
+    : value.ok === false && isBoundedString(value.error, { required: true, max: 160 }))), null));
+
+  registerIpc('dialog:importLoungeAudio', guardResult(async () => {
+    const selected = await pickFirst({
+      title: 'Import Lounge ambience or music',
+      properties: ['openFile'],
+      filters: [{ name: 'MP3 audio', extensions: ['mp3'] }],
+    });
+    if (!selected) return null;
+    if (typeof loungeAudioRoot !== 'function') return null;
+    return importLoungeAudio(selected, loungeAudioRoot());
+  }, value => value === null || (isPlainObject(value) && (value.ok === true
+    ? isBoundedString(value.url, { required: true, max: 2048 }) && value.url.startsWith('file:///')
+    : value.ok === false && isBoundedString(value.error, { required: true, max: 160 }))), null));
 
   registerIpc('dialog:pickThemeVideo', guardResult(async () => {
     const selected = await pickFirst({

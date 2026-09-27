@@ -1,13 +1,11 @@
 import React from 'react';
 import { Bluetooth, CheckCircle2, Gamepad2, Radio, RefreshCw, Settings2 } from 'lucide-react';
 
-/**
- * Dormant C0 prototype. It accepts normalized controller data only and owns no
- * detection, polling, Windows calls or saved settings. A later milestone can
- * place it in the shared modal layer after real desktop acceptance.
- */
-export default function ControllerCenterPrototype({ inventory, selectedFingerprint = '', navigationEnabled = false, onNavigationEnabledChange, onSelect, onManageWindows, onOpenSteamController, onRefresh, refreshedAt = 0 }) {
+// Presentation only: live input and Windows presence arrive as separate,
+// normalized results. This component cannot pair devices or read PnP input.
+export default function ControllerCenterPrototype({ inventory, windowsInventory = { devices: [] }, windowsScanning = false, windowsCheckedAt = 0, selectedFingerprint = '', navigationEnabled = false, onNavigationEnabledChange, onSelect, onManageWindows, onOpenSteamController, onRefresh, refreshedAt = 0 }) {
   const controllers = Array.isArray(inventory?.controllers) ? inventory.controllers : [];
+  const windowsDevices = Array.isArray(windowsInventory?.devices) ? windowsInventory.devices : [];
   const selected = controllers.find((controller) => controller.fingerprint === selectedFingerprint) || controllers.find((controller) => controller.index === inventory?.selectedIndex) || controllers[0] || null;
   const eventOnly = selected && inventory?.eventOnlyIndexes?.includes(selected.index);
   const pressed = Array.isArray(inventory?.selectedInput?.pressed) ? inventory.selectedInput.pressed : [];
@@ -17,16 +15,16 @@ export default function ControllerCenterPrototype({ inventory, selectedFingerpri
     <header className="flex flex-wrap items-start justify-between gap-3">
       <div className="flex items-center gap-3">
         <span className="grid h-10 w-10 place-items-center rounded-xl bg-[rgb(var(--accent)/0.13)] text-[rgb(var(--accent))]"><Gamepad2 size={20} /></span>
-        <div><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">Controller Center</p><h2 className="mt-0.5 text-sm font-black">{controllers.length ? `${controllers.length} detected` : inventory?.access === 'blocked' ? 'Controller access blocked' : inventory?.access === 'unavailable' ? 'Controller input unavailable' : 'No controller available to NEO-LIB'}</h2></div>
+        <div><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">Controller Center</p><h2 className="mt-0.5 text-sm font-black">{controllers.length ? `${controllers.length} ready for input` : windowsDevices.length ? `Windows sees ${windowsDevices.length} controller${windowsDevices.length === 1 ? '' : 's'}` : inventory?.access === 'blocked' ? 'Controller access blocked' : inventory?.access === 'unavailable' ? 'Controller input unavailable' : 'No controller available to NEO-LIB'}</h2></div>
       </div>
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={onRefresh} className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--surface)/0.62)] px-3 py-2 text-[10px] font-black text-ink hover:border-[rgb(var(--accent)/0.5)]"><RefreshCw size={13} />Refresh</button>
+        <button type="button" onClick={onRefresh} disabled={windowsScanning} className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--surface)/0.62)] px-3 py-2 text-[10px] font-black text-ink hover:border-[rgb(var(--accent)/0.5)] disabled:opacity-65"><RefreshCw size={13} className={windowsScanning ? 'animate-spin' : ''} />{windowsScanning ? 'Scanning…' : 'Refresh'}</button>
         <button type="button" onClick={onManageWindows} className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.38)] bg-[rgb(var(--accent)/0.09)] px-3 py-2 text-[10px] font-black text-[rgb(var(--accent-2))]"><Bluetooth size={13} />Manage in Windows</button>
         <button type="button" onClick={onOpenSteamController} className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--surface)/0.62)] px-3 py-2 text-[10px] font-black text-ink hover:border-[rgb(var(--accent)/0.5)]"><Gamepad2 size={13} />Steam Input</button>
       </div>
     </header>
 
-    <p className="mt-3 text-[10px] leading-relaxed text-muted">NEO-LIB can show controllers available to its interface. Pairing, removal and device security remain in Windows.</p>
+    <p className="mt-3 text-[10px] leading-relaxed text-muted">Live input comes from NEO-LIB's gamepad interface. Refresh also checks which controllers Windows currently sees; Windows presence alone does not enable button control. Pairing, removal and device security remain in Windows.</p>
     <label className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--surface)/0.34)] p-3 text-[10px] text-ink">
       <span><b className="block">Navigate NEO-LIB with controller</b><span className="mt-1 block text-muted">Optional desktop focus and menu controls. Launching games still requires mouse or keyboard.</span></span>
       <input type="checkbox" checked={navigationEnabled} onChange={(event) => onNavigationEnabledChange?.(event.target.checked)} aria-label="Navigate NEO-LIB with controller" />
@@ -40,7 +38,14 @@ export default function ControllerCenterPrototype({ inventory, selectedFingerpri
           {active && <CheckCircle2 size={15} className="shrink-0 text-emerald-300" />}
         </button>;
       })}
-      {!controllers.length && <div className="sm:col-span-2 grid min-h-28 place-items-center rounded-xl border border-dashed border-[rgb(var(--border)/0.75)] px-5 text-center"><div><Settings2 size={18} className="mx-auto text-muted" /><p className="mt-2 text-[10px] text-muted">Focus NEO-LIB and press a controller button, then Refresh. Windows or Steam can see a device that this app cannot yet read.</p><p className="mt-2 text-[10px] text-muted">8BitDo Ultimate 2 Wireless on Windows: use the 2.4G switch with its USB receiver/dock, or connect by USB cable. Bluetooth through Steam Input is a separate route.</p></div></div>}
+      {!controllers.length && <div className="sm:col-span-2 grid min-h-28 place-items-center rounded-xl border border-dashed border-[rgb(var(--border)/0.75)] px-5 text-center"><div><Settings2 size={18} className="mx-auto text-muted" /><p className="mt-2 text-[10px] text-muted">{windowsDevices.length ? 'Windows sees your controller, but NEO-LIB cannot read its buttons yet. Focus NEO-LIB, press a button, then Refresh.' : 'Focus NEO-LIB and press a controller button, then Refresh. Windows or Steam may see a device that this app cannot yet read.'}</p><p className="mt-2 text-[10px] text-muted">8BitDo Ultimate 2 Wireless on Windows: try its 2.4G USB receiver/dock or a USB cable for standard gamepad input. Steam Input may see Bluetooth devices separately.</p></div></div>}
+    </div>
+
+    <div className="mt-3 rounded-xl border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--surface)/0.25)] p-3" data-testid="windows-controller-inventory">
+      <div className="flex items-center justify-between gap-2"><b className="text-[10px] text-ink">Seen by Windows</b><span className="text-[9px] text-muted">{windowsScanning ? 'Scanning connected devices…' : windowsCheckedAt ? `Checked ${new Date(windowsCheckedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Not checked'}</span></div>
+      {windowsInventory?.ok === false && <p className="mt-2 text-[10px] text-amber-200">{windowsInventory.error || 'Windows controller scan unavailable.'}</p>}
+      {windowsInventory?.ok === true && !windowsDevices.length && <p className="mt-2 text-[10px] text-muted">Windows returned no connected controller devices.</p>}
+      {windowsDevices.map((device, index) => <div key={`${device.name}-${device.kind}-${index}`} className="mt-2 flex items-center gap-2 rounded-lg bg-[rgb(var(--panel)/0.6)] px-2.5 py-2 text-[10px]"><Gamepad2 size={14} className="shrink-0 text-[rgb(var(--accent))]" /><span className="min-w-0 flex-1 truncate font-bold text-ink">{device.name}</span><span className="shrink-0 text-muted">{device.kind} · presence only</span></div>)}
     </div>
 
     {eventOnly && <p className="mt-3 rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-[10px] text-amber-100">A connection event arrived, but live input is not yet available. Try another button press or the controller's Windows-compatible mode before enabling navigation.</p>}

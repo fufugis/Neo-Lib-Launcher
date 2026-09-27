@@ -39,6 +39,13 @@ export function validateThemeManifest(input, { assetExists = () => true } = {}) 
     if (layer.opacity !== undefined && (!Number.isFinite(layer.opacity) || layer.opacity < 0 || layer.opacity > 1)) errors.push(`layers.${name} opacity must be 0–1.`);
   }
   if (animatedLayers > 1) errors.push('Only one animated Canvas or Atmosphere layer is allowed.');
+  if (input.lounge !== undefined) {
+    if (!input.lounge || typeof input.lounge !== 'object' || Array.isArray(input.lounge)) errors.push('lounge must be an object.');
+    else for (const [key, min, max] of [['focusGlow', 0, 1], ['flowOpacity', 0, 1], ['flowSeconds', 6, 60], ['panelOpacity', 0.5, 1], ['artOpacity', 0.3, 1], ['cardLift', 0, 12], ['fxBoost', 0, 2]]) {
+      const value = input.lounge[key];
+      if (value !== undefined && (!Number.isFinite(value) || value < min || value > max)) errors.push(`lounge.${key} must be ${min}–${max}.`);
+    }
+  }
   if (!input.motion || !['calm', 'normal', 'energetic'].includes(input.motion.cadence) || input.motion.reducedMotion !== 'still') errors.push('Motion needs a cadence and still reduced-motion mode.');
   if (input.effects !== undefined) {
     const emitters = input.effects?.particles;
@@ -60,6 +67,9 @@ export function validateThemeManifest(input, { assetExists = () => true } = {}) 
         if (emitter.placement !== undefined && !['full', 'start', 'middle', 'end'].includes(emitter.placement)) errors.push(`${label}.placement must be full, start, middle or end.`);
         if (emitter.depth !== undefined && !['near', 'far'].includes(emitter.depth)) errors.push(`${label}.depth must be near or far.`);
         if (emitter.rotation !== undefined && (!Number.isInteger(emitter.rotation) || emitter.rotation < -180 || emitter.rotation > 180)) errors.push(`${label}.rotation must be -180–180.`);
+        if (emitter.speedVariation !== undefined && (!Number.isInteger(emitter.speedVariation) || emitter.speedVariation < 0 || emitter.speedVariation > 75)) errors.push(`${label}.speedVariation must be 0–75.`);
+        if (emitter.spinDegrees !== undefined && (!Number.isInteger(emitter.spinDegrees) || emitter.spinDegrees < -720 || emitter.spinDegrees > 720)) errors.push(`${label}.spinDegrees must be -720–720.`);
+        if (emitter.swayPx !== undefined && (!Number.isInteger(emitter.swayPx) || emitter.swayPx < 0 || emitter.swayPx > 120)) errors.push(`${label}.swayPx must be 0–120.`);
         if (emitter.glow !== undefined && (!Number.isInteger(emitter.glow) || emitter.glow < 0 || emitter.glow > 20)) errors.push(`${label}.glow must be 0–20.`);
         if (emitter.reaction !== undefined && !['ambient', 'launch', 'celebrate'].includes(emitter.reaction)) errors.push(`${label}.reaction must be ambient, launch or celebrate.`);
       }

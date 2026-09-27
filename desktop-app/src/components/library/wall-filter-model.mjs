@@ -5,6 +5,15 @@ export const WALL_FILTERS = Object.freeze([
   { id: 'recently-played', label: 'Recently played' },
 ]);
 
+function playedTimestamp(game) {
+  const timestamp = value => {
+    if (value == null || value === '') return 0;
+    const parsed = typeof value === 'number' || /^\d+$/.test(String(value)) ? Number(value) : Date.parse(String(value));
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  };
+  return timestamp(game?.lastPlayedAt) || timestamp(game?.lastPlayed);
+}
+
 export function applyWallFilter(games = [], filter = 'all', favoriteIds = []) {
   const list = Array.isArray(games) ? [...games] : [];
   if (filter === 'favorites') {
@@ -18,8 +27,8 @@ export function applyWallFilter(games = [], filter = 'all', favoriteIds = []) {
   }
   if (filter === 'recently-played') {
     return list
-      .filter((game) => Number(game?.lastPlayedAt || game?.lastPlayed || 0) > 0)
-      .sort((left, right) => Number(right?.lastPlayedAt || right?.lastPlayed || 0) - Number(left?.lastPlayedAt || left?.lastPlayed || 0));
+      .filter((game) => playedTimestamp(game) > 0)
+      .sort((left, right) => playedTimestamp(right) - playedTimestamp(left));
   }
   return list;
 }

@@ -16,6 +16,18 @@ const LEGACY_HOME_SEGMENTS = ['pinned', 'play', 'updates', 'system'];
 const DEFAULT_HOME_WIDGET_ORDER = LEGACY_HOME_SEGMENTS.flatMap((segment) => widgetsForSegment(segment).map((widget) => widget.id));
 const HOME_GRID_ROW_HEIGHT = 108;
 const HOME_GRID_GAP = 12;
+// Keep every resize grip inside its own widget edge. Explicit coordinates avoid
+// theme/layout utility collisions and never leave orphaned grips in the canvas.
+const RESIZE_GRIP_POSITION = Object.freeze({
+  n: { top: 4, left: 'calc(50% - 10px)' },
+  ne: { top: 4, right: 4 },
+  e: { top: 'calc(50% - 10px)', right: 4 },
+  se: { bottom: 4, right: 4 },
+  s: { bottom: 4, left: 'calc(50% - 10px)' },
+  sw: { bottom: 4, left: 4 },
+  w: { top: 'calc(50% - 10px)', left: 4 },
+  nw: { top: 4, left: 4 },
+});
 const HOME_WIDGET_ICONS = {
   'top-played': Trophy, news: Newspaper, 'play-next': Sparkles, recent: Clock3,
   'best-games': Star, chronicle: Archive, updates: Download,
@@ -597,7 +609,7 @@ function HomePane({ id, widgetDefinition, children, paneOrder, draggedPane, drag
     </div>
     <div className={`min-h-0 flex-1 overflow-auto p-1.5 [scrollbar-color:rgb(var(--accent))_transparent] [scrollbar-width:thin] ${isDragging && snapToGrid ? 'invisible' : ''}`}>{children}</div>
     {isDragging && snapToGrid && <span className="pointer-events-none absolute inset-8 grid place-items-center rounded-lg border border-dashed border-[rgb(var(--accent)/0.55)] text-xs font-bold text-[rgb(var(--accent-2))]">Drop {widget?.label || id} here</span>}
-    {layoutUnlocked && WIDGET_RESIZE_DIRECTIONS.map((direction) => <button key={direction} type="button" data-resize-direction={direction} onPointerDown={startResize} onPointerMove={moveResize} onPointerUp={finishResize} onPointerCancel={cancelResize} onLostPointerCapture={cancelResize} className={`absolute z-30 grid h-5 w-5 touch-none place-items-center rounded-md border border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--panel)/0.94)] text-[rgb(var(--accent-2))] shadow-[0_0_9px_rgb(var(--accent)/0.3)] ${direction.includes('n') ? 'top-0' : direction.includes('s') ? 'bottom-0' : 'top-1/2 -translate-y-1/2'} ${direction.includes('w') ? 'left-0' : direction.includes('e') ? 'right-0' : 'left-1/2 -translate-x-1/2'} ${direction === 'n' || direction === 's' ? 'cursor-ns-resize' : direction === 'e' || direction === 'w' ? 'cursor-ew-resize' : direction === 'ne' || direction === 'sw' ? 'cursor-nesw-resize' : 'cursor-nwse-resize'}`} aria-label={`Resize ${widget?.label || id} ${direction}`} title="Drag to resize"><Grip size={11} /></button>)}
+    {layoutUnlocked && WIDGET_RESIZE_DIRECTIONS.map((direction) => <button key={direction} type="button" data-resize-direction={direction} style={{ position: 'absolute', ...RESIZE_GRIP_POSITION[direction] }} onPointerDown={startResize} onPointerMove={moveResize} onPointerUp={finishResize} onPointerCancel={cancelResize} onLostPointerCapture={cancelResize} className={`z-30 grid h-5 w-5 touch-none place-items-center rounded-md border border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--panel)/0.94)] text-[rgb(var(--accent-2))] shadow-[0_0_9px_rgb(var(--accent)/0.3)] ${direction === 'n' || direction === 's' ? 'cursor-ns-resize' : direction === 'e' || direction === 'w' ? 'cursor-ew-resize' : direction === 'ne' || direction === 'sw' ? 'cursor-nesw-resize' : 'cursor-nwse-resize'}`} aria-label={`Resize ${widget?.label || id} ${direction}`} title="Drag to resize"><Grip size={11} /></button>)}
     {insertionHere && <span className={`pointer-events-none absolute z-40 rounded-full bg-[rgb(var(--accent))] shadow-[0_0_12px_rgb(var(--accent))] ${insertionClass}`} />}
     {contextMenu && renderForegroundPortal(<WidgetContextMenu x={contextMenu.x} y={contextMenu.y} label={widget?.label || id} unlocked={layoutUnlocked} snapToGrid={snapToGrid} size={snapToGrid ? savedSize : freePosition} widget={widget} columns={gridColumns} onUnlock={() => { setLayoutUnlocked(true); setContextMenu(null); }} onToggleSnap={() => { onToggleSnap(); setContextMenu(null); }} onBringFront={() => { onBringFront(id); setContextMenu(null); }} onHide={() => { togglePane(id, true); setContextMenu(null); }} onAdjust={(width, height) => { adjust(width, height); setContextMenu(null); }} onReset={() => { onResetSize(id); setContextMenu(null); }} />)}
   </motion.div>;

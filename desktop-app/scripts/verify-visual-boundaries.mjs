@@ -77,6 +77,9 @@ assert.match(categoryPrivacyWorkflowSource, /Safe Preview selected/);
 assert.ok(lines('src/components/ChangelogModal.jsx') < 220, 'Changelog behavior must stay separate from release content');
 assert.ok(lines('src/components/SettingsModal.jsx') < 520, 'Settings screen should use shared control components');
 assert.match(read('src/components/SettingsModal.jsx'), /settings\/SettingsControls/);
+assert.match(read('src/components/SettingsModal.jsx'), /log in to SteamGridDB → Preferences → API/);
+assert.match(read('src/components/SettingsModal.jsx'), /data-testid="settings-steamgriddb-status" role="status"/);
+assert.match(read('src/components/SettingsModal.jsx'), /entering it alone does not verify the connection/);
 assert.match(read('src/components/HomeHub.jsx'), /home\/home-model\.mjs/);
 assert.match(read('src/components/FungistMascot.jsx'), /mascot\/fungist-model\.mjs/);
 
@@ -84,6 +87,7 @@ const sidebarSource = read('src/components/Sidebar.jsx');
 const wizardSource = read('src/components/WizardModal.jsx');
 const globalStylesSource = read('src/styles.css');
 const libraryVisualsSource = read('src/components/library/LibraryVisualsPopover.jsx');
+const globalVisualsSource = read('src/components/library/GlobalVisualsPanel.jsx');
 const libraryTreeSource = read('src/components/library/LibraryTree.jsx');
 const libraryIconGridSource = read('src/components/library/LibraryIconGrid.jsx');
 const libraryToolbarSource = read('src/components/library/LibraryToolbarControls.jsx');
@@ -102,11 +106,18 @@ assert.match(read('src/components/ThemeVisuals.jsx'), /monochrome: 'amb-monochro
 assert.equal(JSON.parse(read('src/themes/stock/monochrome/theme.json')).layers.sidebar.asset, 'assets/generic-gray-atmosphere.png', 'Monochrome must carry its grayscale atmosphere into the Library.');
 assert.ok(lines('src/components/Sidebar.jsx') < 850, 'Library Visuals, live tree and reusable toolbar controls must remain outside the Sidebar composition root');
 assert.ok(lines('src/components/library/LibraryVisualsPopover.jsx') < 525, 'Library Visuals should remain a focused presentation boundary');
-assert.match(sidebarSource, /library\/LibraryVisualsPopover/);
+assert.match(globalVisualsSource, /import LibraryVisualsPopover from '.\/LibraryVisualsPopover'/, 'Visual Tweaks must have an app-level host.');
+assert.match(appSource, /visualsOpen && <GlobalVisualsPanel/, 'Visual Tweaks must stay mounted across app views.');
+assert.doesNotMatch(sidebarSource, /libSettingsOpen|<LibraryVisualsPopover/, 'Sidebar must not own global Visual Tweaks state.');
+assert.match(libraryVisualsSource, /data-testid="visuals-close"/, 'Global Visual Tweaks needs an explicit close button.');
+assert.match(libraryVisualsSource, /data-testid="tab-home"[\s\S]*data-testid="wall-open-library"/, 'Primary navigation must not count as an outside click on Visual Tweaks.');
 assert.match(sidebarSource, /library\/LibraryIconGrid/);
 assert.match(sidebarSource, /library\/LibraryTree/);
 assert.match(sidebarSource, /library\/LibraryToolbarControls/);
 assert.match(sidebarSource, /data-testid="side-navigation-rail"/, 'Sidebar navigation mode needs a dedicated icon rail.');
+assert.match(sidebarSource, /<Home size=\{21\}[\s\S]*?<LibIcon size=\{21\}[\s\S]*?<Columns size=\{21\}[\s\S]*?<Boxes size=\{21\}/, 'Sidebar navigation icons must use one larger size.');
+assert.match(sidebarSource, /expanded \? 'justify-start gap-2\.5 px-2' : 'justify-center gap-0 px-0'/, 'Collapsed sidebar icons must remain centered.');
+assert.match(controlMenuSource, /sidebarMode \? <span className="grid h-6 w-6 shrink-0 place-items-center"><Settings2 size=\{21\}/, 'Collapsed sidebar menu icon must not shrink away.');
 assert.match(sidebarSource, /style=\{\{ width: expanded \? 148 : 48 \}\}/, 'The navigation rail must expand on hover without permanently consuming Library width.');
 assert.match(appSource, /settings\.navigationLayout === 'sidebar' && <SideNavigationRail[\s\S]*?!wallActive && <Sidebar/, 'The rail must be a workspace sibling before Library and remain available on Wall.');
 assert.match(sidebarSource, /data-testid="side-navigation-slot"/, 'The rail must reserve its own fixed-width workspace strip.');
@@ -116,6 +127,11 @@ assert.match(libraryVisualsSource, /data-testid="pop-navigation-layout"/, 'Visua
 assert.match(controlMenuSource, /data-testid=\{testid\} role="switch"/, 'Control Center must provide a real accessible navigation-layout switch.');
 assert.match(controlMenuSource, /testid="app-menu-sidebar-toggle"/, 'The Sidebar switch must live under Control Center Personalise.');
 assert.match(sidebarSource, /testid="sidebar-wizard-btn"/, 'Library must retain Wizard as its single game-add entry point.');
+assert.match(sidebarSource, /\(!sideNavigation \|\| isTools\) && \(\(\) =>/, 'Sidebar layout must remove the redundant Library action row.');
+assert.match(sidebarSource, /!isTools && !sideNavigation && <button type="button" data-testid="sidebar-select-games"/, 'Default layout must keep Select in the Library action row.');
+assert.match(sidebarSource, /sideNavigation && <button type="button" data-testid="sidebar-select-games"/, 'Sidebar layout must move Select beside Library filters.');
+assert.match(sidebarSource, /data-testid="side-navigation-actions-divider"[\s\S]*?testid="sidebar-rail-wizard-btn"[\s\S]*?testid="sidebar-rail-rest-toggle"/, 'Sidebar actions must sit below a divider in the navigation rail.');
+assert.match(appSource, /onOpenWizard=\{\(\) => setShowWizard\(true\)\} manualResting=\{manualRestActive\} onToggleManualRest=\{toggleManualRest\}/, 'The rail must receive the real Wizard and Rest handlers.');
 assert.doesNotMatch(sidebarSource, /testid="sidebar-add-btn"|data-testid="add-menu-game"/, 'Library must not restore a duplicate Add-game control outside Wizard.');
 assert.match(wizardSource, /data-testid="wizard-manual-add-section"/, 'Wizard must visibly own the manual add route.');
 assert.match(wizardSource, /data-testid="wizard-add-manual-start-btn"/, 'Wizard manual add needs a direct action.');
@@ -218,6 +234,8 @@ assert.match(coverWallSource, /absolute right-1\.5 top-1\.5 z-10[^\n]*min-w-12[^
 assert.match(coverWallSource, /data-testid="cover-wall-title"[^\n]*text-\[12px\]/, 'Cover titles must retain a readable fixed size at every Wall density.');
 assert.doesNotMatch(coverWallSource, /titleSize|tiles >= 10 \? 8/, 'Cover titles must truncate rather than shrinking below readable size in dense Wall layouts.');
 assert.match(appSource, /const wallActive = settings\.mode === 'library' && libraryViewMode === 'wall'/, 'Wall must have an explicit full-workspace state.');
+assert.match(appSource, /onSelect=\{\(id\) => \{ setCurrentSelectedId\(id\); if \(id && settings\.mode === 'home'\) updateSetting\(\{ mode: 'library', libraryViewMode: 'preview' \}\); \}\}/, 'Selecting a Library game from Home must switch to its Preview even after Wall was last used.');
+assert.match(appSource, /<HomeHub[^\n]*onSelect=\{\(id\) => \{[^\n]*setSelectedId\(id\); updateSetting\(\{ mode: 'library', libraryViewMode: 'preview' \}\); \}\}/, 'Selecting a Home game must switch to its Preview even after Wall was last used.');
 assert.match(appSource, /\{!wallActive && <Sidebar/, 'Wall must hide the Library sidebar while it is active.');
 assert.match(coverWallSource, /data-testid="wall-view-covers"/, 'Wall must offer the large side-by-side cover view choice.');
 assert.match(coverWallSource, /data-testid="wall-view-details"/, 'Wall must offer the large detailed-list choice.');
@@ -230,6 +248,8 @@ assert.match(coverWallSource, /data-testid="wall-columns-toggle"/, 'Wall detaile
 assert.match(coverWallSource, /data-testid="wall-columns-menu"/, 'Wall detailed list must expose visible-column and width controls.');
 assert.match(coverWallSource, /data-testid="wall-open-home"/, 'Wall must provide a direct Home return action.');
 assert.match(coverWallSource, /data-testid="wall-open-library"/, 'Wall must provide a direct Library return action.');
+assert.match(coverWallSource, /!sideNavigation && <div className="flex shrink-0 items-center gap-1\.5" aria-label="Wall navigation"/, 'Wall navigation belongs at the toolbar start and is omitted beside the rail');
+assert.match(appSource, /sideNavigation=\{settings\.navigationLayout === 'sidebar'\}/, 'Wall receives the active vertical navigation layout');
 assert.match(coverWallSource, /data-testid="wall-peek-backdrop"/, 'Wall selection must open a dismissible Peek backdrop instead of navigating away immediately.');
 assert.match(coverWallSource, /data-testid="wall-peek"/, 'Wall Peek needs a dedicated overlay surface.');
 assert.match(coverWallSource, /data-testid="wall-peek-close"/, 'Wall Peek needs an explicit close control.');
@@ -237,6 +257,11 @@ assert.match(coverWallSource, /event\.key === 'Escape'/, 'Wall Peek must close w
 assert.match(coverWallSource, /data-testid="wall-peek-open-preview"/, 'Wall Peek must offer the full Preview as an explicit action.');
 assert.match(coverWallSource, /data-testid="wall-peek-play"/, 'Wall Peek must retain guarded Play access.');
 assert.match(coverWallSource, /gameSignals\(game\)/, 'Wall Peek must use the shared evidence-led Game Signals registry.');
+assert.match(coverWallSource, /signals\.map\(\(signal\) => <Signal/, 'Wall Peek keeps every recorded game signal.');
+assert.match(coverWallSource, /line-clamp-2 text-\[10px\] font-semibold leading-tight text-ink">\{signal\.label\}/, 'Wall Peek signal labels must be visible without hover.');
+assert.match(coverWallSource, /const selectedScreenshot = screenshots\[selectedIndex\]/, 'Wall Peek has one selected screenshot.');
+assert.match(coverWallSource, /onClick=\{\(\) => setActiveScreenshot\(index\)\}/, 'Wall Peek thumbnails must switch the large screenshot.');
+assert.match(coverWallSource, /\.slice\(0, 4\)/, 'Wall Peek may show one large screenshot and up to three alternatives.');
 assert.match(appSource, /onOpenPreview=\{\(id\) => \{ setSelectedId\(id\); updateSetting\(\{ mode: 'library', libraryViewMode: 'preview' \}\); \}\}/, 'Only Wall Peek Full Preview may leave the Wall workspace.');
 assert.match(read('electron/preload.js'), /onWindowVisibility/);
 assert.match(read('electron/main.js'), /window:visibility/);
@@ -263,6 +288,8 @@ assert.match(stylesSource, /\.neolib-hover-tip[\s\S]*max-height: calc\(100vh - 2
 
 const gameDetailSource = read('src/components/GameDetail.jsx');
 const previewInformationSource = read('src/components/preview/PreviewInformationPanels.jsx');
+assert.match(previewInformationSource, /<Building2 size=\{17\}/, 'Game Details identity icons are visibly larger than the old 13px set.');
+assert.match(previewInformationSource, /border-sky-400\/25[\s\S]*border-violet-400\/25[\s\S]*border-teal-400\/25/, 'Game Details gives each fact a restrained icon color.');
 const previewHeroSource = read('src/components/preview/PreviewHeroTitle.jsx');
 const previewActionSource = read('src/components/preview/PreviewActionBar.jsx');
 const previewStatusSource = read('src/components/preview/PreviewStatusCards.jsx');

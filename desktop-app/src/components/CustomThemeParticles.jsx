@@ -1,6 +1,6 @@
 import React from 'react';
 import { customThemeAssetUrl, customThemeManifest } from '../themes/stock-theme-registry.mjs';
-import { particlePosition } from '../themes/particle-placement.mjs';
+import { particleDuration, particleMotionStyle, particlePosition } from '../themes/particle-placement.mjs';
 
 // A custom theme supplies artwork and bounded motion settings, never CSS or JS.
 // The host owns animation, layering, performance caps and accessibility.
@@ -42,7 +42,7 @@ export default function CustomThemeParticles({ theme, level, cadence, eventPulse
         });
       }
       return Array.from({ length: count }, (_, index) => {
-        const duration = emitter.durationSeconds * (0.85 + ((index * 7) % 5) * 0.075) * (cadence === 'calm' ? 1.5 : 1);
+        const duration = particleDuration(emitter, index, cadence);
         return <img key={`${emitter.id}-${index}`} src={source} alt="" draggable={false}
           className={`custom-theme-particle custom-theme-particle--${emitter.direction}`}
           style={{
@@ -50,7 +50,7 @@ export default function CustomThemeParticles({ theme, level, cadence, eventPulse
             height: emitter.sizePx * (emitter.depth === 'far' ? 0.65 : 1),
             ...particlePosition(emitter, index),
             '--fx-opacity': emitter.opacity * (emitter.depth === 'far' ? 0.6 : 1),
-            '--fx-rotation': `${emitter.rotation ?? 0}deg`,
+            ...particleMotionStyle(emitter),
             filter: emitter.glow ? `drop-shadow(0 0 ${emitter.glow}px currentColor)` : undefined,
             color: 'rgb(var(--accent))',
             animationDuration: `${duration}s`,

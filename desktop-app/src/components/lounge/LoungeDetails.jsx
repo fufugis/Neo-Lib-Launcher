@@ -1,5 +1,6 @@
 import React from 'react';
 import { loungeGuide, loungeSessionContext } from './lounge-context.mjs';
+import LoungeCover from './LoungeCover';
 
 const mascotPortrait = (id) => id === 'fifi'
   ? `${import.meta.env.BASE_URL}mascot/fifi/poses/fifi-idle-v1.png`
@@ -9,15 +10,16 @@ function Fact({ label, value }) {
   return <span className="min-w-0 rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.5)] px-3 py-2"><span className="block text-[11px] font-bold uppercase tracking-[0.12em] text-muted">{label}</span><span className="mt-1 block truncate text-sm font-semibold">{value}</span></span>;
 }
 
-export default function LoungeDetails({ game, updateLedger, view, mascotId = 'fungist', mascotEnabled, busy = false, onOpenPreview }) {
+export default function LoungeDetails({ game, updateLedger, view, mascotId = 'fungist', mascotEnabled, busy = false, onOpenDetails }) {
   const context = loungeSessionContext(game, updateLedger);
   if (!context) return null;
   const mascotName = mascotId === 'fifi' ? 'FiFi' : 'Fungist';
-  return <footer className="relative z-10 max-h-[40vh] shrink-0 overflow-y-auto border-t border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.88)] px-4 py-4 backdrop-blur-xl sm:px-8" data-testid="lounge-details">
+  return <footer className="lounge-wall-details relative z-10 max-h-[40vh] shrink-0 overflow-y-auto border-t border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.88)] px-4 py-4 backdrop-blur-xl sm:px-8" data-testid="lounge-details">
     <div className="flex flex-wrap items-center gap-4">
+      <div className="lounge-wall-details-art hidden h-20 w-14 shrink-0 overflow-hidden rounded-lg border border-white/30 sm:block" aria-hidden="true"><LoungeCover game={game} /></div>
       <div className="min-w-40 flex-1"><p className="truncate text-2xl font-bold">{game.name}</p><p className="text-sm text-muted">{game.launcher || game.source || 'Library game'}</p></div>
       <div className="grid min-w-48 flex-[2] grid-cols-1 gap-2 sm:grid-cols-3"><Fact label="Played" value={context.playtime} /><Fact label="Last session" value={context.lastPlayed} /><Fact label="Journey" value={context.journey} /></div>
-      <button type="button" disabled={busy} onClick={() => onOpenPreview(game.id)} className="shrink-0 rounded-xl border border-[rgb(var(--accent)/0.8)] bg-[rgb(var(--accent)/0.2)] px-7 py-3 text-lg font-bold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-[rgb(var(--accent))] disabled:opacity-60">Open Preview</button>
+      <button type="button" disabled={busy} onClick={() => onOpenDetails(game.id)} className="shrink-0 rounded-xl border border-[rgb(var(--accent)/0.8)] bg-[rgb(var(--accent)/0.2)] px-7 py-3 text-lg font-bold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-[rgb(var(--accent))] disabled:opacity-60">Game details</button>
     </div>
     {(context.updateFlagged || mascotEnabled) && <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
       {context.updateFlagged && <p className="rounded-xl border border-amber-300/40 bg-amber-300/10 px-3 py-2 text-amber-100">{context.updateNote}</p>}

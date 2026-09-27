@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { THEMES } from '../src/lib/utils.js';
 import { THEME_LAYER_NAMES, validateThemeManifest } from '../src/themes/theme-manifest.mjs';
-import { particlePosition } from '../src/themes/particle-placement.mjs';
+import { particleDuration, particleMotionStyle, particlePosition } from '../src/themes/particle-placement.mjs';
 import { themeVideoMetadataAllowed } from '../src/themes/theme-video-model.mjs';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -46,6 +46,9 @@ for (const file of ['src/App.jsx', 'src/components/Sidebar.jsx', 'src/components
   assert(source.includes('stockThemeAssetUrl'), `${file} must resolve artwork through the theme manifest.`);
 }
 const sample = JSON.parse(fs.readFileSync(path.join(stockRoot, 'anime', 'theme.json'), 'utf8'));
+assert.equal(validateThemeManifest({ ...sample, lounge: { focusGlow: 0.75, flowOpacity: 0.35, flowSeconds: 18, panelOpacity: 0.8, artOpacity: 0.7, cardLift: 4, fxBoost: 1 } }).ok, true);
+assert.equal(validateThemeManifest({ ...sample, lounge: { fxBoost: 99 } }).ok, false, 'Lounge FX boost must stay bounded');
+assert.equal(validateThemeManifest({ ...sample, lounge: { flowOpacity: 'full' } }).ok, false, 'Lounge values cannot contain CSS');
 const ambientSource = fs.readFileSync(path.join(appRoot, 'src/components/ThemeVisuals.jsx'), 'utf8');
 const particleSource = fs.readFileSync(path.join(appRoot, 'src/components/CustomThemeParticles.jsx'), 'utf8');
 const particleCss = fs.readFileSync(path.join(appRoot, 'src/styles.css'), 'utf8');
@@ -60,9 +63,16 @@ assert.equal(validateThemeManifest({ ...sample, effects: { particles: [], stockF
 assert.equal(validateThemeManifest({ ...sample, effects: { particles: [{ ...emitter, count: 1000 }] } }, { assetExists: () => true }).ok, false);
 assert.equal(validateThemeManifest({ ...sample, effects: { particles: [emitter, emitter] } }, { assetExists: () => true }).ok, false);
 assert.equal(validateThemeManifest({ ...sample, effects: { particles: [{ ...emitter, placement: 'middle', depth: 'far', rotation: -90, glow: 12 }] } }, { assetExists: () => true }).ok, true);
+const animatedEmitter = { ...emitter, speedVariation: 50, spinDegrees: 360, swayPx: 55 };
+assert.equal(validateThemeManifest({ ...sample, effects: { particles: [animatedEmitter] } }, { assetExists: () => true }).ok, true);
+assert.notEqual(particleDuration(animatedEmitter, 0), particleDuration(animatedEmitter, 1), 'speed variation should give individual sprites different travel times');
+assert.equal(particleDuration({ ...emitter, speedVariation: 0 }, 0), particleDuration({ ...emitter, speedVariation: 0 }, 1), 'zero variation should keep a uniform speed');
+assert.equal(particleDuration(animatedEmitter, 0), particleDuration(animatedEmitter, 0), 'individual speed must remain stable across renders');
+assert.equal(particleMotionStyle(animatedEmitter)['--fx-angle-100'], '360deg');
+assert.equal(particleMotionStyle(animatedEmitter)['--fx-sway'], '55px');
 assert.equal(validateThemeManifest({ ...sample, effects: { particles: [{ ...emitter, reaction: 'celebrate' }] } }, { assetExists: () => true }).ok, true);
 assert.equal(validateThemeManifest({ ...sample, effects: { particles: [{ ...emitter, reaction: 'arbitrary-script' }] } }, { assetExists: () => true }).ok, false);
-for (const patch of [{ placement: 'outside' }, { depth: 'front' }, { rotation: 181 }, { glow: 21 }]) {
+for (const patch of [{ placement: 'outside' }, { depth: 'front' }, { rotation: 181 }, { glow: 21 }, { speedVariation: 76 }, { spinDegrees: 721 }, { swayPx: 121 }]) {
   assert.equal(validateThemeManifest({ ...sample, effects: { particles: [{ ...emitter, ...patch }] } }, { assetExists: () => true }).ok, false);
 }
 for (const [placement, low, high] of [['start', 0, 30], ['middle', 35, 65], ['end', 70, 100]]) {

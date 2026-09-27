@@ -6,6 +6,15 @@ const { createCustomThemeService } = require('../electron/themes/custom-theme-se
 const { validateThemeGif } = require('../electron/themes/validate-theme-gif.cjs');
 const { validateThemeWebm } = require('../electron/themes/validate-theme-webm.cjs');
 const blankTheme = require('../electron/themes/blank-theme.json');
+const builtinParticles = require('../electron/themes/builtin-particles.json');
+assert.equal(builtinParticles.length, 7);
+assert.equal(new Set(builtinParticles.map(item => item.asset)).size, builtinParticles.length);
+for (const particle of builtinParticles) {
+  const png = Buffer.from(particle.pngBase64, 'base64');
+  assert.equal(png.readUInt32BE(16), 40);
+  assert.equal(png.readUInt32BE(20), 40);
+  assert.ok(['rise', 'fall', 'drift'].includes(particle.direction));
+}
 
 const gifFrame = Buffer.from('21f90400050000002c0000000001000100000202440100', 'hex');
 const gifBytes = Buffer.concat([
@@ -45,6 +54,10 @@ const webmBytes = Buffer.concat([
     assert.equal(editorOpened[0], stockCopy.path);
     assert.notEqual(stockCopy.path, sourceImage, 'editing must open a copy, never built-in artwork');
     assert.deepEqual(await fs.readFile(stockCopy.path), await fs.readFile(sourceImage));
+    const builtInParticle = await service.prepareAsset({ sourceId: 'neolib-particles', asset: builtinParticles[0].asset, action: 'copy' });
+    assert.equal(builtInParticle.ok, true, builtInParticle.error);
+    assert.deepEqual(await fs.readFile(builtInParticle.path), Buffer.from(builtinParticles[0].pngBase64, 'base64'));
+    assert.equal((await service.prepareAsset({ sourceId: 'neolib-particles', asset: 'assets/not-in-catalogue.png' })).ok, false);
     assert.equal((await service.prepareAsset({ sourceId: 'home', asset: '../outside.png', action: 'copy' })).ok, false);
     assert.match((await service.inspect(manifestPath)).previewUrl, /^data:image\/png;base64,/);
     assert.equal((await service.install(manifestPath)).ok, true);
@@ -57,8 +70,8 @@ const webmBytes = Buffer.concat([
     assert.match(installed.themes[0].assetUrls['assets/firefly.png'], /^data:image\/png;base64,/);
     const remix = await service.fork({ sourceId: 'example-theme', newId: 'example-remix', newName: 'Example Remix', creator: 'Tester', palette: { ...manifest.palette, accent: [10, 20, 30] }, panels: manifest.panels,
       layers: { ...manifest.layers, atmosphere: { type: 'none' }, sidebar: { type: 'image', sourcePath: sourceImage, opacity: 0.7 } }, particles: [
-      { ...emitter, count: 8, placement: 'middle', depth: 'far', rotation: 45, glow: 8, reaction: 'celebrate' },
-      { ...emitter, id: 'sparkle', sourcePath: sourceImage, count: 6, direction: 'fall' },
+      { ...emitter, count: 8, placement: 'middle', depth: 'far', rotation: 45, speedVariation: 50, spinDegrees: 360, swayPx: 45, glow: 8, reaction: 'celebrate' },
+      { ...emitter, id: 'sparkle', sourcePath: builtInParticle.path, count: 6, direction: 'fall' },
     ] });
     assert.equal(remix.ok, true, remix.error);
     const afterRemix = await createCustomThemeService({ root: () => path.join(temp, 'installed'), reservedIds: ['home'] }).list();
@@ -68,23 +81,28 @@ const webmBytes = Buffer.concat([
     assert.equal(remixed.manifest.effects.particles[0].placement, 'middle');
     assert.equal(remixed.manifest.effects.particles[0].depth, 'far');
     assert.equal(remixed.manifest.effects.particles[0].rotation, 45);
+    assert.equal(remixed.manifest.effects.particles[0].speedVariation, 50);
+    assert.equal(remixed.manifest.effects.particles[0].spinDegrees, 360);
+    assert.equal(remixed.manifest.effects.particles[0].swayPx, 45);
     assert.equal(remixed.manifest.effects.particles[0].glow, 8);
     assert.equal(remixed.manifest.effects.particles[0].reaction, 'celebrate');
     assert.deepEqual(remixed.manifest.palette.accent, [10, 20, 30]);
     assert.match(remixed.manifest.license.attribution, /Remix: Tester/);
     assert.match(remixed.assetUrls[remixed.manifest.effects.particles[1].asset], /^data:image\/png;base64,/);
+    assert.equal(remixed.assetUrls[remixed.manifest.effects.particles[1].asset], `data:image/png;base64,${builtinParticles[0].pngBase64}`);
     assert.equal(remixed.manifest.layers.atmosphere.type, 'none');
     assert.equal(remixed.manifest.layers.sidebar.opacity, 0.7);
     assert.match(remixed.assetUrls[remixed.manifest.layers.sidebar.asset], /^data:image\/png;base64,/);
     assert.equal(installed.themes[0].manifest.layers.atmosphere.type, 'image', 'source artwork must stay unchanged');
     assert.equal((await service.fork({ sourceId: 'example-theme', newId: 'example-remix', newName: 'Duplicate', creator: 'Tester', particles: [] })).ok, false, 'remix must never replace a theme');
-    const firstTheme = await service.fork({ sourceId: 'blank-starter', newId: 'from-scratch', newName: 'From Scratch', creator: 'Creator', tone: 'bright', palette: blankTheme.palette, panels: blankTheme.panels,
+    const firstTheme = await service.fork({ sourceId: 'blank-starter', newId: 'from-scratch', newName: 'From Scratch', creator: 'Creator', tone: 'bright', palette: blankTheme.palette, panels: blankTheme.panels, lounge: { focusGlow: 0.9, flowOpacity: 0.4, flowSeconds: 16, panelOpacity: 0.8, artOpacity: 0.75, cardLift: 5, fxBoost: 1 },
       layers: { ...blankTheme.layers, atmosphere: { type: 'image', sourcePath: sourceImage, opacity: 1 } },
       particles: [{ ...emitter, sourcePath: sourceImage }] });
     assert.equal(firstTheme.ok, true, firstTheme.error);
     const made = (await service.list()).themes.find(theme => theme.manifest.id === 'from-scratch');
     assert.equal(made.manifest.license.attribution, 'Creator');
     assert.equal(made.manifest.tone, 'bright');
+    assert.equal(made.manifest.lounge.fxBoost, 1, 'Lounge-only settings must survive a saved remix');
     assert.match(made.assetUrls[made.manifest.effects.particles[0].asset], /^data:image\/png;base64,/);
     assert.match(made.assetUrls[made.manifest.layers.atmosphere.asset], /^data:image\/png;base64,/);
     const canvasTheme = await service.fork({ sourceId: 'blank-starter', newId: 'image-canvas', newName: 'Image Canvas', creator: 'Creator',
@@ -184,7 +202,7 @@ const webmBytes = Buffer.concat([
     assert.equal((await service.inspect(manifestPath)).ok, false, 'scripts must be rejected');
     await fs.writeFile(manifestPath, JSON.stringify({ ...manifest, effects: { particles: [{ ...emitter, count: 1000 }] } }));
     assert.equal((await service.inspect(manifestPath)).ok, false, 'unbounded particle counts must be rejected');
-    for (const patch of [{ placement: 'everywhere' }, { depth: 'foreground' }, { rotation: 181 }, { glow: 21 }, { reaction: 'execute' }]) {
+    for (const patch of [{ placement: 'everywhere' }, { depth: 'foreground' }, { rotation: 181 }, { speedVariation: 76 }, { spinDegrees: 721 }, { swayPx: 121 }, { glow: 21 }, { reaction: 'execute' }]) {
       await fs.writeFile(manifestPath, JSON.stringify({ ...manifest, effects: { particles: [{ ...emitter, ...patch }] } }));
       assert.equal((await service.inspect(manifestPath)).ok, false, 'unsafe particle extension must be rejected');
     }

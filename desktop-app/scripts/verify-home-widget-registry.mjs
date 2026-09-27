@@ -36,6 +36,8 @@ assert.match(homeSource, /data-home-snap=/, 'Home must expose the active placeme
 assert.match(homeSource, /onContextMenu=\{openContextMenu\}/, 'widget title bars must expose the context menu');
 assert.deepEqual(WIDGET_RESIZE_DIRECTIONS, ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']);
 assert.match(homeSource, /data-resize-direction=\{direction\}/, 'unlocked widgets must expose directional resize grips');
+assert.match(homeSource, /RESIZE_GRIP_POSITION\[direction\]/, 'all eight grips must use explicit widget-relative edge positions');
+assert.doesNotMatch(homeSource, /direction\.includes\('n'\)/, 'resize grips must not rely on conditional utility positioning');
 assert.match(homeSource, /data-home-widget-held=/, 'the held widget must be visibly identifiable');
 assert.match(homeSource, /data-testid="home-widget-drag-ghost"/, 'a grabbed widget must show a pointer-following drag card');
 assert.match(homeSource, /window\.addEventListener\('pointercancel', onCancel\)/, 'a canceled grid drag must clean up its pointer session');

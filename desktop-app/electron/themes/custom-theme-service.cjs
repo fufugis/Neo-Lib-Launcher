@@ -2,6 +2,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const blankTheme = require('./blank-theme.json');
+const builtinParticles = require('./builtin-particles.json');
 const { validateThemeGif } = require('./validate-theme-gif.cjs');
 const { validateThemeWebm, MAX_WEBM_BYTES } = require('./validate-theme-webm.cjs');
 
@@ -59,6 +60,13 @@ function validateManifest(manifest) {
     if (layer.opacity !== undefined && (!Number.isFinite(layer.opacity) || layer.opacity < 0 || layer.opacity > 1)) throw new Error(`Invalid opacity in layers.${name}.`);
   }
   if (animatedLayers > 1) throw new Error('Choose either Canvas or Atmosphere for animation, not both.');
+  if (manifest.lounge !== undefined) {
+    if (!manifest.lounge || typeof manifest.lounge !== 'object' || Array.isArray(manifest.lounge)) throw new Error('Invalid Lounge settings.');
+    for (const [key, min, max] of [['focusGlow', 0, 1], ['flowOpacity', 0, 1], ['flowSeconds', 6, 60], ['panelOpacity', 0.5, 1], ['artOpacity', 0.3, 1], ['cardLift', 0, 12], ['fxBoost', 0, 2]]) {
+      const value = manifest.lounge[key];
+      if (value !== undefined && (!Number.isFinite(value) || value < min || value > max)) throw new Error(`Invalid Lounge ${key}.`);
+    }
+  }
   if (!['calm', 'normal', 'energetic'].includes(manifest.motion?.cadence) || manifest.motion?.reducedMotion !== 'still') throw new Error('Invalid motion rules.');
   if (manifest.effects !== undefined) {
     const emitters = manifest.effects?.particles;
@@ -75,6 +83,9 @@ function validateManifest(manifest) {
       if (emitter.placement !== undefined && !['full', 'start', 'middle', 'end'].includes(emitter.placement)) throw new Error('Particle placement is invalid.');
       if (emitter.depth !== undefined && !['near', 'far'].includes(emitter.depth)) throw new Error('Particle depth is invalid.');
       if (emitter.rotation !== undefined && (!Number.isInteger(emitter.rotation) || emitter.rotation < -180 || emitter.rotation > 180)) throw new Error('Particle rotation must be -180–180 degrees.');
+      if (emitter.speedVariation !== undefined && (!Number.isInteger(emitter.speedVariation) || emitter.speedVariation < 0 || emitter.speedVariation > 75)) throw new Error('Particle speed variation must be 0–75%.');
+      if (emitter.spinDegrees !== undefined && (!Number.isInteger(emitter.spinDegrees) || emitter.spinDegrees < -720 || emitter.spinDegrees > 720)) throw new Error('Particle spin must be -720–720 degrees.');
+      if (emitter.swayPx !== undefined && (!Number.isInteger(emitter.swayPx) || emitter.swayPx < 0 || emitter.swayPx > 120)) throw new Error('Particle sway must be 0–120 pixels.');
       if (emitter.glow !== undefined && (!Number.isInteger(emitter.glow) || emitter.glow < 0 || emitter.glow > 20)) throw new Error('Particle glow must be 0–20 pixels.');
       if (emitter.reaction !== undefined && !['ambient', 'launch', 'celebrate'].includes(emitter.reaction)) throw new Error('Particle reaction must be ambient, launch or celebrate.');
       assets.add(emitter.asset);
@@ -151,7 +162,7 @@ function createCustomThemeService({ root, stockRoot, workbenchRoot, openPath, sh
   }
   async function fork(request) {
     try {
-      const { sourceId, newId, newName, creator, tone, particles, palette, panels, layers, stockFx } = request || {};
+      const { sourceId, newId, newName, creator, tone, particles, palette, panels, layers, stockFx, lounge } = request || {};
       if (!/^[a-z0-9][a-z0-9-]{1,63}$/.test(sourceId || '') || !/^[a-z0-9][a-z0-9-]{1,63}$/.test(newId || '') || sourceId === newId || reservedIds.includes(newId)) throw new Error('Choose a new lowercase theme ID.');
       if (typeof newName !== 'string' || !newName.trim() || newName.length > 80 || typeof creator !== 'string' || !creator.trim() || creator.length > 80) throw new Error('Theme name and creator credit are required.');
       if (!Array.isArray(particles) || particles.length > 3) throw new Error('Choose at most three particle emitters.');
@@ -201,7 +212,7 @@ function createCustomThemeService({ root, stockRoot, workbenchRoot, openPath, sh
       const attribution = sourceId === 'blank-starter' ? creator.trim() : `${source.manifest.license.attribution} · Remix: ${creator.trim()}`;
       const manifest = { ...source.manifest, id: newId, name: newName.trim(), tone: tone || source.manifest.tone,
         palette: palette || source.manifest.palette, panels: panels || source.manifest.panels, layers: artwork,
-        license: { ...source.manifest.license, attribution }, effects: { particles: emitters, ...(stockFx ? { stockFx } : {}) } };
+        lounge: lounge ?? source.manifest.lounge, license: { ...source.manifest.license, attribution }, effects: { particles: emitters, ...(stockFx ? { stockFx } : {}) } };
       const referenced = new Set(validateManifest(manifest));
       await fs.mkdir(targetRoot(), { recursive: true });
       const destination = path.join(targetRoot(), newId);
@@ -231,16 +242,22 @@ function createCustomThemeService({ root, stockRoot, workbenchRoot, openPath, sh
   async function prepareAsset({ sourceId, asset, action = 'copy' } = {}) {
     try {
       if (!/^[a-z0-9][a-z0-9-]{1,63}$/.test(sourceId || '') || !['copy', 'edit', 'reveal'].includes(action)) throw new Error('Choose a valid source theme and action.');
-      const stock = reservedIds.includes(sourceId) && sourceId !== 'blank-starter';
-      const source = await readPackage(path.join(stock ? stockRoot() : targetRoot(), sourceId, 'theme.json'), false, stock);
-      if (source.manifest.id !== sourceId) throw new Error('Source theme identity is invalid.');
-      const selected = source.files.find(file => file.asset === asset);
+      const builtin = sourceId === 'neolib-particles' ? builtinParticles.find(item => item.asset === asset) : null;
+      if (sourceId === 'neolib-particles' && !builtin) throw new Error('Choose a NEO-LIB particle from the catalogue.');
+      let selected;
+      if (!builtin) {
+        const stock = reservedIds.includes(sourceId) && sourceId !== 'blank-starter';
+        const source = await readPackage(path.join(stock ? stockRoot() : targetRoot(), sourceId, 'theme.json'), false, stock);
+        if (source.manifest.id !== sourceId) throw new Error('Source theme identity is invalid.');
+        selected = source.files.find(file => file.asset === asset);
+      }
       const ext = path.extname(asset || '').toLowerCase();
-      if (!selected || !['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) throw new Error('Choose a still-image asset from the selected theme.');
+      if ((!selected && !builtin) || !['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) throw new Error('Choose a still-image asset from the selected theme.');
       await fs.mkdir(workbenchRoot(), { recursive: true });
       const folder = await fs.mkdtemp(path.join(workbenchRoot(), 'copy-'));
       const file = path.join(folder, path.basename(asset));
-      await fs.copyFile(selected.file, file);
+      if (builtin) await fs.writeFile(file, Buffer.from(builtin.pngBase64, 'base64'), { flag: 'wx' });
+      else await fs.copyFile(selected.file, file);
       if (action === 'edit' && openPath) {
         const error = await openPath(file);
         if (error) throw new Error(`The copy was made, but its editor could not open: ${error}`);

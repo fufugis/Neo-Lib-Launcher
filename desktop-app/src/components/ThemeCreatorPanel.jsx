@@ -1,7 +1,8 @@
 import React from 'react';
 import { customThemeAssetUrl, stockThemeFileUrl, stockThemeManifest, STOCK_THEME_IDS } from '../themes/stock-theme-registry.mjs';
 import blankTheme from '../../electron/themes/blank-theme.json';
-import { particlePosition } from '../themes/particle-placement.mjs';
+import builtinParticles from '../../electron/themes/builtin-particles.json';
+import { particleDuration, particleMotionStyle, particlePosition } from '../themes/particle-placement.mjs';
 import ThemeGifMedia from './ThemeGifMedia';
 import ThemeVideoMedia from './ThemeVideoMedia';
 
@@ -19,12 +20,14 @@ const ARTWORK_LAYERS = [
   ['canvas', 'Canvas behind UI'], ['atmosphere', 'Atmosphere overlay'], ['sidebar', 'Library sidebar'], ['decoration', 'Decoration'],
   ['navigationFrame', 'Navigation frame'], ['navigationFlourish', 'Navigation flourish'], ['controlFrame', 'Control frame'],
 ];
+const LOUNGE_DEFAULTS = { focusGlow: 0.75, flowOpacity: 0.36, flowSeconds: 18, panelOpacity: 0.82, artOpacity: 0.75, cardLift: 4, fxBoost: 0 };
 const cleanParticle = particle => ({
   id: particle.id, asset: particle.asset, sourcePath: particle.sourcePath,
   count: Number(particle.count), sizePx: Number(particle.sizePx),
   opacity: Number(particle.opacity), durationSeconds: Number(particle.durationSeconds), direction: particle.direction,
   placement: particle.placement || 'full', depth: particle.depth || 'near',
   rotation: Number(particle.rotation ?? 0), glow: Number(particle.glow ?? 0),
+  speedVariation: Number(particle.speedVariation ?? 15), spinDegrees: Number(particle.spinDegrees ?? 0), swayPx: Number(particle.swayPx ?? 0),
   reaction: particle.reaction || 'ambient',
 });
 
@@ -40,6 +43,7 @@ export default function ThemeCreatorPanel({ themes, onSaved, onExpandedChange })
   const [panels, setPanels] = React.useState({});
   const [layers, setLayers] = React.useState({});
   const [particles, setParticles] = React.useState([]);
+  const [lounge, setLounge] = React.useState(LOUNGE_DEFAULTS);
   const [previewReaction, setPreviewReaction] = React.useState(null);
   const [error, setError] = React.useState('');
   const [busy, setBusy] = React.useState(false);
@@ -49,16 +53,20 @@ export default function ThemeCreatorPanel({ themes, onSaved, onExpandedChange })
   const [assetFilter, setAssetFilter] = React.useState('');
   const source = sourceId === 'blank-starter' ? blankTheme : stockThemeManifest(sourceId) || themes.find(theme => theme.id === sourceId) || blankTheme;
   const assetChoices = React.useMemo(() => [
-    ...STOCK_THEME_IDS.map(stockThemeManifest), ...themes,
-  ].flatMap(theme => {
-    const entries = [...Object.entries(theme.layers).map(([slot, layer]) => ({ asset: layer.asset, slot })),
-      ...(theme.effects?.particles || []).map(particle => ({ asset: particle.asset, slot: 'Particle' }))];
+    ...builtinParticles.map(particle => ({ ...particle, themeId: 'neolib-particles', themeName: 'NEO-LIB particles', slot: 'Particle', kind: 'particle',
+      url: `data:image/png;base64,${particle.pngBase64}` })),
+    ...[...STOCK_THEME_IDS.map(stockThemeManifest), ...themes].flatMap(theme => {
+    const entries = [...Object.entries(theme.layers).map(([slot, layer]) => ({ asset: layer.asset, slot, kind: 'layer' })),
+      ...(theme.effects?.particles || []).map(particle => ({ asset: particle.asset, slot: 'Particle', kind: 'particle', label: particle.id,
+        direction: particle.direction, count: particle.count, sizePx: particle.sizePx, durationSeconds: particle.durationSeconds,
+        speedVariation: particle.speedVariation, spinDegrees: particle.spinDegrees, swayPx: particle.swayPx }))];
     return entries.filter(entry => entry.asset && /\.(png|jpe?g|webp)$/i.test(entry.asset))
       .filter((entry, index, all) => all.findIndex(other => other.asset === entry.asset) === index)
       .map(entry => ({ ...entry, themeId: theme.id, themeName: theme.name,
         url: stockThemeFileUrl(theme.id, entry.asset) || customThemeAssetUrl(`custom:${theme.id}`, entry.asset) }));
-  }).filter(entry => entry.url), [themes]);
-  const visibleAssets = assetChoices.filter(entry => !assetFilter || `${entry.themeName} ${entry.slot} ${entry.asset}`.toLowerCase().includes(assetFilter.toLowerCase()));
+  })].filter(entry => entry.url), [themes]);
+  const visibleAssets = assetChoices.filter(entry => entry.kind === (assetTarget === 'particle' ? 'particle' : 'layer')
+    && (!assetFilter || `${entry.label || ''} ${entry.description || ''} ${entry.themeName} ${entry.slot} ${entry.asset}`.toLowerCase().includes(assetFilter.toLowerCase())));
   const selectedChoice = assetChoices.find(entry => `${entry.themeId}:${entry.asset}` === selectedAsset);
   const contrast = palette.ink && panels.panel ? contrastRatio(palette.ink, panels.panel) : null;
   React.useEffect(() => {
@@ -72,6 +80,7 @@ export default function ThemeCreatorPanel({ themes, onSaved, onExpandedChange })
     setPanels(Object.fromEntries(Object.entries(source.panels).map(([key, value]) => [key, [...value]])));
     setLayers(Object.fromEntries(Object.entries(source.layers).map(([key, value]) => [key, { ...value }])));
     setParticles((source.effects?.particles || []).map(particle => ({ ...particle })));
+    setLounge({ ...LOUNGE_DEFAULTS, ...source.lounge });
     setPreviewReaction(null);
     setPreparedAsset(null);
     setAssetTarget(null);
@@ -84,12 +93,16 @@ export default function ThemeCreatorPanel({ themes, onSaved, onExpandedChange })
   const mediaUrl = name => layers[name]?.previewUrl || sourceAssetUrl(layers[name]?.asset);
   const mediaStillUrl = name => layers[name]?.fallbackPreviewUrl || sourceAssetUrl(layers[name]?.reducedMotionAsset);
   const openAssetPicker = target => { setAssetTarget(target); setSelectedAsset(''); setPreparedAsset(null); setAssetFilter(''); };
-  const applyPreparedAsset = (result, target) => {
+  const applyPreparedAsset = (result, target, choice) => {
     if (target === 'particle') {
       const used = new Set(particles.map(particle => particle.id));
       let index = 1;
       while (used.has(`particle-${index}`)) index += 1;
-      setParticles(current => [...current, { id: `particle-${index}`, sourcePath: result.path, previewUrl: result.url, count: 12, sizePx: 24, opacity: 0.55, durationSeconds: 18, direction: 'rise', placement: 'full', depth: 'near', rotation: 0, glow: 0, reaction: 'ambient' }]);
+      setParticles(current => [...current, { id: `particle-${index}`, sourcePath: result.path, previewUrl: result.url,
+        count: choice?.count ?? 12, sizePx: choice?.sizePx ?? 24, opacity: 0.75,
+        durationSeconds: choice?.durationSeconds ?? 18, direction: choice?.direction ?? 'rise', placement: 'full', depth: 'near', rotation: 0,
+        speedVariation: choice?.speedVariation ?? 35, spinDegrees: choice?.spinDegrees ?? 0, swayPx: choice?.swayPx ?? 0,
+        glow: 0, reaction: 'ambient' }]);
     } else setLayers(current => ({ ...current, [target]: { type: 'image', sourcePath: result.path, previewUrl: result.url, opacity: current[target]?.opacity ?? 1 } }));
     setPreparedAsset({ ...result, target });
     setError('');
@@ -99,7 +112,7 @@ export default function ThemeCreatorPanel({ themes, onSaved, onExpandedChange })
     const target = assetTarget;
     const result = await window.api?.prepareThemeAsset?.({ sourceId: selectedChoice.themeId, asset: selectedChoice.asset, action });
     if (!result?.ok) { setError(result?.error || 'Could not make an artwork copy.'); return; }
-    applyPreparedAsset(result, target);
+    applyPreparedAsset(result, target, selectedChoice);
     setAssetTarget(null);
   }
   const openWebEditor = async url => {
@@ -148,7 +161,7 @@ export default function ThemeCreatorPanel({ themes, onSaved, onExpandedChange })
     const used = new Set(particles.map(particle => particle.id));
     let index = 1;
     while (used.has(`particle-${index}`)) index += 1;
-    setParticles(current => [...current, { id: `particle-${index}`, sourcePath: picked.path, previewUrl: picked.url, count: 12, sizePx: 24, opacity: 0.55, durationSeconds: 18, direction: 'rise', placement: 'full', depth: 'near', rotation: 0, glow: 0, reaction: 'ambient' }]);
+    setParticles(current => [...current, { id: `particle-${index}`, sourcePath: picked.path, previewUrl: picked.url, count: 12, sizePx: 24, opacity: 0.55, durationSeconds: 18, direction: 'rise', placement: 'full', depth: 'near', rotation: 0, speedVariation: 35, spinDegrees: 0, swayPx: 0, glow: 0, reaction: 'ambient' }]);
     setError('');
   }
   async function save() {
@@ -156,7 +169,7 @@ export default function ThemeCreatorPanel({ themes, onSaved, onExpandedChange })
     setBusy(true);
     setError('');
     try {
-      const result = await window.api.forkTheme({ sourceId: source.id, newId: id, newName: name.trim(), creator: creator.trim(), tone, stockFx, palette, panels, layers, particles: particles.map(cleanParticle) });
+      const result = await window.api.forkTheme({ sourceId: source.id, newId: id, newName: name.trim(), creator: creator.trim(), tone, stockFx, palette, panels, layers, lounge, particles: particles.map(cleanParticle) });
       if (!result?.ok) { setError(result?.error || 'Could not save this remix.'); return; }
       await onSaved(result.id);
     } catch (failure) { setError(failure?.message || 'Could not save this remix.'); }
@@ -194,6 +207,17 @@ export default function ThemeCreatorPanel({ themes, onSaved, onExpandedChange })
         {['image', 'gif', 'video'].includes(layers[key]?.type) && <label className="mt-1 block text-muted">Opacity: {Math.round((layers[key].opacity ?? 1) * 100)}%<input type="range" min="0" max="1" step="0.05" value={layers[key].opacity ?? 1} onChange={event => editLayer(key, { opacity: Number(event.target.value) })} className="w-full accent-[rgb(var(--accent))]" /></label>}
       </div>)}</div>
     </details>
+    <details className="mt-2 rounded-lg border border-[rgb(var(--accent)/0.45)] p-2" data-testid="theme-lounge-editor">
+      <summary className="cursor-pointer text-[10px] font-bold text-ink">Lounge · fullscreen visuals</summary>
+      <p className="mt-1 text-[9px] text-muted">These controls apply only in Lounge. Theme colours and particle art above are reused; reduced-motion and Rest still pause movement.</p>
+      <div className="mt-2 grid gap-2 sm:grid-cols-2">{[
+        ['focusGlow', 'Selected-game glow', 0, 1, 0.05], ['flowOpacity', 'Ambient flow', 0, 1, 0.05],
+        ['flowSeconds', 'Flow duration (seconds)', 6, 60, 1], ['panelOpacity', 'Lounge panel opacity', 0.5, 1, 0.05],
+        ['artOpacity', 'Selected artwork brightness', 0.3, 1, 0.05], ['cardLift', 'Selected-cover lift (px)', 0, 12, 1],
+        ['fxBoost', 'Lounge-only FX boost', 0, 2, 1],
+      ].map(([key, label, min, max, step]) => <label key={key} className="text-[10px] text-muted">{label}: {lounge[key]}<input type="range" min={min} max={max} step={step} value={lounge[key]} onChange={event => setLounge(current => ({ ...current, [key]: Number(event.target.value) }))} className="mt-1 w-full accent-[rgb(var(--accent))]" /></label>)}</div>
+      <div className="relative mt-3 overflow-hidden rounded-xl border border-[rgb(var(--accent)/0.6)] bg-[rgb(var(--panel))] p-4" style={{ opacity: lounge.panelOpacity, boxShadow: `0 0 ${Math.round(lounge.focusGlow * 35)}px rgb(var(--accent) / ${lounge.focusGlow * 0.65})` }}><div className="lounge-flow pointer-events-none absolute inset-0" style={{ '--lounge-flow-opacity': lounge.flowOpacity, '--lounge-flow-seconds': `${lounge.flowSeconds}s` }} aria-hidden="true" /><span className="relative text-xs font-black text-ink">Selected game</span><span className="relative ml-3 text-[10px] text-muted">Lounge preview · flow, glow and panel</span></div>
+    </details>
     {contrast !== null && <p className={`mt-1 text-[9px] ${contrast < 4.5 ? 'text-amber-300' : 'text-muted'}`}>Panel text contrast: {contrast.toFixed(1)}:1{contrast < 4.5 ? ' · May be hard to read; try a lighter or darker Ink/Panel pair.' : ' · Readable contrast.'}</p>}
     {particles.map((particle, index) => <div key={particle.id} className="mt-2 rounded-lg border border-[rgb(var(--border)/0.55)] p-2 text-[10px]" data-testid="theme-particle-editor">
       <div className="flex items-center justify-between"><span className="font-bold text-ink">{particle.id}</span><button type="button" onClick={() => setParticles(current => current.filter((_, at) => at !== index))} className="text-muted hover:text-ink">Remove</button></div>
@@ -206,14 +230,19 @@ export default function ThemeCreatorPanel({ themes, onSaved, onExpandedChange })
         {[
           ['count', 'Particles', 1, 24, 1], ['sizePx', 'Size', 4, 80, 1],
           ['opacity', 'Opacity', 0.05, 1, 0.05], ['durationSeconds', 'Seconds', 5, 60, 1],
-          ['rotation', 'Rotation', -180, 180, 5], ['glow', 'Glow', 0, 20, 1],
-        ].map(([key, label, min, max, step]) => <label key={key} className="text-muted">{label}: {particle[key] ?? 0}<input type="range" min={min} max={max} step={step} value={particle[key] ?? 0} onChange={event => editParticle(index, { [key]: Number(event.target.value) })} className="mt-1 w-full accent-[rgb(var(--accent))]" /></label>)}
+          ['rotation', 'Starting angle', -180, 180, 5], ['speedVariation', 'Speed variation %', 0, 75, 5],
+          ['spinDegrees', 'Spin per pass °', -720, 720, 15], ['swayPx', 'Side-to-side sway px', 0, 120, 5],
+          ['glow', 'Glow', 0, 20, 1],
+        ].map(([key, label, min, max, step]) => <label key={key} className="text-muted">{label}: {particle[key] ?? (key === 'speedVariation' ? 15 : 0)}<input type="range" min={min} max={max} step={step} value={particle[key] ?? (key === 'speedVariation' ? 15 : 0)} onChange={event => editParticle(index, { [key]: Number(event.target.value) })} className="mt-1 w-full accent-[rgb(var(--accent))]" /></label>)}
       </div>
+      <p className="mt-1 text-muted">Speed variation gives each particle a stable faster or slower pace. Spin turns it during travel; sway moves it sideways like a falling leaf. Zero keeps either effect off.</p>
     </div>)}
     {assetTarget && <div className="mt-3 rounded-lg border border-[rgb(var(--accent)/0.45)] bg-[rgb(var(--surface)/0.35)] p-3 text-[10px]" data-testid="theme-asset-library">
       <div className="flex items-center justify-between gap-2"><b className="text-ink">NEO-LIB artwork · {assetTarget === 'particle' ? 'Particle' : ARTWORK_LAYERS.find(([key]) => key === assetTarget)?.[1]}</b><button type="button" onClick={() => setAssetTarget(null)} className="text-muted hover:text-ink">Close</button></div>
-      <input value={assetFilter} onChange={event => setAssetFilter(event.target.value)} placeholder="Find a theme, button, effect or particle…" aria-label="Find NEO-LIB artwork" className="mt-2 w-full rounded border border-[rgb(var(--border))] bg-[rgb(var(--panel))] px-2 py-1.5 text-ink" />
-      <div className="mt-2 grid max-h-56 grid-cols-3 gap-2 overflow-y-auto pr-1">{visibleAssets.map(entry => <button type="button" key={`${entry.themeId}:${entry.asset}`} onClick={() => setSelectedAsset(`${entry.themeId}:${entry.asset}`)} aria-pressed={selectedAsset === `${entry.themeId}:${entry.asset}`} className={`min-w-0 rounded border p-1 text-left ${selectedAsset === `${entry.themeId}:${entry.asset}` ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent)/0.14)]' : 'border-[rgb(var(--border))]'}`}><img src={entry.url} alt="" className="h-16 w-full rounded bg-[rgb(var(--panel))] object-contain" /><span className="mt-1 block truncate font-bold text-ink">{entry.themeName}</span><span className="block truncate text-muted">{entry.slot}</span></button>)}</div>
+      {assetTarget === 'particle' && <p className="mt-1 text-muted">Transparent sprites only. Choose one to see its motion in the live preview; upload your own with “Add particle image”.</p>}
+      <input value={assetFilter} onChange={event => setAssetFilter(event.target.value)} placeholder={assetTarget === 'particle' ? 'Find rain, hearts, petals, embers…' : 'Find theme artwork…'} aria-label="Find NEO-LIB artwork" className="mt-2 w-full rounded border border-[rgb(var(--border))] bg-[rgb(var(--panel))] px-2 py-1.5 text-ink" />
+      <div className="mt-2 grid max-h-56 grid-cols-3 gap-2 overflow-y-auto pr-1">{visibleAssets.map(entry => <button type="button" key={`${entry.themeId}:${entry.asset}`} onClick={() => setSelectedAsset(`${entry.themeId}:${entry.asset}`)} aria-pressed={selectedAsset === `${entry.themeId}:${entry.asset}`} title={entry.description || entry.themeName} className={`min-w-0 rounded border p-1 text-left ${selectedAsset === `${entry.themeId}:${entry.asset}` ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent)/0.14)]' : 'border-[rgb(var(--border))]'}`}><img src={entry.url} alt="" className="h-16 w-full rounded bg-[rgb(var(--panel))] object-contain" /><span className="mt-1 block truncate font-bold text-ink">{entry.label || entry.themeName}</span><span className="block truncate text-muted">{entry.kind === 'particle' ? `${entry.themeName} · ${entry.direction || 'custom motion'}` : entry.slot}</span></button>)}</div>
+      {visibleAssets.length === 0 && <p className="mt-2 text-muted">No matching {assetTarget === 'particle' ? 'particle sprites' : 'artwork'}.</p>}
       {selectedChoice && <div className="mt-2 flex flex-wrap gap-2"><button type="button" onClick={() => useLibraryAsset('copy')} className="rounded bg-[rgb(var(--accent))] px-2.5 py-1.5 font-bold text-[rgb(var(--surface))]">Use a copy</button><button type="button" onClick={() => useLibraryAsset('edit')} className="rounded border border-[rgb(var(--border))] px-2.5 py-1.5 text-ink">Edit copy in default app</button><button type="button" onClick={() => useLibraryAsset('reveal')} className="rounded border border-[rgb(var(--border))] px-2.5 py-1.5 text-ink">Show copy / Open with…</button></div>}
       <p className="mt-2 text-muted">Copies are stored in your NEO-LIB theme workbench. Original artwork is never changed.</p>
     </div>}
@@ -241,7 +270,10 @@ export default function ThemeCreatorPanel({ themes, onSaved, onExpandedChange })
           if (!image || (particle.reaction && particle.reaction !== 'ambient' && previewReaction?.kind !== particle.reaction)) return null;
           const burst = particle.reaction && particle.reaction !== 'ambient';
           const count = burst ? Math.min(12, particle.count) : particle.count;
-          return Array.from({ length: count }, (_, index) => <img key={`${particle.id}-${burst ? previewReaction.key : 'ambient'}-${index}`} src={image} alt="" draggable={false} className={burst ? 'theme-creator-reaction' : `theme-creator-sprite theme-creator-sprite--${particle.direction}`} style={{ width: particle.sizePx * (particle.depth === 'far' ? 0.65 : 1), height: particle.sizePx * (particle.depth === 'far' ? 0.65 : 1), ...(burst ? { left: particle.direction === 'drift' ? '50%' : particlePosition(particle, index).left, top: particle.direction === 'drift' ? particlePosition(particle, index).top : '45%' } : particlePosition(particle, index)), '--preview-opacity': particle.opacity * (particle.depth === 'far' ? 0.6 : 1), '--fx-opacity': particle.opacity * (particle.depth === 'far' ? 0.6 : 1), '--fx-rotation': `${particle.rotation ?? 0}deg`, filter: particle.glow ? `drop-shadow(0 0 ${particle.glow}px currentColor)` : undefined, color: 'rgb(var(--accent))', animationDuration: burst ? '1.2s' : `${particle.durationSeconds}s`, animationDelay: burst ? `${index * 45}ms` : `${-(index / count) * particle.durationSeconds}s` }} />);
+          return Array.from({ length: count }, (_, index) => {
+            const duration = particleDuration(particle, index);
+            return <img key={`${particle.id}-${burst ? previewReaction.key : 'ambient'}-${index}`} src={image} alt="" draggable={false} className={burst ? 'theme-creator-reaction' : `theme-creator-sprite theme-creator-sprite--${particle.direction}`} style={{ width: particle.sizePx * (particle.depth === 'far' ? 0.65 : 1), height: particle.sizePx * (particle.depth === 'far' ? 0.65 : 1), ...(burst ? { left: particle.direction === 'drift' ? '50%' : particlePosition(particle, index).left, top: particle.direction === 'drift' ? particlePosition(particle, index).top : '45%' } : particlePosition(particle, index)), '--preview-opacity': particle.opacity * (particle.depth === 'far' ? 0.6 : 1), '--fx-opacity': particle.opacity * (particle.depth === 'far' ? 0.6 : 1), ...particleMotionStyle(particle), filter: particle.glow ? `drop-shadow(0 0 ${particle.glow}px currentColor)` : undefined, color: 'rgb(var(--accent))', animationDuration: burst ? '1.2s' : `${duration}s`, animationDelay: burst ? `${index * 45}ms` : `${-(index / count) * duration}s` }} />;
+          });
         })}
       </div>
       {stockFx && <p className="mt-2 text-[10px] text-muted">{stockThemeManifest(stockFx)?.name} particle/FX style will animate in the saved theme. Image particles above remain separately editable.</p>}

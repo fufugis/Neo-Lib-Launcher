@@ -1,9 +1,13 @@
+import { DEFAULT_LOUNGE_PREFERENCES, normalizeLoungePreferences } from '../components/lounge/lounge-layout-model.mjs';
+
 export const DEFAULT_SETTINGS = Object.freeze({
   theme: 'synthwave', firstRun: true, geminiKey: '', steamGridDbKey: '', aiModel: 'gemini-2.5-flash',
   fungistNotifications: {}, librarySize: 'medium', showcaseMode: 'recent_added', collapsed: {},
   interfaceMode: 'default', presentationMode: 'desktop', preferredControllerFingerprint: '', controllerNavigationEnabled: false,
   navigationLayout: 'top',
   coverWallShape: 'portrait',
+  loungeLayout: 'browser',
+  loungePreferences: DEFAULT_LOUNGE_PREFERENCES,
   externalLibraryRoots: [],
   libraryIconMode: false, libraryIconSize: 48, libraryIconSpacing: 8, libraryIconRows: 3,
 });
@@ -14,6 +18,8 @@ export function hydrateSettings(raw = {}, { resetRatings = false } = {}) {
   if (!['top', 'sidebar'].includes(next.navigationLayout)) next.navigationLayout = 'top';
   if (!['default', 'minimalistic'].includes(next.interfaceMode)) next.interfaceMode = 'default';
   if (!['portrait', 'square'].includes(next.coverWallShape)) next.coverWallShape = 'portrait';
+  if (!['wall', 'browser'].includes(next.loungeLayout)) next.loungeLayout = 'browser';
+  next.loungePreferences = normalizeLoungePreferences(next.loungePreferences);
   next.controllerNavigationEnabled = next.controllerNavigationEnabled === true;
   if (next.mode !== 'tools') next.mode = 'home';
   if (resetRatings) next.ratingSystemVersion = 2;
@@ -21,7 +27,9 @@ export function hydrateSettings(raw = {}, { resetRatings = false } = {}) {
 }
 
 export function mergeSettings(settings, patch) {
-  return { ...(settings || DEFAULT_SETTINGS), ...(patch && typeof patch === 'object' ? patch : {}) };
+  const next = { ...(settings || DEFAULT_SETTINGS), ...(patch && typeof patch === 'object' ? patch : {}) };
+  if (patch && Object.hasOwn(patch, 'loungePreferences')) next.loungePreferences = normalizeLoungePreferences(patch.loungePreferences);
+  return next;
 }
 
 export function visualState(settings = {}, resting = false) {

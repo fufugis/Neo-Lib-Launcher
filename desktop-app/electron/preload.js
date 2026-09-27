@@ -54,6 +54,8 @@ contextBridge.exposeInMainWorld('api', {
   pickDirectory: () => ipcRenderer.invoke('dialog:pickDirectory'),
   pickSaveFolder: () => ipcRenderer.invoke('dialog:pickSaveFolder'),
   pickImage: () => ipcRenderer.invoke('dialog:pickImage'),
+  importLoungeBackground: () => ipcRenderer.invoke('dialog:importLoungeBackground'),
+  importLoungeAudio: () => ipcRenderer.invoke('dialog:importLoungeAudio'),
   pickThemeVideo: () => ipcRenderer.invoke('dialog:pickThemeVideo'),
   pickWidgetManifest: () => ipcRenderer.invoke('dialog:pickWidgetManifest'),
   pickThemeManifest: () => ipcRenderer.invoke('dialog:pickThemeManifest'),
@@ -164,6 +166,7 @@ contextBridge.exposeInMainWorld('api', {
   pickSocialClient: (platform) => ipcRenderer.invoke('launcher:pickSocialClient', platform),
   openLauncherSocial: (platform, manualPath) => ipcRenderer.invoke('launcher:openSocial', platform, manualPath),
   openSteamController: () => ipcRenderer.invoke('launcher:openSteamController'),
+  scanWindowsControllers: () => ipcRenderer.invoke('controller:scanWindows'),
   openLauncherDownloads: (platform) => ipcRenderer.invoke('launcher:openDownloads', platform),
 
   // Community widget files remain behind bounded native services. Only the

@@ -5,11 +5,105 @@ Retro Library, Wall, theme and NEO Lounge source changes. It is a Windows test
 candidate, not an installed-app acceptance claim. The original
 [v1.7.9 notes](RELEASE_NOTES_v1.7.9.md) remain available for comparison.
 
+Lounge Visual Builder and Layout now offer four bundled ambience tracks, Off and a player-imported MP3 with independent volume. Personal audio is copied into NEO-LIB; playback loops only while Lounge is active and focused and respects app mute and Rest. Installed listening and controller acceptance remains open.
+
+Settings now explains how to get a SteamGridDB API key, what optional artwork search it unlocks in Game Workshop, and where to use it. A clear key-entered message avoids implying the connection has been verified before the first search. Installed visual acceptance remains open.
+
+In Sidebar mode, Wizard and Rest move below a divider in the left rail, while Select joins the Library filter row. Switching back to top navigation restores their original Library positions. Installed visual acceptance remains open.
+
+The left navigation rail now uses consistent larger icons, with a Menu control that stays visible while the rail is collapsed. Installed visual acceptance remains open.
+
+Wall Peek now labels Game Signals without requiring hover and displays screenshots as one large image with up to three clickable alternatives below. Failed images leave the gallery. Installed visual/controller acceptance remains open.
+
+Selecting a game from Home or the Library list now opens that game's Preview even when Wall was the previously saved Library view. Installed click-path acceptance remains open.
+
+Visual Tweaks now stays open across Home, Library, Wall and Tools instead of disappearing on Wall and reappearing when the sidebar returns. Use its Close button or click outside to dismiss it. Installed navigation/drag acceptance remains open.
+
+Lounge Home adds a Recently added cover shelf from recorded library dates. It avoids repeating games already featured above, opens in-Lounge details and can be hidden in Customize Home. Installed visual/controller acceptance remains open.
+
+A Recently added Home shortcut and Lounge browse filter now open the full newest-first set, beyond the compact Home shelf. Games without reliable add dates are not invented. Installed controller acceptance remains open.
+
+Lounge Home activity cards now open matching Played this week and In progress browse views. The seven-day view uses recorded last-played dates, and In progress uses your Journey Status. Installed controller acceptance remains open.
+
+Lounge Layout now lets All games and Favorites retain Library order or sort by natural name, last played or library-added date. Other filters keep their own order, and Reset Lounge layout restores the default. Installed large-library/controller acceptance remains open.
+
+Empty Lounge filters now have a themed recovery panel: clear an A–Z letter, return to All games, or exit Lounge when the unlocked library has no games. Installed controller acceptance remains open.
+
+The featured game's artwork now adds a soft ambient backdrop to Lounge Home, shaded for readability. A chosen Lounge image or plain canvas takes priority, and failed artwork falls back to the theme surface. Installed bright/dark-theme acceptance remains open.
+
+Lounge Soundscape now has a separate Move-cue level. Browsing can be softened or silenced while OK and Back retain the main Lounge volume. Installed listening and controller acceptance remains open.
+
+Lounge Visual Builder adds Slow, Steady and Lively pace for background drift and waves, separate from overall motion and browsing speed. It persists, resets and is included in starting looks. Installed visual/performance acceptance remains open.
+
+Lounge Layout adds Compact, Comfortable and Couch-size navigation targets for its header and browse strip without changing the game covers. The choice persists and resets with the layout. Installed TV/narrow-window acceptance remains open.
+
+The Lounge Visual Builder preview now uses the same living backdrop as Lounge, showing theme or selected-game art and the current motion/FX choices instead of a generic colour swatch. Installed visual and performance acceptance remains open.
+
+Lounge's living-background waves now soften at lower FX levels and with Gentle motion, while the Wave strength control keeps its full range. Installed theme-by-theme visual and performance acceptance remains open.
+
+Lounge's view filters now form one icon-led scrolling strip, keeping the selected choice visible while making room for game artwork. Layout adds an entry-screen choice: games or Lounge Home after manually entering fullscreen. This does not auto-open Lounge at app startup. Installed pad and narrow-window acceptance remains open.
+
+Lounge's selected cover now holds its emphasis when hovered, with a steady accent marker and clearer Game Browser title band. Motion Off and reduced-motion choices keep focus visible without moving covers. Installed visual acceptance remains open.
+
+Lounge now has a Continue playing view in both layouts and a customizable Home shortcut. It uses the same saved activity and Journey Status rules as the Home preview, while showing every matching game; installed controller acceptance remains open.
+
+Lounge adds a Most played view to its toolbar and customizable Home shortcuts. It ranks games with tracked playtime and works in both Wall and Game Browser; installed controller acceptance remains open.
+
+Lounge and Wall's Recently played view now recognises valid saved date strings as well as numeric timestamps, so recorded sessions are not silently omitted. Installed real-library verification remains open.
+
+Lounge's compact controls now show controller guidance first when controller navigation is enabled. In-game Previous and Next are larger labeled buttons for couch browsing; installed pad and TV-distance acceptance remains open.
+
+Game Details' developer, publisher, release, score and website icons are larger and have subtle individual colors. Text sizing stays unchanged. Installed theme-by-theme visual testing remains open.
+
+Wall's Home and Library return buttons now sit at the left edge of its toolbar. With vertical sidebar navigation enabled, that duplicate pair is hidden in favor of the existing pop-out rail. Installed layout testing remains open.
+
+Lounge Visual Builder now offers Follow theme, No particles and seven bundled particle looks independently of Desktop's theme. FX strength and motion safeguards still apply. This is a source candidate pending installed visual and performance testing.
+
+Lounge now has optional Glass, Pulse and Orbit sound sets for moving, OK and Back, with saved style, on/off, volume and preview controls in Layout and its own Visual Builder. App-wide mute, Rest and a hidden window silence them. When a selected game has a possible-update flag, a small dismissible mascot notice can appear in the corner without claiming an update is confirmed. Audible, visual and controller testing in a rebuilt Windows app remains open.
+
 Home no longer shows saved Steam update warnings as current before rechecking the launcher; old cards clear during Refresh, and the delayed check is no longer postponed by Home rerenders.
 
 Home widget dragging now keeps one pointer session across neighbouring widgets. A held card follows the mouse while the grid opens space, and larger coloured title-bar icons make widgets easier to identify. Dedicated preview header art now takes priority over generic backgrounds when no custom hero is chosen; playtime and install-size facts have clearer plain text on a compact solid backing. Detailed Wall gains Your Rating, Metacritic, achievements and Added columns plus a saved Big icons option. Tools includes optional DLSS Swapper and ReShade executable pointers, an OptiScaler folder pointer, and official download links; NEO-LIB does not install or inject them into games. These changes still need installed Windows visual and interaction acceptance.
 
+Home's eight resize grips now use explicit positions inside their own widget edges, fixing scattered dots in the unlocked layout.
+
 ## What changed
+
+- **A more welcoming Lounge Home (source candidate)** — if no game is ready to resume, the large feature card shows a real Backlog/unplayed pick or another visible game, without calling it recently played. Broken or missing wide art gets a themed cover fallback. Installed visual and controller acceptance remains open.
+
+- **Lounge visual starting looks (source candidate)** — Game cinema, Theme glow, Soft focus and Quiet screen apply editable combinations of backdrop, visibility, motion, panel opacity and FX without removing imported artwork or changing the layout. Installed visual and controller acceptance remains open.
+
+- **Lounge artwork framing (source candidate)** — Visual Builder can shift background art vertically to keep the important part in view. The choice persists and Reset returns it to center; installed visual acceptance remains open.
+
+- **Game-following Lounge background (source candidate)** — Visual Builder can show the selected game's artwork behind Lounge browsing, with the active theme as fallback. Motion Off and reduced-motion choices remove the art transition. Installed visual and performance acceptance remains open.
+
+- **Faster Lounge browsing (source candidate)** — an A–Z jump panel in Wall and Game Browser narrows the active collection by first letter with controller-sized targets and game counts. Show all restores the complete view. Installed controller/focus acceptance remains open.
+
+- **Durable personal Lounge backgrounds (source candidate)** — choosing a PNG/JPG/WebP background now stores a checked private copy in NEO-LIB, so moving the original no longer breaks it. Previously linked backgrounds remain compatible. Installed picker and restart acceptance remain open.
+
+- **Next up on Lounge Home (source candidate)** — a cover shelf draws from visible Backlog and unplayed games, favoring starred titles within each group. The source of each pick is stated; there is no fabricated recommendation score. Selecting one opens Lounge details, and Customize Home can hide the shelf. Installed controller and visual acceptance remains open.
+
+- **A fuller Lounge Home (source candidate)** — the Home button now opens a fullscreen Guide with large All games, Favorites, Recently played and Visual Builder destinations. Customize Home lets players reorder or hide these cards using buttons; the arrangement is saved. Each collection route uses the existing Wall filters; Back returns to Lounge browsing. Continue Playing and activity remain based on unlocked recorded games, and game selection still opens details rather than launching. Installed visual and controller acceptance remains open.
+
+- **Lounge visual builder and navigation (source candidate)** — Lounge now has its own large visual builder, separate from layout settings. Import a private copy of a PNG/JPG/WebP background from the PC, choose theme, light, dark or clear canvas, adjust artwork and panel opacity, select drift, light waves or stillness, and tune the selected theme's particle/FX strength. Larger Home and Back targets support couch navigation; Guide gains Browse all games and Customize Lounge destinations. Installed image-picker, visual, controller and restart acceptance remains open.
+
+- **Lounge Guide (source candidate)** — a Guide overlay in both Wall and Game Browser offers Continue Playing and a compact activity snapshot from recorded library facts. It uses unlocked games only, excludes completed/dropped titles from Continue Playing, and opens in-Lounge details rather than launching on selection. Tracked lifetime playtime is separate from the count of games last played in seven days; no weekly-hours estimate is invented. Installed visual and controller acceptance remains open.
+
+- **Make Lounge your own (source candidate)** — Game Browser gains an artwork-led stage and four layouts: Cinema (top shelf), Console (bottom), Gallery (left) and Spotlight (right). Customize inside Lounge to move its shelf, adjust cover/spacing/preview sizes, choose how much game information appears, and tune motion or Lounge-only FX without changing Desktop. Cover Wall size is adjustable too. The selected cover has stronger depth and theme-coloured focus. Choices save and include Reset; side shelves adapt on narrow windows. Ambient actors stop when the window is hidden, and Lounge motion pauses while hidden or resting. Installed visual, controller and performance acceptance remains open.
+
+- **Game Browser stage polish (source candidate)** — a restrained scene-light sweep, lit shelf and theme-coloured position rail add life and orientation without covering game artwork. Titles and portraits settle in briefly as the selection changes. The extra portrait card appears only when the stage has room, so left and right shelf layouts keep their title and actions readable. Motion Off and reduced-motion settings remove those transitions; FX None removes the sweep. Installed visual acceptance remains open.
+
+- **Lounge Wall visual polish (source candidate)** — the cover wall gets a quieter gallery surface and stronger selected-tile contrast. Its selected-game footer now has a compact cover anchor and theme-tinted lighting while keeping the existing game facts and action. Installed visual acceptance remains open.
+
+- **Living Lounge background (source candidate)** — both Lounge views now place the active theme's atmosphere art behind the UI as a slowly drifting backdrop with restrained accent light. Existing Lounge flow strength and speed tune that movement; FX None, Motion Off, Rest, hidden windows and reduced-motion preferences stop it. Animated theme media uses its validated still image in this backdrop, leaving existing particle and media effects to their own layers. Installed theme-by-theme visual and performance acceptance remains open.
+
+- **Cleaner Lounge controls (source candidate)** — a slimmer header and icon-led Wall/Game Browser switch leave more room for games. The full keyboard and controller guide now opens from a compact Controls button, while a short control hint stays visible. Shelf covers keep most of their original colour instead of looking greyed out, and the active cover uses a quiet glass focus label alongside its clear border. No browsing or launch behavior changed. Installed visual and focus acceptance remains open.
+
+- **Lounge game-details refresh (source candidate)** — opening a cover now presents an artwork-led detail panel with a clearer story area, grouped facts and screenshots. A separate banner no longer causes the first screenshot to disappear from the gallery. The protected Launch action stays visible while details scroll, without changing its one-use mouse/keyboard authorization. Short windows reduce the hero height. Installed visual, input and game-launch acceptance remains open.
+
+- **Browse without leaving details (source candidate)** — Previous and Next cycle through the games in the current Lounge filter, updating the artwork and facts in place. Each game starts at the top of its details; closing after browsing returns focus to the game now shown. The protected Launch path is unchanged. Installed focus/controller acceptance remains open.
+
+- **Lounge stays Lounge (source candidate)** — selecting a game opens an artwork-and-facts panel in fullscreen Lounge, with screenshots and a separately protected Launch button. Launching leaves Lounge open behind the game. Selected covers have stronger theme-coloured glow and motion; Theme Creator now includes Lounge-only focus, flow, artwork, panel and FX controls. Controller browsing still cannot directly launch a game. Installed Windows and per-theme acceptance remain pending.
 
 - Home's private-games-locked notice is now a compact status pill instead of a full-width banner.
 
@@ -21,15 +115,18 @@ Home widget dragging now keeps one pointer session across neighbouring widgets. 
 
 - Preview playtime now displays rounded minutes or hours instead of raw fractional values imported from launchers.
 
-- **NEO Lounge begins its two-mode design (source candidate)** — switch between cover Wall and a focused Game Browser shelf with a larger game-art stage. The active game now stands out with an outline, glow, lift and label; Lounge reuses the chosen theme's ambient FX and remembers the layout. Activating a cover still opens Preview, not a game directly. Installed fullscreen and controller acceptance remain pending.
+- **NEO Lounge begins its two-mode design (source candidate)** — switch between cover Wall and a focused Game Browser shelf with a larger game-art stage. The active game now stands out with an outline, glow, lift and label; Lounge reuses the chosen theme's ambient FX and remembers the layout. Activating a cover opens in-Lounge details; Launch is a separate protected action. Installed fullscreen and controller acceptance remain pending.
 
 - **Theme Creator artwork workbench (source candidate)** — start a remix from any built-in theme, browse its button frames and other artwork, reuse a working copy as a layer or particle, and open that copy in a desktop editor. Canva and ChatGPT Images shortcuts support a manual upload/download round trip; NEO-LIB never uploads artwork to those sites. Existing theme artwork stays untouched, while a saved theme gets validated copies and can reuse a built-in FX style. Installed visual/editor acceptance remains pending.
+- **Real particle art in Theme Creator (source candidate)** — the particle picker now shows seven named transparent sprites, such as rain dots, falling hearts, sakura petals, embers and bubbles, instead of background images. Each sprite brings a matching initial motion setting, can be edited as a workbench copy, and still supports player-supplied particle images. Installed motion and visual acceptance remains pending.
+- **More natural particle motion (source candidate)** — set how much each particle's speed differs, spin sprites while they move, and add a gentle side-to-side sway for hearts and falling leaves. The live preview follows the saved theme's motion model; imported values are bounded. Installed motion acceptance remains pending.
 
 - **Wide game previews stay readable (source candidate)** — the hero facts, action controls and game information now use a centered reading width when the window is expanded. Live news stays a compact card with a two-line teaser, and Special-theme action artwork no longer stretches indefinitely across ultra-wide previews. Installed visual acceptance remains pending.
 
 - **Wider Theme Creator (source candidate)** — opening Creator Lab widens the Themes window and places the larger live preview in its own right-hand pane beside the editors. On narrow screens, the preview stacks below the editors. Installed visual acceptance remains pending.
 
 - **Clearer controller discovery (source candidate)** — Controller Center retains a controller connection event even when Chromium's device list lags, distinguishes blocked/unavailable browser access, and no longer claims a Windows/Steam-visible pad is disconnected merely because NEO-LIB cannot read it. The empty state gives 8BitDo Ultimate 2 Wireless Windows connection guidance. This does not make Steam-only Bluetooth input a NEO-LIB navigation device; physical-pad acceptance remains pending.
+- **Windows controller visibility and pressed-button feedback (source candidate)** — Controller Center checks connected Windows devices on open and Refresh, listing Bluetooth or USB/HID controller presence separately from live buttons and axes. A device Windows sees may still need a compatible input route before it can navigate NEO-LIB. Buttons now visibly respond throughout a click-and-hold. Installed Windows/8BitDo acceptance remains pending.
 
 - **Clean narrow Library controls (source candidate)** — icon-only Library mode and narrow panel widths use dedicated icons for launcher filter, sorting, categories and auto-sort. Wizard, Rest and Select keep stable icon buttons, while navigation labels disappear cleanly rather than shrinking into unreadable fragments. The filter icons stay grouped during live resizing; titles and accessible names preserve their meaning. Installed visual acceptance is pending.
 
@@ -38,11 +135,11 @@ Home widget dragging now keeps one pointer session across neighbouring widgets. 
 - **More direct Home editing (source candidate)** — the widget being moved or resized now has a clear theme-coloured outline. With Home unlocked, drag any edge or corner to resize; Free move adjusts the dragged edge, while Snap changes grid-cell dimensions. Wall cover density now reaches 14×14. Installed mouse and high-density visual acceptance remain pending.
 - **Lighter Mid themes (source candidate)** — Generic Gray is substantially brighter; Generic Blue, Gaming, Modern and Home receive smaller lifts to surfaces and theme backgrounds.
 
-- **NEO Lounge fullscreen browser (source candidate)** — choose NEO Lounge in Control Center for a large-cover view of your unlocked games, with All/Favorites/Recently played filters, last-game focus and cautious update flags. Browse with mouse, keyboard or an opted-in controller; Exit or Esc returns to Desktop, and Open Preview leaves fullscreen first. It never starts automatically, and controller game launch is still disabled pending its separate safety work. Installed Windows acceptance is pending.
+- **NEO Lounge fullscreen browser (source candidate)** — choose NEO Lounge in Control Center for a large-cover view of your unlocked games, with All/Favorites/Recently played filters, last-game focus and cautious update flags. Browse with mouse, keyboard or an opted-in controller; Exit or Esc returns to Desktop. Selecting a game opens details inside Lounge. It never starts automatically, and controller game launch is still disabled pending its separate safety work. Installed Windows acceptance is pending.
 
-- **Lounge details and quiet guidance (source candidate)** — the selected game shows tracked playtime, last session and Journey Status. Possible updates are explicitly marked for review, not installed automatically. Fungist or FiFi can offer a short, silent tip when enabled. A failed fullscreen exit now explains that the player should retry, and Preview does not open until fullscreen has actually closed.
+- **Lounge details and quiet guidance (source candidate)** — the selected game shows tracked playtime, last session and Journey Status. Possible updates are explicitly marked for review, not installed automatically. Fungist or FiFi can offer a short, silent tip when enabled. A failed fullscreen exit explains that the player should retry; game details no longer depend on leaving fullscreen.
 
-- **Clearer Lounge controls (source candidate)** — keyboard and standard-layout gamepad hints stay visible without assuming a controller brand. Shoulder buttons switch All/Favorites/Recently played once per press, moving focus to a cover or keeping it on the selected filter if the view is empty. The next pad action follows that focus instead of jumping back to the old filter. If a focused game disappears, focus moves to a remaining cover or the active filter. Hover cannot silently change another focused game's facts; cover sizes now scale for couch viewing. Focus a cover to inspect its facts; confirm it to open Preview, never to launch the game. Screen readers get a clearer cover label, narrow windows keep facts reachable, and a failed fullscreen exit returns focus to Exit. Covers below the viewport load lazily; broken artwork falls back to a readable title card. Installed-controller and visual acceptance remain open.
+- **Clearer Lounge controls (source candidate)** — keyboard and standard-layout gamepad hints stay visible without assuming a controller brand. Shoulder buttons switch All/Favorites/Recently played once per press, moving focus to a cover or keeping it on the selected filter if the view is empty. The next pad action follows that focus instead of jumping back to the old filter. If a focused game disappears, focus moves to a remaining cover or the active filter. Hover cannot silently change another focused game's facts; cover sizes now scale for couch viewing. Focus a cover to inspect its facts; confirm it to open in-Lounge details, never to launch the game directly. Screen readers get a clearer cover label, narrow windows keep facts reachable, and a failed fullscreen exit returns focus to Exit. Covers below the viewport load lazily; broken artwork falls back to a readable title card. Installed-controller and visual acceptance remain open.
 
 - **Minimalistic interface (source candidate)** — switch Default/Minimalistic from Control Center → Personalise. Home editing, Library filters, Wall secondary controls and Tool supporting actions/facts move behind clear one-click disclosures, while primary navigation, privacy, quick filters and launch/recovery remain visible. Themes, games and saved arrangements stay shared. Installed visual acceptance is still pending.
 

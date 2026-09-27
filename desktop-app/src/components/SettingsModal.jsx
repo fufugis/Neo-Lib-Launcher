@@ -1,7 +1,7 @@
 import React from 'react';
 import { BUILD_INFO } from '../build-info.mjs';
 import { SOUND_PACKS, setSoundPack, playLaunch, playHover } from '../lib/sound';
-import { Sparkles, Eye, EyeOff, Heart, DownloadCloud, MessageCircle } from 'lucide-react';
+import { Sparkles, Eye, EyeOff, Heart, DownloadCloud, MessageCircle, CheckCircle2 } from 'lucide-react';
 import Modal from './Modal';
 import { DONATE_PAYPAL_URL } from './DonateModal';
 import qrUrl from '../assets/donate-qr.png';
@@ -174,14 +174,20 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
         </Section>
 
         <Section title="Artwork catalogue · optional">
+          <p className="mb-2 text-xs leading-relaxed text-muted">
+            This unlocks optional SteamGridDB artwork search in NEO-LIB’s Game Workshop: find community covers, hero/background images, logos and icons for a game. It does not change any artwork automatically.
+          </p>
           <p className="mb-3 text-xs leading-relaxed text-muted">
-            Add your own{' '}<a href="#" onClick={(event) => { event.preventDefault(); window.api?.openExternal('https://www.steamgriddb.com/profile/preferences/api'); }} className="text-[rgb(var(--accent-2))] hover:underline">SteamGridDB API key</a>{' '}
-            to search community cover, hero, logo and icon artwork from Game Workshop. NEO-LIB sends the key only to SteamGridDB after you deliberately search; every image remains a preview until you choose it and save the game.
+            To get a key: <a href="#" onClick={(event) => { event.preventDefault(); window.api?.openExternal('https://www.steamgriddb.com/profile/preferences/api'); }} className="font-semibold text-[rgb(var(--accent-2))] hover:underline">log in to SteamGridDB → Preferences → API ↗</a>, then choose <span className="font-semibold text-ink">Generate New API Key</span>. Copy it and paste it below.
           </p>
           <div className="relative">
-            <input data-testid="settings-steamgriddb-key" type={showArtworkKey ? 'text' : 'password'} value={settings.steamGridDbKey || ''} onChange={(event) => setKey({ steamGridDbKey: event.target.value.trim() })} placeholder="SteamGridDB API key" className="h-9 w-full rounded-md bg-surface/60 hairline px-3 pr-9 font-mono text-sm focus:border-[rgb(var(--accent)/0.6)] focus:outline-none" />
+            <input data-testid="settings-steamgriddb-key" type={showArtworkKey ? 'text' : 'password'} value={settings.steamGridDbKey || ''} onChange={(event) => setKey({ steamGridDbKey: event.target.value.trim() })} placeholder="Paste SteamGridDB API key" aria-label="SteamGridDB API key" aria-describedby="steamgriddb-key-status" autoComplete="off" spellCheck={false} className="h-9 w-full rounded-md bg-surface/60 hairline px-3 pr-9 font-mono text-sm focus:border-[rgb(var(--accent)/0.6)] focus:outline-none" />
             <button onClick={() => setShowArtworkKey((value) => !value)} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-ink" title={showArtworkKey ? 'Hide' : 'Show'}>{showArtworkKey ? <EyeOff size={13} /> : <Eye size={13} />}</button>
           </div>
+          <div id="steamgriddb-key-status" data-testid="settings-steamgriddb-status" role="status" className={`mt-2 rounded-md border px-2.5 py-2 text-[11px] leading-relaxed ${settings.steamGridDbKey?.trim() ? 'border-emerald-400/35 bg-emerald-400/10 text-ink' : 'border-[rgb(var(--border)/0.7)] bg-surface/30 text-muted'}`}>
+            {settings.steamGridDbKey?.trim() ? <span className="flex items-start gap-2"><CheckCircle2 size={15} className="mt-0.5 shrink-0 text-emerald-300" /><span><strong>Key entered.</strong> Open a game’s <strong>Edit game → Artwork → Online</strong> button to search and preview images. Choose an image, then save the game to use it. The key is checked when you search; entering it alone does not verify the connection.</span></span> : 'No key entered. Online SteamGridDB artwork search is unavailable until you add one.'}
+          </div>
+          <p className="mt-2 text-[10px] leading-relaxed text-muted">The key is kept in your local NEO-LIB settings and sent to SteamGridDB only when you start an Online artwork search.</p>
         </Section>
 
         {/* AI fallback */}

@@ -51,6 +51,7 @@ const { registerWebIpc } = require('./ipc/web-ipc.cjs');
 const { registerWidgetsIpc } = require('./ipc/widgets-ipc.cjs');
 const { registerThemesIpc } = require('./ipc/themes-ipc.cjs');
 const { createCustomThemeService } = require('./themes/custom-theme-service.cjs');
+const { createWindowsControllerScan } = require('./controller/windows-controller-scan.cjs');
 const { createSystemHealthService } = require('./system/system-health-service.cjs');
 const { createPlaytimeHistoryService, localDayKey } = require('./playtime/playtime-history-service.cjs');
 const { createImageCacheService } = require('./images/image-cache-service.cjs');
@@ -535,7 +536,7 @@ registerWindowIpc({ registerIpc, getMainWindow: () => mainWindow });
 registerPersistenceIpc({ registerIpc, documents });
 
 // ---------------- IPC: Dialog ---------------- //
-registerDialogIpc({ registerIpc, dialog, getMainWindow: () => mainWindow });
+registerDialogIpc({ registerIpc, dialog, getMainWindow: () => mainWindow, loungeBackgroundRoot: () => path.join(dataDir(), 'lounge-backgrounds'), loungeAudioRoot: () => path.join(dataDir(), 'lounge-audio') });
 
 // Resolve Windows shortcuts used by drag/drop imports.
 registerShellIpc({ registerIpc, shell });
@@ -2622,6 +2623,7 @@ remainingIpcServices["launcher:openSteamController"] = async () => {
   try { await shell.openExternal('steam://open/bigpicture'); return { ok: true }; }
   catch { return { ok: false, error: 'Steam controller menu could not be opened.' }; }
 };
+remainingIpcServices['controller:scanWindows'] = createWindowsControllerScan();
 
 // Update queues are separate from game launching. Keep this bridge fixed and
 // platform-scoped so a renderer cannot turn a pending-update card into a

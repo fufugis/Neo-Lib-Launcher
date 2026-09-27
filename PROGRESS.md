@@ -1,5 +1,109 @@
 # NEO-LIB progress
 
+- **Lounge ambience added in source** — four supplied tracks and private-copy custom MP3 selection now live in Visual Builder and Layout. Ambience has its own volume, defaults Off and pauses outside active/focused Lounge or under app mute/Rest. Native import, preference and renderer checks pass; installed playback quality, seamless looping and controller acceptance remain open.
+
+- **v1.8.1 release gate rechecked (2026-09-28)** — the full current-source prebuild suite passes. The attempted renderer build reaches Vite but fails while starting esbuild with `spawn EPERM` in this environment, before producing a fresh package. Older local installers cannot validate these changes; rebuilt Windows and physical-controller acceptance remains open.
+
+- **SteamGridDB setup clarified in source** — Settings now walks players through getting a key and explains that it enables manual online artwork search, not automatic artwork replacement. A visible status confirms entry and points to Edit game → Artwork → Online without claiming the key is verified. Focused checks pass; rebuilt Windows acceptance remains open.
+
+- **Sidebar actions relocated in source** — Wizard and Rest now sit below a rail divider when Sidebar navigation is active; Select joins the Library filter row. Turning Sidebar off restores the original action row. Focused checks pass; rebuilt Windows interaction and layout acceptance remains open.
+
+- **Visual Tweaks ownership corrected in source** — the floating panel is now app-owned instead of sidebar-owned, so Home → Wall/Tools and back keeps the same open state. Primary navigation does not dismiss it; Close or an outside click does. Focused checks pass; rebuilt Windows behavior remains to verify.
+
+- **Home-to-game Preview route fixed in source** — selecting a Library-row game while on Home now opens its Preview instead of restoring the saved Wall view; Home game cards use the same explicit route. Focused checks pass; rebuilt Windows interaction acceptance remains open.
+
+- **Wall Peek readability improved in source** — signals have visible labels in a compact three-column grid, and screenshots now show one large preview with clickable smaller alternatives. Failed screenshots are removed from the gallery. Focused checks pass; installed visual/controller acceptance remains open.
+
+- **Sidebar rail icon fix in source** — navigation icons are uniformly larger, and the collapsed Menu icon remains visible. Focused renderer and visual-boundary checks pass; rebuilt Windows visual acceptance remains open.
+
+- **Lounge empty states improved in source** — blank filters and an empty unlocked library now show a themed panel with an appropriate one-press recovery action. Focused checks pass; installed narrow-screen and controller acceptance remains open.
+
+- **Lounge browsing order added in source** — All games and Favorites can preserve Library order or sort by name, last played or added date from a saved Layout setting. Dedicated filters retain their own ranking; reset restores the default. Focused checks pass; installed controller and large-library acceptance remains open.
+
+- **Lounge activity cards are actionable in source** — seven-day play activity and In progress now lead to matching browse views and filter buttons; their counts and game sets use the same source data. Focused checks pass; installed controller acceptance remains open.
+
+- **Recently added is now a full Lounge browse view in source** — a Home destination and a filter-strip button show all games with valid recorded add dates, newest first, while the Home shelf stays compact. Focused checks pass; installed controller acceptance remains open.
+
+- **Lounge Home artwork atmosphere added in source** — featured game art now provides a restrained background wash behind Home content, with imported Lounge art or plain-canvas choices honored, a theme-colored legibility layer and normal-surface fallback on load failure. Focused checks pass; installed bright/dark-theme visual acceptance remains open.
+
+- **Recently added shelf added to Lounge Home in source** — recorded library-add dates drive a newest-first cover row, with duplicate feature/Next up cards removed and a saved hide option. Missing, invalid and future dates are not presented as recent; game cards open details within Lounge. Focused checks pass; installed visual/controller acceptance remains open.
+
+- **Latest Lounge batch verification** — the full pre-build source gate passed after the preview, navigation-size, background-pace and Move-cue changes. Vite still cannot start its `esbuild` subprocess in this managed Windows environment (`spawn EPERM`), so a fresh renderer package and installed visual/controller acceptance remain open.
+
+- **Lounge browsing sound balance added in source** — a separate Move level can make repeated navigation cues softer or silent without changing OK/Back, using the existing overall Lounge volume and mute/pause safeguards. Focused source checks pass; real-pad listening acceptance remains open.
+
+- **Lounge background pace added in source** — Visual Builder separately controls backdrop drift/wave speed with Slow, Steady and Lively. It persists, resets, and integrates with the four starting looks without changing game browse speed. Source checks pass; installed theme, motion-accessibility and performance acceptance remains open.
+
+- **Lounge navigation sizing added in source** — Compact, Comfortable and Couch-size choices alter only header and browsing controls. The saved choice and layout reset are normalized, with no change to cover size. Focused state, binding and visual checks pass; installed pad/TV/narrow-window testing remains open.
+
+- **Lounge Visual Builder preview aligned in source** — the small preview now shares the living backdrop used by Lounge rather than showing only a placeholder gradient. Theme art, selected-game art, canvas choice, framing and wave/FX settings are represented; failed personal images still surface an error. Focused source checks pass; installed visual/performance acceptance remains open.
+
+- **Living Lounge waves tuned in source** — Wave strength still sets the player's chosen amount, while Lower FX and Gentle motion scale it back instead of showing the same wave brightness at every level. Existing pause and no-motion gates remain. Focused source checks pass; installed visual/performance acceptance remains open.
+
+- **Lounge browse bar and entry screen tuned in source** — filter choices are icon-led and scroll in one horizontal row instead of wrapping over the artwork. Narrow windows get a dedicated strip, and changing views keeps the selected filter visible. Layout now saves a choice to enter on games or Lounge Home, while fullscreen still opens only by request. Focused state, binding and visual checks pass; installed controller and layout acceptance remains open.
+
+- **Lounge selected-cover polish in source** — pointer hover no longer weakens the selected cover; a steady accent marker and stronger Browser title band help locate focus over varied artwork. Reduced motion and Lounge Motion Off keep the marker but stop cover movement. Focused source checks pass; rebuilt visual acceptance remains open.
+
+- **Lounge Continue playing added in source** — Wall and Game Browser now offer a focused resume view, with a matching Home shortcut. It shares Home's evidence-based resumable rule, retains all matches, and avoids showing games marked paused, finished or abandoned. Focused source checks pass; installed controller and visual acceptance remains open.
+
+- **Lounge Most played added in source** — the Lounge toolbar and Home Guide now open a playtime-ranked view in both layouts. It reuses the Wall filter, so untracked games stay out; shoulder-button cycling includes it. Focused source checks pass; installed visual and controller testing remains open.
+
+- **Recently played filter repaired in source** — Lounge and Wall now include sessions whose last-played date is saved as an ISO string, alongside numeric timestamps. Invalid dates stay out; source fixtures pass. Installed real-library verification remains open.
+
+- **Lounge couch controls clarified in source** — compact hints now match the active controller setting, and game-details Previous/Next actions are larger labeled buttons. Focused checks pass; rebuilt Windows visual and real-pad acceptance remains open.
+
+- **Game Details icons improved in source** — the compact metadata row now uses larger icons and restrained per-field colors without enlarging its text. Focused source checks pass; rebuilt Windows visual acceptance remains open.
+
+- **Wall return buttons moved in source** — Home/Library are first on the left of the Wall toolbar with top navigation. With the vertical rail enabled, Wall hides that duplicate pair and uses the rail. Focused source checks pass; installed visual acceptance remains open.
+
+- **Independent Lounge particles in source** — the Lounge Visual Builder now chooses Follow theme, None or seven bundled rain, hearts, petals, embers, stars and bubbles looks, with a small live preview of the chosen art. Desktop theme particles remain unchanged. Bounded counts reuse existing motion rules; source checks pass, while installed visual/performance acceptance remains open.
+
+- **Lounge sound palette and alert mascot in source** — Glass, Pulse and Orbit supply short Move/OK/Back cues with shared saved controls in Layout and Visual Builder. A small corner mascot surfaces a selected game's possible-update flag, without claiming the update is confirmed. Focused source checks pass; rebuilt Windows listening, visual and controller testing remains open.
+
+- **Lounge browsing sound in source** — selected-game changes now have a quiet throttled cue with Lounge-only on/off and volume. App-wide mute, Rest and hidden-window rules still win. Focused checks pass; audible and physical-controller acceptance on a rebuilt Windows app remains open.
+
+- **New-library Lounge Home hero in source** — Home no longer opens with an empty main feature when games exist but none has a resumable session. It shows a Backlog/unplayed or library pick with truthful wording and a themed art fallback. Focused source checks pass; installed visual/controller acceptance remains open.
+
+- **Lounge visual starting looks in source** — four one-click combinations make the Visual Builder faster to use without replacing its individual controls. Game cinema, Theme glow, Soft focus and Quiet screen leave a personal image copy and layout intact. Focused model and component checks pass; installed visual/controller judgement remains open.
+
+- **Lounge artwork position in source** — a controller-friendly vertical position control adjusts where a background is cropped, persists with Lounge settings and resets to center. Focused settings and visual checks pass; installed visual acceptance remains open.
+
+- **Selected-game Lounge backdrop in source** — Visual Builder now offers a game-following background. The active game's wide art sits above the existing theme fallback; missing or broken images do not blank the page. Motion controls still govern transitions. Focused source checks pass; installed visual and performance acceptance remains open.
+
+- **Lounge A–Z browse jump in source** — large letter targets with counts let keyboard/controller users narrow the current Lounge view and return to all games without touching saved Library filters. Focused source and component checks pass; installed controller and visual acceptance remains open.
+
+- **Lounge backgrounds survive moving the original in source** — the Lounge Visual Builder now imports a validated PNG/JPG/WebP copy into app data rather than linking to the selected file. Existing saved links still load. Focused native copy, settings and IPC checks pass; installed picker and restart acceptance remain open.
+
+- **Lounge Home Next up in source** — Home now offers an artwork-led shelf from unlocked Backlog and genuinely unplayed games. Favorites lead within each group; no random or online recommendations are claimed. Cards open in-Lounge details only, and Customize Home can hide the shelf. Focused data, binding, visual, JSX and CSS checks pass. Installed controller and visual acceptance remains open.
+
+- **Lounge Home destinations in source** — Home now opens a fullscreen, theme-backed Guide instead of a small overlay. Its large cards route to All games, Favorites, Recently played and the Lounge Visual Builder; Back returns to the previous Lounge view. Customize Home reorders or hides cards with controller-friendly buttons and saves that arrangement. Activity and Continue Playing still use only unlocked recorded games, and selecting a game still opens protected in-Lounge details rather than launching. Focused source checks pass; installed visual and controller acceptance remains open.
+
+- **Lounge-only Visual Builder in source** — a large, controller-navigable builder now opens from Lounge or its Guide, separate from arrangement settings. It imports a private copy of a user-chosen PNG/JPG/WebP background, offers theme/light/dark/clear canvases, artwork and panel opacity, drift/waves/still motion, overall movement and the current theme's particle/FX strength. Home opens Guide, Back leaves Lounge, and Guide destinations open the all-games Wall or visual builder. Focused state, renderer-binding, launch-safety, CSS and JSX parsing checks pass. The full renderer build still stops at local `esbuild spawn EPERM`; installed visual, file-picker, controller and persistence acceptance remains open.
+
+- **Lounge Guide added in source** — a Guide button opens a themed overlay above either Lounge view. Continue Playing prioritizes recent resumable games and in-progress titles; Your Activity shows tracked lifetime time, games last played within seven days and Journey Status in progress. The overlay receives only unlocked games, opens the protected in-Lounge details panel, and restores focus on close. Focused state, renderer-binding, visual-boundary, launch-safety and CSS checks pass. Installed Windows visual/controller acceptance is still open.
+
+- **Lounge layout studio in source** — Game Browser now opens on a large artwork-led stage with a focused cover shelf. The new Lounge-only Customize drawer has Cinema, Console, Gallery and Spotlight compositions, live edge placement, sizing, preview style, information density, motion and effects controls. A compact toolbar gives the art room; narrow windows move side shelves above the stage. The stage now has a subtle FX-aware light sweep, position rail and space-aware portrait art. Choices are bounded, saved independently of themes and resettable. Mouse movement can take over preview selection after pad or keyboard focus without moving that focus. Hidden windows stop ambient actors and pause Lounge CSS motion. Focused layout, renderer, visual-boundary, theme and launch-safety checks pass; idle cost has not been measured. A rebuilt Windows visual/controller/persistence test is still required; local packaging remains blocked by `esbuild spawn EPERM`.
+
+- **Lounge visual polish continued in source** — Game Browser's shelf has more depth, and selected-game titles and portraits settle in briefly between choices. Lounge Wall now has a quieter gallery backing and a compact cover anchor in its selected-game footer. Motion Off and reduced-motion choices still remove the transitions. Renderer, visual-boundary and CSS parsing checks pass; the look itself still needs a rebuilt Windows visual test.
+
+- **Living Lounge backdrop in source** — both Wall and Game Browser now reuse the theme's validated atmosphere artwork as a slow drifting layer with bounded accent light. Theme Creator's existing Lounge flow strength/speed influence it; FX None, Motion Off, Rest, hidden windows and reduced-motion preferences stop movement. Animated theme media uses its still fallback here, avoiding a second GIF/video actor behind the existing effects. Renderer, theme, visual-boundary and CSS checks pass. Installed visual/performance testing remains open.
+
+- **Lounge chrome reduced in source** — the always-visible header and Wall/Game Browser switch are slimmer and icon-led. The full keyboard/pad guide starts collapsed behind an accessible Controls button, while basic commands remain visible in one line. No launch or navigation semantics changed. Renderer, visual-boundary and CSS checks pass; installed focus/visual acceptance remains open.
+
+- **Lounge in-place details redesigned in source** — the selected game's artwork and title anchor the overlay, with readable story, grouped facts and screenshots below. The one-use protected Launch action stays visible outside the scrolling facts; short windows reduce hero height. Renderer, launch-safety, visual-boundary and CSS checks pass. Installed mouse/keyboard, controller focus and actual launch acceptance remain open.
+
+- **Lounge details browsing in source** — Previous and Next now cycle through the filtered games inside the details panel. The new game resets the facts scroll, focus remains on the browse control, and closing after browsing restores focus to its cover. Renderer, launch-safety, visual-boundary and CSS checks pass; installed pad/focus acceptance remains open.
+
+- **Lounge experience overhaul (source pass)** — covers now open in-Lounge details rather than leaving for Library Preview. Details show artwork, description, screenshots and tracked facts; a separate trusted Launch button keeps Lounge behind the game. Theme Creator has Lounge-only glow, flow, FX, art, panel and lift controls, while all themes get stronger focus and ambient movement. FX None, Rest and reduced motion remain respected. Focused renderer/theme/launch checks pass. Installed Windows fullscreen/Steam/controller/visual acceptance and package build remain open (`esbuild spawn EPERM` locally).
+
+- **Controller Center Windows inventory and button feedback (source pass)** — all enabled buttons show a visible held state. Controller Center now checks Windows PnP on open and manual Refresh, listing connected controller names separately from readable gamepad input. This does not turn a Steam-only Bluetooth device into an input source; installed 8BitDo testing is still needed. Focused IPC, source and scan-fixture checks pass.
+
+- **Theme particle movement expanded (source pass)** — Creator Lab now controls individual speed variation, spin during travel and side-to-side sway. Rain, hearts, petals and other sprites receive sensible starting motion. Preview and saved themes use the same stable timing model; bounded validation and focused checks pass. Installed Windows visual and motion acceptance remains open.
+
+- **Theme Creator particle-art catalogue (source pass)** — the particle picker is now distinct from background/button art, with seven transparent built-in sprites labelled by visual and motion. Workbench copies can be used or edited, and custom uploads remain available. Source/service checks pass; installed Windows motion and visual acceptance remains open.
+
+- **Home resize dots corrected in source** — each directional grip now has an explicit widget-relative edge position, avoiding the scattered placement shown in the installed screenshot. Focused checks pass; rebuilt Windows visual confirmation remains open.
+
 - **v1.8.1 release identity prepared** — moved the current candidate from the already-used failed v1.8.0 tag to fresh version 1.8.1 across package, UI, in-app notes, README, workflow body, release notes, acceptance and version checks. This does not yet prove a packaged EXE or installed behavior.
 
 - **Queued September UI batch source pass** — stabilized Home drag across widget boundaries with a cursor-following card and live grid space; enlarged coloured Home title icons; expanded current in-app notes; prioritized dedicated preview headers and made game facts readable; added optional official-link/locate entries for DLSS Swapper, OptiScaler and ReShade; and extended Detailed Wall with Your Rating, Metacritic, achievements, added date and a saved Big icons choice. Focused source checks pass. Rebuilt Windows mouse, artwork, Tools and Wall visual/persistence acceptance remains open.

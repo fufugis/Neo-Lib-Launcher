@@ -444,3 +444,42 @@ export function hoverThrottled() {
   lastHoverTs = now;
   playHover();
 }
+
+// Short synthesized Lounge cues. No loops, loaded assets or resident buffers.
+const LOUNGE_CUES = {
+  glass: { move: [540, 660, 'sine'], confirm: [660, 990, 'sine'], back: [510, 350, 'sine'] },
+  pulse: { move: [400, 510, 'triangle'], confirm: [440, 800, 'triangle'], back: [500, 310, 'triangle'] },
+  orbit: { move: [620, 730, 'sine'], confirm: [520, 850, 'sine'], back: [720, 420, 'sine'] },
+};
+const lastLoungeCueTs = { move: 0, confirm: 0, back: 0 };
+export function playLoungeCue(kind, volume = 25, style = 'glass') {
+  if (!Object.hasOwn(lastLoungeCueTs, kind)) return false;
+  const level = Number(volume);
+  if (CURRENT_PACK === 'none' || !Number.isFinite(level) || level <= 0) return false;
+  const now = Date.now();
+  if (now - lastLoungeCueTs[kind] < (kind === 'move' ? 150 : 100)) return false;
+  const ac = getCtx();
+  if (!ac) return false;
+  lastLoungeCueTs[kind] = now;
+  if (ac.state === 'suspended') ac.resume().catch(() => {});
+  const oscillator = ac.createOscillator();
+  const gain = ac.createGain();
+  const start = ac.currentTime;
+  const [from, to, wave] = (LOUNGE_CUES[style] || LOUNGE_CUES.glass)[kind];
+  const duration = kind === 'move' ? 0.1 : 0.16;
+  const peak = (kind === 'move' ? 0.055 : 0.075) * Math.min(100, Math.max(0, level)) / 100;
+  oscillator.type = wave;
+  oscillator.frequency.setValueAtTime(from, start);
+  oscillator.frequency.exponentialRampToValueAtTime(to, start + duration * 0.8);
+  oscillator.connect(gain);
+  connectMaster(gain, ac);
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), start + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  oscillator.start(start);
+  oscillator.stop(start + duration + 0.02);
+  return true;
+}
+export const playLoungeBrowse = (volume = 25, style = 'glass') => playLoungeCue('move', volume, style);
+export const playLoungeConfirm = (volume = 25, style = 'glass') => playLoungeCue('confirm', volume, style);
+export const playLoungeBack = (volume = 25, style = 'glass') => playLoungeCue('back', volume, style);
