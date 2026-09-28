@@ -723,19 +723,19 @@ export function SideNavigationRail({ mode, libraryViewMode, onOpenHome, onOpenLi
       onQuit={onQuit}
     />
     <span className="mx-1 my-2 h-px shrink-0 bg-[rgb(var(--border)/0.65)]" />
-    <RailNavigationButton icon={<Home size={21} />} label="Home" expanded={expanded} active={mode === 'home'} onClick={onOpenHome} testid="tab-home" />
-    <RailNavigationButton icon={<LibIcon size={21} />} label="Library" expanded={expanded} active={mode === 'library' && libraryViewMode !== 'wall'} onClick={onOpenLibrary} testid="tab-library" />
-    <RailNavigationButton icon={<Columns size={21} />} label="Wall" expanded={expanded} active={mode === 'library' && libraryViewMode === 'wall'} onClick={onOpenWall} testid="tab-cover-wall" />
-    <RailNavigationButton icon={<Boxes size={21} />} label="Tools" expanded={expanded} active={mode === 'tools'} onClick={onOpenTools} testid="tab-tools" />
-    <RailNavigationButton icon={<Tv2 size={21} />} label="Lounge" expanded={expanded} onClick={onEnterLounge} testid="sidebar-rail-lounge-btn" />
+    <RailNavigationButton icon={<Home size={21} />} label="Home" hint="Your dashboard" expanded={expanded} active={mode === 'home'} onClick={onOpenHome} testid="tab-home" />
+    <RailNavigationButton icon={<LibIcon size={21} />} label="Library" hint="Browse games" expanded={expanded} active={mode === 'library' && libraryViewMode !== 'wall'} onClick={onOpenLibrary} testid="tab-library" />
+    <RailNavigationButton icon={<Columns size={21} />} label="Wall" hint="Cover view" expanded={expanded} active={mode === 'library' && libraryViewMode === 'wall'} onClick={onOpenWall} testid="tab-cover-wall" />
+    <RailNavigationButton icon={<Boxes size={21} />} label="Tools" hint="Utilities" expanded={expanded} active={mode === 'tools'} onClick={onOpenTools} testid="tab-tools" />
+    <RailNavigationButton icon={<Tv2 size={21} />} label="Lounge" hint="Couch mode" expanded={expanded} onClick={onEnterLounge} testid="sidebar-rail-lounge-btn" />
     <span data-testid="side-navigation-actions-divider" className="mx-1 my-2 h-px shrink-0 bg-[rgb(var(--border)/0.65)]" />
-    <RailNavigationButton icon={<Wand2 size={21} />} label="Wizard" expanded={expanded} onClick={onOpenWizard} testid="sidebar-rail-wizard-btn" />
-    <RailNavigationButton icon={manualResting ? <Sun size={21} /> : <Moon size={21} />} label={manualResting ? 'Wake up' : 'Rest Zzz'} expanded={expanded} active={manualResting} onClick={onToggleManualRest} testid="sidebar-rail-rest-toggle" />
+    <RailNavigationButton icon={<Wand2 size={21} />} label="Wizard" hint="Add games" expanded={expanded} onClick={onOpenWizard} testid="sidebar-rail-wizard-btn" />
+    <RailNavigationButton icon={manualResting ? <Sun size={21} /> : <Moon size={21} />} label={manualResting ? 'Wake up' : 'Rest Zzz'} hint={manualResting ? 'Resume activity' : 'Pause background'} expanded={expanded} active={manualResting} onClick={onToggleManualRest} testid="sidebar-rail-rest-toggle" />
     <span className={`mt-auto overflow-hidden whitespace-nowrap px-2 pb-1 text-[8px] font-bold uppercase tracking-[0.16em] text-muted transition-opacity ${expanded ? 'opacity-75' : 'opacity-0'}`}>Navigation</span>
   </nav></div>;
 }
 
-function RailNavigationButton({ icon, label, expanded, active, onClick, testid }) {
+function RailNavigationButton({ icon, label, hint, expanded, active, onClick, testid }) {
   return <button
     type="button"
     data-testid={testid}
@@ -746,6 +746,9 @@ function RailNavigationButton({ icon, label, expanded, active, onClick, testid }
     className={`mb-1 flex h-10 w-full shrink-0 items-center overflow-hidden rounded-lg border text-left transition ${expanded ? 'justify-start gap-2.5 px-2' : 'justify-center gap-0 px-0'} ${active ? 'border-[rgb(var(--accent)/0.68)] bg-[rgb(var(--accent)/0.16)] text-ink shadow-[0_0_14px_-8px_rgb(var(--accent))]' : 'border-transparent text-ink/78 hover:border-[rgb(var(--accent)/0.38)] hover:bg-[rgb(var(--accent)/0.08)] hover:text-ink'}`}
   >
     <span className={`grid h-6 w-6 shrink-0 place-items-center ${active ? 'text-[rgb(var(--accent))]' : 'text-[rgb(var(--accent-2))]'}`}>{icon}</span>
-    <span className={`overflow-hidden whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.14em] transition-all ${expanded ? 'max-w-20 translate-x-0 opacity-100' : 'max-w-0 -translate-x-1 opacity-0'}`}>{label}</span>
+    <span className={`min-w-0 overflow-hidden whitespace-nowrap transition-all ${expanded ? 'max-w-[104px] translate-x-0 opacity-100' : 'max-w-0 -translate-x-1 opacity-0'}`}>
+      <span className="block truncate text-[10px] font-bold uppercase leading-[13px] tracking-[0.14em]">{label}</span>
+      <span aria-hidden="true" className="block truncate text-[9px] leading-[11px] text-muted">{hint}</span>
+    </span>
   </button>;
 }

@@ -20,7 +20,9 @@ export default function ControllerNavigationBridge({ enabled, preferredFingerpri
       focused = element;
       element.setAttribute('data-controller-focused', 'true');
       element.focus({ preventScroll: true });
-      element.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+      // Lounge owns the centered shelf animation; a second nearest-edge scroll
+      // here would jump ahead of it on every gamepad move.
+      if (!element.matches?.('.lounge-browser-card')) element.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     };
     const navigate = (command) => {
       if (document.visibilityState === 'hidden' || !document.hasFocus()) return;

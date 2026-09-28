@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { applyLoungePreset, applyLoungeScene, applyLoungeVisualPreset, DEFAULT_LOUNGE_PREFERENCES, LOUNGE_PARTICLE_IDS, LOUNGE_PRESETS, LOUNGE_SCENES, LOUNGE_VISUAL_PRESETS, matchesLoungeVisualPreset, normalizeLoungePreferences } from '../src/components/lounge/lounge-layout-model.mjs';
+import { applyLoungeDesktopTheme, applyLoungePreset, applyLoungeScene, applyLoungeVisualPreset, DEFAULT_LOUNGE_PREFERENCES, LOUNGE_BROWSE_BAR_FILTERS, LOUNGE_PARTICLE_IDS, LOUNGE_PRESETS, LOUNGE_SCENES, LOUNGE_VISUAL_PRESETS, matchesLoungeVisualPreset, normalizeLoungePreferences, showLoungeBrowseFilter } from '../src/components/lounge/lounge-layout-model.mjs';
 import { hydrateSettings, mergeSettings } from '../src/state/settings-state.mjs';
 
 const defaults = normalizeLoungePreferences(null);
@@ -11,11 +11,28 @@ assert.equal(defaults.ambientMotion, 'waves', 'the theme-accent backdrop moves b
 assert.equal(defaults.waveStrength, 52);
 assert.equal(defaults.coverGlow, 'off', 'animated cover edges are opt-in');
 assert.equal(defaults.specialTheme, 'theme', 'existing installations keep their desktop theme until a Lounge scene is chosen');
+assert.equal(defaults.desktopThemeOverride, '', 'Lounge follows the desktop theme by default');
+const loungeDesktopTheme = applyLoungeDesktopTheme(defaults, 'ocean');
+assert.equal(loungeDesktopTheme.desktopThemeOverride, 'ocean');
+assert.equal(loungeDesktopTheme.specialTheme, 'theme');
+assert.equal(hydrateSettings({ theme: 'anime', loungePreferences: loungeDesktopTheme }).theme, 'anime', 'a Lounge theme choice never changes the desktop theme');
+assert.equal(hydrateSettings({ loungePreferences: loungeDesktopTheme }).loungePreferences.desktopThemeOverride, 'ocean', 'the Lounge theme survives hydration');
+assert.equal(applyLoungeScene(loungeDesktopTheme, 'theme').desktopThemeOverride, '', 'Follow desktop theme clears the Lounge override');
+assert.equal(applyLoungeDesktopTheme(defaults, 'custom:my-theme').desktopThemeOverride, 'custom:my-theme', 'installed custom theme IDs can be saved for Lounge');
+assert.equal(applyLoungeDesktopTheme(defaults, 'unexpected').desktopThemeOverride, '', 'unknown themes cannot be saved as Lounge choices');
 assert.deepEqual(defaults.quickLinks, ['continue', 'favorites', 'most']);
+assert.deepEqual(defaults.hiddenBrowseFilters, [], 'existing Lounges keep every browsing-bar button visible');
+assert.equal(Object.keys(LOUNGE_BROWSE_BAR_FILTERS).length, 8, 'all optional collection and A–Z buttons are configurable');
+const hiddenBrowse = normalizeLoungePreferences({ hiddenBrowseFilters: ['recent', 'az', 'recent', 'all', 'invalid'] });
+assert.deepEqual(hiddenBrowse.hiddenBrowseFilters, ['recent', 'az'], 'visibility choices are unique and cannot hide All games');
+assert.deepEqual(hydrateSettings({ loungePreferences: hiddenBrowse }).loungePreferences.hiddenBrowseFilters, ['recent', 'az'], 'browse-bar choices survive saved-settings hydration');
+assert.equal(showLoungeBrowseFilter('all', ['all']), true, 'All games stays available');
+assert.equal(showLoungeBrowseFilter('recent', ['recent']), false, 'hidden inactive filters leave the bar');
+assert.equal(showLoungeBrowseFilter('recent', ['recent'], true), true, 'a hidden active view remains identifiable until changed');
 assert.equal(normalizeLoungePreferences({ specialTheme: 'untrusted' }).specialTheme, 'theme');
 assert.deepEqual(normalizeLoungePreferences({ quickLinks: ['most', 'most', 'bad', 'recent'] }).quickLinks, ['most', 'recent']);
 assert.deepEqual(normalizeLoungePreferences({ quickLinks: [] }).quickLinks, []);
-for (const id of ['alpine', 'orbit', 'coast']) {
+for (const id of ['alpine', 'orbit', 'coast', 'neon', 'starlit']) {
   assert.ok(LOUNGE_SCENES[id]);
   const scene = applyLoungeScene(defaults, id);
   assert.equal(scene.specialTheme, id);
@@ -55,7 +72,23 @@ assert.equal(normalizeLoungePreferences({ entryScreen: 'bogus' }).entryScreen, '
 assert.equal(defaults.particleStyle, 'theme');
 assert(LOUNGE_PARTICLE_IDS.includes('falling-heart'));
 const particleCatalog = JSON.parse(fs.readFileSync(new URL('../electron/themes/builtin-particles.json', import.meta.url), 'utf8'));
-assert.deepEqual(LOUNGE_PARTICLE_IDS.slice(2), particleCatalog.map(item => item.id));
+assert.deepEqual(LOUNGE_PARTICLE_IDS.slice(2, 2 + particleCatalog.length), particleCatalog.map(item => item.id));
+assert(LOUNGE_PARTICLE_IDS.includes('fireflies'));
+assert(LOUNGE_PARTICLE_IDS.includes('snowfall'));
+assert(LOUNGE_PARTICLE_IDS.includes('comet-trails'));
+assert.equal(normalizeLoungePreferences({ particleAmount: 250, particleRandomness: -20, particleColor: 'rose' }).particleAmount, 100);
+assert.equal(normalizeLoungePreferences({ particleAmount: 250, particleRandomness: -20, particleColor: 'rose' }).particleRandomness, 0);
+assert.equal(normalizeLoungePreferences({ particleColor: 'invalid' }).particleColor, 'original');
+assert.equal(hydrateSettings({ loungePreferences: { particleAmount: 35, particleColor: 'gold' } }).loungePreferences.particleAmount, 35);
+assert.equal(hydrateSettings({ loungePreferences: { particleAmount: 35, particleColor: 'gold' } }).loungePreferences.particleColor, 'gold');
+assert.equal(normalizeLoungePreferences({ previewPosition: 'outside', previewWidth: 400, previewPanelOpacity: 0 }).previewPosition, 'left');
+assert.equal(normalizeLoungePreferences({ previewPosition: 'outside', previewWidth: 400, previewPanelOpacity: 0 }).previewWidth, 85);
+assert.equal(normalizeLoungePreferences({ previewBoxHeight: 900 }).previewBoxHeight, 460);
+assert.equal(normalizeLoungePreferences({ previewBoxHeight: 20 }).previewBoxHeight, 160);
+assert.equal(normalizeLoungePreferences({ previewPosition: 'outside', previewWidth: 400, previewPanelOpacity: 0 }).previewPanelOpacity, 35);
+assert.equal(hydrateSettings({ loungePreferences: { previewPosition: 'right', previewShowCover: false, shelfOpacity: 32 } }).loungePreferences.previewPosition, 'right');
+assert.equal(hydrateSettings({ loungePreferences: { previewPosition: 'right', previewShowCover: false, shelfOpacity: 32 } }).loungePreferences.previewShowCover, false);
+assert.equal(hydrateSettings({ loungePreferences: { previewPosition: 'right', previewShowCover: false, shelfOpacity: 32 } }).loungePreferences.shelfOpacity, 32);
 assert.equal(normalizeLoungePreferences({ particleStyle: 'rain-drop' }).particleStyle, 'rain-drop');
 assert.equal(normalizeLoungePreferences({ particleStyle: 'bad' }).particleStyle, 'theme');
 assert.equal(hydrateSettings({ loungePreferences: { particleStyle: 'warm-ember' } }).loungePreferences.particleStyle, 'warm-ember');

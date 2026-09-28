@@ -13,13 +13,28 @@ export default function LoungeBrowserStage({ game, index, total, preferences, up
   const isMinimal = preferences.infoDensity === 'minimal';
   const isRich = preferences.infoDensity === 'rich';
   const position = Math.max(0, Math.min(100, ((index + 1) / Math.max(1, total)) * 100));
-  if (preferences.specialTheme !== 'theme') return <article className="lounge-browser-stage lounge-scene-stage relative isolate flex min-h-0 flex-1 items-end overflow-hidden rounded-[28px]" data-testid="lounge-selected-stage" data-preview-style="scene" style={{ '--lounge-preview-height': `${preferences.stageHeight}px`, '--lounge-progress': `${position}%` }}>
+  if (preferences.specialTheme !== 'theme') return <article
+    className="lounge-browser-stage lounge-scene-stage relative isolate flex min-h-0 flex-1 items-end overflow-hidden rounded-[28px]"
+    data-testid="lounge-selected-stage"
+    data-preview-style="scene"
+    style={{ '--lounge-preview-height': String(preferences.stageHeight) + 'px' }}
+  >
     <div className="lounge-scene-stage__light pointer-events-none absolute inset-0" aria-hidden="true" />
-    <div className="lounge-scene-stage__content relative z-10 mx-5 mb-5 flex w-full min-w-0 items-center gap-6 rounded-[26px] border border-white/30 p-5 text-white sm:mx-8 sm:mb-7 sm:p-7">
-      <div className="lounge-scene-stage__cover hidden shrink-0 overflow-hidden rounded-2xl border-2 border-white/65 shadow-[0_20px_50px_rgb(0_0_0/0.45)] sm:block" aria-hidden="true"><div className="aspect-[2/3]"><LoungeCover game={game} /></div></div>
-      <div key={`${game.id}-scene-copy`} className="lounge-stage-copy min-w-0 flex-1"><p className="lounge-stage-kicker text-xs font-black uppercase tracking-[0.28em] text-[rgb(var(--accent-2))]">Now in focus · {String(index + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}</p><h2 className="lounge-stage-title mt-3 text-3xl font-black leading-tight sm:text-5xl">{game.name || 'Untitled game'}</h2>{!isMinimal && <p className="mt-3 line-clamp-2 max-w-3xl text-sm leading-relaxed text-white/90 sm:text-base">{description}</p>}<div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold"><span className="lounge-stage-fact flex items-center gap-1.5"><Clock3 size={14} /> {facts?.playtime}</span><span className="lounge-stage-fact flex items-center gap-1.5"><Gamepad2 size={14} /> {facts?.journey}</span>{isRich && <><span className="lounge-stage-fact">{game.launcher || game.source || 'Library game'}</span>{game.releaseDate && <span className="lounge-stage-fact">Released {game.releaseDate}</span>}</>}</div><button type="button" onClick={() => onOpenDetails(game.id)} className="lounge-stage-action mt-5 inline-flex items-center gap-3 rounded-xl border border-white/70 bg-white px-5 py-2.5 text-sm font-black text-black shadow-[0_12px_35px_rgb(0_0_0/0.3)]">Explore game <ArrowUpRight size={18} /></button></div>
+    <div className="lounge-scene-stage__content relative z-10 mb-5 flex min-w-0 items-center gap-6 rounded-[26px] border border-white/30 p-5 text-white sm:mb-7 sm:p-7">
+      {preferences.previewShowCover && <div className="lounge-scene-stage__cover hidden shrink-0 overflow-hidden rounded-2xl border-2 border-white/65 shadow-[0_20px_50px_rgb(0_0_0/0.45)] sm:block" aria-hidden="true"><div className="aspect-[2/3]"><LoungeCover game={game} /></div></div>}
+      <div key={String(game.id) + '-scene-copy'} className="lounge-stage-copy min-w-0 flex-1">
+        <p className="lounge-stage-kicker text-xs font-black uppercase tracking-[0.28em] text-[rgb(var(--accent-2))]">Now in focus · {String(index + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}</p>
+        <h2 className="lounge-stage-title mt-3 text-3xl font-black leading-tight sm:text-5xl">{game.name || 'Untitled game'}</h2>
+        {!isMinimal && preferences.previewShowDescription && <p className="mt-3 line-clamp-2 max-w-3xl text-sm leading-relaxed text-white/90 sm:text-base">{description}</p>}
+        {preferences.previewShowFacts && <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
+          <span className="lounge-stage-fact flex items-center gap-1.5"><Clock3 size={14} /> {facts?.playtime}</span>
+          <span className="lounge-stage-fact flex items-center gap-1.5"><Gamepad2 size={14} /> {facts?.journey}</span>
+          {isRich && <><span className="lounge-stage-fact">{game.launcher || game.source || 'Library game'}</span>{game.releaseDate && <span className="lounge-stage-fact">Released {game.releaseDate}</span>}</>}
+        </div>}
+        <button type="button" onClick={() => onOpenDetails(game.id)} className="lounge-stage-action mt-5 inline-flex items-center gap-3 rounded-xl border border-white/70 bg-white px-5 py-2.5 text-sm font-black text-black shadow-[0_12px_35px_rgb(0_0_0/0.3)]">Explore game <ArrowUpRight size={18} /></button>
+        {preferences.previewShowProgress && <div className="lounge-scene-progress mt-5 h-1 overflow-hidden rounded-full bg-white/20" aria-hidden="true"><span className="block h-full rounded-full bg-[rgb(var(--accent))]" style={{ width: String(position) + '%' }} /></div>}
+      </div>
     </div>
-    <div className="lounge-stage-progress pointer-events-none absolute inset-x-0 bottom-0 z-20 h-1 bg-white/15" aria-hidden="true"><span /></div>
   </article>;
   return <article className="lounge-browser-stage relative isolate flex min-h-0 flex-1 items-end overflow-hidden rounded-[28px] border border-[rgb(var(--accent)/0.52)] bg-[rgb(var(--panel))]" data-testid="lounge-selected-stage" data-preview-style={preferences.previewStyle} style={{ '--lounge-preview-height': `${preferences.stageHeight}px`, '--lounge-progress': `${position}%` }}>
     {art && <img src={art} alt="" onError={() => setFailedArt(previous => [...previous, art])} className="lounge-stage-art absolute inset-0 h-full w-full object-cover" />}

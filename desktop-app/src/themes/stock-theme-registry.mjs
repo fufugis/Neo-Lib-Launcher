@@ -54,9 +54,12 @@ const CSS_TOKEN_KEYS = {
   surface: '--surface', panel: '--panel', border: '--border',
 };
 export function applyStockThemePalette(element, id) {
+  if (!element) return;
+  for (const [cssName, value] of Object.entries(themePaletteStyle(id))) element.style.setProperty(cssName, value);
+}
+
+export function themePaletteStyle(id) {
   const manifest = customThemeManifest(id) || stockThemeManifest(id) || stockThemeManifest('synthwave');
-  if (!element || !manifest) return;
-  for (const [key, cssName] of Object.entries(CSS_TOKEN_KEYS)) {
-    element.style.setProperty(cssName, (manifest.palette[key] || manifest.panels[key]).join(' '));
-  }
+  if (!manifest) return {};
+  return Object.fromEntries(Object.entries(CSS_TOKEN_KEYS).map(([key, cssName]) => [cssName, (manifest.palette[key] || manifest.panels[key]).join(' ')]));
 }

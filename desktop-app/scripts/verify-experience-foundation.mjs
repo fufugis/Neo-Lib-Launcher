@@ -282,6 +282,9 @@ assert.match(loungeCover, /loading="lazy" decoding="async"/, 'offscreen covers s
 assert.match(loungeCover, /onError=\{\(\) => setFailedPortraitUrl\(portrait\)\}/, 'failed portraits must reach a fallback');
 assert.match(loungeCover, /onError=\{\(\) => setFailedBackdropUrl\(backdrop\)\}/, 'failed backdrops must leave a readable title card');
 assert.match(lounge, /data-lounge-filter/);
+assert.match(styles, /\.lounge-filter-toggle\[aria-pressed='true'\] \{ border-color: rgb\(var\(--accent\) \/ 0\.95\); background: rgb\(var\(--accent\) \/ 0\.34\)/, 'the active Lounge filter uses a strong theme-accent border and fill');
+assert.match(styles, /\[data-testid='neo-lounge'\] \[data-controller-focused='true'\],[\s\S]*?outline: 3px solid rgb\(var\(--accent\)\) !important/, 'controller targeting uses the primary theme accent throughout Lounge');
+assert.match(styles, /\.lounge-filter-toggle:is\(:focus-visible, \[data-controller-focused='true'\]\) \{[^}]*inset 0 0 0 2px rgb\(var\(--accent\)\)/, 'scrolling filter targets retain a visible accent ring inside the button');
 assert.match(lounge, /focusAfterViewChange\.current = true/, 'changing Lounge views must schedule a focus handoff');
 assert.match(lounge, /\[data-lounge-selected="true"\], \[data-lounge-filter\]\[aria-pressed="true"\]/, 'an empty Lounge view must keep focus on its selected filter');
 assert.match(lounge, /shownGames\.some\(\(game\) => game\.id === focusedGameId\.current\)/, 'a removed Lounge cover must be recognized before restoring focus');
@@ -298,8 +301,13 @@ assert.match(lounge, /<LoungeBrowserStage game=\{selected\}/, 'browser selection
 assert.match(lounge, /shelf\.scrollTo\(\{ \[vertical \? 'top' : 'left'\]/, 'browser selection scrolls within the shelf on either axis');
 assert.match(lounge, /const edge = Math\.max\(12, \(viewport - cardSize\) \/ 2\)/, 'first and last browser covers can occupy the center position');
 assert.match(lounge, /next\.focus\(shelfGame \? \{ preventScroll: true \} : undefined\)/, 'controller focus does not jump the shelf ahead of its smooth scroll');
-assert.match(styles, /\.lounge-browser-card\[data-lounge-selected='true'\] \{ transform: scale\(1\.23\)/, 'the selected cover grows while neighboring covers recede');
-assert.match(lounge, /<LoungeLivingBackdrop theme=\{theme\}/, 'both Lounge views share a theme-aware living backdrop');
+assert.match(styles, /\.lounge-browser-card\[data-lounge-selected='true'\] \{ transform: scale\(1\.4\)/, 'the selected cover is 40 percent larger than an ordinary cover');
+assert.match(styles, /\.lounge-browser-card\[data-lounge-distance='1'\] \{ transform: scale\(1\.2\)/, 'the closest covers are 20 percent larger');
+assert.match(styles, /\.lounge-browser-card\[data-lounge-distance='2'\] \{ transform: scale\(1\.1\)/, 'the next covers are 10 percent larger');
+assert.match(styles, /@keyframes lounge-cover-focus-pop[^\n]*scale\(1\.48\)/, 'the newly selected cover briefly pops before settling');
+assert.match(lounge, /data-lounge-distance=\{layout === 'browser' \? Math\.min\(3, Math\.abs\(index - selectedIndex\)\)/, 'cover emphasis follows distance from the selected game');
+assert.match(bridge, /if \(!element\.matches\?\.\('\.lounge-browser-card'\)\) element\.scrollIntoView/, 'gamepad focus must not override smooth Lounge centering');
+assert.match(lounge, /<LoungeLivingBackdrop theme=\{effectiveTheme\}/, 'both Lounge views share the selected Lounge theme backdrop');
 assert.match(lounge, /resting=\{resting \|\| !pageVisible \|\| editingOpen\}/, 'the large theme FX pause behind Lounge editing menus');
 assert.match(lounge, /if \(settingsOpen \|\| visualOpen \|\| themesOpen\) return;/, 'carousel measurements do not run while editing Lounge menus');
 assert.match(lounge, /React\.useMemo\(\(\) => filterLoungeLetter\(viewGames, letter\)/, 'slider edits do not refilter the game library');
@@ -307,6 +315,10 @@ assert.match(loungeCover, /export default React\.memo\(LoungeCover\)/, 'cover im
 assert.doesNotMatch(loungeSettings, /backdrop-blur-(?:md|lg)/, 'settings do not blur a full-screen animated background');
 assert.doesNotMatch(loungeVisualBuilder, /z-\[9100\][^"\n]*backdrop-blur/, 'Visual Builder does not blur a full-screen animated background');
 assert.match(lounge, /<BgAmbience[^>]*loungeMode/, 'Lounge identifies itself to the shared theme FX layer');
+assert.match(lounge, /preferences\.specialTheme === 'theme' && <BgAmbience/, 'Lounge-only scenes must not be washed out by desktop theme FX');
+assert.match(loungeBackdrop, /lounge-living-backdrop__rays/, 'scenic backdrops share the same restrained ray layer with the Visual Builder');
+assert.match(styles, /@keyframes lounge-scene-pan/, 'scenic backgrounds move gently instead of staying frozen');
+assert.match(styles, /lounge-living-backdrop__rays\[data-lounge-scene-art='orbit'\]/, 'Blue Orbit receives sun-anchored simulated rays');
 assert.match(themeVisuals, /!loungeMode && edgeGlow > 0/, 'Lounge does not stack the desktop-wide pulsing edge glow over its own backdrop');
 assert.match(themeVisuals, /!loungeMode && extraLayerCount > 0/, 'Lounge does not stack duplicate full-screen blurred blobs');
 assert.doesNotMatch(styles, /\.lounge-stage-(?:orbit|sweep) \{[^}]*animation:/, 'hero lighting remains steady while the scene is idle');
@@ -317,18 +329,48 @@ assert.match(styles, /\.lounge-browser-stage \.lounge-stage-art \{[^}]*object-fi
 assert.match(styles, /\.lounge-browser-stage \{[^}]*background-color: rgb\(var\(--panel\) \/ 0\.68\)/, 'stage edges remain readable without dimming the screenshot');
 assert.match(loungeStage, /--lounge-preview-height/, 'hero preview receives its resize setting');
 assert.match(styles, /\.lounge-browser\[data-shelf-position='bottom'\] \{[^}]*justify-content: space-between/, 'default game wheel stays at the bottom of the available viewport');
-assert.match(styles, /\.lounge-browser-card\[data-lounge-selected='true'\] \{ transform: scale\(1\.23\)/, 'the centered selection grows beyond its neighbors');
+assert.match(styles, /\.lounge-browser-card\[data-lounge-selected='true'\] \{ transform: scale\(1\.4\)/, 'the centered selection grows beyond its neighbors');
 assert.match(loungeVisualBuilder, /Game cover outline/, 'Visual Builder exposes the optional cover outline');
 assert.match(lounge, /data-lounge-cover-glow=\{preferences\.coverGlow\}/, 'cover outline choice is applied to Lounge');
 assert.match(lounge, /data-lounge-scene=\{preferences\.specialTheme\}/, 'Lounge-only scene palette is selected without changing the desktop theme');
+assert.match(lounge, /data-theme=\{effectiveTheme\}/, 'Lounge applies its chosen desktop theme to its own surface');
+assert.match(lounge, /LoungeLivingBackdrop theme=\{effectiveTheme\}/, 'Lounge backdrop uses the selected desktop theme');
+assert.match(lounge, /BgAmbience theme=\{effectiveTheme\}/, 'Lounge particles use the selected desktop theme');
+assert.match(lounge, /LoungeVisualBuilder preferences=\{preferences\} game=\{selected\} theme=\{effectiveTheme\}/, 'the Visual Builder previews the actual Lounge theme');
 assert.match(lounge, /aria-label="Lounge top shortcuts"/, 'special scenes include top-level controller-reachable shortcuts');
 assert.match(loungeThemeGallery, /Object\.entries\(LOUNGE_SCENES\)/, 'Themes owns the three Lounge-only scenes');
+assert.match(loungeThemeGallery, /Show Desktop Themes/, 'Follow desktop theme exposes the expanded desktop theme gallery');
+assert.match(loungeThemeGallery, /applyLoungeDesktopTheme\(preferences, item\.id\)/, 'desktop theme cards save only a Lounge preference');
+assert.match(loungeThemeGallery, /aria-expanded=\{showDesktopThemes\}/, 'controller and assistive-tech users can discover the expanded gallery state');
 assert.match(loungeSettings, /QuickLinkPicker/, 'Settings owns the top shortcut choices');
 assert.doesNotMatch(loungeVisualBuilder, /LOUNGE_SCENES|QuickLinkPicker|LoungeSoundControls/, 'Visuals does not duplicate theme, shortcut or sound controls');
 assert.match(lounge, /themesOpen \? surfaceRef\.current\?\.querySelector\('\[data-testid="lounge-theme-gallery"\]'\)/, 'keyboard and controller focus are scoped to the Themes gallery');
 assert.match(loungeStage, /lounge-scene-stage__cover/, 'special scene stage places the selected game cover beside its details');
+assert.match(loungeStage, /preferences\.previewShowCover &&/, 'scene previews honor the cover toggle');
+assert.match(loungeStage, /preferences\.previewShowDescription &&/, 'scene previews honor the description toggle');
+assert.match(loungeStage, /preferences\.previewShowFacts &&/, 'scene previews honor the facts toggle');
+assert.match(loungeStage, /preferences\.previewShowProgress && <div className="lounge-scene-progress/, 'scene progress stays inside the compact preview box');
+assert.match(loungeVisualBuilder, /data-testid="lounge-preview-box-builder"/, 'Visual Builder exposes the compact scene preview controls');
+assert.match(loungeVisualBuilder, /Bottom game bar opacity/, 'Visual Builder separates shelf transparency from the main surfaces');
+assert.match(loungeVisualBuilder, /Particle amount/, 'Lounge particles have an amount control');
+assert.match(loungeVisualBuilder, /Particle randomness/, 'Lounge particles have a randomness control');
+assert.match(loungeVisualBuilder, /Particle colour/, 'Lounge particles have a colour control');
 assert.match(loungeBackdrop, /loungeSceneArt\(preferences\?\.specialTheme\)/, 'special scene artwork is used only by the Lounge backdrop');
-for (const asset of ['scene-alpine-horizon.png', 'scene-orbit-blue.png', 'scene-sunlit-coast.png']) assert.ok(fs.statSync(path.resolve(import.meta.dirname, '../src/assets/lounge', asset)).size > 100_000, `bundled Lounge scene art ${asset} exists`);
+for (const asset of ['scene-alpine-horizon.png', 'scene-orbit-blue.png', 'scene-sunlit-coast.png', 'scene-neon-gallery.jpg', 'scene-starlit-road.jpg']) assert.ok(fs.statSync(path.resolve(import.meta.dirname, '../src/assets/lounge', asset)).size > 100_000, `bundled Lounge scene art ${asset} exists`);
+const sceneArtRegistry = fs.readFileSync(path.resolve(import.meta.dirname, '../src/components/lounge/lounge-scene-art.mjs'), 'utf8');
+for (const [id, filename] of [['neon', 'scene-neon-gallery.jpg'], ['starlit', 'scene-starlit-road.jpg']]) {
+  assert.match(sceneArtRegistry, new RegExp(`import ${id} from .*${filename.replace('.', '\\.')}';`), `${id} scene is wired to its art`);
+  const image = fs.readFileSync(path.resolve(import.meta.dirname, '../src/assets/lounge', filename));
+  assert.equal(image.readUInt16BE(0), 0xffd8, `${filename} is a JPEG display asset`);
+  let dimensions;
+  for (let offset = 2; offset < image.length - 10;) {
+    if (image[offset] !== 0xff) break;
+    const marker = image[offset + 1];
+    if (marker === 0xc0 || marker === 0xc2) { dimensions = [image.readUInt16BE(offset + 7), image.readUInt16BE(offset + 5)]; break; }
+    offset += 2 + image.readUInt16BE(offset + 2);
+  }
+  assert.deepEqual(dimensions, [3840, 2160], `${filename} has 4K display dimensions`);
+}
 assert.match(loungeStage, /--lounge-progress/, 'the stage shows position within the current collection');
 assert.match(loungeBackdrop, /atmosphere\?\.reducedMotionAsset/, 'animated theme atmosphere uses a still fallback in the backdrop');
 assert.match(loungeBackdrop, /mode === 'game' && gameArt && gameArt !== failedGameArt/, 'selected-game backdrop handles missing art without hiding the theme fallback');
@@ -348,7 +390,7 @@ assert.match(styles, /@container \(min-width: 800px\) \{ \.lounge-stage-portrait
 assert.match(styles, /\[data-lounge-motion='off'\] \.lounge-stage-copy/, 'Motion Off must stop selection-entry animation');
 assert.match(styles, /\.lounge-game-card:hover:not\(\[data-lounge-selected='true'\]\):not\(:focus-visible\)/, 'hover must not override the selected game lift');
 assert.match(styles, /\.lounge-game-card\[data-lounge-selected='true'\]::before/, 'selected game has a stable focus marker');
-assert.match(styles, /\[data-lounge-motion='off'\] \.lounge-game-card \{ transform: none !important; transition: none !important; \}/, 'Motion Off disables cover movement');
+assert.match(styles, /\[data-lounge-motion='off'\] \.lounge-game-card \{ animation: none !important; transition: none !important; \}/, 'Motion Off keeps the size hierarchy but disables cover animation');
 assert.match(loungeVisualBuilder, /Lounge particles/, 'Lounge has a particle picker separate from Desktop');
 assert.match(loungeVisualBuilder, /builtinParticles\.map/, 'Lounge particle picker reuses bundled artwork');
 assert.match(loungeVisualBuilder, /data-testid="lounge-particle-preview"/, 'the selected particle art has a live builder preview');
@@ -375,6 +417,10 @@ assert.match(lounge, /view === 'continue' \? continueLoungeGames\(safeGames\)/, 
 assert.match(lounge, /normalizeLoungePreferences\(initialPreferences\)\.entryScreen === 'home'/, 'Lounge can start on Home only after explicit entry');
 assert.match(lounge, /guideFocusRef\.current \|\| homeButtonRef\.current/, 'closing entry Home restores focus to the Home control');
 assert.match(lounge, /lounge-filter-strip flex min-w-0 flex-1 items-center gap-1 overflow-x-auto whitespace-nowrap/, 'browse filters remain one scrollable row');
+assert.match(lounge, /showLoungeBrowseFilter\(id, preferences\.hiddenBrowseFilters, view === id\)/, 'browse bar obeys saved visibility and retains the active view');
+assert.match(lounge, /showLoungeBrowseFilter\('az', preferences\.hiddenBrowseFilters, Boolean\(letter\) \|\| jumpOpen\)/, 'A–Z follows its visibility setting without trapping an active letter');
+assert.match(loungeSettings, /function BrowseBarPicker/, 'Lounge Settings owns browsing-bar visibility controls');
+assert.match(loungeSettings, /role="switch" aria-checked=\{visible\}/, 'visibility controls expose their state to keyboard and controller users');
 assert.match(styles, /\.lounge-filter-strip \{ scrollbar-width: thin;/, 'the Lounge filter row advertises horizontal overflow');
 assert.match(lounge, /data-lounge-control-size=\{preferences\.controlSize\}/, 'Lounge applies its saved navigation size');
 assert.match(styles, /\[data-lounge-control-size='large'\] \.lounge-filter-toggle/, 'Couch-size navigation enlarges filter targets');

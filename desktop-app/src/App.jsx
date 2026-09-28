@@ -29,6 +29,7 @@ import { appendMascotNotice } from './components/mascot/fungist-model.mjs';
 import AppModalLayer from './components/app/AppModalLayer';
 import ControllerNavigationBridge from './components/controller/ControllerNavigationBridge';
 import NeoLounge from './components/lounge/NeoLounge';
+import { useExternalFileDrop } from './components/library/useExternalFileDrop';
 import { useNeoLounge } from './components/lounge/useNeoLounge';
 import { createDemoLibrary } from './state/demo-library.mjs';
 import { createMetadataWorkflow } from './services/metadata-workflow.mjs';
@@ -502,74 +503,6 @@ export default function App() {
     else window.open(url, '_blank');
   };
 
-  /* ----- Drag-drop .exe / .lnk / folder onto the app window ----- */
-  React.useEffect(() => {
-    if (!isElectron) return undefined;
-    let leaveTimer;
-    const onDragEnter = (e) => {
-      e.preventDefault();
-      clearTimeout(leaveTimer);
-      if (e.dataTransfer?.types?.includes('Files')) setDragOver(true);
-    };
-    const onDragOver = (e) => {
-      e.preventDefault();
-      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
-    };
-    const onDragLeave = (e) => {
-      e.preventDefault();
-      // Only hide overlay when leaving the window entirely (debounced)
-      leaveTimer = setTimeout(() => setDragOver(false), 80);
-    };
-    const onDrop = async (e) => {
-      e.preventDefault();
-      clearTimeout(leaveTimer);
-      setDragOver(false);
-      const files = Array.from(e.dataTransfer?.files || []);
-      if (!files.length) return;
-      let added = 0;
-      for (const f of files) {
-        const p = f.path;
-        if (!p) continue;
-        const lower = p.toLowerCase();
-        // .lnk → resolve to underlying target
-        if (lower.endsWith('.lnk') && nativeApi?.resolveLnk) {
-          const r = await nativeApi.resolveLnk(p);
-          if (r?.ok && r.target) {
-            addToGames({ name: guessNameFromPath(r.target), exePath: r.target, launchArgs: r.args || '' });
-            added += 1;
-            continue;
-          }
-        }
-        // .exe / .bat / .cmd → add directly
-        if (/\.(exe|bat|cmd)$/i.test(p)) {
-          const ico = await nativeApi?.extractIcon?.(p);
-          addToGames({ name: guessNameFromPath(p), exePath: p, icon: ico });
-          added += 1;
-          continue;
-        }
-        // Folder → open Wizard pre-filled with this root and auto-trigger the scan
-        if (!/\.\w{1,5}$/.test(p)) {
-          setWizardPrefillRoot(p);
-          setWizardAutoScan(true);
-          setShowWizard(true);
-          notify(`Folder dropped — scanning ${p}`);
-        }
-      }
-      if (added > 0) notify(`Added ${added} game${added !== 1 ? 's' : ''} via drag-drop`);
-    };
-    window.addEventListener('dragenter', onDragEnter);
-    window.addEventListener('dragover', onDragOver);
-    window.addEventListener('dragleave', onDragLeave);
-    window.addEventListener('drop', onDrop);
-    return () => {
-      window.removeEventListener('dragenter', onDragEnter);
-      window.removeEventListener('dragover', onDragOver);
-      window.removeEventListener('dragleave', onDragLeave);
-      window.removeEventListener('drop', onDrop);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // Known library games started through Steam, Battle.net, Epic, or another
   // client are watched via an ordinary path-only Windows process check. The
   // check provides an explicit low-usage offer; an idle launcher never counts.
@@ -920,6 +853,7 @@ export default function App() {
       }),
     }));
   };
+  useExternalFileDrop({ enabled: isElectron, nativeApi, addToGames, setDragOver, setWizardPrefillRoot, setWizardAutoScan, setShowWizard, notify });
   const updateBulkFavorite = (ids, favorite) => { const picked = Array.isArray(ids) ? ids : []; if (!picked.length) return; updateSetting({ pinnedGameIds: collectionFavoriteIds(settings.pinnedGameIds || [], picked, favorite) }); notify(`${favorite ? 'Favorited' : 'Unfavorited'} ${picked.length} game${picked.length === 1 ? '' : 's'}.`); };
   const updateBulkJourneyStatus = (ids, journeyStatus) => { const picked = Array.isArray(ids) ? ids : []; if (!picked.length || !journeyStatus) return; setLibrary((previous) => ({ ...previous, [sliceK.items]: collectionJourneyStatus(previous[sliceK.items] || [], picked, journeyStatus) })); notify(`Updated Journey Status for ${picked.length} game${picked.length === 1 ? '' : 's'}.`); };
   const addBulkCategory = (ids, categoryId) => { const picked = Array.isArray(ids) ? ids : []; const category = (library.categories || []).find((item) => item.id === categoryId && !item.private); if (!picked.length || !category) return; setLibrary((previous) => ({ ...previous, [sliceK.items]: collectionCategoryAssignment(previous[sliceK.items] || [], picked, categoryId) })); notify(`Added ${picked.length} game${picked.length === 1 ? '' : 's'} to ${category.name}.`); };

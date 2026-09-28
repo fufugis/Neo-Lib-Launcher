@@ -77,7 +77,10 @@ export default function AppControlMenu({ onOpenThemes, onOpenVisuals, onOpenCont
       title="NEO-LIB menu"
     >
       {sidebarMode ? <span className="grid h-6 w-6 shrink-0 place-items-center"><Settings2 size={21} /></span> : <Settings2 size={17} />}
-      {sidebarMode && <span className={`overflow-hidden whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.14em] transition-all ${sidebarExpanded ? 'max-w-20 opacity-100' : 'max-w-0 opacity-0'}`}>Menu</span>}
+      {sidebarMode && <span className={`min-w-0 overflow-hidden whitespace-nowrap text-left transition-all ${sidebarExpanded ? 'max-w-[104px] opacity-100' : 'max-w-0 opacity-0'}`}>
+        <span className="block truncate text-[10px] font-bold uppercase leading-[13px] tracking-[0.14em]">Menu</span>
+        <span aria-hidden="true" className="block truncate text-[9px] leading-[11px] text-muted">App controls</span>
+      </span>}
     </button>
     {open && renderForegroundPortal(
         <motion.div

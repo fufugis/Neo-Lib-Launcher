@@ -10,6 +10,17 @@ import { clampSidebarWidth } from '../src/components/library/sidebar-resize-mode
 import { collectionCategoryAssignment, collectionExternalRootAssignment, collectionReviewPlan, createCollectionReviewWorkflow } from '../src/services/collection-mode.mjs';
 import { mergeRetroImport } from '../src/state/retro-import-state.mjs';
 import { externalRootForGame, normalizeExternalLibraryRoots } from '../src/lib/externalLibraryRoots.mjs';
+import { isExternalFileDrag } from '../src/components/library/external-file-drop.mjs';
+
+assert.equal(isExternalFileDrag({ types: ['Files'] }), true, 'files from outside NEO-LIB show the add overlay');
+assert.equal(isExternalFileDrag({ types: ['Files', 'text/game-id'] }), false, 'internal game drags never show the add overlay');
+assert.equal(isExternalFileDrag({ types: ['text/game-id'] }), false);
+assert.equal(isExternalFileDrag({ types: ['text/plain'] }), false);
+assert.equal(isExternalFileDrag(null), false);
+const dragHookSource = fs.readFileSync(path.resolve(import.meta.dirname, '../src/components/library/useExternalFileDrop.js'), 'utf8');
+assert.match(dragHookSource, /window\.addEventListener\('dragend', clearOverlay\)/, 'canceled internal drags must clear the overlay');
+assert.match(dragHookSource, /window\.addEventListener\('blur', clearOverlay\)/, 'leaving the app must clear a pending overlay');
+assert.match(dragHookSource, /event\.key === 'Escape'\) clearOverlay\(\)/, 'Escape provides a direct recovery for a stale overlay');
 
 const roots = normalizeExternalLibraryRoots([
   { id: 'drive', name: 'External', kind: 'removable', location: 'D:\\Games', private: true },

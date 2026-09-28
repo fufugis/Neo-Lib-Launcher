@@ -25,4 +25,14 @@ const player = fs.readFileSync(path.resolve(import.meta.dirname, '../src/compone
 assert.match(player, /async function loadSample/, 'samples must decode on demand');
 assert.match(player, /session !== generation/, 'a pause must prevent a pending clip from starting');
 assert.match(player, /stopLoungeSamples/, 'Rest and unmount must stop active clips');
+assert.match(player, /export function previewLoungeSample\(role, id, volume\)/, 'picker previews an explicit clip without changing saved assignments');
+assert.match(player, /previewLoungeSample[\s\S]*stopLoungeSamples\(\)/, 'rapid auditions stop the previous clip');
+const controls = fs.readFileSync(path.resolve(import.meta.dirname, '../src/components/lounge/LoungeSoundControls.jsx'), 'utf8');
+const picker = fs.readFileSync(path.resolve(import.meta.dirname, '../src/components/lounge/LoungeSamplePicker.jsx'), 'utf8');
+assert.match(controls, /setPickerRole\(role\)/, 'choosing a sound opens a picker instead of applying immediately');
+assert.match(controls, /const useSample = id => \{[\s\S]*loungeSamples: \{ \.\.\.preferences\.loungeSamples, \[pickerRole\]: id \}/, 'only Use commits a new role assignment');
+assert.doesNotMatch(controls, /<select id=\{`lounge-sample-/, 'immediate-apply sample dropdowns are removed');
+assert.match(picker, /onClick=\{\(\) => audition\(id\)\}/, 'clicking a clip auditions it');
+assert.match(picker, /onClick=\{\(\) => onUse\(id\)\}/, 'Use is a separate action per clip');
+assert.match(picker, /event\.key === 'Escape'[\s\S]*onClose\(\)/, 'Escape closes without applying');
 console.log('PASS: 37 Lounge-only samples, per-role choices, on-demand decoding and selective attenuation.');

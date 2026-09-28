@@ -36,6 +36,7 @@ export default function LoungeLivingBackdrop({ theme, game, loungeLevel, motion,
     {mode === 'game' && gameArt && gameArt !== failedGameArt && <img src={gameArt} alt="" onError={() => setFailedGameArt(gameArt)} className="lounge-living-backdrop__game absolute inset-0 h-full w-full object-cover" />}
     <div className="lounge-living-backdrop__waves absolute inset-0" />
     <div className="lounge-living-backdrop__light absolute inset-0" />
+    {sceneArt && <div className="lounge-living-backdrop__rays absolute inset-0" data-lounge-scene-art={preferences?.specialTheme} />}
     <div className="lounge-living-backdrop__shade absolute inset-0" />
   </div>;
 }
