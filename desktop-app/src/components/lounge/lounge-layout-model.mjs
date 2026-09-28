@@ -1,10 +1,21 @@
+import { DEFAULT_LOUNGE_SAMPLES, normalizeLoungeSamples } from './lounge-sample-model.mjs';
+
 export const LOUNGE_PRESETS = Object.freeze({
-  cinema: { label: 'Cinema', shelfPosition: 'top', coverSize: 116, gap: 14, stageHeight: 510, previewStyle: 'cinema', infoDensity: 'balanced' },
+  cinema: { label: 'Cinema', shelfPosition: 'bottom', coverSize: 124, gap: 14, stageHeight: 510, previewStyle: 'cinema', infoDensity: 'balanced' },
   console: { label: 'Console', shelfPosition: 'bottom', coverSize: 132, gap: 16, stageHeight: 530, previewStyle: 'cinema', infoDensity: 'minimal' },
   gallery: { label: 'Gallery', shelfPosition: 'left', coverSize: 120, gap: 12, stageHeight: 520, previewStyle: 'framed', infoDensity: 'rich' },
   spotlight: { label: 'Spotlight', shelfPosition: 'right', coverSize: 132, gap: 14, stageHeight: 550, previewStyle: 'cinema', infoDensity: 'balanced' },
 });
 export const LOUNGE_HOME_TILE_IDS = Object.freeze(['all', 'continue', 'favorites', 'recent', 'added', 'most', 'visual']);
+export const LOUNGE_SCENES = Object.freeze({
+  theme: Object.freeze({ label: 'Follow desktop theme', note: 'Use your current NEO-LIB theme in Lounge.' }),
+  alpine: Object.freeze({ label: 'Alpine Horizon', note: 'Blue-hour mountains, luminous lake and warm sunset.' }),
+  orbit: Object.freeze({ label: 'Blue Orbit', note: 'A deep-space planet with clean electric-blue highlights.' }),
+  coast: Object.freeze({ label: 'Sunlit Coast', note: 'Bright turquoise water, white cliffs and golden light.' }),
+});
+export const LOUNGE_QUICK_LINKS = Object.freeze({
+  continue: 'Continue playing', favorites: 'Favorites', recent: 'Recently played', added: 'Recently added', most: 'Most played', all: 'All games', visual: 'Visual Builder',
+});
 export const LOUNGE_PARTICLE_IDS = Object.freeze(['theme', 'none', 'soft-rain', 'rain-drop', 'falling-heart', 'sakura-petal', 'warm-ember', 'starlight', 'bubble']);
 export const LOUNGE_VISUAL_PRESETS = Object.freeze({
   cinema: Object.freeze({ label: 'Game cinema', note: 'Game art · gentle motion', backdropMode: 'game', backgroundOpacity: 68, backgroundPositionY: 45, panelOpacity: 84, ambientMotion: 'drift', ambientPace: 'slow', waveStrength: 25, motion: 'subtle', fxLevel: 'theme' }),
@@ -23,18 +34,22 @@ export const DEFAULT_LOUNGE_PREFERENCES = Object.freeze({
   motion: 'full',
   fxLevel: 'theme',
   particleStyle: 'theme',
+  coverGlow: 'off',
+  specialTheme: 'theme',
+  quickLinks: ['continue', 'favorites', 'most'],
   backdropMode: 'theme',
   backgroundUrl: '',
   backgroundOpacity: 65,
   backgroundPositionY: 50,
   panelOpacity: 82,
-  ambientMotion: 'drift',
+  ambientMotion: 'waves',
   ambientPace: 'steady',
-  waveStrength: 35,
+  waveStrength: 52,
   browseSoundEnabled: true,
   browseSoundVolume: 25,
   browseMoveLevel: 100,
   browseSoundStyle: 'glass',
+  loungeSamples: DEFAULT_LOUNGE_SAMPLES,
   ambienceTrack: 'none',
   ambienceCustomUrl: '',
   ambienceVolume: 25,
@@ -53,7 +68,8 @@ const backdropModes = new Set(['theme', 'game', 'image', 'light', 'dark', 'clear
 const ambientMotions = new Set(['drift', 'waves', 'still']);
 const ambientPaces = new Set(['slow', 'steady', 'lively']);
 const particleStyles = new Set(LOUNGE_PARTICLE_IDS);
-const browseSoundStyles = new Set(['glass', 'pulse', 'orbit']);
+const coverGlows = new Set(['off', 'soft', 'neon']);
+const browseSoundStyles = new Set(['glass', 'pulse', 'orbit', 'samples']);
 const ambienceTracks = new Set(['none', 'ambience-1', 'ambience-2', 'ambience-3', 'ambience-4', 'custom']);
 const controlSizes = new Set(['compact', 'comfortable', 'large']);
 const browseSorts = new Set(['library', 'name', 'last-played', 'recently-added']);
@@ -65,14 +81,16 @@ const bounded = (value, fallback, min, max) => Number.isFinite(Number(value)) ? 
 export function normalizeLoungePreferences(value) {
   const input = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const defaults = DEFAULT_LOUNGE_PREFERENCES;
+  const legacyDefaultVisuals = input.preset === 'cinema' && input.backdropMode === 'theme' && !input.backgroundUrl && input.backgroundOpacity === 65 && input.ambientMotion === 'drift' && input.ambientPace === 'steady' && input.waveStrength === 35 && (input.panelOpacity === 76 || input.panelOpacity === 82);
   const requestedOrder = Array.isArray(input.homeTileOrder) ? input.homeTileOrder : [];
   const homeTileOrder = [...new Set([...requestedOrder.filter(id => LOUNGE_HOME_TILE_IDS.includes(id)), ...LOUNGE_HOME_TILE_IDS])];
   const homeHiddenTiles = Array.isArray(input.homeHiddenTiles) ? [...new Set(input.homeHiddenTiles.filter(id => LOUNGE_HOME_TILE_IDS.includes(id)))] : [];
+  const quickLinks = Array.isArray(input.quickLinks) ? [...new Set(input.quickLinks.filter(id => Object.hasOwn(LOUNGE_QUICK_LINKS, id)))].slice(0, 5) : defaults.quickLinks;
   const ambienceCustomUrl = safeAmbienceUrl(input.ambienceCustomUrl);
   return {
     preset: Object.hasOwn(LOUNGE_PRESETS, input.preset) ? input.preset : input.preset === 'custom' ? 'custom' : defaults.preset,
-    shelfPosition: positions.has(input.shelfPosition) ? input.shelfPosition : defaults.shelfPosition,
-    coverSize: bounded(input.coverSize, defaults.coverSize, 84, 184),
+    shelfPosition: input.preset === 'cinema' && input.shelfPosition === 'top' ? 'bottom' : positions.has(input.shelfPosition) ? input.shelfPosition : defaults.shelfPosition,
+    coverSize: input.preset === 'cinema' && input.coverSize === 116 ? defaults.coverSize : bounded(input.coverSize, defaults.coverSize, 84, 184),
     gap: bounded(input.gap, defaults.gap, 8, 28),
     stageHeight: bounded(input.stageHeight, defaults.stageHeight, 320, 760),
     shelfWidth: bounded(input.shelfWidth, defaults.shelfWidth, 156, 320),
@@ -84,18 +102,22 @@ export function normalizeLoungePreferences(value) {
     motion: motions.has(input.motion) ? input.motion : defaults.motion,
     fxLevel: input.fxLevel === 'theme' || (Number.isInteger(input.fxLevel) && input.fxLevel >= 0 && input.fxLevel <= 4) ? input.fxLevel : defaults.fxLevel,
     particleStyle: particleStyles.has(input.particleStyle) ? input.particleStyle : defaults.particleStyle,
+    coverGlow: coverGlows.has(input.coverGlow) ? input.coverGlow : defaults.coverGlow,
+    specialTheme: Object.hasOwn(LOUNGE_SCENES, input.specialTheme) ? input.specialTheme : defaults.specialTheme,
+    quickLinks,
     backdropMode: backdropModes.has(input.backdropMode) ? input.backdropMode : defaults.backdropMode,
     backgroundUrl: safeBackgroundUrl(input.backgroundUrl),
     backgroundOpacity: bounded(input.backgroundOpacity, defaults.backgroundOpacity, 0, 100),
     backgroundPositionY: bounded(input.backgroundPositionY, defaults.backgroundPositionY, 0, 100),
-    panelOpacity: bounded(input.panelOpacity, defaults.panelOpacity, 40, 100),
-    ambientMotion: ambientMotions.has(input.ambientMotion) ? input.ambientMotion : defaults.ambientMotion,
+    panelOpacity: legacyDefaultVisuals ? defaults.panelOpacity : bounded(input.panelOpacity, defaults.panelOpacity, 40, 100),
+    ambientMotion: legacyDefaultVisuals ? defaults.ambientMotion : ambientMotions.has(input.ambientMotion) ? input.ambientMotion : defaults.ambientMotion,
     ambientPace: ambientPaces.has(input.ambientPace) ? input.ambientPace : defaults.ambientPace,
-    waveStrength: bounded(input.waveStrength, defaults.waveStrength, 0, 100),
+    waveStrength: legacyDefaultVisuals ? defaults.waveStrength : bounded(input.waveStrength, defaults.waveStrength, 0, 100),
     browseSoundEnabled: input.browseSoundEnabled !== false,
     browseSoundVolume: bounded(input.browseSoundVolume, defaults.browseSoundVolume, 0, 100),
     browseMoveLevel: bounded(input.browseMoveLevel, defaults.browseMoveLevel, 0, 100),
     browseSoundStyle: browseSoundStyles.has(input.browseSoundStyle) ? input.browseSoundStyle : defaults.browseSoundStyle,
+    loungeSamples: normalizeLoungeSamples(input.loungeSamples),
     ambienceTrack: input.ambienceTrack === 'custom' && !ambienceCustomUrl ? 'none' : ambienceTracks.has(input.ambienceTrack) ? input.ambienceTrack : defaults.ambienceTrack,
     ambienceCustomUrl,
     ambienceVolume: bounded(input.ambienceVolume, defaults.ambienceVolume, 0, 100),
@@ -110,6 +132,12 @@ export function normalizeLoungePreferences(value) {
 export function applyLoungePreset(current, preset) {
   if (!Object.hasOwn(LOUNGE_PRESETS, preset)) return normalizeLoungePreferences(current);
   return normalizeLoungePreferences({ ...current, ...LOUNGE_PRESETS[preset], preset });
+}
+
+export function applyLoungeScene(current, id) {
+  if (!Object.hasOwn(LOUNGE_SCENES, id)) return normalizeLoungePreferences(current);
+  if (id === 'theme') return normalizeLoungePreferences({ ...current, specialTheme: 'theme', backdropMode: 'theme' });
+  return normalizeLoungePreferences({ ...current, specialTheme: id, preset: 'custom', shelfPosition: 'bottom', coverSize: 140, stageHeight: 450, previewStyle: 'clean', infoDensity: 'rich', backdropMode: 'theme', backgroundOpacity: 96, panelOpacity: 82, ambientMotion: 'waves', ambientPace: 'slow', waveStrength: 42, coverGlow: 'soft' });
 }
 
 export function applyLoungeVisualPreset(current, id) {

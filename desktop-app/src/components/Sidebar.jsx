@@ -2,7 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Wand2, ChevronDown, Tag, ArrowDownUp, Moon, Sun,
-  Library as LibIcon, Boxes, CheckSquare, Columns, Home, Check, ListTree,
+  Library as LibIcon, Boxes, CheckSquare, Columns, Home, Check, ListTree, Tv2,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { stockThemeAssetUrl, customThemeManifest } from '../themes/stock-theme-registry.mjs';
@@ -727,6 +727,7 @@ export function SideNavigationRail({ mode, libraryViewMode, onOpenHome, onOpenLi
     <RailNavigationButton icon={<LibIcon size={21} />} label="Library" expanded={expanded} active={mode === 'library' && libraryViewMode !== 'wall'} onClick={onOpenLibrary} testid="tab-library" />
     <RailNavigationButton icon={<Columns size={21} />} label="Wall" expanded={expanded} active={mode === 'library' && libraryViewMode === 'wall'} onClick={onOpenWall} testid="tab-cover-wall" />
     <RailNavigationButton icon={<Boxes size={21} />} label="Tools" expanded={expanded} active={mode === 'tools'} onClick={onOpenTools} testid="tab-tools" />
+    <RailNavigationButton icon={<Tv2 size={21} />} label="Lounge" expanded={expanded} onClick={onEnterLounge} testid="sidebar-rail-lounge-btn" />
     <span data-testid="side-navigation-actions-divider" className="mx-1 my-2 h-px shrink-0 bg-[rgb(var(--border)/0.65)]" />
     <RailNavigationButton icon={<Wand2 size={21} />} label="Wizard" expanded={expanded} onClick={onOpenWizard} testid="sidebar-rail-wizard-btn" />
     <RailNavigationButton icon={manualResting ? <Sun size={21} /> : <Moon size={21} />} label={manualResting ? 'Wake up' : 'Rest Zzz'} expanded={expanded} active={manualResting} onClick={onToggleManualRest} testid="sidebar-rail-rest-toggle" />

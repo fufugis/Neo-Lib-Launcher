@@ -1,10 +1,41 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { applyLoungePreset, applyLoungeVisualPreset, DEFAULT_LOUNGE_PREFERENCES, LOUNGE_PARTICLE_IDS, LOUNGE_PRESETS, LOUNGE_VISUAL_PRESETS, matchesLoungeVisualPreset, normalizeLoungePreferences } from '../src/components/lounge/lounge-layout-model.mjs';
+import { applyLoungePreset, applyLoungeScene, applyLoungeVisualPreset, DEFAULT_LOUNGE_PREFERENCES, LOUNGE_PARTICLE_IDS, LOUNGE_PRESETS, LOUNGE_SCENES, LOUNGE_VISUAL_PRESETS, matchesLoungeVisualPreset, normalizeLoungePreferences } from '../src/components/lounge/lounge-layout-model.mjs';
 import { hydrateSettings, mergeSettings } from '../src/state/settings-state.mjs';
 
 const defaults = normalizeLoungePreferences(null);
-assert.equal(defaults.shelfPosition, 'top');
+assert.equal(defaults.shelfPosition, 'bottom');
+assert.equal(defaults.panelOpacity, 82, 'Lounge panels remain readable without dimming artwork');
+assert.equal(defaults.coverSize, 124, 'the default carousel covers have a larger center presence');
+assert.equal(defaults.ambientMotion, 'waves', 'the theme-accent backdrop moves by default');
+assert.equal(defaults.waveStrength, 52);
+assert.equal(defaults.coverGlow, 'off', 'animated cover edges are opt-in');
+assert.equal(defaults.specialTheme, 'theme', 'existing installations keep their desktop theme until a Lounge scene is chosen');
+assert.deepEqual(defaults.quickLinks, ['continue', 'favorites', 'most']);
+assert.equal(normalizeLoungePreferences({ specialTheme: 'untrusted' }).specialTheme, 'theme');
+assert.deepEqual(normalizeLoungePreferences({ quickLinks: ['most', 'most', 'bad', 'recent'] }).quickLinks, ['most', 'recent']);
+assert.deepEqual(normalizeLoungePreferences({ quickLinks: [] }).quickLinks, []);
+for (const id of ['alpine', 'orbit', 'coast']) {
+  assert.ok(LOUNGE_SCENES[id]);
+  const scene = applyLoungeScene(defaults, id);
+  assert.equal(scene.specialTheme, id);
+  assert.equal(scene.shelfPosition, 'bottom');
+  assert.equal(scene.backdropMode, 'theme');
+  assert.equal(hydrateSettings({ loungePreferences: scene }).loungePreferences.specialTheme, id);
+}
+assert.equal(applyLoungeScene({ ...defaults, specialTheme: 'coast', backdropMode: 'image' }, 'theme').backdropMode, 'theme');
+assert.equal(normalizeLoungePreferences({ coverGlow: 'soft' }).coverGlow, 'soft');
+assert.equal(normalizeLoungePreferences({ coverGlow: 'neon' }).coverGlow, 'neon');
+assert.equal(normalizeLoungePreferences({ coverGlow: 'unknown' }).coverGlow, 'off');
+const oldDefault = normalizeLoungePreferences({ ...defaults, coverSize: 116, panelOpacity: 76, ambientMotion: 'drift', waveStrength: 35 });
+assert.equal(oldDefault.coverSize, defaults.coverSize);
+assert.equal(oldDefault.panelOpacity, defaults.panelOpacity);
+assert.equal(oldDefault.ambientMotion, defaults.ambientMotion);
+assert.equal(oldDefault.waveStrength, defaults.waveStrength);
+assert.equal(normalizeLoungePreferences({ ...defaults, preset: 'custom', coverSize: 116, panelOpacity: 76, ambientMotion: 'drift', waveStrength: 35 }).ambientMotion, 'drift', 'custom visual choices remain intact');
+assert.equal(normalizeLoungePreferences({ shelfPosition: 'top' }).shelfPosition, 'top', 'saved top placement remains available');
+assert.equal(normalizeLoungePreferences({ ...DEFAULT_LOUNGE_PREFERENCES, preset: 'cinema', shelfPosition: 'top' }).shelfPosition, 'bottom', 'older untouched Cinema defaults move to the new bottom wheel');
+assert.equal(normalizeLoungePreferences({ preset: 'custom', shelfPosition: 'top' }).shelfPosition, 'top', 'an intentionally customized top wheel remains top');
 assert.equal(defaults.previewStyle, 'cinema');
 assert.equal(defaults.entryScreen, 'games', 'existing installs still enter the game browser by default');
 assert.equal(defaults.controlSize, 'comfortable');
@@ -35,6 +66,9 @@ assert.equal(normalizeLoungePreferences({ browseMoveLevel: 0 }).browseMoveLevel,
 assert.equal(hydrateSettings({ loungePreferences: { browseMoveLevel: 40 } }).loungePreferences.browseMoveLevel, 40);
 assert.equal(normalizeLoungePreferences({ browseMoveLevel: 1000 }).browseMoveLevel, 100);
 assert.equal(defaults.browseSoundStyle, 'glass');
+assert.equal(normalizeLoungePreferences({ browseSoundStyle: 'samples', loungeSamples: { move: 'ButtonF', explore: 'off' } }).browseSoundStyle, 'samples');
+assert.equal(normalizeLoungePreferences({ browseSoundStyle: 'samples', loungeSamples: { move: 'ButtonF', explore: 'off' } }).loungeSamples.move, 'ButtonF');
+assert.equal(normalizeLoungePreferences({ browseSoundStyle: 'samples', loungeSamples: { move: 'ButtonF', explore: 'off' } }).loungeSamples.explore, 'off');
 assert.equal(defaults.ambienceTrack, 'none', 'new and upgraded installs must not start music unexpectedly');
 assert.equal(normalizeLoungePreferences({ ambienceTrack: 'ambience-4', ambienceVolume: 80 }).ambienceTrack, 'ambience-4');
 assert.equal(hydrateSettings({ loungePreferences: { ambienceTrack: 'ambience-2', ambienceVolume: 40 } }).loungePreferences.ambienceVolume, 40);
@@ -49,6 +83,7 @@ assert.equal(normalizeLoungePreferences({ browseSoundEnabled: false, browseSound
 assert.equal(normalizeLoungePreferences({ browseSoundVolume: -5 }).browseSoundVolume, 0);
 assert.equal(hydrateSettings({ loungePreferences: { browseSoundEnabled: false, browseSoundVolume: 45 } }).loungePreferences.browseSoundEnabled, false);
 assert.equal(hydrateSettings({ loungePreferences: { browseSoundStyle: 'pulse' } }).loungePreferences.browseSoundStyle, 'pulse');
+assert.equal(hydrateSettings({ loungePreferences: { browseSoundStyle: 'samples', loungeSamples: { explore: 'mystic2' } } }).loungePreferences.loungeSamples.explore, 'mystic2');
 for (const [id, preset] of Object.entries(LOUNGE_PRESETS)) {
   const selected = applyLoungePreset(defaults, id);
   assert.equal(selected.preset, id);

@@ -5,6 +5,28 @@ Retro Library, Wall, theme and NEO Lounge source changes. It is a Windows test
 candidate, not an installed-app acceptance claim. The original
 [v1.7.9 notes](RELEASE_NOTES_v1.7.9.md) remain available for comparison.
 
+Lounge Soundscape now has a My samples style using all 37 supplied Button, Click and reaction MP3s. Assign and preview a clip or Off separately for moving between games, OK, Back and opening game details. The existing synthesized styles are unchanged, and these files do not affect Desktop or FiFi sounds. Clips load only when played; unusually loud ones are attenuated individually rather than boosting quieter clips. Frequent Move clips fade quickly, and app mute, Rest and hidden-window rules still apply. Installed listening and controller acceptance remains open.
+
+Lounge can now open while NEO-LIB is resting, and a running game no longer forces an open Lounge to exit. Game-triggered Rest still pauses background work, Lounge motion and audio; a compact Rest status makes this clear. Controller navigation is available only while Lounge itself has focus, so a game running in front does not receive Lounge navigation. Installed game, tray and controller acceptance remains open.
+
+In Lounge Game Browser, the mouse wheel or trackpad scrolls through the centered game carousel, including side-shelf layouts. Merely moving the mouse over covers no longer changes the featured game; clicking a cover still opens its details. Installed mouse and trackpad acceptance remains open.
+
+The optional left navigation rail now includes a direct Lounge shortcut alongside Home, Library, Wall and Tools. Its icon, focus and expanded label follow the same rail behavior; entering Lounge still uses the guarded fullscreen route. Installed controller and visual acceptance remains open.
+
+Lounge now separates its growing customization menus: Themes selects its scenery, Visuals handles artwork, transparency and effects, and Settings groups layout, browsing, shortcuts and sound with quick section jumps. Each control has one main home; saved choices remain compatible. Installed controller and visual acceptance remains open.
+
+Themes now offers three special Lounge-only scenes: Alpine Horizon, Blue Orbit and Sunlit Coast. Each has original panoramic art and its own colour palette. Game Browser presents the selected cover on the left, game facts and Explore on the right, scenery above, and the carousel below. Players can choose up to five Lounge Home destinations for a top shortcut bar in Settings. The desktop theme is untouched, and personal background choices still work. The current scene art is 1672×941, not true 4K/HDR; rebuilt Windows, ultrawide and controller acceptance remains open.
+
+The bottom Game Browser wheel now sits against the usable screen bottom with safe padding, while its centered game grows more clearly and nearby covers recede. Layout's Hero preview height control resizes the stage above it. Visual Builder offers Off, a soft theme-colour cover outline, or an animated neon outline; motion and reduced-motion settings can stop the animation. The default theme-accent backdrop adds fluid waves and varied light/dark colour, using transform motion without a large blurred layer. Panels are a little more solid for readability; game imagery keeps its own opacity. Previously untouched Cinema settings move to these defaults, while custom looks remain. Rebuilt Windows visual and performance acceptance remains open.
+
+Lounge Game Browser now defaults to a bottom wheel. Left/right shelves fill more of the available screen; the large preview favors gameplay screenshots, shows them without zooming, and never enlarges a portrait cover as a banner. To address idle flicker, its hero lighting stays steady and Lounge skips duplicate desktop-wide pulsing glow and blurred layers while retaining theme art and particles. Selection changes no longer restart the large-art fade. Rebuilt Windows flicker and visual acceptance remain open.
+
+Lounge's header, toolbar, game shelf and Wall footer now have a softer glass opacity, and the space around contained hero art lets the living backdrop show through. The Visual Builder still controls panel opacity; text and cover art remain solid. Installed contrast and theme-by-theme visual acceptance remain open.
+
+Game Browser now treats its horizontal or vertical shelf as a carousel: the selected cover grows while adjacent covers ease back, and navigation smoothly centers the selected game. Edge spacing lets the first and last games reach the center. Motion Off and system reduced motion use immediate scrolling. Installed controller and visual acceptance remain open.
+
+Lounge Layout and Visual Builder now pause the full-screen effects behind their menus and no longer apply a full-screen blur while scrolling or dragging controls. The small Visual Builder preview stays live. Slider updates reuse the current game ordering and unchanged cover images; carousel measurements wait until a menu closes. Installed performance acceptance remains open.
+
 Lounge Visual Builder and Layout now offer four bundled ambience tracks, Off and a player-imported MP3 with independent volume. Personal audio is copied into NEO-LIB; playback loops only while Lounge is active and focused and respects app mute and Rest. Installed listening and controller acceptance remains open.
 
 Settings now explains how to get a SteamGridDB API key, what optional artwork search it unlocks in Game Workshop, and where to use it. A clear key-entered message avoids implying the connection has been verified before the first search. Installed visual acceptance remains open.

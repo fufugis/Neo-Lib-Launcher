@@ -8,7 +8,7 @@ function fallbackGradient(name) {
   return `linear-gradient(145deg, hsl(${hue} 66% 42%), hsl(${(hue + 74) % 360} 72% 24%))`;
 }
 
-export default function LoungeCover({ game }) {
+function LoungeCover({ game }) {
   const [failedPortraitUrl, setFailedPortraitUrl] = React.useState('');
   const [failedBackdropUrl, setFailedBackdropUrl] = React.useState('');
   const portrait = portraitArtwork(game);
@@ -20,3 +20,5 @@ export default function LoungeCover({ game }) {
     <span className="relative break-words text-base font-bold leading-tight text-white [text-shadow:0_1px_3px_rgb(0_0_0/.85)]">{game.name || 'Untitled game'}</span>
   </span>;
 }
+
+export default React.memo(LoungeCover);

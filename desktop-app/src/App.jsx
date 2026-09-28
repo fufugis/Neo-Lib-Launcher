@@ -91,7 +91,7 @@ export default function App() {
   // sounds, mascot activity, launcher discovery, news, deals and health
   // polling all sleep together.
   const gameRestActive = automaticGameRestActive || manualRestActive || trayRestActive;
-  const lounge = useNeoLounge(nativeApi, gameRestActive);
+  const lounge = useNeoLounge(nativeApi, Boolean(runningGame));
   const restReason = trayRestActive
     ? 'NEO-LIB is resting in the background until you reopen it.'
     : manualRestActive
@@ -1418,7 +1418,7 @@ export default function App() {
       '--special-magical-button-frame': `url("${stockThemeAssetUrl('colorful', 'controlFrame')}")`,
     }}>
       <HoverTips />
-      <ControllerNavigationBridge enabled={settings.controllerNavigationEnabled === true} preferredFingerprint={settings.preferredControllerFingerprint || ''} resting={gameRestActive} privacyEpoch={unlockedCategories.join('|')} onBlockedLaunch={() => notify('Controller launch needs its own safety confirmation. Use mouse or keyboard for now.')} />
+      <ControllerNavigationBridge enabled={settings.controllerNavigationEnabled === true} preferredFingerprint={settings.preferredControllerFingerprint || ''} resting={gameRestActive && !lounge.active} privacyEpoch={unlockedCategories.join('|')} onBlockedLaunch={() => notify('Controller launch needs its own safety confirmation. Use mouse or keyboard for now.')} />
       {/* Window edge glow — soft inner halo around the frameless window (Riot/Discord style) */}
       <div className="window-edge-glow" aria-hidden="true" />
       {!lounge.active && <BgAmbience theme={settings.theme} settings={settings} game={selected} resting={gameRestActive} eventPulse={fungistLaunchCelebration?.key > confetti.key ? { kind: 'launch', key: fungistLaunchCelebration.key } : { kind: 'celebrate', key: confetti.key }} />}
@@ -1451,7 +1451,7 @@ export default function App() {
           onOpenControllers={() => setControllerCenterOpen(true)}
           onOpenSettings={() => setShowSettings(true)}
           onOpenChangelog={() => setChangelogOpen(true)}
-          onEnterLounge={() => void lounge.enter().then((ok) => { if (!ok) notify(gameRestActive ? 'Wake NEO-LIB before entering Lounge.' : 'Fullscreen is unavailable right now.'); })}
+          onEnterLounge={() => void lounge.enter().then((ok) => { if (!ok) notify('Fullscreen is unavailable right now.'); })}
           onCheckForUpdates={checkForAppUpdateNow}
           onOpenFeedback={() => openFeedback('feedback')}
           onQuit={() => nativeApi?.quit?.()}
@@ -1576,7 +1576,7 @@ export default function App() {
           onOpenMascot={() => setMascotCenterOpen(true)}
           onOpenControllerCenter={() => setControllerCenterOpen(true)}
           onOpenChangelog={() => setChangelogOpen(true)}
-          onEnterLounge={() => void lounge.enter().then((ok) => { if (!ok) notify(gameRestActive ? 'Wake NEO-LIB before entering Lounge.' : 'Fullscreen is unavailable right now.'); })}
+          onEnterLounge={() => void lounge.enter().then((ok) => { if (!ok) notify('Fullscreen is unavailable right now.'); })}
           onCheckForUpdates={checkForAppUpdateNow}
           onQuit={() => nativeApi?.quit?.()}
           onSystemHealthChange={onMascotHealthChange}
@@ -1832,7 +1832,7 @@ export default function App() {
           appVersion: APP_VERSION,
         }}
       />
-      {lounge.active && <NeoLounge games={visibleUnlockedGames(library.games || [], library.categories || [], unlockedCategories)} favoriteIds={settings.pinnedGameIds || []} updateLedger={settings.updateStatusLedger || {}} initialGameId={settings.lastGameId} initialLayout={settings.loungeLayout || 'browser'} initialPreferences={settings.loungePreferences} onLayoutChange={(loungeLayout) => updateSetting({ loungeLayout })} onPreferencesChange={(loungePreferences) => updateSetting({ loungePreferences })} theme={settings.theme || 'synthwave'} themeSettings={settings} resting={gameRestActive} soundsEnabled={settings.soundsEnabled !== false && (settings.soundPack || 'synthwave') !== 'none'} mascotId={settings.mascotId || 'fungist'} mascotEnabled={settings.fungistEnabled !== false} controllerEnabled={settings.controllerNavigationEnabled === true} onExit={lounge.exit} onLaunch={async (game, token) => { lounge.preserveGameLaunch(); try { const launched = await launchGame(game, token); if (!launched) lounge.cancelGameLaunch(); return launched; } catch (error) { lounge.cancelGameLaunch(); throw error; } }} />}
+      {lounge.active && <NeoLounge games={visibleUnlockedGames(library.games || [], library.categories || [], unlockedCategories)} favoriteIds={settings.pinnedGameIds || []} updateLedger={settings.updateStatusLedger || {}} initialGameId={settings.lastGameId} initialLayout={settings.loungeLayout || 'browser'} initialPreferences={settings.loungePreferences} onLayoutChange={(loungeLayout) => updateSetting({ loungeLayout })} onPreferencesChange={(loungePreferences) => updateSetting({ loungePreferences })} theme={settings.theme || 'synthwave'} themeSettings={settings} resting={gameRestActive} restReason={restReason} soundsEnabled={settings.soundsEnabled !== false && (settings.soundPack || 'synthwave') !== 'none'} mascotId={settings.mascotId || 'fungist'} mascotEnabled={settings.fungistEnabled !== false} controllerEnabled={settings.controllerNavigationEnabled === true} onExit={lounge.exit} onLaunch={async (game, token) => { lounge.preserveGameLaunch(); try { const launched = await launchGame(game, token); if (!launched) lounge.cancelGameLaunch(); return launched; } catch (error) { lounge.cancelGameLaunch(); throw error; } }} />}
     </div>
   );
 }

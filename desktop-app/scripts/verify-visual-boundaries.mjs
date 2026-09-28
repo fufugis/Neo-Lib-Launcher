@@ -115,6 +115,7 @@ assert.match(sidebarSource, /library\/LibraryIconGrid/);
 assert.match(sidebarSource, /library\/LibraryTree/);
 assert.match(sidebarSource, /library\/LibraryToolbarControls/);
 assert.match(sidebarSource, /data-testid="side-navigation-rail"/, 'Sidebar navigation mode needs a dedicated icon rail.');
+assert.match(sidebarSource, /label="Lounge" expanded=\{expanded\} onClick=\{onEnterLounge\} testid="sidebar-rail-lounge-btn"/, 'Sidebar rail needs a direct Lounge shortcut with the standard expandable button.');
 assert.match(sidebarSource, /<Home size=\{21\}[\s\S]*?<LibIcon size=\{21\}[\s\S]*?<Columns size=\{21\}[\s\S]*?<Boxes size=\{21\}/, 'Sidebar navigation icons must use one larger size.');
 assert.match(sidebarSource, /expanded \? 'justify-start gap-2\.5 px-2' : 'justify-center gap-0 px-0'/, 'Collapsed sidebar icons must remain centered.');
 assert.match(controlMenuSource, /sidebarMode \? <span className="grid h-6 w-6 shrink-0 place-items-center"><Settings2 size=\{21\}/, 'Collapsed sidebar menu icon must not shrink away.');

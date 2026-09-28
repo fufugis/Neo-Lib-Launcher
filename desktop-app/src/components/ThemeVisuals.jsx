@@ -5,7 +5,7 @@ import CustomThemeParticles from './CustomThemeParticles';
 import ThemeGifMedia from './ThemeGifMedia';
 import ThemeVideoMedia from './ThemeVideoMedia';
 
-export function BgAmbience({ theme, settings = {}, game = null, resting = false, eventPulse = null, particlesEnabled = true }) {
+export function BgAmbience({ theme, settings = {}, game = null, resting = false, eventPulse = null, particlesEnabled = true, loungeMode = false }) {
   // `synthGridEnabled` and `particlesEnabled` were retired legacy switches.
   // They could silently hide every modern FX layer after an upgrade, even when
   // the player selected Low–Max effects. Effects intensity is now the one
@@ -47,7 +47,7 @@ export function BgAmbience({ theme, settings = {}, game = null, resting = false,
   // Per-game custom backdrop — when settings.perGameBg is on, the currently selected
   // game's hero is rendered as a giant blurred wash behind the ambient. Subtle,
   // additive, never overwhelms the theme.
-  const gameBg = settings.perGameBg && game ? (game.background || game.headerImage || game.coverUrl) : null;
+  const gameBg = !loungeMode && settings.perGameBg && game ? (game.background || game.headerImage || game.coverUrl) : null;
   const gameBgLayer = gameBg ? (
     <motion.div
       key={gameBg}
@@ -70,7 +70,7 @@ export function BgAmbience({ theme, settings = {}, game = null, resting = false,
   // the window edges. Scales with the effects level so it's invisible at 0,
   // subtle at Med, and unmistakable at Max. This is what makes higher levels
   // feel "alive" — the whole viewport gets rimmed with accent light.
-  const edgeGlowLayer = edgeGlow > 0 ? (
+  const edgeGlowLayer = !loungeMode && edgeGlow > 0 ? (
     <motion.div
       key={`edge-${theme}-${level}`}
       aria-hidden
@@ -87,7 +87,7 @@ export function BgAmbience({ theme, settings = {}, game = null, resting = false,
   // Extra floating layers (only at High/Max) — soft radial blobs of accent-2
   // that drift across the viewport. Cheap on GPU (just background-position
   // animation), heavy on vibe.
-  const extraLayersEl = extraLayerCount > 0 ? (
+  const extraLayersEl = !loungeMode && extraLayerCount > 0 ? (
     <div aria-hidden className="pointer-events-none fixed inset-0 z-[3]">
       {Array.from({ length: extraLayerCount }).map((_, i) => (
         <motion.div
