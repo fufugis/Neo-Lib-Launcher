@@ -2,7 +2,7 @@
 export const LOUNGE_EXTRA_PARTICLES = Object.freeze([
   Object.freeze({ id: 'fireflies', label: 'Fireflies', description: 'Warm drifting points with a soft glow.', direction: 'drift', count: 18, sizePx: 7, durationSeconds: 17, speedVariation: 40, swayPx: 32, shape: 'firefly', color: '#ffe49b' }),
   Object.freeze({ id: 'snowfall', label: 'Snowfall', description: 'Gentle flakes with varied falling speeds.', direction: 'fall', count: 24, sizePx: 8, durationSeconds: 13, speedVariation: 45, swayPx: 28, shape: 'snow', color: '#e9f6ff' }),
-  Object.freeze({ id: 'comet-trails', label: 'Comet trails', description: 'Occasional bright streaks crossing the sky.', direction: 'drift', count: 7, sizePx: 34, durationSeconds: 10, speedVariation: 35, swayPx: 20, shape: 'comet', color: '#b9ddff' }),
+  Object.freeze({ id: 'comet-trails', label: 'Comet trails', description: 'Luminous twin-tone streaks with a longer, softer tail.', direction: 'drift', count: 12, sizePx: 38, durationSeconds: 10, speedVariation: 35, swayPx: 20, shape: 'comet', color: '#b9ddff' }),
 ]);
 
 export const LOUNGE_PARTICLE_COLORS = Object.freeze([

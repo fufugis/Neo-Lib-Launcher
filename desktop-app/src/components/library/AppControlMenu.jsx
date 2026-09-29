@@ -72,11 +72,11 @@ export default function AppControlMenu({ onOpenThemes, onOpenVisuals, onOpenCont
       onPointerDown={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
       onClick={toggle}
-      className={`relative z-[61] rounded-lg border pointer-events-auto transition ${sidebarMode ? `flex h-10 w-full items-center ${sidebarExpanded ? 'justify-start gap-2.5 px-2' : 'justify-center gap-0 px-0'}` : 'grid h-9 w-9 place-items-center'} ${open ? 'border-[rgb(var(--accent)/0.85)] bg-[rgb(var(--accent)/0.15)] text-[rgb(var(--accent))] shadow-[0_0_16px_-5px_rgb(var(--accent))]' : 'border-[rgb(var(--border)/0.7)] bg-[rgb(var(--panel))] text-ink/85 hover:border-[rgb(var(--accent)/0.55)] hover:text-ink'}`}
-      style={sidebarMode ? { width: '100%' } : undefined}
+      className={`relative z-[61] rounded-lg border pointer-events-auto transition ${sidebarMode ? `neo-rail-button neo-rail-button--menu flex h-10 w-full items-center ${sidebarExpanded ? 'justify-start gap-2.5 px-2' : 'justify-center gap-0 px-0'}` : 'grid h-9 w-9 place-items-center'} ${open ? 'border-[rgb(var(--accent)/0.85)] bg-[rgb(var(--accent)/0.15)] text-[rgb(var(--accent))] shadow-[0_0_16px_-5px_rgb(var(--accent))]' : 'border-[rgb(var(--border)/0.7)] bg-[rgb(var(--panel))] text-ink/85 hover:border-[rgb(var(--accent)/0.55)] hover:text-ink'}`}
+      style={sidebarMode ? { width: '100%', '--rail-color': '255 158 112' } : undefined}
       title="NEO-LIB menu"
     >
-      {sidebarMode ? <span className="grid h-6 w-6 shrink-0 place-items-center"><Settings2 size={21} /></span> : <Settings2 size={17} />}
+      {sidebarMode ? <span className="neo-rail-button__icon grid h-6 w-6 shrink-0 place-items-center"><Settings2 size={21} /></span> : <Settings2 size={17} />}
       {sidebarMode && <span className={`min-w-0 overflow-hidden whitespace-nowrap text-left transition-all ${sidebarExpanded ? 'max-w-[104px] opacity-100' : 'max-w-0 opacity-0'}`}>
         <span className="block truncate text-[10px] font-bold uppercase leading-[13px] tracking-[0.14em]">Menu</span>
         <span aria-hidden="true" className="block truncate text-[9px] leading-[11px] text-muted">App controls</span>

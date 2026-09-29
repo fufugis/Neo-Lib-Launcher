@@ -22,6 +22,20 @@ export function portraitArtwork(game = {}) {
   return '';
 }
 
+/**
+ * Lounge can inspect candidate dimensions at render time, so offer likely
+ * portrait sources in preference order and let it skip wide/invalid images.
+ */
+export function portraitArtworkCandidates(game = {}) {
+  const candidates = [
+    game.manualOverride ? game.coverUrl : '',
+    game.portraitImage,
+    validSteamAppId(game.appid) ? officialSteamPortrait(game.appid) : '',
+    game.capsuleImage,
+  ];
+  return [...new Set(candidates.filter((value) => typeof value === 'string' && value.trim()).map((value) => value.trim()))];
+}
+
 export function artworkBackdrop(game = {}) {
   return [game.headerImage, game.background, game.capsuleImage, game.coverUrl, game.icon]
     .find((value) => typeof value === 'string' && value.trim()) || '';

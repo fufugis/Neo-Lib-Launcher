@@ -6,6 +6,7 @@ import PreviewActionBar from './preview/PreviewActionBar';
 import PreviewHeroTitle from './preview/PreviewHeroTitle';
 import { LatestNewsPill, ManagedToolSetup, SteamManifestLine, UpdateAvailablePill } from './preview/PreviewStatusCards';
 import { DEFAULT_HERO_FILTER, heroImageFilter } from './preview/hero-treatment-model.mjs';
+import { libraryHeroCandidates, libraryHeroWidth } from './preview/library-hero-artwork.mjs';
 
 /**
  * GameDetail — fully horizontal, "seamless" layout:
@@ -37,8 +38,11 @@ export default function GameDetail({
       onUpdateGame?.(game.id, { installSizeBytes: next.bytes, installSizeMeasuredAt: Date.now(), installSizePartial: next.truncated });
     } finally { setMeasuringSize(false); }
   }, [game, measuringSize, onUpdateGame]);
-  if (!game) return <EmptyState />;
-  const bg = game.hero || game.headerImage || game.background || game.coverUrl;
+  const heroCandidates = React.useMemo(() => libraryHeroCandidates(game), [game]);
+  const [heroIndex, setHeroIndex] = React.useState(0);
+  const bg = heroCandidates[heroIndex];
+  const [heroDimensions, setHeroDimensions] = React.useState(null);
+  React.useEffect(() => { setHeroIndex(0); setHeroDimensions(null); }, [game?.id, heroCandidates[0]]);
   // Hero parallax — subtle 3D tilt as mouse moves over the hero. CSS-only, no rerenders.
   const heroRef = React.useRef(null);
   // Hero auto-brighten — sample the loaded image's average luminance. If it's
@@ -49,6 +53,7 @@ export default function GameDetail({
   React.useEffect(() => setHeroFilter(DEFAULT_HERO_FILTER), [bg]);
   const onHeroLoad = React.useCallback((e) => {
     const img = e.currentTarget;
+    setHeroDimensions({ src: img.getAttribute('src'), width: img.naturalWidth });
     try {
       const cv = document.createElement('canvas');
       const W = (cv.width = 16);
@@ -91,6 +96,9 @@ export default function GameDetail({
     el.style.setProperty('--hero-tx', '0px');
     el.style.setProperty('--hero-ty', '0px');
   }, []);
+  if (!game) return <EmptyState />;
+  const measuredWidth = heroDimensions?.src === bg ? heroDimensions.width : 0;
+  const compactWidth = libraryHeroWidth(measuredWidth, heroRef.current?.clientWidth || 0);
   return (
     <motion.div
       key={game.id}
@@ -111,27 +119,33 @@ export default function GameDetail({
         onMouseLeave={onHeroLeave}
         style={{ perspective: '1200px' }}
       >
-        {/* Backdrop image — absolute, fills full hero area */}
+        {/* A small store header remains a smaller sharp art panel over a soft ambient fill. */}
         {bg ? (
-          <motion.img
-            key={bg}
-            initial={{ scale: 1.06, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.9, ease: 'easeOut' }}
-            src={bg}
-            alt=""
-            crossOrigin="anonymous"
-            onLoad={onHeroLoad}
-            className="hero-parallax pointer-events-none absolute inset-0 h-full w-full object-cover"
-            style={{
-              transform:
-                'perspective(1200px) ' +
-                'rotateX(var(--hero-rx, 0deg)) ' +
-                'rotateY(var(--hero-ry, 0deg)) ' +
-                'translate3d(var(--hero-tx, 0px), var(--hero-ty, 0px), 0)',
-              filter: heroFilter || undefined,
-            }}
-          />
+          <>
+            {compactWidth && <div className="pointer-events-none absolute inset-0 overflow-hidden bg-[rgb(var(--surface))]" aria-hidden="true"><img src={bg} alt="" className="h-full w-full scale-110 object-cover opacity-40 blur-2xl" /></div>}
+            <motion.img
+              key={bg}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: measuredWidth ? 1 : 0 }}
+              transition={{ duration: 0.35, ease: 'easeOut' }}
+              src={bg}
+              alt=""
+              crossOrigin="anonymous"
+              onLoad={onHeroLoad}
+              onError={() => setHeroIndex(index => Math.min(index + 1, heroCandidates.length))}
+              className="hero-parallax pointer-events-none absolute inset-y-0 right-0 h-full object-cover"
+              style={{
+                width: compactWidth ? `${compactWidth}px` : '100%',
+                objectPosition: 'center 42%',
+                transform:
+                  'perspective(1200px) ' +
+                  'rotateX(var(--hero-rx, 0deg)) ' +
+                  'rotateY(var(--hero-ry, 0deg)) ' +
+                  'translate3d(var(--hero-tx, 0px), var(--hero-ty, 0px), 0)',
+                filter: heroFilter || undefined,
+              }}
+            />
+          </>
         ) : (
           <div className="pointer-events-none absolute inset-0">
             <div className="synth-grid" />

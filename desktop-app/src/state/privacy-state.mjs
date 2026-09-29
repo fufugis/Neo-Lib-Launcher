@@ -31,6 +31,18 @@ export function visibleUnlockedGames(games = [], categories = [], unlockedIds = 
   return games.filter((game) => !(game.categoryIds || []).some((id) => locked.has(id)));
 }
 
+export function loungeVisibleGames(games = [], categories = [], unlockedIds = [], showPrivateGames = false) {
+  const privateIds = new Set(categories.filter((category) => category.private).map((category) => category.id));
+  const publicGames = games.filter((game) => !(game.categoryIds || []).some((id) => privateIds.has(id)));
+  const hasPrivateCategories = privateIds.size > 0;
+  const allPrivateCategoriesUnlocked = hasPrivateCategories && [...privateIds].every((id) => unlockedIds.includes(id));
+
+  // Lounge opts into private content separately from the rest of the app, and
+  // never exposes a partial private collection while only some PINs are open.
+  if (!showPrivateGames || (hasPrivateCategories && !allPrivateCategoriesUnlocked)) return publicGames;
+  return visibleUnlockedGames(games, categories, unlockedIds);
+}
+
 export function panicLockResult(games = [], categories = [], random = Math.random) {
   const privateIds = new Set(categories.filter((category) => category.private).map((category) => category.id));
   const safe = games.filter((game) => !(game.categoryIds || []).some((id) => privateIds.has(id)));

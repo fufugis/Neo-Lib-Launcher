@@ -9,6 +9,7 @@ import { appendMascotNotice, libraryCommandFor, messageFor, noticeCooldownMs, vo
 import { previewIdentityGroups, previewMedia, previewStoryBlocks, previewStoryParagraphs } from '../src/components/preview/preview-information-model.mjs';
 import { cleanDescriptionText, formatDescription } from '../src/lib/descriptionFormatting.mjs';
 import { DEFAULT_HERO_FILTER, heroImageFilter } from '../src/components/preview/hero-treatment-model.mjs';
+import { libraryHeroCandidates, libraryHeroWidth } from '../src/components/preview/library-hero-artwork.mjs';
 import { manifestPresentation, newsAgeLabel, updatePresentation } from '../src/components/preview/preview-status-model.mjs';
 import { createDemoLibrary } from '../src/state/demo-library.mjs';
 
@@ -115,7 +116,9 @@ assert.match(sidebarSource, /library\/LibraryIconGrid/);
 assert.match(sidebarSource, /library\/LibraryTree/);
 assert.match(sidebarSource, /library\/LibraryToolbarControls/);
 assert.match(sidebarSource, /data-testid="side-navigation-rail"/, 'Sidebar navigation mode needs a dedicated icon rail.');
-assert.match(sidebarSource, /label="Lounge" hint="Couch mode" expanded=\{expanded\} onClick=\{onEnterLounge\} testid="sidebar-rail-lounge-btn"/, 'Sidebar rail needs a direct Lounge shortcut with the standard expandable button.');
+assert.match(sidebarSource, /label="Lounge" hint="Couch mode" tone="255 125 210" expanded=\{expanded\} onClick=\{onEnterLounge\} testid="sidebar-rail-lounge-btn"/, 'Sidebar rail needs a direct Lounge shortcut with its own colour profile.');
+assert.equal(new Set([...sidebarSource.matchAll(/<RailNavigationButton[^\n]+tone="([\d ]+)"/g)].map(match => match[1])).size, 6, 'primary rail destinations and Wizard must have distinct fixed colour profiles');
+assert.match(sidebarSource, /tone=\{manualResting \? '255 204 112' : '163 165 255'\}/, 'Rest and Wake must remain visually distinct');
 for (const hint of ['Your dashboard', 'Browse games', 'Cover view', 'Utilities', 'Couch mode', 'Add games', 'Pause background', 'Resume activity']) {
   assert.ok(sidebarSource.includes(hint), `Expanded navigation needs a concise explanation: ${hint}`);
 }
@@ -123,7 +126,7 @@ assert.match(controlMenuSource, /App controls<\/span>/, 'Expanded Menu needs a c
 assert.match(sidebarSource, /expanded \? 'max-w-\[104px\][^']*opacity-100' : 'max-w-0[^']*opacity-0'/, 'Navigation helper text must disappear in the collapsed rail.');
 assert.match(sidebarSource, /<Home size=\{21\}[\s\S]*?<LibIcon size=\{21\}[\s\S]*?<Columns size=\{21\}[\s\S]*?<Boxes size=\{21\}/, 'Sidebar navigation icons must use one larger size.');
 assert.match(sidebarSource, /expanded \? 'justify-start gap-2\.5 px-2' : 'justify-center gap-0 px-0'/, 'Collapsed sidebar icons must remain centered.');
-assert.match(controlMenuSource, /sidebarMode \? <span className="grid h-6 w-6 shrink-0 place-items-center"><Settings2 size=\{21\}/, 'Collapsed sidebar menu icon must not shrink away.');
+assert.match(controlMenuSource, /sidebarMode \? <span className="neo-rail-button__icon grid h-6 w-6 shrink-0 place-items-center"><Settings2 size=\{21\}/, 'Collapsed sidebar menu icon must not shrink away.');
 assert.match(sidebarSource, /style=\{\{ width: expanded \? 148 : 48 \}\}/, 'The navigation rail must expand on hover without permanently consuming Library width.');
 assert.match(appSource, /settings\.navigationLayout === 'sidebar' && <SideNavigationRail[\s\S]*?!wallActive && <Sidebar/, 'The rail must be a workspace sibling before Library and remain available on Wall.');
 assert.match(sidebarSource, /data-testid="side-navigation-slot"/, 'The rail must reserve its own fixed-width workspace strip.');
@@ -304,7 +307,8 @@ assert.match(gameDetailSource, /preview\/PreviewInformationPanels/);
 assert.match(gameDetailSource, /preview\/PreviewHeroTitle/);
 assert.match(gameDetailSource, /preview\/PreviewActionBar/);
 assert.match(gameDetailSource, /preview\/PreviewStatusCards/);
-assert.match(gameDetailSource, /game\.hero \|\| game\.headerImage \|\| game\.background/, 'A player-selected hero must outrank the dedicated header and store-page background.');
+assert.deepEqual(libraryHeroCandidates({ hero: 'custom.jpg', background: 'large.jpg', headerImage: 'small.jpg' }), ['custom.jpg', 'large.jpg', 'small.jpg'], 'A player-selected hero must outrank larger scenery and a small header.');
+assert.equal(libraryHeroWidth(460, 1946), 575, 'Small store headers must not stretch across an ultrawide hero.');
 assert.match(gameDetailSource, /saturationSum/, 'Hero analysis must measure colour as well as brightness.');
 assert.match(gameDetailSource, /opacity-\[0\.12\]/, 'Hero scanlines must remain subtle enough to preserve artwork.');
 assert.equal(heroImageFilter({ luminance: 60, saturation: 0.1 }), 'brightness(1.38) contrast(1.12) saturate(1.58)');

@@ -8,15 +8,15 @@ It keeps your collection on your own PC and launches games through their normal
 launcher or executable.
 
 [![Windows x64](https://img.shields.io/badge/Windows-x64-6b8cff)](https://github.com/fufugis/Neo-Lib-Launcher/releases/latest)
-[![Release](https://img.shields.io/badge/candidate-v1.8.1-9b5cff)](https://github.com/fufugis/Neo-Lib-Launcher/releases)
-[![Status](https://img.shields.io/badge/status-testing-f0b429)](RELEASE_NOTES_v1.8.1.md)
+[![Release](https://img.shields.io/badge/candidate-v1.8.2-9b5cff)](https://github.com/fufugis/Neo-Lib-Launcher/releases)
+[![Status](https://img.shields.io/badge/status-testing-f0b429)](RELEASE_NOTES_v1.8.2.md)
 
 [Download NEO-LIB](https://github.com/fufugis/Neo-Lib-Launcher/releases/latest)
-· [Patch notes](RELEASE_NOTES_v1.8.1.md)
+· [Patch notes](RELEASE_NOTES_v1.8.2.md)
 · [Reddit](https://www.reddit.com/r/NeoLibLauncher/)
 · [Discord](https://discord.gg/spk6QWREk8)
 
-> v1.8.1 is currently a testing candidate. Check the release page for a
+> v1.8.2 is currently a testing candidate. Check the release page for a
 > successfully built installer or portable package; a tag alone is not a download.
 
 ## What NEO-LIB does
@@ -135,12 +135,12 @@ Work currently being prepared includes:
 
 The source has newer changes than the last verified package. For a useful test,
 use a fresh installer or portable build made from the current source, then
-confirm **Settings → About** shows v1.8.1 and record its Build ID. Please do
+confirm **Settings → About** shows v1.8.2 and record its Build ID. Please do
 not judge a newly changed control from an older installed build. A good first
 pass is: open Library and resize its divider; open Wall and change cover size,
 shape and filters; switch to Details and drag/reorder columns; restart and
 check the layout persists. Then test Home widget movement and NEO Lounge only
-if you have time. The full [Windows acceptance checklist](WINDOWS_ACCEPTANCE_V1.8.1.md)
+if you have time. The full [Windows acceptance checklist](WINDOWS_ACCEPTANCE_V1.8.2.md)
 tracks what still needs hands-on testing. If anything fails, note the Build ID,
 what you clicked, the expected result, the actual result, and a screenshot.
 
@@ -176,8 +176,8 @@ normal Windows environment capable of running Electron Builder's native tools.
 
 ## Project documentation
 
-- [v1.8.1 release notes](RELEASE_NOTES_v1.8.1.md)
-- [Windows acceptance checklist](WINDOWS_ACCEPTANCE_V1.8.1.md)
+- [v1.8.2 release notes](RELEASE_NOTES_v1.8.2.md)
+- [Windows acceptance checklist](WINDOWS_ACCEPTANCE_V1.8.2.md)
 - [Architecture ownership](ARCHITECTURE_OWNERSHIP.md)
 - [Architecture roadmap](ARCHITECTURE_ROADMAP.md)
 - [Library experience milestones](LIBRARY_EXPERIENCE_MILESTONES.md)

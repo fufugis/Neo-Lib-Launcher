@@ -41,6 +41,7 @@ export const DEFAULT_LOUNGE_PREFERENCES = Object.freeze({
   preset: 'cinema',
   shelfWidth: 220,
   wallCoverSize: 220,
+  coverAspect: 'square',
   controlSize: 'comfortable',
   browseSort: 'library',
   hiddenBrowseFilters: [],
@@ -50,6 +51,11 @@ export const DEFAULT_LOUNGE_PREFERENCES = Object.freeze({
   particleAmount: 100,
   particleRandomness: 50,
   particleColor: 'original',
+  particleOpacity: 70,
+  particleSize: 100,
+  particleTrail: 45,
+  particleGlow: 65,
+  particleSpeed: 100,
   coverGlow: 'off',
   specialTheme: 'theme',
   desktopThemeOverride: '',
@@ -57,20 +63,40 @@ export const DEFAULT_LOUNGE_PREFERENCES = Object.freeze({
   backdropMode: 'theme',
   backgroundUrl: '',
   backgroundOpacity: 65,
+  backgroundFit: 'adaptive',
+  backgroundPositionX: 50,
+  backgroundZoom: 100,
   backgroundPositionY: 50,
   panelOpacity: 82,
   shelfOpacity: 66,
   previewPosition: 'left',
   previewWidth: 52,
   previewBoxHeight: 220,
+  previewVerticalOffset: 24,
+  previewCornerRadius: 26,
+  previewTextScale: 100,
   previewPanelOpacity: 82,
+  previewShowIndex: true,
+  previewShowFactIcons: true,
   previewShowCover: true,
   previewShowDescription: true,
   previewShowFacts: true,
   previewShowProgress: true,
+  previewShowPlaytime: true,
+  previewShowJourney: true,
+  previewShowSource: true,
+  previewShowRelease: true,
+  previewShowYourRating: true,
+  previewShowMetacritic: true,
   ambientMotion: 'waves',
   ambientPace: 'steady',
   waveStrength: 52,
+  atmosphereOpacity: 70,
+  lightBloom: 55,
+  lightRays: 65,
+  highlightPulse: 55,
+  vignette: 35,
+  waveScale: 50,
   browseSoundEnabled: true,
   browseSoundVolume: 25,
   browseMoveLevel: 100,
@@ -84,6 +110,7 @@ export const DEFAULT_LOUNGE_PREFERENCES = Object.freeze({
   homeShowNextUp: true,
   homeShowRecentlyAdded: true,
   entryScreen: 'games',
+  showPrivateGamesInLounge: false,
 });
 
 const positions = new Set(['top', 'bottom', 'left', 'right']);
@@ -92,6 +119,7 @@ const previewPositions = new Set(['left', 'center', 'right']);
 const infoDensities = new Set(['minimal', 'balanced', 'rich']);
 const motions = new Set(['full', 'subtle', 'off']);
 const backdropModes = new Set(['theme', 'game', 'image', 'light', 'dark', 'clear']);
+const backgroundFits = new Set(['adaptive', 'fill', 'fit']);
 const ambientMotions = new Set(['drift', 'waves', 'still']);
 const ambientPaces = new Set(['slow', 'steady', 'lively']);
 const particleStyles = new Set(LOUNGE_PARTICLE_IDS);
@@ -102,6 +130,7 @@ const ambienceTracks = new Set(['none', 'ambience-1', 'ambience-2', 'ambience-3'
 const controlSizes = new Set(['compact', 'comfortable', 'large']);
 const browseSorts = new Set(['library', 'name', 'last-played', 'recently-added']);
 const entryScreens = new Set(['games', 'home']);
+const coverAspects = new Set(['square', 'tall']);
 const safeBackgroundUrl = value => typeof value === 'string' && value.length <= 2048 && /^file:\/\/\/?[a-z]:\/[^?#]+\.(png|jpe?g|webp)$/i.test(value) ? value : '';
 const safeAmbienceUrl = value => typeof value === 'string' && value.length <= 2048 && /^file:\/\/\/[a-z]:\/[^?#]+\.mp3$/i.test(value) ? value : '';
 const bounded = (value, fallback, min, max) => Number.isFinite(Number(value)) ? Math.min(max, Math.max(min, Math.round(Number(value)))) : fallback;
@@ -123,6 +152,7 @@ export function normalizeLoungePreferences(value) {
     stageHeight: bounded(input.stageHeight, defaults.stageHeight, 320, 760),
     shelfWidth: bounded(input.shelfWidth, defaults.shelfWidth, 156, 320),
     wallCoverSize: bounded(input.wallCoverSize, defaults.wallCoverSize, 170, 320),
+    coverAspect: coverAspects.has(input.coverAspect) ? input.coverAspect : defaults.coverAspect,
     controlSize: controlSizes.has(input.controlSize) ? input.controlSize : defaults.controlSize,
     browseSort: browseSorts.has(input.browseSort) ? input.browseSort : defaults.browseSort,
     hiddenBrowseFilters: Array.isArray(input.hiddenBrowseFilters) ? [...new Set(input.hiddenBrowseFilters.filter(id => Object.hasOwn(LOUNGE_BROWSE_BAR_FILTERS, id)))] : defaults.hiddenBrowseFilters,
@@ -134,6 +164,11 @@ export function normalizeLoungePreferences(value) {
     particleAmount: bounded(input.particleAmount, defaults.particleAmount, 0, 100),
     particleRandomness: bounded(input.particleRandomness, defaults.particleRandomness, 0, 100),
     particleColor: particleColors.has(input.particleColor) ? input.particleColor : defaults.particleColor,
+    particleOpacity: bounded(input.particleOpacity, defaults.particleOpacity, 10, 100),
+    particleSize: bounded(input.particleSize, defaults.particleSize, 50, 180),
+    particleTrail: bounded(input.particleTrail, defaults.particleTrail, 0, 100),
+    particleGlow: bounded(input.particleGlow, defaults.particleGlow, 0, 100),
+    particleSpeed: bounded(input.particleSpeed, defaults.particleSpeed, 25, 200),
     coverGlow: coverGlows.has(input.coverGlow) ? input.coverGlow : defaults.coverGlow,
     specialTheme: Object.hasOwn(LOUNGE_SCENES, input.specialTheme) ? input.specialTheme : defaults.specialTheme,
     desktopThemeOverride: validLoungeDesktopTheme(input.desktopThemeOverride) ? input.desktopThemeOverride : '',
@@ -141,20 +176,40 @@ export function normalizeLoungePreferences(value) {
     backdropMode: backdropModes.has(input.backdropMode) ? input.backdropMode : defaults.backdropMode,
     backgroundUrl: safeBackgroundUrl(input.backgroundUrl),
     backgroundOpacity: bounded(input.backgroundOpacity, defaults.backgroundOpacity, 0, 100),
+    backgroundFit: backgroundFits.has(input.backgroundFit) ? input.backgroundFit : defaults.backgroundFit,
+    backgroundPositionX: bounded(input.backgroundPositionX, defaults.backgroundPositionX, 0, 100),
+    backgroundZoom: bounded(input.backgroundZoom, defaults.backgroundZoom, 70, 140),
     backgroundPositionY: bounded(input.backgroundPositionY, defaults.backgroundPositionY, 0, 100),
     panelOpacity: legacyDefaultVisuals ? defaults.panelOpacity : bounded(input.panelOpacity, defaults.panelOpacity, 40, 100),
     shelfOpacity: bounded(input.shelfOpacity, defaults.shelfOpacity, 25, 100),
     previewPosition: previewPositions.has(input.previewPosition) ? input.previewPosition : defaults.previewPosition,
     previewWidth: bounded(input.previewWidth, defaults.previewWidth, 35, 85),
     previewBoxHeight: bounded(input.previewBoxHeight, defaults.previewBoxHeight, 160, 460),
+    previewVerticalOffset: bounded(input.previewVerticalOffset, defaults.previewVerticalOffset, 0, 100),
+    previewCornerRadius: bounded(input.previewCornerRadius, defaults.previewCornerRadius, 0, 48),
+    previewTextScale: bounded(input.previewTextScale, defaults.previewTextScale, 75, 135),
     previewPanelOpacity: bounded(input.previewPanelOpacity, defaults.previewPanelOpacity, 35, 100),
+    previewShowIndex: input.previewShowIndex !== false,
+    previewShowFactIcons: input.previewShowFactIcons !== false,
     previewShowCover: input.previewShowCover !== false,
     previewShowDescription: input.previewShowDescription !== false,
     previewShowFacts: input.previewShowFacts !== false,
     previewShowProgress: input.previewShowProgress !== false,
+    previewShowPlaytime: input.previewShowPlaytime !== false,
+    previewShowJourney: input.previewShowJourney !== false,
+    previewShowSource: input.previewShowSource !== false,
+    previewShowRelease: input.previewShowRelease !== false,
+    previewShowYourRating: input.previewShowYourRating !== false,
+    previewShowMetacritic: input.previewShowMetacritic !== false,
     ambientMotion: legacyDefaultVisuals ? defaults.ambientMotion : ambientMotions.has(input.ambientMotion) ? input.ambientMotion : defaults.ambientMotion,
     ambientPace: ambientPaces.has(input.ambientPace) ? input.ambientPace : defaults.ambientPace,
     waveStrength: legacyDefaultVisuals ? defaults.waveStrength : bounded(input.waveStrength, defaults.waveStrength, 0, 100),
+    atmosphereOpacity: bounded(input.atmosphereOpacity, defaults.atmosphereOpacity, 0, 100),
+    lightBloom: bounded(input.lightBloom, defaults.lightBloom, 0, 100),
+    lightRays: bounded(input.lightRays, defaults.lightRays, 0, 100),
+    highlightPulse: bounded(input.highlightPulse, defaults.highlightPulse, 0, 100),
+    vignette: bounded(input.vignette, defaults.vignette, 0, 100),
+    waveScale: bounded(input.waveScale, defaults.waveScale, 0, 100),
     browseSoundEnabled: input.browseSoundEnabled !== false,
     browseSoundVolume: bounded(input.browseSoundVolume, defaults.browseSoundVolume, 0, 100),
     browseMoveLevel: bounded(input.browseMoveLevel, defaults.browseMoveLevel, 0, 100),
@@ -168,6 +223,7 @@ export function normalizeLoungePreferences(value) {
     homeShowNextUp: input.homeShowNextUp !== false,
     homeShowRecentlyAdded: input.homeShowRecentlyAdded !== false,
     entryScreen: entryScreens.has(input.entryScreen) ? input.entryScreen : defaults.entryScreen,
+    showPrivateGamesInLounge: input.showPrivateGamesInLounge === true,
   };
 }
 

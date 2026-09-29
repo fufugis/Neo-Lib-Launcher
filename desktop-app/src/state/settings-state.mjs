@@ -1,4 +1,6 @@
 import { DEFAULT_LOUNGE_PREFERENCES, normalizeLoungePreferences } from '../components/lounge/lounge-layout-model.mjs';
+import { DEFAULT_LOUNGE_RESUME, normalizeLoungeResume } from '../components/lounge/lounge-resume-model.mjs';
+import { normalizeLoungeSavedPresets } from '../components/lounge/lounge-saved-presets.mjs';
 
 export const DEFAULT_SETTINGS = Object.freeze({
   theme: 'synthwave', firstRun: true, geminiKey: '', steamGridDbKey: '', aiModel: 'gemini-2.5-flash',
@@ -8,6 +10,8 @@ export const DEFAULT_SETTINGS = Object.freeze({
   coverWallShape: 'portrait',
   loungeLayout: 'browser',
   loungePreferences: DEFAULT_LOUNGE_PREFERENCES,
+  loungeResume: DEFAULT_LOUNGE_RESUME,
+  loungeSavedPresets: [],
   externalLibraryRoots: [],
   libraryIconMode: false, libraryIconSize: 48, libraryIconSpacing: 8, libraryIconRows: 3,
 });
@@ -20,6 +24,8 @@ export function hydrateSettings(raw = {}, { resetRatings = false } = {}) {
   if (!['portrait', 'square'].includes(next.coverWallShape)) next.coverWallShape = 'portrait';
   if (!['wall', 'browser'].includes(next.loungeLayout)) next.loungeLayout = 'browser';
   next.loungePreferences = normalizeLoungePreferences(next.loungePreferences);
+  next.loungeResume = normalizeLoungeResume(next.loungeResume);
+  next.loungeSavedPresets = normalizeLoungeSavedPresets(next.loungeSavedPresets);
   next.controllerNavigationEnabled = next.controllerNavigationEnabled === true;
   if (next.mode !== 'tools') next.mode = 'home';
   if (resetRatings) next.ratingSystemVersion = 2;
@@ -29,6 +35,8 @@ export function hydrateSettings(raw = {}, { resetRatings = false } = {}) {
 export function mergeSettings(settings, patch) {
   const next = { ...(settings || DEFAULT_SETTINGS), ...(patch && typeof patch === 'object' ? patch : {}) };
   if (patch && Object.hasOwn(patch, 'loungePreferences')) next.loungePreferences = normalizeLoungePreferences(patch.loungePreferences);
+  if (patch && Object.hasOwn(patch, 'loungeResume')) next.loungeResume = normalizeLoungeResume(patch.loungeResume);
+  if (patch && Object.hasOwn(patch, 'loungeSavedPresets')) next.loungeSavedPresets = normalizeLoungeSavedPresets(patch.loungeSavedPresets);
   return next;
 }
 

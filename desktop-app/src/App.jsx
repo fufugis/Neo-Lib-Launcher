@@ -14,7 +14,7 @@ import CoverWall from './components/CoverWall';
 import { BgAmbience, WorkspaceEmpty } from './components/ThemeVisuals';
 import { checkForUpdates } from './lib/updateChecker';
 import { hydrateLibrary, selectWorkspace, filterByLauncher, applyGameSession } from './state/library-state.mjs';
-import { gameLockedCategoryMap, redactLockedHomeGames, visibleUnlockedGames } from './state/privacy-state.mjs';
+import { gameLockedCategoryMap, loungeVisibleGames, redactLockedHomeGames, visibleUnlockedGames } from './state/privacy-state.mjs';
 import { hydrateNavigation, preferredLibraryGame, preferredTool } from './state/navigation-state.mjs';
 import { hydrateSettings, visualState } from './state/settings-state.mjs';
 import { EMPTY_REFRESH_QUEUE } from './state/metadata-refresh-state.mjs';
@@ -42,7 +42,7 @@ import { journeyStatusAfterFirstLaunch } from './lib/game-journey-model.mjs';
 import { externalRootForGame, normalizeExternalLibraryRoots } from './lib/externalLibraryRoots.mjs';
 import { applyStockThemePalette, stockThemeAssetUrl, customThemeCanvas } from './themes/stock-theme-registry.mjs';
 import { useCustomThemes } from './themes/use-custom-themes';
-const APP_VERSION = '1.8.1';
+const APP_VERSION = '1.8.2';
 import { uid, guessNameFromPath, hashPin, formatPlaytime } from './lib/utils';
 import { normalizeGenreProfile, GENRE_TAXONOMY_VERSION } from './lib/genreTaxonomy';
 import { setSoundPack } from './lib/sound';
@@ -1324,6 +1324,10 @@ export default function App() {
     () => currentCats.filter((category) => category.private && !unlockedCategories.includes(category.id)),
     [currentCats, unlockedCategories],
   );
+  const loungePrivateCategories = React.useMemo(() => (library.categories || []).filter(category => category.private), [library.categories]);
+  const loungeLockedPrivateCategories = React.useMemo(() => loungePrivateCategories.filter(category => !unlockedCategories.includes(category.id)), [loungePrivateCategories, unlockedCategories]);
+  const loungePrivateGamesUnlocked = loungePrivateCategories.length > 0 && loungeLockedPrivateCategories.length === 0;
+  const loungeGames = loungeVisibleGames(library.games || [], library.categories || [], unlockedCategories, settings.loungePreferences?.showPrivateGamesInLounge === true);
   const favouriteUpdate = React.useMemo(() => {
     const ledger = settings.updateStatusLedger || {};
     const pinned = new Set(settings.pinnedGameIds || []);
@@ -1766,7 +1770,7 @@ export default function App() {
           appVersion: APP_VERSION,
         }}
       />
-      {lounge.active && <NeoLounge games={visibleUnlockedGames(library.games || [], library.categories || [], unlockedCategories)} favoriteIds={settings.pinnedGameIds || []} updateLedger={settings.updateStatusLedger || {}} initialGameId={settings.lastGameId} initialLayout={settings.loungeLayout || 'browser'} initialPreferences={settings.loungePreferences} onLayoutChange={(loungeLayout) => updateSetting({ loungeLayout })} onPreferencesChange={(loungePreferences) => updateSetting({ loungePreferences })} theme={settings.theme || 'synthwave'} themeSettings={settings} resting={gameRestActive} restReason={restReason} soundsEnabled={settings.soundsEnabled !== false && (settings.soundPack || 'synthwave') !== 'none'} mascotId={settings.mascotId || 'fungist'} mascotEnabled={settings.fungistEnabled !== false} controllerEnabled={settings.controllerNavigationEnabled === true} onExit={lounge.exit} onLaunch={async (game, token) => { lounge.preserveGameLaunch(); try { const launched = await launchGame(game, token); if (!launched) lounge.cancelGameLaunch(); return launched; } catch (error) { lounge.cancelGameLaunch(); throw error; } }} />}
+      {lounge.active && <NeoLounge games={loungeGames} retroProfiles={settings.retroProfiles || []} privateGameCount={loungePrivateCategories.length} privateGamesUnlocked={loungePrivateGamesUnlocked} onRequestPrivateGames={() => { const nextCategory = loungeLockedPrivateCategories[0]; if (nextCategory) requestUnlock(nextCategory); }} favoriteIds={settings.pinnedGameIds || []} updateLedger={settings.updateStatusLedger || {}} initialGameId={settings.lastGameId} initialLayout={settings.loungeLayout || 'browser'} initialPreferences={settings.loungePreferences} initialResume={settings.loungeResume} onResumeChange={(loungeResume) => updateSetting({ loungeResume })} savedPresets={settings.loungeSavedPresets || []} onSavedPresetsChange={(loungeSavedPresets) => updateSetting({ loungeSavedPresets })} onLayoutChange={(loungeLayout) => updateSetting({ loungeLayout })} onPreferencesChange={(loungePreferences) => updateSetting({ loungePreferences })} theme={settings.theme || 'synthwave'} themeSettings={settings} resting={gameRestActive} restReason={restReason} soundsEnabled={settings.soundsEnabled !== false && (settings.soundPack || 'synthwave') !== 'none'} mascotId={settings.mascotId || 'fungist'} mascotEnabled={settings.fungistEnabled !== false} controllerEnabled={settings.controllerNavigationEnabled === true} onExit={lounge.exit} onLaunch={async (game, token) => { lounge.preserveGameLaunch(); try { const launched = await launchGame(game, token); if (!launched) lounge.cancelGameLaunch(); return launched; } catch (error) { lounge.cancelGameLaunch(); throw error; } }} />}
     </div>
   );
 }

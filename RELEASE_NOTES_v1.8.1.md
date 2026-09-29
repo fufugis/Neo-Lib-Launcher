@@ -1,5 +1,7 @@
 # NEO-LIB v1.8.1 — First major test candidate
 
+Lounge Visual Builder now detects the window shape for Selected game backgrounds and can smart-fit artwork on ultrawide displays. Full-image/fill, horizontal and vertical framing, and zoom controls are available. Game art now gets tunable light rays and pulsing highlight glow; these are simulated SDR effects, not physical HDR. Settings keeps its live layout preview visible above scrolling controls and no longer duplicates preset cards. Themes groups Lounge-only layout and visual starters with named, saved complete setups; presets can be imported or exported, and cannot unlock private games. Local artwork/audio paths are omitted from exported presets. The selected-game preview can separately show playtime, journey, source, release, Your Rating and Metacritic where available. Further preview arrangement and typography controls, ultrawide visual tuning, controller testing and packaged-app acceptance remain open.
+
 v1.8.1 brings the unreleased v1.7.9 candidate work forward with the latest
 Retro Library, Wall, theme and NEO Lounge source changes. It is a Windows test
 candidate, not an installed-app acceptance claim. The original
@@ -15,7 +17,7 @@ Visual Builder now adjusts the main glass surfaces, bottom game bar and scenic p
 
 Lounge’s current browse filter and controller/keyboard target now stand out in the active theme’s primary accent, with a stronger fill, border and glow. Filter targets also keep an inset edge visible inside the scrolling toolbar. Installed theme-by-theme visual acceptance remains open.
 
-Lounge gamepad browsing now uses the same smooth center movement as other shelf navigation instead of an immediate competing scroll. The selected cover briefly pops and settles at 40% larger than normal; its closest neighbors are 20% larger, second neighbors 10% larger, and the rest keep normal size. Horizontal and side shelves have room for the enlarged art. Motion Off and reduced-motion modes preserve the size hierarchy without the animation. Installed gamepad and visual acceptance remains open.
+Lounge gamepad browsing now glides to center on one retargetable easing path. Native scroll snapping is suspended during the glide so repeated D-pad moves do not flip instantly between cards. The selected cover grows from its neighbor size, briefly pops and settles 45% larger than normal; its closest neighbors are 20% larger, second neighbors 10% larger, and the rest keep normal size. Motion Off and reduced-motion modes preserve the size hierarchy without the animation. Installed gamepad and visual acceptance remains open.
 
 The expanded left sidebar now adds a short explanation under Menu, Home, Library, Wall, Tools, Lounge, Wizard and Rest/Wake. Its compact buttons and icon-only collapsed view remain unchanged. Installed visual acceptance remains open.
 
@@ -27,9 +29,15 @@ Lounge can now open while NEO-LIB is resting, and a running game no longer force
 
 In Lounge Game Browser, the mouse wheel or trackpad scrolls through the centered game carousel, including side-shelf layouts. Merely moving the mouse over covers no longer changes the featured game; clicking a cover still opens its details. Installed mouse and trackpad acceptance remains open.
 
+Lounge Themes adds Follow desktop theme and an expandable catalogue of installed desktop themes; choosing one affects Lounge only. Lounge Settings can reveal private-category games after the existing category PINs are unlocked for the current session. Hidden remains the default, and the global Library privacy gate is unchanged. Installed PIN and controller acceptance remains open.
+
+The Lounge Visual Builder keeps its live preview fixed above the scrolling controls. Atmosphere opacity, light bloom, wave scale and vignette now tune the rendered FX; the scene preview line stays inside its box, and panel and bottom-shelf transparency use separate controls. Comets have a longer, brighter tail, with more Lounge-specific particle customization. Installed visual and performance acceptance remains open.
+
+The centered Lounge cover now has a 45% resting size increase and a short overshoot pop from its adjacent-card size, with 20% and 10% emphasis for its nearest neighbours. True portrait candidates are checked by image dimensions; wide art is shown fully contained rather than being cropped into a false cover. Optional tall cards, flowing two-accent neon edges and faster mouse-wheel input remain available. Controller grids retain their column as they move between rows. Real mouse, pad and TV-distance acceptance remains open.
+
 The optional left navigation rail now includes a direct Lounge shortcut alongside Home, Library, Wall and Tools. Its icon, focus and expanded label follow the same rail behavior; entering Lounge still uses the guarded fullscreen route. Installed controller and visual acceptance remains open.
 
-Lounge now separates its growing customization menus: Themes selects its scenery, Visuals handles artwork, transparency and effects, and Settings groups layout, browsing, shortcuts and sound with quick section jumps. Each control has one main home; saved choices remain compatible. Installed controller and visual acceptance remains open.
+Lounge now separates its growing customization menus: Themes selects its scenery, Visuals handles artwork, transparency and effects, Settings groups layout, browsing and shortcuts, and Sound & Music has its own top-level icon. Existing audio choices remain compatible. Installed controller, visual and listening acceptance remains open.
 
 Themes now offers five special Lounge-only scenes: Alpine Horizon, Blue Orbit, Sunlit Coast, Neon Gallery and Starlit Road. Each has original panoramic art and its own colour palette. Game Browser presents the selected cover on the left, game facts and Explore on the right, scenery above, and the carousel below. Players can choose up to five Lounge Home destinations for a top shortcut bar in Settings. The desktop theme is untouched, and personal background choices still work. The first three scene assets are 1672×941; the two new scenes use 3840×2160 upscaled display assets, not native 4K detail or physical HDR. Rebuilt Windows, ultrawide and controller acceptance remains open.
 
@@ -284,6 +292,22 @@ Home's eight resize grips now use explicit positions inside their own widget edg
   review list, and import without duplicate ROM paths. Library shelves and Wall
   sections are created per platform. Launching passes the selected ROM directly
   to that profile through NEO-LIB's normal guarded Play route.
+- **Lounge Emulator Zone** — switch from Lounge Home to a console-by-console
+  carousel for the 20 supported Retro Library platforms. Shoulder buttons move
+  between consoles; each shelf shows only that platform's imported games. An
+  unconfigured platform points back to Wizard → Retro Library → Manage profiles.
+  Nineteen console identification marks are bundled locally; Arcade uses a
+  text badge. Logo rights and installed controller/UI
+  acceptance remain open before distribution.
+- **Icon-led Lounge navigation** — larger, individually tinted header actions,
+  Home filters and shortcuts, and Emulator Zone marks reveal their labels below
+  the icon on hover, focus or selection. Accessible names remain available
+  without the animation.
+- **Remember my Lounge** — local settings retain Lounge theme, Sound & Music,
+  FX and layout adjustments. Reopening Lounge also restores the last Zone,
+  collection filter, console and focused game when available. The existing
+  optional Lounge Home entry still opens its guide first; Lounge never opens
+  automatically with the desktop app.
 - **Retro metadata handoff** — Atari 2600, C64, Wii U and Switch join the
   supported folder profiles. Import opens a one-game-at-a-time metadata and
   case-art review using title plus console, public-web fallback and optional
@@ -306,10 +330,11 @@ Home's eight resize grips now use explicit positions inside their own widget edg
 
 ## Verification
 
-Focused Home-widget, package, emulation, launch, provider, IPC, visual-boundary,
-renderer-binding and metadata-workflow checks pass. The managed workspace cannot start Vite's
-build helper (`spawn EPERM`), so a rebuilt Windows scan/import/launch pass remains
-required.
+The renderer-state/Lounge suite and the full pre-renderer verification sequence pass,
+including category privacy, controller focus, artwork and release-boundary checks.
+The managed workspace cannot start Vite's build helper (`spawn EPERM`), so no fresh
+renderer bundle or installer was produced. Rebuilt Windows scan/import/launch and
+hands-on Lounge visual/controller acceptance remain required.
 Rebuilt Windows visual and interaction acceptance remains required before this
 candidate is published as a public release.
 

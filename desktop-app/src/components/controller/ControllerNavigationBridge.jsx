@@ -1,6 +1,6 @@
 import React from 'react';
 import { createControllerNavigator } from '../../services/controller-navigation-service.mjs';
-import { canControllerActivate, controllerFocusSurface, controllerFocusTargets, nextControllerFocus } from '../../input/controller-focus.mjs';
+import { canControllerActivate, controllerFocusSurface, controllerFocusTargets, nextControllerFocus, nextControllerGridFocus } from '../../input/controller-focus.mjs';
 
 // One opt-in focus owner. It never synthesizes pointer input for game launches.
 export default function ControllerNavigationBridge({ enabled, preferredFingerprint, resting, privacyEpoch, onBlockedLaunch }) {
@@ -35,6 +35,16 @@ export default function ControllerNavigationBridge({ enabled, preferredFingerpri
         focused.setAttribute('data-controller-focused', 'true');
       }
       const current = focused;
+      if (surface?.getAttribute?.('data-controller-surface') === 'lounge' && surface.getAttribute('data-lounge-zone') === 'emulator' && ['previous-section', 'next-section'].includes(command)) {
+        const consoles = [...surface.querySelectorAll('[data-lounge-console]')].filter(button => targets.includes(button));
+        if (!consoles.length) return;
+        const activeIndex = Math.max(0, consoles.findIndex(button => button.getAttribute('aria-pressed') === 'true'));
+        const offset = command === 'previous-section' ? -1 : 1;
+        const target = consoles[(activeIndex + offset + consoles.length) % consoles.length];
+        focus(target);
+        if (canControllerActivate(target)) target.click();
+        return;
+      }
       if (surface?.getAttribute?.('data-controller-surface') === 'lounge' && ['previous-section', 'next-section'].includes(command)) {
         const filters = [...surface.querySelectorAll('[data-lounge-filter]')].filter((button) => targets.includes(button));
         if (!filters.length) return;
@@ -47,7 +57,20 @@ export default function ControllerNavigationBridge({ enabled, preferredFingerpri
       }
       if (['up', 'down', 'left', 'right', 'previous-section', 'next-section'].includes(command)) {
         const direction = command === 'previous-section' ? 'left' : command === 'next-section' ? 'right' : command;
-        focus(nextControllerFocus(targets, current, direction));
+        const card = current?.matches?.('.lounge-browser-card') ? current : null;
+        const shelf = card?.closest?.('.lounge-browser-shelf');
+        if (shelf) {
+          const vertical = document.defaultView.getComputedStyle(shelf).flexDirection === 'column';
+          const alongShelf = vertical ? direction === 'up' || direction === 'down' : direction === 'left' || direction === 'right';
+          if (alongShelf) {
+            const cards = [...shelf.querySelectorAll('.lounge-browser-card')];
+            const index = cards.indexOf(card);
+            const step = direction === 'left' || direction === 'up' ? -1 : 1;
+            const adjacent = cards[index + step];
+            if (adjacent) { focus(adjacent); return; }
+          }
+        }
+        focus(nextControllerGridFocus(current, direction) || nextControllerFocus(targets, current, direction));
       } else if (command === 'confirm') {
         if (!current) focus(targets[0]);
         else if (canControllerActivate(current)) current.click();
@@ -60,6 +83,10 @@ export default function ControllerNavigationBridge({ enabled, preferredFingerpri
           document.activeElement.blur();
           clear();
           return;
+        }
+        if (surface?.getAttribute?.('data-controller-surface') === 'lounge' && surface.getAttribute('data-lounge-zone') === 'emulator') {
+          const home = surface.querySelector('[data-lounge-home-zone]');
+          if (home && canControllerActivate(home)) { focus(home); home.click(); return; }
         }
         const close = surface !== document.body
           ? surface.querySelector('[data-controller-close], [data-testid="modal-close-btn"], [aria-label^="Close"], [title^="Close"]') : null;

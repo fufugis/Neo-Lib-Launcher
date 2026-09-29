@@ -42,6 +42,31 @@ export function nextControllerFocus(targets, current, direction) {
   return ranked[0]?.target || current;
 }
 
+export function nextControllerGridFocus(current, direction) {
+  const grid = current?.closest?.('[data-controller-grid]');
+  if (!grid) return null;
+  const targets = [...grid.querySelectorAll(TARGETS)].filter(element => isControllerNavigationTarget(element) && visibleControllerElement(element));
+  if (!targets.includes(current)) return null;
+  const rect = current.getBoundingClientRect();
+  const x = rect.left + rect.width / 2;
+  const y = rect.top + rect.height / 2;
+  const horizontal = direction === 'left' || direction === 'right';
+  const sign = direction === 'left' || direction === 'up' ? -1 : 1;
+  const ranked = targets.filter(target => target !== current).map(target => {
+    const next = target.getBoundingClientRect();
+    const dx = next.left + next.width / 2 - x;
+    const dy = next.top + next.height / 2 - y;
+    const primary = (horizontal ? dx : dy) * sign;
+    const lateral = Math.abs(horizontal ? dy : dx);
+    const sameLine = horizontal ? lateral <= Math.max(18, rect.height * 0.3) : lateral <= Math.max(24, rect.width * 0.25);
+    return { target, primary, lateral, sameLine };
+  }).filter(item => item.primary > 2);
+  const aligned = ranked.filter(item => item.sameLine).sort((a, b) => a.primary - b.primary);
+  if (aligned.length) return aligned[0].target;
+  if (horizontal) return null;
+  return ranked.sort((a, b) => a.lateral * 4 + a.primary - (b.lateral * 4 + b.primary))[0]?.target || null;
+}
+
 export function canControllerActivate(element) {
   if (!isControllerActivationTarget(element) || element.closest?.('[data-neolib-launch]')) return false;
   if (!element.matches?.('button, [role="button"], [role="tab"]')) return false;

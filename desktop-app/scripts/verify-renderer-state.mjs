@@ -7,7 +7,7 @@ import {
   EMPTY_LIBRARY, hydrateLibrary, selectWorkspace, filterByLauncher, deleteWorkspaceCategory,
   clearRegularGameCategories, reorderWorkspaceCategory, moveWorkspaceItem, reorderWorkspaceItem, applyGameSession,
 } from '../src/state/library-state.mjs';
-import { lockedCategoryIds, gameLockedCategoryMap, redactLockedHomeGames, visibleUnlockedGames, panicLockResult, privacyAuditPayload } from '../src/state/privacy-state.mjs';
+import { lockedCategoryIds, gameLockedCategoryMap, loungeVisibleGames, redactLockedHomeGames, visibleUnlockedGames, panicLockResult, privacyAuditPayload } from '../src/state/privacy-state.mjs';
 import { hydrateNavigation, navigationTransition, preferredLibraryGame, preferredTool, selectionSettingsPatch } from '../src/state/navigation-state.mjs';
 import { DEFAULT_SETTINGS, hydrateSettings, mergeSettings, visualState } from '../src/state/settings-state.mjs';
 import { EMPTY_REFRESH_QUEUE, metadataRefreshTargets, startRefreshQueue, advanceRefreshQueue, stopRefreshQueue } from '../src/state/metadata-refresh-state.mjs';
@@ -66,6 +66,10 @@ assert.equal(protectedGame.name, 'Locked game');
 for (const forbidden of ['exePath', 'coverUrl', 'website', 'source', 'appid']) assert.equal(forbidden in protectedGame, false, `${forbidden} leaked from a locked game`);
 assert.deepEqual(visibleUnlockedGames(hydrated.games, hydrated.categories, []).map(game => game.id), ['safe', 'other']);
 assert.deepEqual(visibleUnlockedGames(hydrated.games, hydrated.categories, ['private']).map(game => game.id), ['safe', 'secret', 'other']);
+assert.deepEqual(loungeVisibleGames(hydrated.games, hydrated.categories, ['private'], false).map(game => game.id), ['safe', 'other'], 'unlocking a category elsewhere must not override Lounge privacy preference');
+assert.deepEqual(loungeVisibleGames(hydrated.games, hydrated.categories, [], true).map(game => game.id), ['safe', 'other'], 'Lounge must not reveal a private game until every private category PIN is unlocked');
+assert.deepEqual(loungeVisibleGames(hydrated.games, hydrated.categories, ['private'], true).map(game => game.id), ['safe', 'secret', 'other'], 'Lounge opt-in reveals private games only after all category PINs are unlocked');
+assert.deepEqual(loungeVisibleGames(hydrated.games, [{ id: 'regular' }], [], false).map(game => game.id), ['safe', 'secret', 'other'], 'ordinary games remain available when no private categories exist');
 assert.deepEqual(panicLockResult(hydrated.games, hydrated.categories, () => 0), { unlockedCategories: [], selectedGameId: 'safe', hasPrivate: true });
 assert.deepEqual(privacyAuditPayload(protectedGame), protectedGame);
 
@@ -182,6 +186,7 @@ for (const moduleName of ['library-state.mjs', 'privacy-state.mjs', 'navigation-
 assert(!appSource.includes('window.api.'), 'App.jsx must use the renderer API boundary instead of direct native calls');
 assert(appSource.includes('redactLockedHomeGames('), 'global Home privacy redaction must use its tested selector');
 assert(appSource.includes('visibleUnlockedGames('), 'Wall/preview privacy must use its tested selector');
+assert(appSource.includes('loungeVisibleGames('), 'Lounge privacy must use its separately opted-in and PIN-gated selector');
 assert(appSource.includes("from './components/ThemeVisuals'"), 'theme rendering must not remain embedded in App.jsx');
 assert(!appSource.includes('function ThemeArtwork('), 'theme artwork implementation belongs to the visual boundary');
 assert(storeSource.includes('nativeApi?.saveLibrary?.(library)') && storeSource.includes('nativeApi?.saveSettings?.(next)'), 'renderer store owns library/settings persistence');
