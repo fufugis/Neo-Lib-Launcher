@@ -1,6 +1,7 @@
 import React from 'react';
 import { createControllerNavigator } from '../../services/controller-navigation-service.mjs';
 import { canControllerActivate, controllerFocusSurface, controllerFocusTargets, nextControllerFocus, nextControllerGridFocus } from '../../input/controller-focus.mjs';
+import { scrollLoungeStripToControl } from '../lounge/lounge-strip-scroll.mjs';
 
 // One opt-in focus owner. It never synthesizes pointer input for game launches.
 export default function ControllerNavigationBridge({ enabled, preferredFingerprint, resting, privacyEpoch, onBlockedLaunch }) {
@@ -22,7 +23,7 @@ export default function ControllerNavigationBridge({ enabled, preferredFingerpri
       element.focus({ preventScroll: true });
       // Lounge owns the centered shelf animation; a second nearest-edge scroll
       // here would jump ahead of it on every gamepad move.
-      if (!element.matches?.('.lounge-browser-card')) element.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+      if (!element.matches?.('.lounge-browser-card') && !scrollLoungeStripToControl(element)) element.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     };
     const navigate = (command) => {
       if (document.visibilityState === 'hidden' || !document.hasFocus()) return;

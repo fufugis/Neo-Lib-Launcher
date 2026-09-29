@@ -30,7 +30,8 @@ function createSteamGridDbArtworkService({ httpGetJson }) {
           style: String(asset.style || '').slice(0, 80), score: Number(asset.score) || 0,
           author: String(asset.author?.name || 'SteamGridDB contributor').slice(0, 120),
           nsfw: asset.nsfw === true, humor: asset.humor === true,
-        })).filter((asset) => asset.id && /^https:\/\//i.test(asset.url) && /^https:\/\//i.test(asset.thumb));
+        })).filter((asset) => asset.id && /^https:\/\//i.test(asset.url) && /^https:\/\//i.test(asset.thumb)
+          && (kind !== 'cover' || (asset.width > 0 && asset.height >= asset.width * 1.15)));
         return { ok: true, assets };
       }
       return { ok: false, error: 'Unknown artwork request.' };

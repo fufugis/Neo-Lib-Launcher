@@ -7,7 +7,11 @@ const { createSteamGridDbArtworkService } = require('../electron/providers/steam
     async httpGetJson(url, timeout, headers) {
       calls.push({ url, timeout, headers });
       if (url.includes('/search/')) return { success: true, data: [{ id: 10, name: 'Game Name', verified: true, types: ['steam'] }] };
-      return { success: true, data: [{ id: 20, url: 'https://cdn.test/art.png', thumb: 'https://cdn.test/thumb.png', width: 600, height: 900, style: 'alternate', score: 4, author: { name: 'Artist' }, nsfw: false, humor: false }] };
+      return { success: true, data: [
+        { id: 20, url: 'https://cdn.test/art.png', thumb: 'https://cdn.test/thumb.png', width: 600, height: 900, style: 'alternate', score: 4, author: { name: 'Artist' }, nsfw: false, humor: false },
+        { id: 21, url: 'https://cdn.test/wide.png', thumb: 'https://cdn.test/wide-thumb.png', width: 920, height: 430 },
+        { id: 22, url: 'https://cdn.test/unknown.png', thumb: 'https://cdn.test/unknown-thumb.png' },
+      ] };
     },
   });
   assert.deepEqual(await service.request({ action: 'search', query: 'Game Name' }), { ok: false, error: 'Add your SteamGridDB API key in Settings first.' });
@@ -17,6 +21,7 @@ const { createSteamGridDbArtworkService } = require('../electron/providers/steam
   assert.equal(calls[0].headers.Authorization, 'Bearer player-key');
   const assets = await service.request({ apiKey: 'player-key', action: 'assets', gameId: '10', kind: 'cover' });
   assert.equal(assets.assets[0].width, 600); assert.equal(assets.assets[0].author, 'Artist');
+  assert.equal(assets.assets.length, 1, 'cover gallery only offers assets with verified portrait dimensions');
   assert(calls[1].url.includes('/grids/game/10?dimensions=600x900'));
   assert.deepEqual(await service.request({ apiKey: 'player-key', action: 'assets', gameId: '../bad', kind: 'cover' }), { ok: false, error: 'Choose a valid SteamGridDB game and artwork type.' });
   const offline = createSteamGridDbArtworkService({ httpGetJson: async () => { throw new Error('secret response'); } });

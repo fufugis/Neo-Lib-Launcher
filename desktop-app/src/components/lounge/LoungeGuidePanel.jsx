@@ -64,7 +64,7 @@ export default function LoungeGuidePanel({ games, favoriteIds = [], preferences,
     most: { label: 'Most played', note: `${mostPlayedCount} games with tracked time`, icon: Trophy, action: () => onBrowse('most') },
     visual: { label: 'Visual Builder', note: 'Background, waves and effects', icon: Sparkles, action: onCustomize },
   };
-  return <div role="dialog" aria-modal="true" aria-label="Lounge Guide" className="lounge-guide-scrim fixed inset-0 z-[9100] flex items-center justify-center bg-[rgb(var(--surface)/0.78)] backdrop-blur-xl">
+  return <div role="dialog" aria-modal="true" aria-label="Lounge Guide" className="lounge-guide-scrim fixed inset-0 z-[9100] flex items-center justify-center bg-[rgb(var(--surface)/0.78)]">
     <section data-testid="lounge-guide-panel" className="lounge-guide-panel relative flex h-full w-full max-w-screen-2xl flex-col overflow-hidden border-x border-[rgb(var(--accent)/0.3)] bg-[rgb(var(--surface)/0.88)] shadow-[0_32px_110px_rgb(0_0_0/0.45)]">
       {ambientImage && ambientImage !== failedBackdrop && ambientImage !== failedHero && <img src={ambientImage} alt="" aria-hidden="true" decoding="async" onError={() => setFailedBackdrop(ambientImage)} className="lounge-guide-backdrop pointer-events-none absolute inset-0 h-full w-full object-cover" />}
       <div aria-hidden="true" className="lounge-guide-backdrop-shade pointer-events-none absolute inset-0" />

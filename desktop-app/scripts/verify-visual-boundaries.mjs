@@ -235,8 +235,8 @@ assert.match(coverWallSource, /max="14"/, 'The Wall density slider must reach fo
 assert.match(coverWallSource, /function personalRating/, 'Cover Wall rating tags need a bounded personal-rating formatter.');
 assert.match(coverWallSource, /portraitArtwork/, 'Cover Wall must prefer a true portrait cover over landscape banner art.');
 assert.match(coverWallSource, /aspect-\[2\/3\]/, 'Cover Wall must present games as portrait covers.');
-assert.match(coverWallSource, /Backdrop artwork/, 'A missing portrait must reuse existing game artwork without the old gray wash.');
-assert.match(coverWallSource, /NEO-LIB fallback cover/, 'A game with no usable artwork must receive a colorful deterministic fallback cover.');
+assert.match(coverWallSource, /Portrait cover needed/, 'A missing portrait must use an honest designed placeholder, not stretch wide art into the cover slot.');
+assert.match(coverWallSource, /function fallbackCoverStyle/, 'A game with no usable portrait must receive a colorful deterministic fallback cover.');
 assert.match(coverWallSource, /data-testid="wall-compact-toolbar"[^\n]*px-3 py-2/, 'Wall view controls must remain a slim toolbar instead of a tall introduction card.');
 assert.match(coverWallSource, /data-testid=\{`cover-wall-rating-\$\{game\.id\}`\}/, 'Rated Cover Wall games need a visible personal-rating tag.');
 assert.match(coverWallSource, /absolute right-1\.5 top-1\.5 z-10[^\n]*min-w-12[^\n]*bg-amber-300[^\n]*text-\[11px\][^\n]*style=\{\{ textShadow: 'none' \}\}/, 'Cover Wall rating tags must remain a clean shadow-free yellow upper-right badge at every density.');

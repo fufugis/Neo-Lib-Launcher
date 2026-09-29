@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowDown, ArrowUp, CalendarDays, CheckSquare, Clock3, Cloud, ExternalLink, Gamepad2, Grid3X3, HardDrive, Home, ImageOff, Library, List, LockKeyhole, Minus, Play, Plus, Radio, ShieldAlert, SlidersHorizontal, Square, Star, Trophy, UserRound, Users, Wrench, X } from 'lucide-react';
-import { artworkBackdrop, portraitArtwork } from '../lib/game-artwork-model.mjs';
+import { hasPortraitDimensions, portraitArtworkCandidates } from '../lib/game-artwork-model.mjs';
 import { formatPlaytime } from '../lib/utils';
 import { applyWallFilter, WALL_FILTERS } from './library/wall-filter-model.mjs';
 import { gameSignals } from '../lib/game-signals-model.mjs';
@@ -216,7 +216,6 @@ function WallPeek({ game, onClose, onOpenPreview, onLaunch }) {
   const selectedIndex = screenshots[activeScreenshot] ? activeScreenshot : 0;
   const selectedScreenshot = screenshots[selectedIndex];
   const markScreenshotFailed = (image) => setFailedScreenshotUrls((current) => current.includes(image) ? current : [...current, image]);
-  const cover = portraitArtwork(game) || artworkBackdrop(game);
   return <div className="absolute inset-0 z-30 bg-black/38 backdrop-blur-[1px]" data-testid="wall-peek-backdrop" onClick={onClose}>
     <motion.aside
       initial={{ opacity: 0, x: 28 }}
@@ -231,7 +230,7 @@ function WallPeek({ game, onClose, onOpenPreview, onLaunch }) {
     >
       <div className="flex items-start gap-3 border-b border-[rgb(var(--border)/0.58)] p-3">
         <div className="h-20 w-14 shrink-0 overflow-hidden rounded-lg border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--surface)/0.7)]">
-          {cover ? <img src={cover} alt="" className="h-full w-full object-cover" /> : <span className="grid h-full place-items-center text-muted"><ImageOff size={16} /></span>}
+          <CoverArtwork game={game} eager />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[rgb(var(--accent-2))]">{game.launcher || game.source || 'Local library'}</p>
@@ -298,17 +297,24 @@ function Signal({ signal }) {
 function EmptyWall() { return <div className="grid min-h-64 place-items-center rounded-2xl border border-dashed border-[rgb(var(--border)/0.78)] bg-[rgb(var(--panel)/0.25)] px-6 text-center"><div><ImageOff className="mx-auto text-[rgb(var(--accent-2))]" size={24} /><p className="mt-3 text-sm font-bold text-ink">No visible games here</p><p className="mt-1 text-xs text-muted">Try another launcher filter or clear your search.</p></div></div>; }
 
 function CoverArtwork({ game, eager }) {
-  const [failed, setFailed] = React.useState(false);
-  const [backdropFailed, setBackdropFailed] = React.useState(false);
-  const portrait = portraitArtwork(game);
-  const backdrop = artworkBackdrop(game);
-  if (portrait && !failed) return <img src={portrait} alt="" className="h-full w-full object-cover object-center transition duration-300 group-hover:scale-[1.045]" decoding="async" loading={eager ? 'eager' : 'lazy'} onError={() => setFailed(true)} />;
+  const [rejectedPortraitUrls, setRejectedPortraitUrls] = React.useState([]);
+  const [approvedPortraitUrl, setApprovedPortraitUrl] = React.useState('');
+  React.useEffect(() => {
+    setRejectedPortraitUrls([]);
+    setApprovedPortraitUrl('');
+  }, [game?.id]);
+  const portrait = portraitArtworkCandidates(game).find(url => !rejectedPortraitUrls.includes(url));
+  const rejectPortrait = url => setRejectedPortraitUrls(current => current.includes(url) ? current : [...current, url]);
   const fallback = fallbackCoverStyle(game);
-  return <span data-testid="cover-artwork-fallback" className="relative grid h-full w-full place-items-end overflow-hidden p-3 text-left" style={fallback}>
-    {backdrop && !backdropFailed && <img src={backdrop} alt="" className="absolute inset-0 h-full w-full scale-[1.04] object-cover saturate-[1.14] contrast-[1.06] transition duration-300 group-hover:scale-[1.09]" decoding="async" loading={eager ? 'eager' : 'lazy'} onError={() => setBackdropFailed(true)} />}
-    <span className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/18 to-transparent" />
-    {!backdrop || backdropFailed ? <span className="absolute -right-8 top-7 h-28 w-28 rotate-12 rounded-[30%] border border-white/20 bg-white/10" /> : null}
-    <span className="relative w-full [text-shadow:0_1px_3px_rgb(0_0_0/.88)]">{game.source === 'emulation' ? <span className="mb-2 inline-flex items-center gap-1 rounded border border-white/30 bg-black/35 px-1.5 py-1 text-[8px] font-black uppercase tracking-[0.12em] text-white"><Gamepad2 size={10} />{game.platform || 'Retro'}</span> : <ImageOff size={15} className="mb-2 text-white/80" />}<b className="block break-words text-[12px] font-bold leading-tight text-white">{game.name || 'Untitled game'}</b><small className="mt-1 block text-[8px] font-bold uppercase tracking-[0.12em] text-white/70">{backdrop && !backdropFailed ? 'Backdrop artwork' : game.source === 'emulation' ? 'Awaiting reviewed case art' : 'NEO-LIB fallback cover'}</small></span>
+  return <span data-testid={approvedPortraitUrl === portrait ? undefined : 'cover-artwork-fallback'} className="relative grid h-full w-full place-items-end overflow-hidden p-3 text-left" style={fallback}>
+    <span className="absolute -right-8 top-7 h-28 w-28 rotate-12 rounded-[30%] border border-white/20 bg-white/10" />
+    <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/10" />
+    <span className="relative w-full text-white [text-shadow:0_1px_3px_rgb(0_0_0/.88)]">{game.source === 'emulation' ? <span className="mb-2 inline-flex items-center gap-1 rounded border border-white/30 bg-black/35 px-1.5 py-1 text-[8px] font-black uppercase tracking-[0.12em]"><Gamepad2 size={10} />{game.platform || 'Retro'}</span> : <ImageOff size={16} className="mb-2 opacity-80" />}<small className="block text-[9px] font-bold uppercase tracking-[0.1em]">Portrait cover needed</small></span>
+    {portrait && <img src={portrait} alt="" className={`absolute inset-0 z-[2] h-full w-full object-cover object-center transition duration-300 group-hover:scale-[1.045] ${approvedPortraitUrl === portrait ? 'visible' : 'invisible'}`} decoding="async" loading={eager ? 'eager' : 'lazy'} onError={() => rejectPortrait(portrait)} onLoad={event => {
+      const { naturalWidth, naturalHeight } = event.currentTarget;
+      if (hasPortraitDimensions(naturalWidth, naturalHeight)) setApprovedPortraitUrl(portrait);
+      else rejectPortrait(portrait);
+    }} />}
   </span>;
 }
 

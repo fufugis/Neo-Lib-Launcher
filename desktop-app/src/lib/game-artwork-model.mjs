@@ -1,4 +1,5 @@
 const validSteamAppId = (value) => /^\d+$/.test(String(value || '').trim());
+const steamPortraitId = (game = {}) => validSteamAppId(game.steamAppId) ? game.steamAppId : game.appid;
 
 /** Steam's official portrait library image. It may be absent for an older title;
  * callers must keep a visual fallback rather than treating the URL as proof. */
@@ -9,6 +10,7 @@ export function officialSteamPortrait(appid) {
 }
 
 export function portraitArtwork(game = {}) {
+  if (game.manualOverride && typeof game.coverUrl === 'string' && game.coverUrl.trim()) return game.coverUrl.trim();
   if (typeof game.portraitImage === 'string' && game.portraitImage.trim()) return game.portraitImage.trim();
   // Launcher imports historically stored their source as `steam-import`, so
   // requiring an exact `steam` string hid the official portrait for existing
@@ -16,10 +18,13 @@ export function portraitArtwork(game = {}) {
   // `appid` is NEO-LIB's dedicated Steam identity field. Older Wall entries
   // sometimes predate the source label entirely, but the ID is still enough
   // to request Steam's official library portrait.
-  if (validSteamAppId(game.appid)) return officialSteamPortrait(game.appid);
-  // A player-selected cover from Customize is an explicit portrait choice.
-  if (game.manualOverride && typeof game.coverUrl === 'string' && game.coverUrl.trim()) return game.coverUrl.trim();
+  if (validSteamAppId(steamPortraitId(game))) return officialSteamPortrait(steamPortraitId(game));
   return '';
+}
+
+/** A source label or URL cannot prove image shape; the browser checks loaded dimensions. */
+export function hasPortraitDimensions(width, height) {
+  return Number.isFinite(width) && Number.isFinite(height) && width > 0 && height >= width * 1.15;
 }
 
 /**
@@ -29,8 +34,10 @@ export function portraitArtwork(game = {}) {
 export function portraitArtworkCandidates(game = {}) {
   const candidates = [
     game.manualOverride ? game.coverUrl : '',
+    /^file:/i.test(String(game.coverUrl || '')) ? game.coverUrl : '',
     game.portraitImage,
-    validSteamAppId(game.appid) ? officialSteamPortrait(game.appid) : '',
+    validSteamAppId(steamPortraitId(game)) ? officialSteamPortrait(steamPortraitId(game)) : '',
+    game.coverUrl,
     game.capsuleImage,
   ];
   return [...new Set(candidates.filter((value) => typeof value === 'string' && value.trim()).map((value) => value.trim()))];

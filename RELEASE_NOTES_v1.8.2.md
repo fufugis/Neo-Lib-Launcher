@@ -2,11 +2,39 @@
 
 Release status: the full source gate passes, but this local session has no feedback-relay release credentials. No v1.8.2 installer or portable build has been produced or visually accepted yet.
 
+Visual Builder's Main Lounge surfaces and Bottom game bar opacity sliders now have the same 0–100% range, enforced by one shared saved-setting bound. Lounge panels, shelves, controls, badges and modal scrims no longer apply frosted blur, so each opacity setting changes surface tint while the background stays sharp. The game shelf's visible backdrop hugs the cards, while transparent scroll padding still lets the first and last games center. The two controls remain independent; rebuilt-app readability, visual and carousel-motion acceptance remain open.
+
+Lounge's standard carousel card is now a 2:3 portrait frame, matching the portrait artwork instead of placing it inside a wide square. Existing saved `square` settings migrate to Portrait cover; Extra tall remains an option. Approved cover art fills the frame, while the separate game-name caption stays below. Source checks pass; rebuilt-app visual acceptance remains open.
+
+Lounge Settings now shows Side-shelf width only for left/right Game Browser shelves and Wall cover width only for Wall. The side rail obeys its selected width instead of a hidden minimum; covers fit within it. Wall cards now visibly resize at each slider step even if the grid retains the same column count. The pinned preview reflects both settings. Narrow displays still adapt the side rail to a horizontal shelf. Source checks pass; rebuilt-app visual acceptance remains open.
+
+Lounge carousel cards now keep the UI game title in the caption below the cover only. The prior fallback's duplicate in-image title was removed in the portrait-only cover pass; this pass also removes the selected-card "In focus" badge that could cover artwork. Existing focus outlines and glow remain. Text printed into a game's own cover file is unaffected. Rebuilt-app visual acceptance remains open.
+
+Emulator Zone no longer lets later console choices pan the fullscreen Lounge surface and expose a gap at the right edge. Selection and controller focus scroll only the console row; the same boundary applies to the game-filter row. Source regression checks pass, with rebuilt-app ultrawide/gamepad acceptance still open.
+
+Lounge and Wall portrait cards no longer place landscape banners inside vertical frames. They try saved custom and local covers, imported portrait art, and Steam's official portrait library image when a Steam ID is available; each loaded image is checked for portrait dimensions before display. The optional SteamGridDB cover gallery now excludes wide or unmeasured images and explains how to find or choose a vertical cover. Games without confirmed portrait art use a designed placeholder rather than misrepresenting a banner as box art. Community coverage varies, so this does not claim an automatic portrait for every game. Source checks pass; installed-app visual acceptance remains open.
+
 The optional desktop sidebar now gives each destination its own colour profile rather than one shared muted accent. Coloured icon tiles and softly tinted buttons remain visible when the rail is compact; the active page, hover and keyboard focus receive stronger matching highlights. Rebuilt-app theme and visual acceptance remain open.
 
 Library game previews now favor larger background art or screenshots over small store headers, and keep low-resolution fallback art at a bounded size instead of stretching it across an ultrawide hero. Explicitly selected hero art still takes priority. Rebuilt-app visual acceptance remains open.
 
 Lounge Visual Builder now detects the window shape for Selected game backgrounds and can smart-fit artwork on ultrawide displays. Full-image/fill, horizontal and vertical framing, and zoom controls are available. Game art now gets tunable light rays and pulsing highlight glow; these are simulated SDR effects, not physical HDR. Settings keeps its live layout preview visible above scrolling controls and no longer duplicates preset cards. Themes groups Lounge-only layout and visual starters with named, saved complete setups; presets can be imported or exported, and cannot unlock private games. Local artwork/audio paths are omitted from exported presets. The selected-game preview can separately show playtime, journey, source, release, Your Rating and Metacritic where available. Further preview arrangement and typography controls, ultrawide visual tuning, controller testing and packaged-app acceptance remain open.
+
+The Lounge selected-game preview width now ranges from 20–100% of the available window (60% default) so narrow and wide layouts are both possible. Information density now has a real progression: Minimal keeps the title and essentials, Balanced adds the description and up to three selected facts, and Detailed adds all selected facts plus available developer, publisher, genres and install size. Facts remain limited to saved game metadata and the preview's show/hide choices.
+
+Light bloom now produces a much more visible, animated glow in the active theme accents across Lounge scenery and backgrounds, rather than only a faint halo. It follows the existing atmosphere and motion settings; with motion paused the stronger bloom remains visible but still.
+
+Lounge Atmosphere now ramps Wave strength from zero to up to three times the previous color and travel at the maximum. The Alive movement setting also moves the backdrop up to three times farther than Gentle. Still and Motion off remain reliable ways to stop movement.
+
+Bloom, light rays and highlights now visibly breathe and drift in built-in scenic themes as well as game/image backdrops. The Light rays slider now actually controls the scenic themes, and these atmospheric animations no longer stop merely because a theme's decorative-flow amount is zero. Atmosphere opacity is clarified as a visibility control; Still, Motion off and system reduced-motion continue to freeze movement.
+
+Animated neon cover outlines now send a bright two-accent streak around the frame and breathe with a stronger halo. The vivid edge remains visible as a static outline when Lounge motion is off, paused, or reduced by the system.
+
+Lounge particle randomness now adds stable side-to-side sway for rising/falling effects and up/down drift for left-to-right effects. Particle trail creates two soft ghost afterimages, and extends the comet streak; Particle glow now adds a broader, brighter layered bloom. The Visual Builder preview shares the live Lounge renderer so these adjustments match what appears after closing the builder.
+
+The Lounge browse and layout bar now takes less vertical room around its small icons, while preserving their size and the animated two-line labels shown for the hovered, focused or selected option.
+
+Screenshots in Lounge game details are larger by default. Mouse hover and keyboard/gamepad focus enlarge and highlight a screenshot; pressing it keeps the larger view pinned until pressed again or another game's details open.
 
 v1.8.2 supersedes the unshipped v1.8.1 source candidate and brings the unreleased v1.7.9 candidate work forward with the latest
 Retro Library, Wall, theme and NEO Lounge source changes. It is a Windows test

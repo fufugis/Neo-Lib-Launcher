@@ -1,8 +1,9 @@
 import React from 'react';
 import { ImagePlus, Layers3, RotateCcw, Sparkles, Waves, X } from 'lucide-react';
-import { DEFAULT_LOUNGE_PREFERENCES, normalizeLoungePreferences } from './lounge-layout-model.mjs';
+import { DEFAULT_LOUNGE_PREFERENCES, LOUNGE_SURFACE_OPACITY_RANGE, normalizeLoungePreferences } from './lounge-layout-model.mjs';
 import LoungeLivingBackdrop from './LoungeLivingBackdrop';
 import LoungeCover from './LoungeCover';
+import LoungeParticleLayer from './LoungeParticleLayer';
 import builtinParticles from '../../../electron/themes/builtin-particles.json';
 import { LOUNGE_EXTRA_PARTICLES, LOUNGE_PARTICLE_COLORS } from './lounge-particle-presets.mjs';
 
@@ -35,35 +36,6 @@ function ParticlePicker({ value, onChange, scene }) {
   return <fieldset className="mt-5"><legend className="text-sm font-black">Lounge particles</legend><p className="mt-1 text-xs text-muted">Choose a particle look for Lounge only. The desktop theme stays untouched.</p><div data-controller-grid className="mt-3 grid gap-2 sm:grid-cols-2">{PARTICLE_CHOICES.map(choice => <button key={choice.id} type="button" aria-pressed={value === choice.id} onClick={() => onChange(choice.id)} className={`lounge-visual-choice flex min-h-14 items-center gap-3 rounded-xl border p-2 text-left ${value === choice.id ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent)/0.18)]' : 'border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)]'}`}>{choice.image ? <img src={choice.image} alt="" className="h-9 w-9 shrink-0 object-contain" /> : <span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[rgb(var(--accent)/0.12)]"><Sparkles size={18} /></span>}<span><strong className="block text-xs">{choice.id === 'theme' && scene !== 'theme' ? 'Scene starlight' : choice.label}</strong><small className="block text-[10px] text-muted">{choice.id === 'theme' && scene !== 'theme' ? 'Soft stars chosen for this Lounge scene.' : choice.description}</small></span></button>)}</div></fieldset>;
 }
 
-const ParticlePreview = React.memo(function ParticlePreview({ styleId, active, amount = 100, randomness = 50, color = 'original', opacity = 70, size = 100, trail = 45, glow = 65, speed = 100 }) {
-  const preset = builtinParticles.find(item => item.id === styleId) || LOUNGE_EXTRA_PARTICLES.find(item => item.id === styleId);
-  if (!active || !preset || amount === 0) return null;
-  const source = preset.pngBase64 ? 'data:image/png;base64,' + preset.pngBase64 : '';
-  const tint = LOUNGE_PARTICLE_COLORS.find(item => item.id === color)?.css || '';
-  const count = Math.max(1, Math.round(14 * amount / 100));
-  return <div data-testid="lounge-particle-preview" aria-hidden="true" className="lounge-particle-preview pointer-events-none absolute inset-0 z-[1] overflow-hidden">{Array.from({ length: count }, (_, index) => {
-    const spread = randomness / 100;
-    const style = {
-      left: String((index * 23 + 9 + spread * ((index * 31) % 17)) % 90) + '%',
-      top: String((index * 29 + 8 + spread * ((index * 19) % 13)) % 70) + '%',
-      width: Math.min(54, preset.sizePx * size / 100),
-      height: preset.shape === 'comet' ? 2 + trail / 10 : Math.min(54, preset.sizePx * size / 100),
-      '--particle-glow': glow / 100,
-      '--particle-glow-blur': `${3 + glow / 100 * 15}px`,
-      '--particle-glow-spread': `${8 + glow / 100 * 20}px`,
-      '--particle-trail': trail / 100,
-      '--particle-trail-length': `${24 + trail / 100 * 86}px`,
-      '--fx-opacity': opacity / 100,
-      color: tint || preset.color,
-      animationDuration: String(Math.max(2, preset.durationSeconds * 0.55 + index * 0.7) * (100 / speed)) + 's',
-      animationDelay: String(-index * 1.4) + 's',
-    };
-    const className = 'lounge-particle-preview__item lounge-particle-preview__item--' + preset.direction;
-    if (source && !tint) return <img key={index} src={source} alt="" className={className} style={style} />;
-    return <span key={index} className={className + ' lounge-procedural-particle lounge-procedural-particle--' + (preset.shape || 'sprite')} style={{ ...style, color: tint || preset.color, backgroundColor: tint || preset.color, ...(source ? { maskImage: 'url(' + JSON.stringify(source) + ')', WebkitMaskImage: 'url(' + JSON.stringify(source) + ')', maskSize: 'contain', WebkitMaskSize: 'contain', maskRepeat: 'no-repeat', WebkitMaskRepeat: 'no-repeat' } : {}) }} />;
-  })}</div>;
-});
-
 export default function LoungeVisualBuilder({ preferences, game, theme = 'synthwave', loungeLevel = 2, flowOpacity, flowSeconds, effectsActive = true, onChange, onClose }) {
   const closeRef = React.useRef(null);
   const [error, setError] = React.useState('');
@@ -73,6 +45,22 @@ export default function LoungeVisualBuilder({ preferences, game, theme = 'synthw
   React.useEffect(() => { const resize = () => setScreenSize(`${Math.round(window.innerWidth * window.devicePixelRatio)} × ${Math.round(window.innerHeight * window.devicePixelRatio)}`); window.addEventListener('resize', resize); return () => window.removeEventListener('resize', resize); }, []);
   React.useEffect(() => { setImageFailed(false); }, [preferences.backgroundUrl]);
   const set = patch => onChange(normalizeLoungePreferences({ ...preferences, ...patch }));
+  const isMinimal = preferences.infoDensity === 'minimal';
+  const isDetailed = preferences.infoDensity === 'rich';
+  const previewFacts = [
+    preferences.previewShowPlaytime && 'Playtime',
+    preferences.previewShowJourney && 'Journey',
+    preferences.previewShowSource && 'Source',
+    preferences.previewShowRelease && 'Released',
+    preferences.previewShowYourRating && 'Your rating',
+    preferences.previewShowMetacritic && 'Metacritic',
+  ].filter(Boolean);
+  if (preferences.infoDensity === 'balanced') previewFacts.splice(2);
+  const detailedPreviewFacts = isDetailed ? [
+    ...(Array.isArray(game?.developers) ? game.developers : []).slice(0, 1).map(name => `By ${name}`),
+    ...(Array.isArray(game?.publishers) ? game.publishers : []).slice(0, 1).map(name => `Published by ${name}`),
+    ...(Array.isArray(game?.genres) ? game.genres : []).slice(0, 2).map(genre => typeof genre === 'string' ? genre : genre?.name).filter(Boolean),
+  ] : [];
   const pickBackground = async () => {
     if (!window.api?.importLoungeBackground) { setError('Choose artwork in the installed Windows app.'); return; }
     try {
@@ -98,14 +86,14 @@ export default function LoungeVisualBuilder({ preferences, game, theme = 'synthw
         <div data-testid="lounge-visual-preview" className="lounge-visual-preview relative z-20 flex h-40 items-end overflow-hidden rounded-2xl border border-[rgb(var(--accent)/0.45)] sm:h-48" data-lounge-cover-glow={preferences.coverGlow} style={{ '--lounge-panel-opacity': preferences.panelOpacity / 100, '--lounge-shelf-opacity': preferences.shelfOpacity / 100, '--lounge-preview-panel-opacity': preferences.previewPanelOpacity / 100, '--lounge-atmosphere-opacity': preferences.atmosphereOpacity / 100, '--lounge-light-bloom': preferences.lightBloom / 100, '--lounge-vignette': preferences.vignette / 100, '--lounge-vignette-blur': `${preferences.vignette * 0.9}px`, '--lounge-vignette-alpha': preferences.vignette / 100 * 0.32, '--lounge-wave-size': `${150 + preferences.waveScale}%` }}>
           <LoungeLivingBackdrop theme={theme} game={game} loungeLevel={loungeLevel} motion={preferences.motion} active={effectsActive} flowOpacity={flowOpacity} flowSeconds={flowSeconds} preferences={preferences} />
           {preferences.backdropMode === 'image' && preferences.backgroundUrl && !imageFailed && <img src={preferences.backgroundUrl} alt="" onError={() => { setImageFailed(true); setError('The chosen image is unavailable. Choose it again.'); }} className="pointer-events-none absolute h-px w-px opacity-0" />}
-          <ParticlePreview styleId={preferences.particleStyle === 'theme' && preferences.specialTheme !== 'theme' ? 'starlight' : preferences.particleStyle} active={effectsActive} amount={preferences.particleAmount} randomness={preferences.particleRandomness} color={preferences.particleColor} opacity={preferences.particleOpacity} size={preferences.particleSize} trail={preferences.particleTrail} glow={preferences.particleGlow} speed={preferences.particleSpeed} />
+          <LoungeParticleLayer styleId={preferences.particleStyle === 'theme' && preferences.specialTheme !== 'theme' ? 'starlight' : preferences.particleStyle} level={4} motion={effectsActive ? preferences.motion : 'off'} amount={preferences.particleAmount} randomness={preferences.particleRandomness} color={preferences.particleColor} opacity={preferences.particleOpacity} size={preferences.particleSize} trail={preferences.particleTrail} glow={preferences.particleGlow} speed={preferences.particleSpeed} preview />
           <div className="lounge-flow pointer-events-none absolute inset-0" aria-hidden="true" style={{ '--lounge-flow-opacity': effectsActive ? flowOpacity : 0, '--lounge-flow-seconds': String(flowSeconds) + 's' }} />
           <div className="relative z-10 flex h-full w-full items-end p-3 pb-14" style={{ justifyContent: { left: 'flex-start', center: 'center', right: 'flex-end' }[preferences.previewPosition] }}>
             <div className="min-w-0 border border-white/30 p-2.5 text-white shadow-lg" style={{ width: String(preferences.previewWidth) + '%', minHeight: Math.min(90, preferences.previewBoxHeight / 4), marginBottom: preferences.previewVerticalOffset / 4, borderRadius: Math.max(0, preferences.previewCornerRadius / 2), fontSize: `${preferences.previewTextScale}%`, backgroundColor: 'rgb(var(--panel) / ' + preferences.previewPanelOpacity / 100 + ')' }}>
               <span className="block truncate text-[8px] font-black uppercase tracking-widest text-[rgb(var(--accent-2))]">Now in focus</span>
               <strong className="mt-1 block line-clamp-2 leading-tight" style={{ fontSize: `${14 * preferences.previewTextScale / 100}px` }}>{game?.name || 'Your game'}</strong>
-              {preferences.previewShowDescription && <span className="mt-1 block truncate text-[9px] text-white/80">{game?.shortDescription || 'Game details in your Lounge'}</span>}
-              {preferences.previewShowFacts && <span className="mt-1 block line-clamp-2 text-[8px] text-white/75">{[preferences.previewShowPlaytime && 'Playtime', preferences.previewShowJourney && 'Journey', preferences.previewShowSource && 'Source', preferences.previewShowRelease && 'Released', preferences.previewShowYourRating && 'Your rating', preferences.previewShowMetacritic && 'Metacritic'].filter(Boolean).join(' · ')}</span>}
+              {preferences.infoDensity !== 'minimal' && preferences.previewShowDescription && <span className={`mt-1 block text-[9px] text-white/80 ${isDetailed ? 'line-clamp-3' : 'line-clamp-1'}`}>{game?.shortDescription || 'Game details in your Lounge'}</span>}
+              {!isMinimal && preferences.previewShowFacts && (previewFacts.length > 0 || detailedPreviewFacts.length > 0) && <span className="mt-1 block line-clamp-3 text-[8px] text-white/75">{[...previewFacts, ...detailedPreviewFacts].join(' · ')}</span>}
               {preferences.previewShowProgress && <span className="mt-2 block h-0.5 w-2/3 rounded-full bg-[rgb(var(--accent))]" />}
             </div>
           </div>
@@ -122,16 +110,17 @@ export default function LoungeVisualBuilder({ preferences, game, theme = 'synthw
         <Stepper label="Artwork visibility" value={preferences.backgroundOpacity} min={0} max={100} onChange={backgroundOpacity => set({ backgroundOpacity })} />
         {preferences.backdropMode === 'game' && <><p className="mt-4 text-xs font-bold text-[rgb(var(--accent-2))]">Lounge window {screenSize} · artwork adapts to your screen shape</p><div className="mt-2 flex flex-wrap gap-2">{[['adaptive', 'Smart fit'], ['fit', 'Show full image'], ['fill', 'Fill screen']].map(([id, label]) => <button key={id} type="button" aria-pressed={preferences.backgroundFit === id} onClick={() => set({ backgroundFit: id })} className="lounge-visual-choice rounded-lg border border-[rgb(var(--border))] px-3 py-2 text-xs font-bold">{label}</button>)}</div><p className="mt-2 text-xs text-muted">Smart fit avoids magnifying a normal wide image across an ultrawide display. Empty side space uses your theme colours.</p><Stepper label="Artwork horizontal position" value={preferences.backgroundPositionX} min={0} max={100} onChange={backgroundPositionX => set({ backgroundPositionX })} /><Stepper label="Artwork zoom" value={preferences.backgroundZoom} min={70} max={140} onChange={backgroundZoom => set({ backgroundZoom })} /></>}
         <Stepper label="Artwork vertical position" value={preferences.backgroundPositionY} min={0} max={100} onChange={backgroundPositionY => set({ backgroundPositionY })} />
-        <Stepper label="Main Lounge surfaces opacity" value={preferences.panelOpacity} min={40} max={100} onChange={panelOpacity => set({ panelOpacity })} />
-        <Stepper label="Bottom game bar opacity" value={preferences.shelfOpacity} min={25} max={100} onChange={shelfOpacity => set({ shelfOpacity })} />
+        <Stepper label="Main Lounge surfaces opacity" value={preferences.panelOpacity} min={LOUNGE_SURFACE_OPACITY_RANGE.min} max={LOUNGE_SURFACE_OPACITY_RANGE.max} onChange={panelOpacity => set({ panelOpacity })} />
+        <Stepper label="Bottom game bar opacity" value={preferences.shelfOpacity} min={LOUNGE_SURFACE_OPACITY_RANGE.min} max={LOUNGE_SURFACE_OPACITY_RANGE.max} onChange={shelfOpacity => set({ shelfOpacity })} />
         <p className="mt-2 text-xs text-muted">Main surfaces include the top bar, filters, Wall details and card bases. The game bar and preview box have separate overrides; cover art stays clear.</p>
-        <div className="mt-7 border-t border-[rgb(var(--border)/0.7)] pt-5"><h3 className="text-lg font-black">Game presentation</h3><p className="mt-1 text-xs text-muted">The scenic Lounge themes use their own cover-and-details stage. These preview styles apply to the standard Game Browser.</p><p className="mt-4 text-xs font-black uppercase tracking-[0.14em] text-muted">Preview style</p><div className="mt-2 flex flex-wrap gap-2">{PREVIEW_STYLES.map(([id, label]) => <button key={id} type="button" aria-pressed={preferences.previewStyle === id} onClick={() => set({ previewStyle: id })} className={`lounge-visual-choice rounded-xl border px-3 py-2.5 text-sm font-bold ${preferences.previewStyle === id ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent)/0.18)]' : 'border-[rgb(var(--border))]'}`}>{label}</button>)}</div><p className="mt-4 text-xs font-black uppercase tracking-[0.14em] text-muted">Information density</p><div className="mt-2 flex flex-wrap gap-2">{INFO_DENSITIES.map(([id, label]) => <button key={id} type="button" aria-pressed={preferences.infoDensity === id} onClick={() => set({ infoDensity: id })} className={`lounge-visual-choice rounded-xl border px-3 py-2.5 text-sm font-bold ${preferences.infoDensity === id ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent)/0.18)]' : 'border-[rgb(var(--border))]'}`}>{label}</button>)}</div></div>
+        <div className="mt-7 border-t border-[rgb(var(--border)/0.7)] pt-5"><h3 className="text-lg font-black">Game presentation</h3><p className="mt-1 text-xs text-muted">Preview style applies to the standard Game Browser; information density applies to both standard and Lounge-only previews.</p><p className="mt-4 text-xs font-black uppercase tracking-[0.14em] text-muted">Preview style</p><div className="mt-2 flex flex-wrap gap-2">{PREVIEW_STYLES.map(([id, label]) => <button key={id} type="button" aria-pressed={preferences.previewStyle === id} onClick={() => set({ previewStyle: id })} className={`lounge-visual-choice rounded-xl border px-3 py-2.5 text-sm font-bold ${preferences.previewStyle === id ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent)/0.18)]' : 'border-[rgb(var(--border))]'}`}>{label}</button>)}</div><p className="mt-4 text-xs font-black uppercase tracking-[0.14em] text-muted">Information density</p><div className="mt-2 flex flex-wrap gap-2">{INFO_DENSITIES.map(([id, label]) => <button key={id} type="button" aria-pressed={preferences.infoDensity === id} onClick={() => set({ infoDensity: id })} className={`lounge-visual-choice rounded-xl border px-3 py-2.5 text-sm font-bold ${preferences.infoDensity === id ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent)/0.18)]' : 'border-[rgb(var(--border))]'}`}>{label}</button>)}</div><p className="mt-2 text-xs text-muted">Minimal keeps the title and essentials; Balanced adds a short description and up to three selected facts; Detailed adds every selected fact plus developer, publisher, genres and install size when available.</p></div>
         <div className="mt-7 border-t border-[rgb(var(--border)/0.7)] pt-5" data-testid="lounge-preview-box-builder">
           <h3 className="text-lg font-black">Selected-game preview box</h3>
           <p className="mt-1 text-xs text-muted">Shape the compact info box over Lounge-only scenery. The standard Game Browser keeps its own preview styles above.</p>
           <p className="mt-4 text-xs font-black uppercase tracking-[0.14em] text-muted">Placement</p>
           <div className="mt-2 flex flex-wrap gap-2">{[['left', 'Left'], ['center', 'Center'], ['right', 'Right']].map(([id, label]) => <button key={id} type="button" aria-pressed={preferences.previewPosition === id} onClick={() => set({ previewPosition: id })} className="lounge-preview-choice lounge-visual-choice rounded-xl border border-[rgb(var(--border))] px-4 py-2.5 text-sm font-bold">{label}</button>)}</div>
-          <Stepper label="Preview box width" value={preferences.previewWidth} min={35} max={85} onChange={previewWidth => set({ previewWidth })} />
+          <Stepper label="Preview box width" value={preferences.previewWidth} min={20} max={100} onChange={previewWidth => set({ previewWidth })} />
+          <p className="mt-2 text-xs text-muted">Widen the box to fit more details, especially in Detailed mode. It stays inside the Lounge window.</p>
           <Stepper label="Preview box height" value={preferences.previewBoxHeight} min={160} max={460} step={20} unit="px" onChange={previewBoxHeight => set({ previewBoxHeight })} />
           <Stepper label="Preview bottom offset" value={preferences.previewVerticalOffset} min={0} max={100} unit="px" onChange={previewVerticalOffset => set({ previewVerticalOffset })} />
           <Stepper label="Preview corner radius" value={preferences.previewCornerRadius} min={0} max={48} unit="px" onChange={previewCornerRadius => set({ previewCornerRadius })} />
@@ -143,15 +132,15 @@ export default function LoungeVisualBuilder({ preferences, game, theme = 'synthw
         </div>
       </div><div className="min-w-0 border-t border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.28)] p-5 sm:p-7 lg:border-l lg:border-t-0"><div className="flex items-center gap-2"><Waves size={19} className="text-[rgb(var(--accent-2))]" /><h3 className="text-lg font-black">Atmosphere</h3></div><p className="mt-1 text-sm text-muted">Shape light, waves, and particles here. Ready-made looks now live under Themes → Lounge-only presets.</p>
         <div className="mt-4 flex flex-wrap gap-2">{MOTION.map(([id, label]) => <button key={id} type="button" aria-pressed={preferences.ambientMotion === id} onClick={() => set({ ambientMotion: id })} className={`lounge-visual-choice rounded-xl border px-4 py-3 text-sm font-bold ${preferences.ambientMotion === id ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent)/0.18)]' : 'border-[rgb(var(--border))]'}`}>{label}</button>)}</div><p className="mt-5 text-xs font-black uppercase tracking-[0.14em] text-muted">Background pace</p><div className="mt-2 flex flex-wrap gap-2">{PACE.map(([id, label]) => <button key={id} type="button" aria-pressed={preferences.ambientPace === id} onClick={() => set({ ambientPace: id })} className={`lounge-visual-choice rounded-xl border px-4 py-3 text-sm font-bold ${preferences.ambientPace === id ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent)/0.18)]' : 'border-[rgb(var(--border))]'}`}>{label}</button>)}</div><p className="mt-2 text-xs text-muted">Only changes drift and wave speed, not game browsing.</p><p className="mt-5 text-xs font-black uppercase tracking-[0.14em] text-muted">Overall movement</p><div className="mt-2 flex flex-wrap gap-2">{SPEED.map(([id, label]) => <button key={id} type="button" aria-pressed={preferences.motion === id} onClick={() => set({ motion: id })} className={`lounge-visual-choice rounded-xl border px-4 py-3 text-sm font-bold ${preferences.motion === id ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent)/0.18)]' : 'border-[rgb(var(--border))]'}`}>{label}</button>)}</div>
-        <Stepper label="Wave strength" value={preferences.waveStrength} min={0} max={100} onChange={waveStrength => set({ waveStrength })} />
-        <Stepper label="Atmosphere opacity" value={preferences.atmosphereOpacity} min={0} max={100} onChange={atmosphereOpacity => set({ atmosphereOpacity })} />
+        <Stepper label="Wave strength" value={preferences.waveStrength} min={0} max={100} onChange={waveStrength => set({ waveStrength })} /><p className="mt-2 text-xs text-muted">This now ramps wave colour and travel from zero to up to 3× at full strength. Alive uses stronger scene movement; Gentle is calmer, and Motion off always stops it.</p>
+        <Stepper label="Atmosphere opacity" value={preferences.atmosphereOpacity} min={0} max={100} onChange={atmosphereOpacity => set({ atmosphereOpacity })} /><p className="mt-2 text-xs text-muted">Visibility only; choose Drift or Waves and Alive or Gentle to animate the atmosphere.</p>
         <Stepper label="Light bloom" value={preferences.lightBloom} min={0} max={100} onChange={lightBloom => set({ lightBloom })} />
         <Stepper label="Light rays" value={preferences.lightRays} min={0} max={100} onChange={lightRays => set({ lightRays })} />
         <Stepper label="Highlight pulse" value={preferences.highlightPulse} min={0} max={100} onChange={highlightPulse => set({ highlightPulse })} />
-        <p className="mt-2 text-xs text-muted">These are simulated screen-space light effects, not true HDR. Motion Off and reduced-motion pause the pulse.</p>
+        <p className="mt-2 text-xs text-muted">Bloom, rays and highlights now breathe and move while Drift or Waves is active. Still, Motion off, or your system’s reduced-motion setting freezes them. These are simulated screen-space effects, not true HDR.</p>
         <Stepper label="Vignette" value={preferences.vignette} min={0} max={100} onChange={vignette => set({ vignette })} />
         <Stepper label="Wave scale" value={preferences.waveScale} min={0} max={100} onChange={waveScale => set({ waveScale })} />
-        <div className="mt-5 flex items-center gap-2"><Sparkles size={18} className="text-[rgb(var(--accent-2))]" /><h4 className="font-black">Game cover outline</h4></div><p className="mt-1 text-xs text-muted">A thin theme-colour edge on every game. Animated neon pauses with Motion Off and reduced-motion settings.</p><div className="mt-3 flex flex-wrap gap-2">{COVER_GLOW.map(([id, label]) => <button key={id} type="button" aria-pressed={preferences.coverGlow === id} onClick={() => set({ coverGlow: id })} className={`lounge-visual-choice rounded-xl border px-3 py-2.5 text-sm font-bold ${preferences.coverGlow === id ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent)/0.18)]' : 'border-[rgb(var(--border))]'}`}>{label}</button>)}</div>
+        <div className="mt-5 flex items-center gap-2"><Sparkles size={18} className="text-[rgb(var(--accent-2))]" /><h4 className="font-black">Game cover outline</h4></div><p className="mt-1 text-xs text-muted">Animated neon sends a bright two-colour light chase around every cover with a breathing halo. Motion Off and reduced-motion keep a vivid static edge.</p><div className="mt-3 flex flex-wrap gap-2">{COVER_GLOW.map(([id, label]) => <button key={id} type="button" aria-pressed={preferences.coverGlow === id} onClick={() => set({ coverGlow: id })} className={`lounge-visual-choice rounded-xl border px-3 py-2.5 text-sm font-bold ${preferences.coverGlow === id ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent)/0.18)]' : 'border-[rgb(var(--border))]'}`}>{label}</button>)}</div>
         <ParticlePicker value={preferences.particleStyle} scene={preferences.specialTheme} onChange={particleStyle => set({ particleStyle })} />
         <Stepper label="Particle amount" value={preferences.particleAmount} min={0} max={100} onChange={particleAmount => set({ particleAmount })} />
         <Stepper label="Particle randomness" value={preferences.particleRandomness} min={0} max={100} onChange={particleRandomness => set({ particleRandomness })} />

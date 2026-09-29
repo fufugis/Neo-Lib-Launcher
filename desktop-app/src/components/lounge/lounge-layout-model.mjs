@@ -2,6 +2,8 @@ import { DEFAULT_LOUNGE_SAMPLES, normalizeLoungeSamples } from './lounge-sample-
 import { LOUNGE_EXTRA_PARTICLES, LOUNGE_PARTICLE_COLORS } from './lounge-particle-presets.mjs';
 import { THEMES } from '../../lib/utils.js';
 
+export const LOUNGE_SURFACE_OPACITY_RANGE = Object.freeze({ min: 0, max: 100 });
+
 export const LOUNGE_PRESETS = Object.freeze({
   cinema: { label: 'Cinema', shelfPosition: 'bottom', coverSize: 124, gap: 14, stageHeight: 510, previewStyle: 'cinema', infoDensity: 'balanced' },
   console: { label: 'Console', shelfPosition: 'bottom', coverSize: 132, gap: 16, stageHeight: 530, previewStyle: 'cinema', infoDensity: 'minimal' },
@@ -41,7 +43,7 @@ export const DEFAULT_LOUNGE_PREFERENCES = Object.freeze({
   preset: 'cinema',
   shelfWidth: 220,
   wallCoverSize: 220,
-  coverAspect: 'square',
+  coverAspect: 'portrait',
   controlSize: 'comfortable',
   browseSort: 'library',
   hiddenBrowseFilters: [],
@@ -70,7 +72,7 @@ export const DEFAULT_LOUNGE_PREFERENCES = Object.freeze({
   panelOpacity: 82,
   shelfOpacity: 66,
   previewPosition: 'left',
-  previewWidth: 52,
+  previewWidth: 60,
   previewBoxHeight: 220,
   previewVerticalOffset: 24,
   previewCornerRadius: 26,
@@ -130,7 +132,7 @@ const ambienceTracks = new Set(['none', 'ambience-1', 'ambience-2', 'ambience-3'
 const controlSizes = new Set(['compact', 'comfortable', 'large']);
 const browseSorts = new Set(['library', 'name', 'last-played', 'recently-added']);
 const entryScreens = new Set(['games', 'home']);
-const coverAspects = new Set(['square', 'tall']);
+const coverAspects = new Set(['portrait', 'tall']);
 const safeBackgroundUrl = value => typeof value === 'string' && value.length <= 2048 && /^file:\/\/\/?[a-z]:\/[^?#]+\.(png|jpe?g|webp)$/i.test(value) ? value : '';
 const safeAmbienceUrl = value => typeof value === 'string' && value.length <= 2048 && /^file:\/\/\/[a-z]:\/[^?#]+\.mp3$/i.test(value) ? value : '';
 const bounded = (value, fallback, min, max) => Number.isFinite(Number(value)) ? Math.min(max, Math.max(min, Math.round(Number(value)))) : fallback;
@@ -152,7 +154,7 @@ export function normalizeLoungePreferences(value) {
     stageHeight: bounded(input.stageHeight, defaults.stageHeight, 320, 760),
     shelfWidth: bounded(input.shelfWidth, defaults.shelfWidth, 156, 320),
     wallCoverSize: bounded(input.wallCoverSize, defaults.wallCoverSize, 170, 320),
-    coverAspect: coverAspects.has(input.coverAspect) ? input.coverAspect : defaults.coverAspect,
+    coverAspect: input.coverAspect === 'square' ? 'portrait' : coverAspects.has(input.coverAspect) ? input.coverAspect : defaults.coverAspect,
     controlSize: controlSizes.has(input.controlSize) ? input.controlSize : defaults.controlSize,
     browseSort: browseSorts.has(input.browseSort) ? input.browseSort : defaults.browseSort,
     hiddenBrowseFilters: Array.isArray(input.hiddenBrowseFilters) ? [...new Set(input.hiddenBrowseFilters.filter(id => Object.hasOwn(LOUNGE_BROWSE_BAR_FILTERS, id)))] : defaults.hiddenBrowseFilters,
@@ -180,10 +182,10 @@ export function normalizeLoungePreferences(value) {
     backgroundPositionX: bounded(input.backgroundPositionX, defaults.backgroundPositionX, 0, 100),
     backgroundZoom: bounded(input.backgroundZoom, defaults.backgroundZoom, 70, 140),
     backgroundPositionY: bounded(input.backgroundPositionY, defaults.backgroundPositionY, 0, 100),
-    panelOpacity: legacyDefaultVisuals ? defaults.panelOpacity : bounded(input.panelOpacity, defaults.panelOpacity, 40, 100),
-    shelfOpacity: bounded(input.shelfOpacity, defaults.shelfOpacity, 25, 100),
+    panelOpacity: legacyDefaultVisuals ? defaults.panelOpacity : bounded(input.panelOpacity, defaults.panelOpacity, LOUNGE_SURFACE_OPACITY_RANGE.min, LOUNGE_SURFACE_OPACITY_RANGE.max),
+    shelfOpacity: bounded(input.shelfOpacity, defaults.shelfOpacity, LOUNGE_SURFACE_OPACITY_RANGE.min, LOUNGE_SURFACE_OPACITY_RANGE.max),
     previewPosition: previewPositions.has(input.previewPosition) ? input.previewPosition : defaults.previewPosition,
-    previewWidth: bounded(input.previewWidth, defaults.previewWidth, 35, 85),
+    previewWidth: bounded(input.previewWidth, defaults.previewWidth, 20, 100),
     previewBoxHeight: bounded(input.previewBoxHeight, defaults.previewBoxHeight, 160, 460),
     previewVerticalOffset: bounded(input.previewVerticalOffset, defaults.previewVerticalOffset, 0, 100),
     previewCornerRadius: bounded(input.previewCornerRadius, defaults.previewCornerRadius, 0, 48),

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { applyLoungeDesktopTheme, applyLoungePreset, applyLoungeScene, applyLoungeVisualPreset, DEFAULT_LOUNGE_PREFERENCES, LOUNGE_BROWSE_BAR_FILTERS, LOUNGE_PARTICLE_IDS, LOUNGE_PRESETS, LOUNGE_SCENES, LOUNGE_VISUAL_PRESETS, matchesLoungeVisualPreset, normalizeLoungePreferences, showLoungeBrowseFilter } from '../src/components/lounge/lounge-layout-model.mjs';
+import { applyLoungeDesktopTheme, applyLoungePreset, applyLoungeScene, applyLoungeVisualPreset, DEFAULT_LOUNGE_PREFERENCES, LOUNGE_BROWSE_BAR_FILTERS, LOUNGE_PARTICLE_IDS, LOUNGE_PRESETS, LOUNGE_SCENES, LOUNGE_SURFACE_OPACITY_RANGE, LOUNGE_VISUAL_PRESETS, matchesLoungeVisualPreset, normalizeLoungePreferences, showLoungeBrowseFilter } from '../src/components/lounge/lounge-layout-model.mjs';
 import { hydrateSettings, mergeSettings } from '../src/state/settings-state.mjs';
 import { emulatorZoneGames, emulatorZoneStatus, LOUNGE_CONSOLES, nextLoungeConsole } from '../src/components/lounge/lounge-emulator-zone.mjs';
 import { normalizeLoungeResume } from '../src/components/lounge/lounge-resume-model.mjs';
@@ -10,7 +10,7 @@ const defaults = normalizeLoungePreferences(null);
 assert.equal(defaults.shelfPosition, 'bottom');
 assert.equal(defaults.panelOpacity, 82, 'Lounge panels remain readable without dimming artwork');
 assert.equal(defaults.coverSize, 124, 'the default carousel covers have a larger center presence');
-assert.equal(defaults.coverAspect, 'square', 'existing Lounge cover shape remains the default');
+assert.equal(defaults.coverAspect, 'portrait', 'Lounge cards default to the same shape as portrait cover art');
 assert.equal(defaults.showPrivateGamesInLounge, false, 'private games stay hidden in Lounge until deliberately enabled');
 assert.equal(defaults.ambientMotion, 'waves', 'the theme-accent backdrop moves by default');
 assert.equal(defaults.waveStrength, 52);
@@ -50,7 +50,8 @@ assert.equal(normalizeLoungePreferences({ coverGlow: 'soft' }).coverGlow, 'soft'
 assert.equal(normalizeLoungePreferences({ coverGlow: 'neon' }).coverGlow, 'neon');
 assert.equal(normalizeLoungePreferences({ coverGlow: 'unknown' }).coverGlow, 'off');
 assert.equal(normalizeLoungePreferences({ coverAspect: 'tall' }).coverAspect, 'tall');
-assert.equal(normalizeLoungePreferences({ coverAspect: 'poster' }).coverAspect, 'square');
+assert.equal(normalizeLoungePreferences({ coverAspect: 'square' }).coverAspect, 'portrait', 'old saved square defaults migrate to portrait cards');
+assert.equal(normalizeLoungePreferences({ coverAspect: 'poster' }).coverAspect, 'portrait');
 const oldDefault = normalizeLoungePreferences({ ...defaults, coverSize: 116, panelOpacity: 76, ambientMotion: 'drift', waveStrength: 35 });
 assert.equal(oldDefault.coverSize, defaults.coverSize);
 assert.equal(oldDefault.panelOpacity, defaults.panelOpacity);
@@ -90,7 +91,7 @@ assert.equal(normalizeLoungePreferences({ particleColor: 'invalid' }).particleCo
 assert.equal(hydrateSettings({ loungePreferences: { particleAmount: 35, particleColor: 'gold' } }).loungePreferences.particleAmount, 35);
 assert.equal(hydrateSettings({ loungePreferences: { particleAmount: 35, particleColor: 'gold' } }).loungePreferences.particleColor, 'gold');
 assert.equal(normalizeLoungePreferences({ previewPosition: 'outside', previewWidth: 400, previewPanelOpacity: 0 }).previewPosition, 'left');
-assert.equal(normalizeLoungePreferences({ previewPosition: 'outside', previewWidth: 400, previewPanelOpacity: 0 }).previewWidth, 85);
+assert.equal(normalizeLoungePreferences({ previewPosition: 'outside', previewWidth: 400, previewPanelOpacity: 0 }).previewWidth, 100);
 assert.equal(normalizeLoungePreferences({ previewBoxHeight: 900 }).previewBoxHeight, 460);
 assert.equal(normalizeLoungePreferences({ previewBoxHeight: 20 }).previewBoxHeight, 160);
 assert.equal(normalizeLoungePreferences({ previewPosition: 'outside', previewWidth: 400, previewPanelOpacity: 0 }).previewPanelOpacity, 35);
@@ -174,7 +175,11 @@ assert.equal(hostile.previewStyle, defaults.previewStyle);
 assert.equal(hostile.fxLevel, 'theme');
 assert.equal(normalizeLoungePreferences({ backdropMode: 'bad', backgroundUrl: 'https://example.com/script.png', backgroundOpacity: 999, panelOpacity: -1, ambientMotion: 'script', waveStrength: -5 }).backgroundUrl, '');
 assert.equal(normalizeLoungePreferences({ backgroundOpacity: 999, panelOpacity: -1, waveStrength: -5 }).backgroundOpacity, 100);
-assert.equal(normalizeLoungePreferences({ backgroundOpacity: 999, panelOpacity: -1, waveStrength: -5 }).panelOpacity, 40);
+assert.deepEqual(LOUNGE_SURFACE_OPACITY_RANGE, { min: 0, max: 100 });
+assert.equal(normalizeLoungePreferences({ backgroundOpacity: 999, panelOpacity: -1, shelfOpacity: -1, waveStrength: -5 }).panelOpacity, 0);
+assert.equal(normalizeLoungePreferences({ panelOpacity: -1, shelfOpacity: -1 }).shelfOpacity, 0);
+assert.equal(normalizeLoungePreferences({ panelOpacity: 101, shelfOpacity: 101 }).panelOpacity, 100);
+assert.equal(normalizeLoungePreferences({ panelOpacity: 101, shelfOpacity: 101 }).shelfOpacity, 100);
 assert.deepEqual(normalizeLoungePreferences(DEFAULT_LOUNGE_PREFERENCES), defaults);
 const ultrawide = normalizeLoungePreferences({ backgroundFit: 'fit', backgroundPositionX: 130, backgroundZoom: 180, lightRays: 90, highlightPulse: 20 });
 assert.equal(ultrawide.backgroundFit, 'fit');
@@ -207,12 +212,25 @@ assert.equal(emulatorZoneStatus([], retroGames, 'snes').configured, false, 'an i
 assert.equal(emulatorZoneStatus([{ platform: 'snes', emulatorPath: 'emulator.exe', romFolder: 'roms' }], retroGames, 'snes').configured, true);
 assert.equal(nextLoungeConsole(LOUNGE_CONSOLES[0].id, -1), LOUNGE_CONSOLES.at(-1).id, 'shoulder navigation wraps around');
 const emulatorZoneSource = fs.readFileSync(new URL('../src/components/lounge/NeoLounge.jsx', import.meta.url), 'utf8');
+const loungeComponentsDirectory = new URL('../src/components/lounge/', import.meta.url);
+const loungeComponentSources = fs.readdirSync(loungeComponentsDirectory)
+  .filter(name => /\.(?:jsx|js)$/.test(name))
+  .map(name => fs.readFileSync(new URL(name, loungeComponentsDirectory), 'utf8'))
+  .join('\n');
+const loungeStylesSource = fs.readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
+const loungeParticleLayerSource = fs.readFileSync(new URL('../src/components/lounge/LoungeParticleLayer.jsx', import.meta.url), 'utf8');
 const controllerSource = fs.readFileSync(new URL('../src/components/controller/ControllerNavigationBridge.jsx', import.meta.url), 'utf8');
 assert.match(emulatorZoneSource, /data-lounge-zone=\{zone\}/, 'the active Lounge zone is exposed to controller navigation');
 assert.match(emulatorZoneSource, /data-lounge-console/, 'every console has a controller target');
 assert.match(emulatorZoneSource, /function LoungeTopButton/, 'Lounge navigation uses icon-first controls');
 assert.match(emulatorZoneSource, /className="lounge-top-icon__label" aria-hidden="true"/, 'visual dropdown labels supplement accessible button names');
 assert.match(emulatorZoneSource, /lounge-console-tab__label/, 'console labels can appear beneath the marks');
+assert.doesNotMatch(loungeComponentSources, /backdrop-blur-/, 'Lounge interface components do not reintroduce frosted blur');
+assert.doesNotMatch(loungeStylesSource, /lounge-(?:panel|shelf)-blur|\[data-testid='neo-lounge'\][^\n]*backdrop-filter/, 'Lounge opacity surfaces remain clear rather than blurring the scenery');
+assert.match(loungeParticleLayerSource, /--particle-ghost-opacity-two/, 'the trail slider controls layered particle afterimages');
+assert.match(loungeParticleLayerSource, /const sway = .*safeRandomness/, 'randomness adds cross-axis motion to vertical and horizontal particles');
+assert.match(loungeParticleLayerSource, /--particle-glow-spread.*glowScale \* 58/, 'particle glow reaches a visible, broad bloom');
+assert.match(loungeParticleLayerSource, /lounge-particle-preview/, 'the shared live renderer supplies the Visual Builder preview');
 assert.match(emulatorZoneSource, /Wizard → Retro Library → Manage profiles/, 'unset profiles tell the player where setup lives');
 assert.match(controllerSource, /data-lounge-zone'\) === 'emulator'/, 'shoulder buttons route to consoles while in Emulator Zone');
 for (const id of ['atari2600', 'c64', 'nes', 'snes', 'n64', 'gb', 'gbc', 'gba', 'nds', '3ds', 'gamecube', 'wii', 'wiiu', 'switch', 'genesis', 'dreamcast', 'ps1', 'ps2', 'psp']) {
