@@ -1,9 +1,23 @@
 import assert from 'node:assert/strict';
 import { artworkBackdrop, hasPortraitDimensions, officialSteamPortrait, portraitArtwork, portraitArtworkCandidates } from '../src/lib/game-artwork-model.mjs';
-import { libraryHeroCandidates, libraryHeroWidth } from '../src/components/preview/library-hero-artwork.mjs';
+import { libraryHeroArtworkOptions, libraryHeroCandidates, libraryHeroFocalPoint, libraryHeroMediaKind, libraryHeroMotion, libraryHeroMotionStyle, libraryHeroWidth } from '../src/components/preview/library-hero-artwork.mjs';
 
 assert.deepEqual(libraryHeroCandidates({ hero: 'chosen.jpg', background: 'large.jpg', screenshots: ['scene.jpg'], headerImage: 'small.jpg' }), ['chosen.jpg', 'large.jpg', 'scene.jpg', 'small.jpg']);
 assert.deepEqual(libraryHeroCandidates({ background: 'large.jpg', screenshots: ['large.jpg'], headerImage: 'small.jpg' }), ['large.jpg', 'small.jpg']);
+assert.deepEqual(libraryHeroArtworkOptions({ heroArtworkOverride: 'local.jpg', heroArtworkOverrideSource: 'Player-selected file', hero: 'hero.jpg', screenshots: ['scene.jpg', 'scene.jpg'], headerImage: 'header.jpg' }), [
+  { url: 'local.jpg', source: 'Player-selected file' },
+  { url: 'hero.jpg', source: 'Game hero' },
+  { url: 'scene.jpg', source: 'Screenshot 1' },
+  { url: 'header.jpg', source: 'Store header' },
+]);
+assert.deepEqual(libraryHeroFocalPoint({ heroFocalPoint: { x: 125, y: -10 } }), { x: 100, y: 0 }, 'saved hero framing is bounded');
+assert.deepEqual(libraryHeroFocalPoint({}), { x: 50, y: 42 }, 'hero framing has stable defaults');
+assert.equal(libraryHeroMotion({}), 55, 'hero movement uses a restrained default');
+assert.equal(libraryHeroMotion({ heroMotion: 150 }), 100, 'hero movement is bounded');
+assert.equal(libraryHeroMediaKind('file:///C:/art/loop.GIF'), 'gif');
+assert.equal(libraryHeroMediaKind('https://art.example/loop.webm?cache=1'), 'video');
+assert.equal(libraryHeroMediaKind('poster.webp'), 'image');
+assert.deepEqual(libraryHeroMotionStyle('game-a', 70), libraryHeroMotionStyle('game-a', 70), 'motion timing is stable per game');
 assert.equal(libraryHeroWidth(460, 1946), 575, 'a small header must not stretch over a wide display');
 assert.equal(libraryHeroWidth(1920, 1946), null, 'a full-size background can fill the hero');
 
@@ -28,4 +42,4 @@ assert.equal(hasPortraitDimensions(512, 512), false);
 assert.equal(artworkBackdrop({ headerImage: 'hero.jpg', coverUrl: 'cover.jpg' }), 'hero.jpg');
 assert.equal(artworkBackdrop({}), '');
 
-console.log('Portrait artwork prefers official or player-selected covers and never treats a wide fallback as a portrait cover.');
+console.log('Library hero artwork can be inspected, switched and reframed; portrait artwork still requires verified dimensions.');

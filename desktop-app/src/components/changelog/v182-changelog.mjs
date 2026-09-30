@@ -12,6 +12,9 @@ export const V182_CHANGELOG = {
     },
   ],
   fixes: [
+    'Custom Lounge backgrounds now drift with irregular mini-zooms controlled by a saved Living artwork motion slider. Local GIF/APNG animation and muted looping MP4, M4V, WebM, MOV and OGV video are supported; Still, Motion off, and system reduced-motion pause the picture/video.',
+    'Library hero artwork can gently drift with irregular mini-zooms, with a per-game motion slider. GIFs animate naturally; local MP4, M4V, WebM, MOV and OGV hero videos loop muted, and system reduced-motion pauses the movement.',
+    'Library game details now include an Artwork fit inspector with the active image source and dimensions, alternate game-art choices, a local image picker, and saved horizontal/vertical framing for each game.',
     'Lounge game screenshots are larger and easier to inspect: hovering or focusing with keyboard/gamepad enlarges and highlights them, and confirming one keeps it enlarged.',
     'The Lounge browse and layout bar is shorter to better fit its icons, while keeping the existing full-size symbols and animated two-line labels.',
     'Lounge particles now sway across their travel direction as Particle randomness rises, leave adjustable ghost afterimages or comet streaks, and bloom with a stronger layered glow. The Visual Builder preview uses the same renderer as the live Lounge.',
@@ -25,6 +28,7 @@ export const V182_CHANGELOG = {
     'Lounge carousel cards now match portrait cover art by default; older square settings migrate to the portrait frame, with Extra tall still available.',
     'Lounge side-shelf and Wall cover width sliders now visibly resize the right elements, appear only in their relevant layouts, and update the Settings preview.',
     'Lounge cards keep the UI game title below the cover; the selected-cover focus badge no longer hides artwork.',
+    'The Lounge selected-game preview no longer says “Now in focus.” Layout settings add a saved 100–200% Selected game size slider that smoothly scales the carousel selection and reserves matching shelf space.',
     'Emulator Zone console switching now scrolls only its console row, preventing the Lounge surface from sliding sideways and exposing a right-edge gap.',
     'Lounge and Wall cover cards now accept only verified portrait images. Wide banners no longer sit inside vertical frames; games without portrait art get a clean placeholder, and the optional artwork gallery filters out wide covers.',
   ],

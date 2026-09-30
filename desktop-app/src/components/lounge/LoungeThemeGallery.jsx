@@ -5,6 +5,7 @@ import { customThemeList, stockThemeAssetUrl } from '../../themes/stock-theme-re
 import { applyLoungeDesktopTheme, applyLoungePreset, applyLoungeScene, applyLoungeVisualPreset, LOUNGE_PRESETS, LOUNGE_SCENES, LOUNGE_VISUAL_PRESETS } from './lounge-layout-model.mjs';
 import { normalizeLoungeSavedPresets } from './lounge-saved-presets.mjs';
 import { loungeSceneArt } from './lounge-scene-art.mjs';
+import useDraggablePanel from './use-draggable-panel';
 
 function customGradient(manifest) {
   const start = manifest.palette?.grad1?.join(' ') || '20 25 50';
@@ -14,6 +15,7 @@ function customGradient(manifest) {
 
 export default function LoungeThemeGallery({ preferences, layout, savedPresets = [], onSavedPresetsChange, onLayoutChange, onChange, onTuneVisuals, onClose }) {
   const closeRef = React.useRef(null);
+  const draggable = useDraggablePanel();
   const fileRef = React.useRef(null);
   const [category, setCategory] = React.useState('scenes');
   const [presetName, setPresetName] = React.useState('');
@@ -61,8 +63,8 @@ export default function LoungeThemeGallery({ preferences, layout, savedPresets =
   };
 
   return <div role="dialog" aria-modal="true" aria-label="Lounge themes" data-testid="lounge-theme-gallery" className="fixed inset-0 z-[9100] flex items-center justify-center bg-black/80 p-3 sm:p-6" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
-    <section className={`flex max-h-[96vh] w-full flex-col overflow-hidden rounded-3xl border border-[rgb(var(--accent)/0.55)] bg-[rgb(var(--surface))] shadow-[0_28px_100px_rgb(0_0_0/0.55)] transition-[max-width] duration-300 ${showDesktopThemes ? 'max-w-[min(96vw,1500px)]' : 'max-w-5xl'}`}>
-      <header className="flex shrink-0 items-center justify-between gap-4 border-b border-[rgb(var(--border))] px-5 py-4 sm:px-7">
+    <section ref={draggable.panelRef} style={draggable.panelStyle} className={`flex max-h-[96vh] w-full flex-col overflow-hidden rounded-3xl border border-[rgb(var(--accent)/0.55)] bg-[rgb(var(--surface))] shadow-[0_28px_100px_rgb(0_0_0/0.55)] transition-[max-width] duration-300 ${showDesktopThemes ? 'max-w-[min(96vw,1500px)]' : 'max-w-5xl'}`}>
+      <header {...draggable.dragHandleProps} className="flex shrink-0 items-center justify-between gap-4 border-b border-[rgb(var(--border))] px-5 py-4 sm:px-7">
         <div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-xl bg-[rgb(var(--accent)/0.18)] text-[rgb(var(--accent-2))]"><Images size={24} /></span><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">Lounge only</p><h2 className="text-xl font-black sm:text-2xl">Themes</h2></div></div>
         <button ref={closeRef} type="button" data-controller-close onClick={onClose} aria-label="Close Lounge themes" className="lounge-visual-step rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.7)] p-3"><X size={20} /></button>
       </header>

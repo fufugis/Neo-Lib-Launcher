@@ -243,7 +243,7 @@ function Artwork({ form, set, onPick, steamGridDbKey }) {
     <Section title="Artwork Workshop" description="Choose local files or paste a URL. Protected artwork is kept out of future repair suggestions, and nothing replaces it without your review.">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <ImageSlot label="Icon" value={form.icon} onChange={(value) => updateArtwork('icon', 'icon', value)} onPick={() => onPick('icon')} onBrowse={() => setCatalogue({ open: true, slot: 'icon', query: form.name, games: [], assets: [], busy: false, error: '', selectedGame: null })} protected={form.artworkLocks?.icon} onToggleProtect={() => toggleLock('icon')} source={form.artworkSources?.icon} aspect="1/1" />
-        <ImageSlot label="Cover" value={form.coverUrl} onChange={(value) => updateArtwork('cover', 'coverUrl', value)} onPick={() => onPick('coverUrl')} onBrowse={() => setCatalogue({ open: true, slot: 'cover', query: form.name, games: [], assets: [], busy: false, error: '', selectedGame: null })} protected={form.artworkLocks?.cover} onToggleProtect={() => toggleLock('cover')} source={form.artworkSources?.cover} aspect="3/4" />
+        <ImageSlot label="Cover" value={form.coverUrl} onChange={(value) => updateArtwork('cover', 'coverUrl', value)} onPick={() => onPick('coverUrl')} onBrowse={() => setCatalogue({ open: true, slot: 'cover', query: form.name, games: [], assets: [], busy: false, error: '', selectedGame: null })} protected={form.artworkLocks?.cover} onToggleProtect={() => toggleLock('cover')} source={form.artworkSources?.cover} aspect="3/4" emptyHint="No portrait cover selected. The Lounge will use a game-art fallback." />
         <ImageSlot label="Hero / header" value={form.headerImage} onChange={(value) => updateArtwork('hero', 'headerImage', value)} onPick={() => onPick('headerImage')} onBrowse={() => setCatalogue({ open: true, slot: 'hero', query: form.name, games: [], assets: [], busy: false, error: '', selectedGame: null })} protected={form.artworkLocks?.hero} onToggleProtect={() => toggleLock('hero')} source={form.artworkSources?.hero} aspect="16/9" />
         <ImageSlot label="Background" value={form.background} onChange={(value) => updateArtwork('background', 'background', value)} onPick={() => onPick('background')} onBrowse={() => setCatalogue({ open: true, slot: 'background', query: form.name, games: [], assets: [], busy: false, error: '', selectedGame: null })} protected={form.artworkLocks?.background} onToggleProtect={() => toggleLock('background')} source={form.artworkSources?.background} aspect="16/9" />
         <ImageSlot label="Logo" value={form.logo} onChange={(value) => updateArtwork('logo', 'logo', value)} onPick={() => onPick('logo')} onBrowse={() => setCatalogue({ open: true, slot: 'logo', query: form.name, games: [], assets: [], busy: false, error: '', selectedGame: null })} protected={form.artworkLocks?.logo} onToggleProtect={() => toggleLock('logo')} source={form.artworkSources?.logo} aspect="16/9" />
@@ -398,7 +398,7 @@ function ArtworkHistory({ revisions, onRestore }) {
   </Section>;
 }
 
-function ImageSlot({ label, value, onChange, onPick, onBrowse, protected: isProtected, onToggleProtect, source, aspect = '1/1' }) {
+function ImageSlot({ label, value, onChange, onPick, onBrowse, protected: isProtected, onToggleProtect, source, aspect = '1/1', emptyHint = '' }) {
   const [dimensions, setDimensions] = React.useState('');
   React.useEffect(() => setDimensions(''), [value]);
   return <div className="space-y-1.5">
@@ -406,6 +406,7 @@ function ImageSlot({ label, value, onChange, onPick, onBrowse, protected: isProt
     <div className="relative overflow-hidden rounded-md hairline bg-surface/60" style={{ aspectRatio: aspect }}>
       {value ? <img src={value} alt={`${label} preview`} onLoad={(event) => setDimensions(`${event.currentTarget.naturalWidth} × ${event.currentTarget.naturalHeight}`)} className="h-full w-full object-cover" /> : <div className="grid h-full w-full place-items-center text-muted/50"><ImageIcon size={20} /></div>}
     </div>
+    {emptyHint && !value && <p className="text-[9px] leading-snug text-muted">{emptyHint}</p>}
     <p className="min-h-3 truncate text-[9px] text-muted" title={source || ''}>{source ? `Source: ${source}` : 'Source not recorded'}{dimensions ? ` · ${dimensions}` : ''}</p>
     <div className="flex gap-1">
       <button onClick={onPick} className="inline-flex flex-1 items-center justify-center gap-1 rounded-md hairline px-1 py-1.5 text-[10px] text-muted hover:border-[rgb(var(--accent)/0.5)] hover:text-ink"><Upload size={10} /> File</button>

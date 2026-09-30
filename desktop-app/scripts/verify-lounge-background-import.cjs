@@ -29,11 +29,26 @@ const { registerDialogIpc } = require('../electron/ipc/dialog-ipc.cjs');
     const invalid = path.join(root, 'wrong.webp');
     await fs.writeFile(invalid, bytes);
     assert.equal((await importLoungeBackground(invalid, path.join(root, 'saved backgrounds'))).ok, false);
+    const gif = path.join(root, 'loop.gif');
+    const gifBytes = Buffer.from('GIF89a' + 'animated-gif-test');
+    await fs.writeFile(gif, gifBytes);
+    const savedGif = await importLoungeBackground(gif, path.join(root, 'saved backgrounds'));
+    assert.equal(savedGif.ok, true, 'animated GIF artwork is privately copied');
+    assert.deepEqual(await fs.readFile(fileURLToPath(savedGif.url)), gifBytes);
+    const webm = path.join(root, 'loop.webm');
+    const webmBytes = Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0x93, 0x42, 0x82, 0x88, 0x77, 0x65, 0x62, 0x6d, 0x00]);
+    await fs.writeFile(webm, webmBytes);
+    const savedWebm = await importLoungeBackground(webm, path.join(root, 'saved backgrounds'));
+    assert.equal(savedWebm.ok, true, 'WebM hero video is privately copied');
+    assert.deepEqual(await fs.readFile(fileURLToPath(savedWebm.url)), webmBytes);
+    const mislabeled = path.join(root, 'not-video.webm');
+    await fs.writeFile(mislabeled, bytes);
+    assert.equal((await importLoungeBackground(mislabeled, path.join(root, 'saved backgrounds'))).ok, false, 'video extension alone does not bypass content sniffing');
     assert.equal((await importLoungeBackground(path.join(root, 'missing.png'), path.join(root, 'saved backgrounds'))).ok, false);
     const large = path.join(root, 'large.png');
     await fs.writeFile(large, Buffer.alloc(20 * 1024 * 1024 + 1));
     assert.equal((await importLoungeBackground(large, path.join(root, 'saved backgrounds'))).ok, false);
-    console.log('PASS: Lounge image import validates content and size, and the saved copy survives moving the original.');
+    console.log('PASS: Lounge still, animated and video imports validate signatures and keep private copies after moving originals.');
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }

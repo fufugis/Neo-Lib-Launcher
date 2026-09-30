@@ -47,6 +47,8 @@ export const DEFAULT_LOUNGE_PREFERENCES = Object.freeze({
   controlSize: 'comfortable',
   browseSort: 'library',
   hiddenBrowseFilters: [],
+  carouselVerticalOffset: 0,
+  selectedGameScale: 145,
   motion: 'full',
   fxLevel: 'theme',
   particleStyle: 'theme',
@@ -68,6 +70,7 @@ export const DEFAULT_LOUNGE_PREFERENCES = Object.freeze({
   backgroundFit: 'adaptive',
   backgroundPositionX: 50,
   backgroundZoom: 100,
+  backgroundMotion: 55,
   backgroundPositionY: 50,
   panelOpacity: 82,
   shelfOpacity: 66,
@@ -133,9 +136,36 @@ const controlSizes = new Set(['compact', 'comfortable', 'large']);
 const browseSorts = new Set(['library', 'name', 'last-played', 'recently-added']);
 const entryScreens = new Set(['games', 'home']);
 const coverAspects = new Set(['portrait', 'tall']);
-const safeBackgroundUrl = value => typeof value === 'string' && value.length <= 2048 && /^file:\/\/\/?[a-z]:\/[^?#]+\.(png|jpe?g|webp)$/i.test(value) ? value : '';
+const safeBackgroundUrl = value => typeof value === 'string' && value.length <= 2048 && /^file:\/\/\/?[a-z]:\/[^?#]+\.(png|apng|jpe?g|webp|gif|mp4|m4v|webm|mov|ogv)$/i.test(value) ? value : '';
 const safeAmbienceUrl = value => typeof value === 'string' && value.length <= 2048 && /^file:\/\/\/[a-z]:\/[^?#]+\.mp3$/i.test(value) ? value : '';
 const bounded = (value, fallback, min, max) => Number.isFinite(Number(value)) ? Math.min(max, Math.max(min, Math.round(Number(value)))) : fallback;
+
+export function loungeBackgroundMediaKind(url = '') {
+  const path = String(url).split(/[?#]/, 1)[0].toLowerCase();
+  if (/\.(mp4|m4v|webm|mov|ogv)$/.test(path)) return 'video';
+  if (/\.(gif|apng)$/.test(path)) return 'animated-image';
+  return 'image';
+}
+
+export function loungeBackgroundMotionStyle(url, zoom = 100, intensity = 55) {
+  const base = Math.max(0.5, Math.min(2, Number(zoom) || 100)) / 100;
+  const amount = Math.max(0, Math.min(100, Number(intensity) || 0)) / 100;
+  let hash = 0;
+  for (const character of String(url || 'lounge')) hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
+  const driftX = (hash % 2 ? 1 : -1) * amount * 1.6;
+  const driftY = (hash % 3 ? -1 : 1) * amount * 0.9;
+  return {
+    '--lounge-user-zoom-near': String(base + amount * 0.018),
+    '--lounge-user-zoom-far': String(base + amount * 0.05),
+    '--lounge-user-zoom-pulse': String(base + amount * 0.08),
+    '--lounge-user-drift-x': `${driftX.toFixed(2)}%`,
+    '--lounge-user-drift-x-return': `${(-driftX * 0.55).toFixed(2)}%`,
+    '--lounge-user-drift-y': `${driftY.toFixed(2)}%`,
+    '--lounge-user-drift-y-return': `${(-driftY * 0.6).toFixed(2)}%`,
+    '--lounge-user-duration': `${27 + (hash % 19)}s`,
+    '--lounge-user-delay': `-${hash % 17}s`,
+  };
+}
 
 export function normalizeLoungePreferences(value) {
   const input = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
@@ -149,6 +179,8 @@ export function normalizeLoungePreferences(value) {
   return {
     preset: Object.hasOwn(LOUNGE_PRESETS, input.preset) ? input.preset : input.preset === 'custom' ? 'custom' : defaults.preset,
     shelfPosition: input.preset === 'cinema' && input.shelfPosition === 'top' ? 'bottom' : positions.has(input.shelfPosition) ? input.shelfPosition : defaults.shelfPosition,
+    carouselVerticalOffset: bounded(input.carouselVerticalOffset, defaults.carouselVerticalOffset, 0, 300),
+    selectedGameScale: bounded(input.selectedGameScale, defaults.selectedGameScale, 100, 200),
     coverSize: input.preset === 'cinema' && input.coverSize === 116 ? defaults.coverSize : bounded(input.coverSize, defaults.coverSize, 84, 184),
     gap: bounded(input.gap, defaults.gap, 8, 28),
     stageHeight: bounded(input.stageHeight, defaults.stageHeight, 320, 760),
@@ -180,14 +212,15 @@ export function normalizeLoungePreferences(value) {
     backgroundOpacity: bounded(input.backgroundOpacity, defaults.backgroundOpacity, 0, 100),
     backgroundFit: backgroundFits.has(input.backgroundFit) ? input.backgroundFit : defaults.backgroundFit,
     backgroundPositionX: bounded(input.backgroundPositionX, defaults.backgroundPositionX, 0, 100),
-    backgroundZoom: bounded(input.backgroundZoom, defaults.backgroundZoom, 70, 140),
+    backgroundZoom: bounded(input.backgroundZoom, defaults.backgroundZoom, 50, 200),
+    backgroundMotion: bounded(input.backgroundMotion, defaults.backgroundMotion, 0, 100),
     backgroundPositionY: bounded(input.backgroundPositionY, defaults.backgroundPositionY, 0, 100),
     panelOpacity: legacyDefaultVisuals ? defaults.panelOpacity : bounded(input.panelOpacity, defaults.panelOpacity, LOUNGE_SURFACE_OPACITY_RANGE.min, LOUNGE_SURFACE_OPACITY_RANGE.max),
     shelfOpacity: bounded(input.shelfOpacity, defaults.shelfOpacity, LOUNGE_SURFACE_OPACITY_RANGE.min, LOUNGE_SURFACE_OPACITY_RANGE.max),
     previewPosition: previewPositions.has(input.previewPosition) ? input.previewPosition : defaults.previewPosition,
     previewWidth: bounded(input.previewWidth, defaults.previewWidth, 20, 100),
     previewBoxHeight: bounded(input.previewBoxHeight, defaults.previewBoxHeight, 160, 460),
-    previewVerticalOffset: bounded(input.previewVerticalOffset, defaults.previewVerticalOffset, 0, 100),
+    previewVerticalOffset: bounded(input.previewVerticalOffset, defaults.previewVerticalOffset, -300, 100),
     previewCornerRadius: bounded(input.previewCornerRadius, defaults.previewCornerRadius, 0, 48),
     previewTextScale: bounded(input.previewTextScale, defaults.previewTextScale, 75, 135),
     previewPanelOpacity: bounded(input.previewPanelOpacity, defaults.previewPanelOpacity, 35, 100),

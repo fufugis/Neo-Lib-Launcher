@@ -28,9 +28,13 @@ function registerDialogIpc({ registerIpc, dialog, getMainWindow, loungeBackgroun
   // Used by Edit metadata. The file URL shape is retained for renderer images.
   registerIpc('dialog:pickImage', guardResult(async () => {
     const selected = await pickFirst({
-      title: 'Pick an image (icon / cover / hero)',
+      title: 'Pick artwork or a hero video',
       properties: ['openFile'],
-      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'ico'] }],
+      filters: [
+        { name: 'Artwork and video', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'm4v', 'webm', 'mov', 'ogv'] },
+        { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'ico'] },
+        { name: 'Video', extensions: ['mp4', 'm4v', 'webm', 'mov', 'ogv'] },
+      ],
     });
     if (!selected) return null;
     return { path: selected, url: 'file://' + selected.replace(/\\/g, '/') };
@@ -39,9 +43,13 @@ function registerDialogIpc({ registerIpc, dialog, getMainWindow, loungeBackgroun
 
   registerIpc('dialog:importLoungeBackground', guardResult(async () => {
     const selected = await pickFirst({
-      title: 'Import Lounge background',
+      title: 'Import Lounge background artwork or video',
       properties: ['openFile'],
-      filters: [{ name: 'Still images', extensions: ['png', 'jpg', 'jpeg', 'webp'] }],
+      filters: [
+        { name: 'Lounge artwork and video', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'apng', 'mp4', 'm4v', 'webm', 'mov', 'ogv'] },
+        { name: 'Animated and still images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'apng'] },
+        { name: 'Video', extensions: ['mp4', 'm4v', 'webm', 'mov', 'ogv'] },
+      ],
     });
     if (!selected) return null;
     if (typeof loungeBackgroundRoot !== 'function') return null;

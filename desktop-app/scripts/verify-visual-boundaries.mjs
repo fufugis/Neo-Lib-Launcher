@@ -302,7 +302,7 @@ assert.match(previewInformationSource, /border-sky-400\/25[\s\S]*border-violet-4
 const previewHeroSource = read('src/components/preview/PreviewHeroTitle.jsx');
 const previewActionSource = read('src/components/preview/PreviewActionBar.jsx');
 const previewStatusSource = read('src/components/preview/PreviewStatusCards.jsx');
-assert.ok(lines('src/components/GameDetail.jsx') < 260, 'Preview information, hero, actions and status presentation must remain outside GameDetail composition');
+assert.ok(lines('src/components/GameDetail.jsx') < 320, 'Preview information, hero, artwork inspector, actions and status presentation must remain split into focused components');
 assert.match(gameDetailSource, /preview\/PreviewInformationPanels/);
 assert.match(gameDetailSource, /preview\/PreviewHeroTitle/);
 assert.match(gameDetailSource, /preview\/PreviewActionBar/);

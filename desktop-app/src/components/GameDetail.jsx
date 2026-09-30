@@ -4,9 +4,10 @@ import { Sparkles } from 'lucide-react';
 import { DetailList, GameCapabilities, GameMediaGallery, GameStory } from './preview/PreviewInformationPanels';
 import PreviewActionBar from './preview/PreviewActionBar';
 import PreviewHeroTitle from './preview/PreviewHeroTitle';
+import LibraryArtworkInspector from './preview/LibraryArtworkInspector';
 import { LatestNewsPill, ManagedToolSetup, SteamManifestLine, UpdateAvailablePill } from './preview/PreviewStatusCards';
 import { DEFAULT_HERO_FILTER, heroImageFilter } from './preview/hero-treatment-model.mjs';
-import { libraryHeroCandidates, libraryHeroWidth } from './preview/library-hero-artwork.mjs';
+import { libraryHeroArtworkOptions, libraryHeroCandidates, libraryHeroFocalPoint, libraryHeroMediaKind, libraryHeroMotion, libraryHeroMotionStyle, libraryHeroWidth } from './preview/library-hero-artwork.mjs';
 
 /**
  * GameDetail — fully horizontal, "seamless" layout:
@@ -39,9 +40,28 @@ export default function GameDetail({
     } finally { setMeasuringSize(false); }
   }, [game, measuringSize, onUpdateGame]);
   const heroCandidates = React.useMemo(() => libraryHeroCandidates(game), [game]);
+  const heroOptions = React.useMemo(() => libraryHeroArtworkOptions(game), [game]);
   const [heroIndex, setHeroIndex] = React.useState(0);
   const bg = heroCandidates[heroIndex];
   const [heroDimensions, setHeroDimensions] = React.useState(null);
+  const focalPoint = libraryHeroFocalPoint(game);
+  const heroMotion = libraryHeroMotion(game);
+  const setFocalPoint = React.useCallback((next) => onUpdateGame?.(game.id, { heroFocalPoint: next }), [game?.id, onUpdateGame]);
+  const heroVideoRef = React.useRef(null);
+  const [prefersReducedMotion, setPrefersReducedMotion] = React.useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+  React.useEffect(() => {
+    const query = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    if (!query) return undefined;
+    const update = () => setPrefersReducedMotion(query.matches);
+    query.addEventListener?.('change', update);
+    return () => query.removeEventListener?.('change', update);
+  }, []);
+  React.useEffect(() => {
+    const video = heroVideoRef.current;
+    if (!video) return;
+    if (prefersReducedMotion) video.pause();
+    else video.play().catch(() => {});
+  }, [bg, prefersReducedMotion]);
   React.useEffect(() => { setHeroIndex(0); setHeroDimensions(null); }, [game?.id, heroCandidates[0]]);
   // Hero parallax — subtle 3D tilt as mouse moves over the hero. CSS-only, no rerenders.
   const heroRef = React.useRef(null);
@@ -53,7 +73,10 @@ export default function GameDetail({
   React.useEffect(() => setHeroFilter(DEFAULT_HERO_FILTER), [bg]);
   const onHeroLoad = React.useCallback((e) => {
     const img = e.currentTarget;
-    setHeroDimensions({ src: img.getAttribute('src'), width: img.naturalWidth });
+    const width = img.naturalWidth || img.videoWidth;
+    const height = img.naturalHeight || img.videoHeight;
+    if (!width || !height) return;
+    setHeroDimensions({ src: img.getAttribute('src'), width, height });
     try {
       const cv = document.createElement('canvas');
       const W = (cv.width = 16);
@@ -98,7 +121,9 @@ export default function GameDetail({
   }, []);
   if (!game) return <EmptyState />;
   const measuredWidth = heroDimensions?.src === bg ? heroDimensions.width : 0;
-  const compactWidth = libraryHeroWidth(measuredWidth, heroRef.current?.clientWidth || 0);
+  const isHeroVideo = libraryHeroMediaKind(bg) === 'video';
+  const compactWidth = isHeroVideo ? null : libraryHeroWidth(measuredWidth, heroRef.current?.clientWidth || 0);
+  const activeArtwork = heroOptions.find(({ url }) => url === bg);
   return (
     <motion.div
       key={game.id}
@@ -123,28 +148,47 @@ export default function GameDetail({
         {bg ? (
           <>
             {compactWidth && <div className="pointer-events-none absolute inset-0 overflow-hidden bg-[rgb(var(--surface))]" aria-hidden="true"><img src={bg} alt="" className="h-full w-full scale-110 object-cover opacity-40 blur-2xl" /></div>}
-            <motion.img
-              key={bg}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: measuredWidth ? 1 : 0 }}
-              transition={{ duration: 0.35, ease: 'easeOut' }}
-              src={bg}
-              alt=""
-              crossOrigin="anonymous"
-              onLoad={onHeroLoad}
-              onError={() => setHeroIndex(index => Math.min(index + 1, heroCandidates.length))}
-              className="hero-parallax pointer-events-none absolute inset-y-0 right-0 h-full object-cover"
-              style={{
-                width: compactWidth ? `${compactWidth}px` : '100%',
-                objectPosition: 'center 42%',
-                transform:
-                  'perspective(1200px) ' +
-                  'rotateX(var(--hero-rx, 0deg)) ' +
-                  'rotateY(var(--hero-ry, 0deg)) ' +
-                  'translate3d(var(--hero-tx, 0px), var(--hero-ty, 0px), 0)',
-                filter: heroFilter || undefined,
-              }}
-            />
+            <div className={`library-hero-motion-layer pointer-events-none absolute inset-0 ${heroMotion > 0 && !prefersReducedMotion ? 'library-hero-alive' : ''}`} style={libraryHeroMotionStyle(game.id, heroMotion)} aria-hidden="true">
+              {isHeroVideo ? <motion.video
+                key={bg}
+                ref={heroVideoRef}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: measuredWidth ? 1 : 0 }}
+                transition={{ duration: 0.35, ease: 'easeOut' }}
+                src={bg}
+                muted
+                autoPlay={!prefersReducedMotion}
+                loop
+                playsInline
+                preload="metadata"
+                onLoadedMetadata={onHeroLoad}
+                onLoadedData={onHeroLoad}
+                onError={() => setHeroIndex(index => Math.min(index + 1, heroCandidates.length))}
+                className="hero-parallax absolute inset-y-0 right-0 h-full w-full object-cover"
+                style={{ objectPosition: `${focalPoint.x}% ${focalPoint.y}%`, filter: heroFilter || undefined, transform: 'perspective(1200px) rotateX(var(--hero-rx, 0deg)) rotateY(var(--hero-ry, 0deg)) translate3d(var(--hero-tx, 0px), var(--hero-ty, 0px), 0)' }}
+              /> : <motion.img
+                key={bg}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: measuredWidth ? 1 : 0 }}
+                transition={{ duration: 0.35, ease: 'easeOut' }}
+                src={bg}
+                alt=""
+                crossOrigin="anonymous"
+                onLoad={onHeroLoad}
+                onError={() => setHeroIndex(index => Math.min(index + 1, heroCandidates.length))}
+                className="hero-parallax absolute inset-y-0 right-0 h-full object-cover"
+                style={{
+                  width: compactWidth ? `${compactWidth}px` : '100%',
+                  objectPosition: `${focalPoint.x}% ${focalPoint.y}%`,
+                  // Compact artwork is right-aligned to avoid enlarging small store headers
+                  // across ultrawide screens. Fade its leading edge into the ambient fill so
+                  // the image doesn't read as a misaligned, hard-edged panel.
+                  ...(compactWidth ? { maskImage: 'linear-gradient(to right, transparent 0%, black 28%)', WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 28%)' } : {}),
+                  transform: 'perspective(1200px) rotateX(var(--hero-rx, 0deg)) rotateY(var(--hero-ry, 0deg)) translate3d(var(--hero-tx, 0px), var(--hero-ty, 0px), 0)',
+                  filter: heroFilter || undefined,
+                }}
+              />}
+            </div>
           </>
         ) : (
           <div className="pointer-events-none absolute inset-0">
@@ -205,6 +249,23 @@ export default function GameDetail({
           <UpdateAvailablePill game={game} />
           <LatestNewsPill game={game} />
           <DetailList game={game} />
+          <LibraryArtworkInspector
+            options={heroOptions}
+            activeUrl={bg}
+            activeSource={activeArtwork?.source || 'Artwork fallback'}
+            dimensions={heroDimensions?.src === bg ? heroDimensions : null}
+            fitLabel={compactWidth ? 'kept near native size instead of stretching' : 'fills hero, cropped to fit'}
+            focalPoint={focalPoint}
+            motion={heroMotion}
+            onUse={(url) => {
+              const option = heroOptions.find((item) => item.url === url);
+              onUpdateGame?.(game.id, { heroArtworkOverride: url, heroArtworkOverrideSource: option?.source || 'Game artwork' });
+            }}
+            onPick={(url) => onUpdateGame?.(game.id, { heroArtworkOverride: url, heroArtworkOverrideSource: 'Player-selected file' })}
+            onFocalChange={setFocalPoint}
+            onMotionChange={(value) => onUpdateGame?.(game.id, { heroMotion: value })}
+            onReset={() => onUpdateGame?.(game.id, { heroArtworkOverride: '', heroArtworkOverrideSource: '', heroFocalPoint: { x: 50, y: 42 } })}
+          />
           <GameCapabilities game={game} onUpdateGame={onUpdateGame} />
           <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(460px,560px)]">
             <div className="min-w-0">

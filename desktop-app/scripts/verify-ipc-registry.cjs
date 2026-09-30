@@ -176,7 +176,8 @@ assert.deepEqual(documentCalls, [
   const selectedByTitle = {
     'Select game executable': 'C:\\Games\\One.exe',
     'Select folder': 'D:\\Games',
-    'Pick an image (icon / cover / hero)': 'C:\\Art\\cover.png',
+    'Pick artwork or a hero video': 'C:\\Art\\cover.png',
+    'Import Lounge background artwork or video': 'C:\\Art\\cover.png',
     'Pick a theme atmosphere video': 'C:\\Art\\motion.webm',
     "Select this game's save folder": 'C:\\Saves\\One',
     'Import NEO-LIB widget': 'C:\\Widgets\\example\\widget.json',
@@ -205,8 +206,8 @@ assert.deepEqual(documentCalls, [
   assert.equal(dialogCalls[1].parent, pickerWindow, 'picker must resolve the current window for every call');
   assert.deepEqual(dialogCalls.map(call => call.options.properties), [['openFile'], ['openDirectory'], ['openFile'], ['openFile'], ['openFile'], ['openFile'], ['openDirectory'], ['openFile'], ['openFile']]);
   assert.deepEqual(dialogCalls[0].options.filters[0].extensions, ['exe', 'lnk', 'bat', 'cmd']);
-  assert.deepEqual(dialogCalls[2].options.filters[0].extensions, ['png', 'jpg', 'jpeg', 'webp', 'gif', 'ico']);
-  assert.deepEqual(dialogCalls[3].options.filters[0].extensions, ['png', 'jpg', 'jpeg', 'webp']);
+  assert.deepEqual(dialogCalls[2].options.filters[0].extensions, ['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'm4v', 'webm', 'mov', 'ogv']);
+  assert.deepEqual(dialogCalls[3].options.filters[0].extensions, ['png', 'jpg', 'jpeg', 'webp', 'gif', 'apng', 'mp4', 'm4v', 'webm', 'mov', 'ogv']);
   assert.deepEqual(dialogCalls[4].options.filters[0].extensions, ['mp3']);
   assert.deepEqual(dialogCalls[5].options.filters[0].extensions, ['webm']);
   assert.deepEqual(dialogCalls[7].options.filters[0].extensions, ['json']);
