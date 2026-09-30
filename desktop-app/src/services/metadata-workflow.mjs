@@ -108,7 +108,7 @@ export function createMetadataWorkflow({
       return null;
     }
     const portrait = portraitArtwork(result);
-    let coverUrl = portrait || result.capsuleImage || result.headerImage || null;
+    let coverUrl = portrait || result.capsuleImage || null;
     if (coverUrl && coverUrl.startsWith('http')) {
       coverUrl = (await nativeApi.cacheImage(coverUrl, result.name)) || coverUrl;
     }
@@ -147,7 +147,7 @@ export function createMetadataWorkflow({
   // Apply a previewed metadata patch (called from AcceptMetadataModal).
   const applyAcceptedMetadata = async (g, patch) => {
     const portrait = portraitArtwork(patch);
-    let coverUrl = portrait || patch.capsuleImage || patch.headerImage || patch.coverUrl || null;
+    let coverUrl = portrait || patch.capsuleImage || patch.coverUrl || null;
     if (coverUrl && coverUrl.startsWith('http')) {
       coverUrl = (await nativeApi.cacheImage(coverUrl, patch.name)) || coverUrl;
     }

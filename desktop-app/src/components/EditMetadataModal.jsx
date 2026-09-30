@@ -6,6 +6,8 @@ import { JOURNEY_STATUSES, normalizeJourneyStatus } from '../lib/game-journey-mo
 import { LAUNCH_ROUTE_KINDS, normalizeLaunchRoutes, primaryLaunchRoute } from '../lib/game-launch-routes-model.mjs';
 import { GAME_SIGNAL_DEFINITIONS, gameSignals } from '../lib/game-signals-model.mjs';
 import { appendArtworkRevision, artworkSnapshot, normalizeArtworkLocks } from '../lib/artwork-revision-model.mjs';
+import LibraryArtworkInspector from './preview/LibraryArtworkInspector';
+import { libraryHeroArtworkOptions, libraryHeroFocalPoint, libraryHeroMotion } from './preview/library-hero-artwork.mjs';
 
 const isElectron = typeof window !== 'undefined' && !!window.api;
 const TABS = [
@@ -87,6 +89,10 @@ export default function EditMetadataModal({ open, game, onClose, onSave, steamGr
       headerImage: form.headerImage.trim() || null,
       background: form.background.trim() || null,
       logo: form.logo.trim() || null,
+      heroArtworkOverride: form.heroArtworkOverride.trim() || '',
+      heroArtworkOverrideSource: form.heroArtworkOverrideSource.trim() || '',
+      heroFocalPoint: form.heroFocalPoint,
+      heroMotion: form.heroMotion,
       artworkSources: form.artworkSources,
       artworkLocks: normalizeArtworkLocks(form.artworkLocks),
       artworkRevisions: artworkChanged
@@ -177,7 +183,7 @@ export default function EditMetadataModal({ open, game, onClose, onSave, steamGr
 
           <div className="min-h-0 flex-1 overflow-y-auto p-5">
             {tab === 'overview' && <Overview form={form} set={set} />}
-            {tab === 'artwork' && <Artwork form={form} set={set} onPick={pickImageFor} steamGridDbKey={steamGridDbKey} />}
+            {tab === 'artwork' && <Artwork form={form} set={set} game={game} onPick={pickImageFor} steamGridDbKey={steamGridDbKey} />}
             {tab === 'play' && <PlayRoutes form={form} set={set} onPickExe={pickExeFor} />}
             {tab === 'library' && <LibraryForm form={form} set={set} game={game} />}
             {tab === 'signals' && <Signals form={form} set={set} game={game} />}
@@ -221,7 +227,20 @@ function Overview({ form, set }) {
   </div>;
 }
 
-function Artwork({ form, set, onPick, steamGridDbKey }) {
+function Artwork({ form, set, game, onPick, steamGridDbKey }) {
+  const heroOptions = libraryHeroArtworkOptions({
+    ...game,
+    heroArtworkOverride: form.heroArtworkOverride,
+    heroArtworkOverrideSource: form.heroArtworkOverrideSource,
+    headerImage: form.headerImage,
+    background: form.background,
+    coverUrl: form.coverUrl,
+    screenshots: splitLines(form.screenshots),
+  });
+  const heroUrl = form.heroArtworkOverride || heroOptions[0]?.url || '';
+  const heroSource = heroOptions.find(({ url }) => url === heroUrl)?.source || 'Artwork fallback';
+  const heroFocal = libraryHeroFocalPoint(form);
+  const heroMotion = libraryHeroMotion(form);
   const [catalogue, setCatalogue] = React.useState({ open: false, slot: '', query: '', games: [], assets: [], busy: false, error: '', selectedGame: null });
   const updateArtwork = (slot, field, value, source = 'Player selected') => set({
     [field]: value,
@@ -248,6 +267,24 @@ function Artwork({ form, set, onPick, steamGridDbKey }) {
         <ImageSlot label="Background" value={form.background} onChange={(value) => updateArtwork('background', 'background', value)} onPick={() => onPick('background')} onBrowse={() => setCatalogue({ open: true, slot: 'background', query: form.name, games: [], assets: [], busy: false, error: '', selectedGame: null })} protected={form.artworkLocks?.background} onToggleProtect={() => toggleLock('background')} source={form.artworkSources?.background} aspect="16/9" />
         <ImageSlot label="Logo" value={form.logo} onChange={(value) => updateArtwork('logo', 'logo', value)} onPick={() => onPick('logo')} onBrowse={() => setCatalogue({ open: true, slot: 'logo', query: form.name, games: [], assets: [], busy: false, error: '', selectedGame: null })} protected={form.artworkLocks?.logo} onToggleProtect={() => toggleLock('logo')} source={form.artworkSources?.logo} aspect="16/9" />
       </div>
+    </Section>
+    <Section title="Library hero fit" description="Choose and frame the large banner shown on this game’s Library page. These changes save with the rest of Edit game.">
+      <LibraryArtworkInspector
+        options={heroOptions}
+        activeUrl={heroUrl}
+        activeSource={heroSource}
+        fitLabel="cropped to fit the Library hero"
+        focalPoint={heroFocal}
+        motion={heroMotion}
+        onUse={(url) => {
+          const option = heroOptions.find((item) => item.url === url);
+          set({ heroArtworkOverride: url, heroArtworkOverrideSource: option?.source || 'Game artwork' });
+        }}
+        onPick={(url) => set({ heroArtworkOverride: url, heroArtworkOverrideSource: 'Player-selected file' })}
+        onFocalChange={(heroFocalPoint) => set({ heroFocalPoint })}
+        onMotionChange={(heroMotion) => set({ heroMotion })}
+        onReset={() => set({ heroArtworkOverride: '', heroArtworkOverrideSource: '', heroFocalPoint: { x: 50, y: 42 } })}
+      />
     </Section>
     {catalogue.open && <SteamGridDbGallery state={catalogue} setState={setCatalogue} apiKey={steamGridDbKey} onUse={(asset) => { const field = artworkFieldForSlot(catalogue.slot); updateArtwork(catalogue.slot, field, asset.url, `SteamGridDB · ${asset.author}${asset.width && asset.height ? ` · ${asset.width}×${asset.height}` : ''}`); setCatalogue((current) => ({ ...current, open: false })); }} />}
     <ArtworkHistory revisions={form.artworkRevisions} onRestore={restore} />
@@ -451,6 +488,10 @@ function emptyForm(game) {
     headerImage: game.headerImage || game.hero || '',
     background: game.background || '',
     logo: game.logo || '',
+    heroArtworkOverride: game.heroArtworkOverride || '',
+    heroArtworkOverrideSource: game.heroArtworkOverrideSource || '',
+    heroFocalPoint: libraryHeroFocalPoint(game),
+    heroMotion: libraryHeroMotion(game),
     artworkSources: { ...(game.artworkSources || {}) },
     artworkLocks: normalizeArtworkLocks(game.artworkLocks),
     artworkRevisions: Array.isArray(game.artworkRevisions) ? game.artworkRevisions.slice(-8) : [],

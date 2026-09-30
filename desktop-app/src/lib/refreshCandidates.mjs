@@ -23,7 +23,7 @@ export function fieldCandidates(record, field) {
 export function selectedRefreshPatch(field, candidates, game = {}) {
   if (!candidates.length) return {};
   const { value, record } = candidates[0];
-  if (field === 'icon') return { icon: value, coverUrl: value };
+  if (field === 'icon') return { icon: value };
   if (field === 'banner') return { headerImage: value, background: value };
   if (field === 'description') return { about: cleanDescriptionText(value), shortDescription: cleanDescriptionText(record.shortDescription || value) };
   if (field === 'screenshots') return { screenshots: candidates.map(c => c.value) };
@@ -34,7 +34,7 @@ export function selectedRefreshPatch(field, candidates, game = {}) {
       artworkRevisions: appendArtworkRevision(game.artworkRevisions, artworkSnapshot(game, { reason: 'before-collection-artwork-review' })),
       artworkSources: { ...(game.artworkSources || {}) },
     };
-    const cover = record.portraitImage || record.capsuleImage || record.icon;
+    const cover = record.portraitImage || record.capsuleImage;
     if (!locks.cover && cover) { patch.portraitImage = cover; patch.coverUrl = cover; patch.artworkSources.cover = source; }
     if (!locks.icon && record.icon) { patch.icon = record.icon; patch.artworkSources.icon = source; }
     if (!locks.hero && record.headerImage) { patch.headerImage = record.headerImage; patch.artworkSources.hero = source; }
@@ -49,7 +49,7 @@ export function selectedRefreshPatch(field, candidates, game = {}) {
     if (v != null && v !== '' && (!Array.isArray(v) || v.length)) patch[key] = v;
   }
   // A wide header is useful as a hero, but not a fabricated portrait case cover.
-  const cover = record.portraitImage || record.capsuleImage || record.icon || (game.source === 'emulation' ? null : record.headerImage);
+  const cover = record.portraitImage || record.capsuleImage;
   if (record.portraitImage) patch.portraitImage = record.portraitImage;
   if (cover) { patch.coverUrl = cover; patch.icon = record.icon || cover; }
   return patch;

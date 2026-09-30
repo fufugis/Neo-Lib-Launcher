@@ -3,6 +3,10 @@ export const V182_CHANGELOG = {
   title: 'Library and navigation polish',
   major: [
     {
+      title: 'Library backup, restore and safe maintenance',
+      body: 'Settings → Library can save or import a complete Library & Metadata backup, including cached artwork. Import explicitly confirms before replacing the current library; backups include private-category PIN verifiers and are not encrypted. Reset requires two typed confirmations and clears game entries and cached game artwork while preserving playtime/Home statistics, Home settings, categories and Tools. Bulk category removal asks for each protected category PIN; skipped or unverified categories stay protected.',
+    },
+    {
       title: 'A clearer Library and a more colourful sidebar',
       body: 'Library game previews now prefer larger background art or screenshots before small store headers. Low-resolution fallbacks stay bounded instead of stretching across ultrawide banners. The optional sidebar gives each destination its own colour, with clearer active and keyboard-focus states in both expanded and compact views.',
     },
@@ -12,9 +16,13 @@ export const V182_CHANGELOG = {
     },
   ],
   fixes: [
+    'Find Metadata → Search all sources now gathers, ranks and filters relevant candidates across all available providers instead of stopping at a single first-match result. A saved SteamGridDB key adds verified portrait-only community covers; failed detail lookups keep usable candidate data so a result can still be reviewed.',
+    'Missing-cover repair no longer mistakes wide hero banners or scenic backgrounds for portrait covers. Metadata acceptance stores only portrait/capsule art in the cover slot, keeping wide artwork in its proper hero/background roles.',
+    'Fixed a Lounge startup crash caused by reading the selected-game scale before it was initialized.',
     'Custom Lounge backgrounds now drift with irregular mini-zooms controlled by a saved Living artwork motion slider. Local GIF/APNG animation and muted looping MP4, M4V, WebM, MOV and OGV video are supported; Still, Motion off, and system reduced-motion pause the picture/video.',
     'Library hero artwork can gently drift with irregular mini-zooms, with a per-game motion slider. GIFs animate naturally; local MP4, M4V, WebM, MOV and OGV hero videos loop muted, and system reduced-motion pauses the movement.',
-    'Library game details now include an Artwork fit inspector with the active image source and dimensions, alternate game-art choices, a local image picker, and saved horizontal/vertical framing for each game.',
+    'The Artwork fit inspector now lives in Edit game → Artwork instead of the Library description area; its image choice, framing and motion changes save with the game.',
+    'Home widgets now use a compact, single-title frame with a restrained accent by widget type. Repeated inner headings and extra panel borders are removed from key widgets; move, resize, snap/free placement, and saved dimensions are unchanged.',
     'Lounge game screenshots are larger and easier to inspect: hovering or focusing with keyboard/gamepad enlarges and highlights them, and confirming one keeps it enlarged.',
     'The Lounge browse and layout bar is shorter to better fit its icons, while keeping the existing full-size symbols and animated two-line labels.',
     'Lounge particles now sway across their travel direction as Particle randomness rises, leave adjustable ghost afterimages or comet streaks, and bloom with a stronger layered glow. The Visual Builder preview uses the same renderer as the live Lounge.',

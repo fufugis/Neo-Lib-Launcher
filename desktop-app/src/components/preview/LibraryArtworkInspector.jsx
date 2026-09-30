@@ -9,6 +9,21 @@ export default function LibraryArtworkInspector({
 }) {
   const canPick = typeof window !== 'undefined' && !!window.api?.pickImage;
   const [pickError, setPickError] = React.useState('');
+  const [measuredDimensions, setMeasuredDimensions] = React.useState(null);
+  React.useEffect(() => {
+    if (dimensions || !activeUrl) return undefined;
+    let cancelled = false;
+    const image = new Image();
+    image.onload = () => {
+      if (!cancelled && image.naturalWidth && image.naturalHeight) {
+        setMeasuredDimensions({ src: activeUrl, width: image.naturalWidth, height: image.naturalHeight });
+      }
+    };
+    image.onerror = () => { if (!cancelled) setMeasuredDimensions(null); };
+    image.src = activeUrl;
+    return () => { cancelled = true; };
+  }, [activeUrl, dimensions]);
+  const shownDimensions = dimensions || (measuredDimensions?.src === activeUrl ? measuredDimensions : null);
   const pickArtwork = async () => {
     setPickError('');
     try {
@@ -21,7 +36,7 @@ export default function LibraryArtworkInspector({
     <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-xs font-bold text-ink [&::-webkit-details-marker]:hidden">
       <ImageIcon size={14} className="text-[rgb(var(--accent-2))]" />
       Artwork fit
-      <span className="ml-auto max-w-[55%] truncate text-[10px] font-medium text-muted">{activeSource}{dimensions ? ` · ${dimensions.width} × ${dimensions.height}` : ''}</span>
+      <span className="ml-auto max-w-[55%] truncate text-[10px] font-medium text-muted">{activeSource}{shownDimensions ? ` · ${shownDimensions.width} × ${shownDimensions.height}` : ''}</span>
       <span className="text-muted transition-transform group-open:rotate-180" aria-hidden="true">⌄</span>
     </summary>
     <div className="grid gap-3 border-t border-[rgb(var(--border)/0.42)] p-3 lg:grid-cols-[190px_minmax(0,1fr)]">
@@ -30,7 +45,7 @@ export default function LibraryArtworkInspector({
           {activeUrl ? <img src={activeUrl} alt="Current hero artwork" className="h-full w-full object-cover" style={{ objectPosition: `${focalPoint.x}% ${focalPoint.y}%` }} /> : <div className="grid h-full place-items-center text-muted"><ImageIcon size={24} /></div>}
         </div>
         <p className="mt-2 text-[10px] font-semibold text-ink">{activeSource}</p>
-        <p className="mt-0.5 text-[10px] text-muted">{dimensions ? `${dimensions.width} × ${dimensions.height} px` : 'Reading image dimensions…'} · {fitLabel}</p>
+        <p className="mt-0.5 text-[10px] text-muted">{shownDimensions ? `${shownDimensions.width} × ${shownDimensions.height} px` : activeUrl ? 'Reading image dimensions…' : 'No active artwork'} · {fitLabel}</p>
         {canPick && <button type="button" onClick={pickArtwork} className="mt-2 inline-flex items-center gap-1.5 rounded-md hairline px-2.5 py-1.5 text-[10px] font-semibold text-muted hover:border-[rgb(var(--accent)/0.6)] hover:text-ink"><Upload size={11} /> Choose image file</button>}
         {pickError && <p role="alert" className="mt-1 text-[10px] text-red-300">{pickError}</p>}
       </div>

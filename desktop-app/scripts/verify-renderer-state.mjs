@@ -104,8 +104,9 @@ assert.equal(visualState({ theme: 'anime' }, true).decorationOpacity, 0);
 
 const stale = { id: 'safe', metadataFetchedAt: now - 91 * 86400000, coverUrl: 'x', about: 'x', genres: ['x'] };
 const manual = { id: 'manual', manualOverride: true };
-assert.deepEqual(metadataRefreshTargets([stale, manual], 'missing', now).map(item => item.id), ['safe']);
-assert.deepEqual(metadataRefreshTargets([stale, manual], 'full', now).map(item => item.id), ['safe']);
+const heroOnly = { id: 'hero-only', headerImage: 'wide.jpg', background: 'scene.jpg', about: 'Known game', genres: ['RPG'] };
+assert.deepEqual(metadataRefreshTargets([stale, heroOnly, manual], 'missing', now).map(item => item.id), ['safe', 'hero-only']);
+assert.deepEqual(metadataRefreshTargets([stale, heroOnly, manual], 'full', now).map(item => item.id), ['safe', 'hero-only']);
 const queue = startRefreshQueue([{ id: 'safe' }, { id: 'gone' }, { id: 'secret' }]);
 const advanced = advanceRefreshQueue(queue, 'repaired', ['safe', 'secret']);
 assert.equal(advanced.nextId, 'secret'); assert.equal(advanced.queue.repaired, 1);

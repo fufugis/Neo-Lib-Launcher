@@ -30,22 +30,16 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
   const [rename, setRename] = React.useState('');
   // Per-field selection — defaults to all changed fields ON. User can toggle off the ones they
   // want to keep from the existing game. Only checked fields are written on Accept.
-  const [pick, setPick] = React.useState({
-    name: true, image: true, description: true, genres: true,
-    developer: true, publisher: true, release: true, screenshots: true, features: true,
-  });
+  const [pick, setPick] = React.useState(() => metadataPickDefaults(proposed?.artworkOnly));
   const dragControls = useDragControls();
   const dragBoundsRef = React.useRef(null);
   /* eslint-disable react-hooks/set-state-in-effect */
   React.useEffect(() => {
     if (open) {
       setRename(game?.name || '');
-      setPick({
-        name: true, image: true, description: true, genres: true,
-        developer: true, publisher: true, release: true, screenshots: true, features: true,
-      });
+      setPick(metadataPickDefaults(proposed?.artworkOnly));
     }
-  }, [open, game?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, game?.id, proposed?.artworkOnly]); // eslint-disable-line react-hooks/exhaustive-deps
   /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!open || !game) return null;
@@ -58,10 +52,9 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
   const proposedIdentity = identitySummary(proposedProfile);
 
   // Quick helpers — "Select all" / "Only changed" / "None"
-  const setAllPick = (val) => setPick({
-    name: val, image: val, description: val, genres: val,
-    developer: val, publisher: val, release: val, screenshots: val, features: val,
-  });
+  const setAllPick = (val) => setPick(p.artworkOnly
+    ? metadataPickDefaults(true, val)
+    : metadataPickDefaults(false, val));
   const pickOnlyChanged = () => setPick({
     name: !!(p.name && p.name !== game.name),
     image: !!(p.headerImage || p.capsuleImage || p.background),
@@ -77,8 +70,9 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
   const accept = () => {
     if (!proposed) return;
     // Build the patch from only the fields the user checked.
-    const patch = { manualOverride: false, source: p.source || 'web' };
+    const patch = { manualOverride: p.artworkOnly ? Boolean(game.manualOverride) : false, source: p.artworkOnly ? (game.source || p.source || 'web') : (p.source || 'web') };
     if (pick.name)        patch.name = p.name || game.name;
+    if (p.appid && /^\d+$/.test(String(p.appid))) patch.appid = String(p.appid);
     if (pick.description) {
       patch.shortDescription = cleanDescriptionText(p.shortDescription || '');
       patch.about = cleanDescriptionText(p.about || p.shortDescription || '');
@@ -89,10 +83,10 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
         patch.headerImage = p.headerImage;
         artworkSources.hero = p.source || 'Metadata review';
       }
-      if (!artworkLocks.cover && (p.portraitImage || p.capsuleImage || p.headerImage)) {
-        patch.capsuleImage = p.capsuleImage || p.headerImage || game.coverUrl;
+      if (!artworkLocks.cover && (p.portraitImage || p.capsuleImage)) {
+        patch.capsuleImage = p.capsuleImage || game.capsuleImage || '';
         patch.portraitImage = p.portraitImage || game.portraitImage || '';
-        patch.coverUrl = p.portraitImage || p.capsuleImage || p.headerImage || game.coverUrl;
+        patch.coverUrl = p.portraitImage || p.capsuleImage || game.coverUrl;
         artworkSources.cover = p.source || 'Metadata review';
       }
       if (!artworkLocks.background && (p.background || p.headerImage)) {
@@ -374,6 +368,12 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
 function identitySummary(profile) {
   const groups = genreDisplayGroups(profile);
   return groups.length ? groups.map(([label, entries]) => `${label}: ${entries.map((entry) => entry.label).join(', ')}`).join(' · ') : '—';
+}
+
+function metadataPickDefaults(artworkOnly = false, selected = true) {
+  return artworkOnly
+    ? { name: false, image: selected, description: false, genres: false, developer: false, publisher: false, release: false, screenshots: false, features: false }
+    : { name: selected, image: selected, description: selected, genres: selected, developer: selected, publisher: selected, release: selected, screenshots: selected, features: selected };
 }
 
 function ArtworkReviewCard({ label, image }) {

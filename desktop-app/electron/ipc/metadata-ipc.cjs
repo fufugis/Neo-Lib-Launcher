@@ -1,6 +1,7 @@
 const { guardHandler, guardResult, isBoolean, isBoundedArray, isBoundedString, isHttpUrl, isIdentifier, isJsonObjectWithin, isPath, isPlainObject } = require('./contract-guards.cjs');
 
-const METADATA_SOURCES = new Set(['steam', 'gog', 'itch', 'dlsite', 'jast', 'gamejolt', 'vndb', 'ryuugames', 'f95zone', 'google', 'ai']);
+const METADATA_SOURCES = new Set(['steam', 'steamgriddb', 'gog', 'itch', 'dlsite', 'jast', 'gamejolt', 'vndb', 'ryuugames', 'f95zone', 'google', 'ai']);
+const METADATA_SEARCH_SOURCES = new Set([...METADATA_SOURCES, 'all']);
 const validSecret = value => isBoundedString(value, { max: 4096 });
 const isMetadata = value => value === null || (isJsonObjectWithin(value, { maxDepth: 12, maxEntries: 2000, maxString: 50000 })
   && isBoundedString(value.source, { required: true, max: 100 })
@@ -14,7 +15,9 @@ const isCandidate = candidate => isJsonObjectWithin(candidate, { maxDepth: 10, m
   && isBoundedString(candidate.shortDescription, { max: 5000 });
 const isCandidateList = result => isPlainObject(result)
   && isBoundedArray(result.candidates, 100, isCandidate)
-  && isBoundedString(result.error, { max: 4000 });
+  && isBoundedString(result.error, { max: 4000 })
+  && (result.sourcesSearched == null || (Number.isInteger(result.sourcesSearched) && result.sourcesSearched >= 0 && result.sourcesSearched <= METADATA_SOURCES.size))
+  && (result.sourceErrors == null || isBoundedArray(result.sourceErrors, METADATA_SOURCES.size, source => METADATA_SOURCES.has(source)));
 const isHint = hint => isPlainObject(hint)
   && isBoundedString(hint.query, { required: true, max: 100 })
   && isBoundedString(hint.evidence, { required: true, max: 500 });
@@ -54,9 +57,10 @@ function registerMetadataIpc({ registerIpc, services }) {
   registerIpc("metadata:listCandidates", guardResult(guardHandler(
     requireService(services, "metadata:listCandidates"),
     payload => isPlainObject(payload)
-      && METADATA_SOURCES.has(payload.source)
+      && METADATA_SEARCH_SOURCES.has(payload.source)
       && isBoundedString(payload.query, { required: true, max: 500 })
       && validSecret(payload.geminiKey)
+      && validSecret(payload.steamGridDbKey)
       && isBoundedString(payload.aiModel, { max: 200 }),
     { candidates: [], error: 'The metadata candidate request was malformed.' },
   ), isCandidateList, { candidates: [], error: 'The metadata candidate service returned an invalid result.', code: 'INVALID_RESPONSE' }));

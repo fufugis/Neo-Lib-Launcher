@@ -44,6 +44,9 @@ contextBridge.exposeInMainWorld('api', {
   // library
   loadLibrary: () => ipcRenderer.invoke('library:load'),
   saveLibrary: (data) => ipcRenderer.invoke('library:save', data),
+  exportLibraryBackup: (data) => ipcRenderer.invoke('library:exportBackup', data),
+  importLibraryBackup: () => ipcRenderer.invoke('library:importBackup'),
+  clearLibraryArtwork: () => ipcRenderer.invoke('library:clearArtwork'),
 
   // settings
   loadSettings: () => ipcRenderer.invoke('settings:load'),

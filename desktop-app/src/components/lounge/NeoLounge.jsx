@@ -145,8 +145,8 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
       const vertical = window.getComputedStyle(shelf).flexDirection === 'column';
       const viewport = vertical ? shelf.clientHeight : shelf.clientWidth;
       const cardSize = vertical ? card.offsetHeight : card.offsetWidth;
-      const edge = Math.max(12, (viewport - cardSize) / 2 + cardSize * (selectedScale - 1) / 2);
       const selectedScale = preferences.selectedGameScale / 100;
+      const edge = Math.max(12, (viewport - cardSize) / 2 + cardSize * (selectedScale - 1) / 2);
       const crossAxisSize = vertical ? card.offsetWidth : card.offsetHeight;
       const crossAxisPadding = Math.max(20, Math.ceil(crossAxisSize * (selectedScale - 1) / 2 + 12));
       shelf.style.padding = vertical ? `${edge}px ${crossAxisPadding}px` : `${crossAxisPadding}px ${edge}px`;

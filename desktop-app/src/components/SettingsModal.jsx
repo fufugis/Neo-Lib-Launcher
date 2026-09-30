@@ -1,18 +1,70 @@
 import React from 'react';
 import { BUILD_INFO } from '../build-info.mjs';
 import { SOUND_PACKS, setSoundPack, playLaunch, playHover } from '../lib/sound';
-import { Sparkles, Eye, EyeOff, Heart, DownloadCloud, MessageCircle, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Eye, EyeOff, Heart, DownloadCloud, MessageCircle, CheckCircle2, Database, Upload, Trash2, LockKeyhole } from 'lucide-react';
 import Modal from './Modal';
 import { DONATE_PAYPAL_URL } from './DonateModal';
 import qrUrl from '../assets/donate-qr.png';
 import { SettingsSection as Section, SettingsToggle as Toggle } from './settings/SettingsControls';
+import { hashPin } from '../lib/utils';
 
-export default function SettingsModal({ open, onClose, settings, setSettings, onShowChangelog, currentVersion = '1.8.2' }) {
+export default function SettingsModal({ open, onClose, settings, setSettings, onShowChangelog, currentVersion = '1.8.2', library, onExportLibrary, onImportLibrary, onResetLibrary, onConfirmCategoryRemoval, onRemoveCategories }) {
   const setKey = (patch) => setSettings({ ...settings, ...patch });
   const [showKey, setShowKey] = React.useState(false);
   const [showArtworkKey, setShowArtworkKey] = React.useState(false);
   const [autoStart, setAutoStart] = React.useState(false);
   const [aiTest, setAiTest] = React.useState({ state: 'idle', message: '' });
+  const [categoryRemoval, setCategoryRemoval] = React.useState(null);
+  const [categoryPin, setCategoryPin] = React.useState('');
+  const [categoryPinError, setCategoryPinError] = React.useState('');
+  const categories = library?.categories || [];
+  const removalTarget = categoryRemoval?.queue?.[categoryRemoval.index] || null;
+
+  const finishCategoryRemoval = async (state) => {
+    const ids = [...new Set([...state.removableIds, ...state.verifiedIds])];
+    if (ids.length) await onRemoveCategories?.(ids);
+    setCategoryRemoval(null);
+    setCategoryPin('');
+    setCategoryPinError('');
+  };
+
+  const startCategoryRemoval = async () => {
+    if (!categories.length || !onRemoveCategories) return;
+    const confirmed = await onConfirmCategoryRemoval?.(categories.length);
+    if (!confirmed) return;
+    const state = {
+      queue: categories.filter((category) => category.private),
+      index: 0,
+      removableIds: categories.filter((category) => !category.private).map((category) => category.id),
+      verifiedIds: [],
+    };
+    if (!state.queue.length) return finishCategoryRemoval(state);
+    setCategoryPin('');
+    setCategoryPinError('');
+    setCategoryRemoval(state);
+  };
+
+  const submitCategoryPin = async () => {
+    if (!removalTarget || !/^\d{4}$/.test(categoryPin)) return;
+    if (!removalTarget.pinHash || hashPin(categoryPin) !== removalTarget.pinHash) {
+      setCategoryPinError('That PIN did not match. This category will stay protected unless its PIN is verified.');
+      return;
+    }
+    const next = { ...categoryRemoval, verifiedIds: [...categoryRemoval.verifiedIds, removalTarget.id], index: categoryRemoval.index + 1 };
+    setCategoryPin('');
+    setCategoryPinError('');
+    if (next.index >= next.queue.length) await finishCategoryRemoval(next);
+    else setCategoryRemoval(next);
+  };
+
+  const skipProtectedCategory = async () => {
+    if (!categoryRemoval) return;
+    const next = { ...categoryRemoval, index: categoryRemoval.index + 1 };
+    setCategoryPin('');
+    setCategoryPinError('');
+    if (next.index >= next.queue.length) await finishCategoryRemoval(next);
+    else setCategoryRemoval(next);
+  };
 
   React.useEffect(() => {
     let cancelled = false;
@@ -173,6 +225,29 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
           </div>
         </Section>
 
+        <Section title="Library">
+          <div className="space-y-2.5" data-testid="settings-library-management">
+            <p className="text-[11px] leading-relaxed text-muted">Save or restore your complete library document, including game metadata, artwork references, categories, and Tools. Settings, Home layout, and playtime history are kept separately.</p>
+            <p className="-mt-1 text-[10px] leading-relaxed text-muted">Backups include private-category PIN verifiers so locks survive a restore. Backup files are not encrypted; keep them somewhere private.</p>
+            <button type="button" data-testid="settings-library-export" onClick={() => onExportLibrary?.()} className="flex w-full items-center gap-2 rounded-lg border border-[rgb(var(--accent)/0.35)] bg-[rgb(var(--accent)/0.07)] px-3 py-2.5 text-left text-xs font-semibold text-ink transition hover:border-[rgb(var(--accent)/0.7)] hover:bg-[rgb(var(--accent)/0.13)]"><Database size={15} className="text-[rgb(var(--accent))]" /> Save ALL Library &amp; Metadata</button>
+            <button type="button" data-testid="settings-library-import" onClick={() => onImportLibrary?.()} className="flex w-full items-center gap-2 rounded-lg border border-[rgb(var(--accent-2)/0.32)] bg-[rgb(var(--accent-2)/0.06)] px-3 py-2.5 text-left text-xs font-semibold text-ink transition hover:border-[rgb(var(--accent-2)/0.65)]"><Upload size={15} className="text-[rgb(var(--accent-2))]" /> Import Saved Library &amp; Metadata</button>
+            <div className="border-t border-[rgb(var(--border)/0.65)] pt-2.5">
+              <button type="button" data-testid="settings-library-remove-categories" disabled={!categories.length || !!categoryRemoval} onClick={startCategoryRemoval} className="flex w-full items-center gap-2 rounded-lg border border-amber-300/30 bg-amber-300/[0.045] px-3 py-2.5 text-left text-xs font-semibold text-ink transition hover:border-amber-300/65 disabled:cursor-not-allowed disabled:opacity-45"><LockKeyhole size={15} className="text-amber-200" /> Remove all categories <span className="ml-auto text-[10px] text-muted">{categories.length}</span></button>
+              {removalTarget && <div className="mt-2 rounded-lg border border-amber-300/35 bg-amber-300/[0.06] p-3" data-testid="settings-library-category-pin-prompt">
+                <p className="text-xs font-semibold text-ink">PIN required · {removalTarget.name}</p>
+                <p className="mt-1 text-[10px] leading-relaxed text-muted">This protected category is removed only after its PIN is verified. Skip keeps it.</p>
+                <div className="mt-2 flex gap-2"><input type="password" inputMode="numeric" autoComplete="one-time-code" maxLength={4} value={categoryPin} onChange={(event) => { setCategoryPin(event.target.value.replace(/\D/g, '').slice(0, 4)); setCategoryPinError(''); }} aria-label={`PIN for ${removalTarget.name}`} data-testid="settings-library-category-pin-input" placeholder="4-digit PIN" className="h-9 min-w-0 flex-1 rounded-md bg-surface/60 px-3 text-center font-mono tracking-[0.35em] outline-none ring-1 ring-[rgb(var(--border))] focus:ring-amber-200/80" />
+                  <button type="button" disabled={!/^\d{4}$/.test(categoryPin)} onClick={submitCategoryPin} className="rounded-md bg-amber-200 px-3 text-[11px] font-bold text-slate-950 disabled:opacity-45">Verify</button>
+                </div>
+                {categoryPinError && <p role="alert" className="mt-2 text-[10px] text-rose-200">{categoryPinError}</p>}
+                <div className="mt-2 flex items-center justify-between gap-3"><button type="button" onClick={skipProtectedCategory} className="text-[10px] font-semibold text-muted underline decoration-dotted underline-offset-2 hover:text-ink">Skip this category and keep it</button><button type="button" onClick={() => { setCategoryRemoval(null); setCategoryPin(''); setCategoryPinError(''); }} className="text-[10px] text-muted hover:text-ink">Cancel all</button></div>
+              </div>}
+              <button type="button" data-testid="settings-library-reset" onClick={() => onResetLibrary?.()} className="mt-2 flex w-full items-center gap-2 rounded-lg border border-rose-400/35 bg-rose-400/[0.055] px-3 py-2.5 text-left text-xs font-semibold text-rose-100 transition hover:border-rose-300/75 hover:bg-rose-400/10"><Trash2 size={15} className="text-rose-300" /> Reset and Clear Entire library</button>
+              <p className="mt-1.5 text-[10px] leading-relaxed text-muted">Removing categories never removes games. Protected categories require their own PIN; skipped or unverified categories remain.</p>
+            </div>
+          </div>
+        </Section>
+
         <Section title="Artwork catalogue · optional">
           <p className="mb-2 text-xs leading-relaxed text-muted">
             This unlocks optional SteamGridDB artwork search in NEO-LIB’s Game Workshop: find community covers, hero/background images, logos and icons for a game. It does not change any artwork automatically.
@@ -187,7 +262,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
           <div id="steamgriddb-key-status" data-testid="settings-steamgriddb-status" role="status" className={`mt-2 rounded-md border px-2.5 py-2 text-[11px] leading-relaxed ${settings.steamGridDbKey?.trim() ? 'border-emerald-400/35 bg-emerald-400/10 text-ink' : 'border-[rgb(var(--border)/0.7)] bg-surface/30 text-muted'}`}>
             {settings.steamGridDbKey?.trim() ? <span className="flex items-start gap-2"><CheckCircle2 size={15} className="mt-0.5 shrink-0 text-emerald-300" /><span><strong>Key entered.</strong> Open a game’s <strong>Edit game → Artwork → Online</strong> button to search and preview images. Choose an image, then save the game to use it. The key is checked when you search; entering it alone does not verify the connection.</span></span> : 'No key entered. Online SteamGridDB artwork search is unavailable until you add one.'}
           </div>
-          <p className="mt-2 text-[10px] leading-relaxed text-muted">The key is kept in your local NEO-LIB settings and sent to SteamGridDB only when you start an Online artwork search.</p>
+          <p className="mt-2 text-[10px] leading-relaxed text-muted">The key stays in your local NEO-LIB settings and is sent to SteamGridDB only when you search online artwork or choose Search all sources in Find Metadata.</p>
         </Section>
 
         {/* AI fallback */}
@@ -200,7 +275,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
               onClick={(e) => { e.preventDefault(); window.api?.openExternal('https://aistudio.google.com/app/apikey'); }}
               className="text-[rgb(var(--accent-2))] hover:underline"
             >Gemini API key</a>{' '}
-            below. It is saved locally in your NEO-LIB settings and is sent only to Google when you choose Ask AI, Fungist chat, or Auto fetch uses the AI fallback.
+            below. It is saved locally in your NEO-LIB settings and is sent only to Google when you choose Ask AI, Search all sources with a key entered, or Fungist chat.
           </p>
           <div className="relative">
             <input

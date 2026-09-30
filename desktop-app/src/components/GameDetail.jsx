@@ -4,7 +4,6 @@ import { Sparkles } from 'lucide-react';
 import { DetailList, GameCapabilities, GameMediaGallery, GameStory } from './preview/PreviewInformationPanels';
 import PreviewActionBar from './preview/PreviewActionBar';
 import PreviewHeroTitle from './preview/PreviewHeroTitle';
-import LibraryArtworkInspector from './preview/LibraryArtworkInspector';
 import { LatestNewsPill, ManagedToolSetup, SteamManifestLine, UpdateAvailablePill } from './preview/PreviewStatusCards';
 import { DEFAULT_HERO_FILTER, heroImageFilter } from './preview/hero-treatment-model.mjs';
 import { libraryHeroArtworkOptions, libraryHeroCandidates, libraryHeroFocalPoint, libraryHeroMediaKind, libraryHeroMotion, libraryHeroMotionStyle, libraryHeroWidth } from './preview/library-hero-artwork.mjs';
@@ -40,13 +39,11 @@ export default function GameDetail({
     } finally { setMeasuringSize(false); }
   }, [game, measuringSize, onUpdateGame]);
   const heroCandidates = React.useMemo(() => libraryHeroCandidates(game), [game]);
-  const heroOptions = React.useMemo(() => libraryHeroArtworkOptions(game), [game]);
   const [heroIndex, setHeroIndex] = React.useState(0);
   const bg = heroCandidates[heroIndex];
   const [heroDimensions, setHeroDimensions] = React.useState(null);
   const focalPoint = libraryHeroFocalPoint(game);
   const heroMotion = libraryHeroMotion(game);
-  const setFocalPoint = React.useCallback((next) => onUpdateGame?.(game.id, { heroFocalPoint: next }), [game?.id, onUpdateGame]);
   const heroVideoRef = React.useRef(null);
   const [prefersReducedMotion, setPrefersReducedMotion] = React.useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
   React.useEffect(() => {
@@ -123,7 +120,6 @@ export default function GameDetail({
   const measuredWidth = heroDimensions?.src === bg ? heroDimensions.width : 0;
   const isHeroVideo = libraryHeroMediaKind(bg) === 'video';
   const compactWidth = isHeroVideo ? null : libraryHeroWidth(measuredWidth, heroRef.current?.clientWidth || 0);
-  const activeArtwork = heroOptions.find(({ url }) => url === bg);
   return (
     <motion.div
       key={game.id}
@@ -249,23 +245,6 @@ export default function GameDetail({
           <UpdateAvailablePill game={game} />
           <LatestNewsPill game={game} />
           <DetailList game={game} />
-          <LibraryArtworkInspector
-            options={heroOptions}
-            activeUrl={bg}
-            activeSource={activeArtwork?.source || 'Artwork fallback'}
-            dimensions={heroDimensions?.src === bg ? heroDimensions : null}
-            fitLabel={compactWidth ? 'kept near native size instead of stretching' : 'fills hero, cropped to fit'}
-            focalPoint={focalPoint}
-            motion={heroMotion}
-            onUse={(url) => {
-              const option = heroOptions.find((item) => item.url === url);
-              onUpdateGame?.(game.id, { heroArtworkOverride: url, heroArtworkOverrideSource: option?.source || 'Game artwork' });
-            }}
-            onPick={(url) => onUpdateGame?.(game.id, { heroArtworkOverride: url, heroArtworkOverrideSource: 'Player-selected file' })}
-            onFocalChange={setFocalPoint}
-            onMotionChange={(value) => onUpdateGame?.(game.id, { heroMotion: value })}
-            onReset={() => onUpdateGame?.(game.id, { heroArtworkOverride: '', heroArtworkOverrideSource: '', heroFocalPoint: { x: 50, y: 42 } })}
-          />
           <GameCapabilities game={game} onUpdateGame={onUpdateGame} />
           <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(460px,560px)]">
             <div className="min-w-0">

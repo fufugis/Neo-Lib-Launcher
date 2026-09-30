@@ -18,6 +18,7 @@ const { registerLauncherIpc } = require('../electron/ipc/launcher-ipc.cjs');
 const { registerAppOsIpc } = require('../electron/ipc/app-os-ipc.cjs');
 const { registerAppLifecycleIpc } = require('../electron/ipc/app-lifecycle-ipc.cjs');
 const { registerPersistenceIpc } = require('../electron/ipc/persistence-ipc.cjs');
+const { registerLibraryBackupIpc } = require('../electron/ipc/library-backup-ipc.cjs');
 const { registerPlaytimeIpc } = require('../electron/ipc/playtime-ipc.cjs');
 const { registerImageIpc } = require('../electron/ipc/image-ipc.cjs');
 const { registerDoctorIpc } = require('../electron/ipc/doctor-ipc.cjs');
@@ -190,7 +191,7 @@ async function main() {
   const metadataResults = {
     'metadata:auto': { source: 'steam', name: 'Portal 2', appid: '620' },
     'metadata:expandCandidate': { source: 'steam', name: 'Portal 2', appid: '620' },
-    'metadata:listCandidates': { candidates: [{ source: 'steam', id: '620', name: 'Portal 2', image: '', year: '2011', shortDescription: '', raw: {} }] },
+    'metadata:listCandidates': { candidates: [{ source: 'steam', id: '620', name: 'Portal 2', image: '', year: '2011', shortDescription: '', raw: {} }], sourcesSearched: 10, sourceErrors: ['gog'] },
     'metadata:deriveHints': { hints: [{ query: 'Portal 2', evidence: 'Executable name' }] },
     'artwork:steamGridDb': { ok: true, assets: [{ id: '1', url: 'https://cdn.test/art.png', thumb: 'https://cdn.test/thumb.png', width: 600, height: 900, style: 'alternate', score: 2, author: 'Artist', nsfw: false, humor: false }] },
   };
@@ -198,6 +199,8 @@ async function main() {
   await verifyGuard(metadata, 'metadata:auto', [{ query: 'Portal 2', skipSources: ['gog'], force: true }], [{ query: 'x'.repeat(501) }], {}, null);
   await verifyGuard(metadata, 'metadata:expandCandidate', [{ candidate: { source: 'steam', id: '620', name: 'Portal 2' } }], [{ candidate: { source: 'unknown', id: '620' } }], {}, null);
   await verifyGuard(metadata, 'metadata:listCandidates', [{ source: 'gog', query: 'Cyberpunk 2077' }], [{ source: 'unknown', query: 'Cyberpunk 2077' }], { candidates: [] });
+  await verifyGuard(metadata, 'metadata:listCandidates', [{ source: 'all', query: 'Windrose', steamGridDbKey: 'test-key' }], [{ source: 'all', query: 'x'.repeat(501) }], { candidates: [] });
+  await verifyGuard(metadata, 'metadata:listCandidates', [{ source: 'steamgriddb', query: 'Windrose', steamGridDbKey: 'test-key' }], [{ source: 'unknown', query: 'Windrose' }], { candidates: [] });
   await verifyGuard(metadata, 'metadata:deriveHints', [{ exePath: 'C:\\Games\\Game.exe', currentName: 'Game' }], [{ exePath: 42, currentName: 'Game' }], { hints: [] });
   await verifyGuard(metadata, 'artwork:steamGridDb', [{ apiKey: 'player-key', action: 'search', query: 'Portal 2' }], [{ apiKey: 'key', action: 'delete', query: 'Portal 2' }], { ok: false, code: 'INVALID_REQUEST' });
   await verifyResponseGuard(metadata, 'metadata:auto', [{ query: 'Portal 2' }], { source: 'steam', name: [] }, {}, null);
@@ -432,6 +435,26 @@ async function main() {
   assert.deepEqual(await persistenceHandlers['settings:load']({}), {});
   documentResults.settings = { theme: 'home' };
 
+  const backupHandlers = {};
+  let backupExport = null;
+  let backupImport = { ok: true, library: { games: [{ id: 'g1' }], categories: [] }, gameCount: 1 };
+  registerLibraryBackupIpc({
+    registerIpc(channel, handler) { backupHandlers[channel] = handler; },
+    service: {
+      async exportLibrary(value) { backupExport = value; return { ok: true, gameCount: value.games.length }; },
+      async importLibrary() { return backupImport; },
+      async clearArtwork() { return { ok: true, removed: 2 }; },
+    },
+  });
+  await verifyRejected(backupHandlers, [], 'library:exportBackup', [['invalid']], {}, { ok: false, error: 'The current library data is too large or malformed to save safely.' });
+  const backupDocument = { games: [{ id: 'g1', name: 'One' }], categories: [], tools: [], toolCategories: [], gameOrderByCategory: {}, toolOrderByCategory: {} };
+  assert.deepEqual(await backupHandlers['library:exportBackup']({}, backupDocument), { ok: true, gameCount: 1 });
+  assert.equal(backupExport, backupDocument, 'validated full library document reaches the backup service');
+  assert.deepEqual(await backupHandlers['library:importBackup']({}), backupImport);
+  assert.deepEqual(await backupHandlers['library:clearArtwork']({}), { ok: true, removed: 2 });
+  backupImport = { ok: true, library: { games: 'invalid' }, gameCount: 0 };
+  assert.equal((await backupHandlers['library:importBackup']({})).ok, false, 'malformed library imports fail the native response guard');
+
   const playtimeHandlers = {};
   const playtimeCalls = [];
   let playtimeResult = { ok: true, deltas: { 620: 30 }, lastSnapshotAt: 1 };
@@ -576,7 +599,7 @@ async function main() {
   assert.equal((await themeHandlers['themes:prepareAsset']({}, { sourceId: 'home', asset: 'assets/art.png', action: 'copy' })).ok, true);
   assert.equal((await themeHandlers['themes:prepareAsset']({}, { sourceId: 'home', asset: 'assets/art.png', action: 'run' })).code, 'INVALID_REQUEST');
 
-  console.log('PASS: renderer payload contracts reject malformed input before native services, and all 108 native commands enforce response contracts while preserving valid success and failure results.');
+  console.log('PASS: renderer payload contracts reject malformed input before native services, and all registered native commands enforce response contracts while preserving valid success and failure results.');
 }
 
 main().catch(error => {

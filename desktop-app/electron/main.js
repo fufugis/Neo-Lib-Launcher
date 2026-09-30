@@ -20,6 +20,8 @@ const { createIpcRegistry } = require('./ipc/registry.cjs');
 const { createIpcFailureReporter } = require('./ipc/failure-log.cjs');
 const { createDiagnosticRecorder } = require('./diagnostics/diagnostic-recorder.cjs');
 const { registerPersistenceIpc } = require('./ipc/persistence-ipc.cjs');
+const { registerLibraryBackupIpc } = require('./ipc/library-backup-ipc.cjs');
+const { createLibraryBackupService } = require('./library/library-backup-service.cjs');
 const { registerWindowIpc } = require('./ipc/window-ipc.cjs');
 const { registerDialogIpc } = require('./ipc/dialog-ipc.cjs');
 const { registerShellIpc } = require('./ipc/shell-ipc.cjs');
@@ -153,6 +155,7 @@ reportIpcFailure = createIpcFailureReporter({
   recordDiagnostic: (event, details) => diagnostics.record(event, details),
 });
 const documents = createDocumentStore({ storage: appStorage });
+const libraryBackup = createLibraryBackupService({ dialog, getMainWindow: () => mainWindow, fsPromises: fsp, path, coversDir });
 const systemHealth = createSystemHealthService({ os });
 const playtimeHistory = createPlaytimeHistoryService({ documents });
 const imageCache = createImageCacheService({ path, coversDir, download: httpDownload });
@@ -534,6 +537,7 @@ registerWindowIpc({ registerIpc, getMainWindow: () => mainWindow });
 
 // ---------------- IPC: Library / Settings ---------------- //
 registerPersistenceIpc({ registerIpc, documents });
+registerLibraryBackupIpc({ registerIpc, service: libraryBackup });
 
 // ---------------- IPC: Dialog ---------------- //
 registerDialogIpc({ registerIpc, dialog, getMainWindow: () => mainWindow, loungeBackgroundRoot: () => path.join(dataDir(), 'lounge-backgrounds'), loungeAudioRoot: () => path.join(dataDir(), 'lounge-audio') });
@@ -887,6 +891,7 @@ const metadataCandidates = createMetadataCandidateService({
   cleanSearchTerm,
   listSources: {
     steam: term => listSteamCandidates(term),
+    steamgriddb: (term, context) => listSteamGridDbCandidates(term, context.steamGridDbKey),
     gog: term => listGogCandidates(term),
     itch: term => listItchCandidates(term),
     dlsite: term => listDlsiteCandidates(term),
@@ -900,6 +905,7 @@ const metadataCandidates = createMetadataCandidateService({
   },
   expandSources: {
     steam: candidate => expandSteam(candidate),
+    steamgriddb: candidate => expandSteamGridDbCandidate(candidate),
     gog: candidate => expandGog(candidate),
     itch: candidate => expandItch(candidate),
     dlsite: candidate => dlsiteLookup(candidate.id),
@@ -1854,8 +1860,9 @@ remainingIpcServices["metadata:deriveHints"] = async (_e, { exePath, currentName
  * later by `metadata:expandCandidate` to fetch the full record.
  *
  * Sources accepted:
- *   'auto'      → falls back to the legacy single-best metadata:auto
+ *   'all'       → relevant, ranked candidates from every available source
  *   'steam'     → Steam Store search → up to 10 hits
+ *   'steamgriddb' → verified portrait community-art candidates (API key required)
  *   'gog'       → GOG catalog search → up to 10
  *   'itch'      → itch.io HTML search → up to 8
  *   'dlsite'    → DLsite RJ/VJ code lookup (single hit) OR keyword search
@@ -1867,8 +1874,8 @@ remainingIpcServices["metadata:deriveHints"] = async (_e, { exePath, currentName
  *   'google'    → DDG/Google scrape — up to 8 generic web results
  *   'ai'        → Gemini "name this game" → returns a single synthetic hit
  */
-remainingIpcServices["metadata:listCandidates"] = async (_e, { source, query, geminiKey, aiModel } = {}) => {
-  return metadataCandidates.listCandidates({ source, query, geminiKey, aiModel });
+remainingIpcServices["metadata:listCandidates"] = async (_e, { source, query, geminiKey, steamGridDbKey, aiModel } = {}) => {
+  return metadataCandidates.listCandidates({ source, query, geminiKey, steamGridDbKey, aiModel });
 };
 
 /**
@@ -1896,6 +1903,46 @@ async function listSteamCandidates(term) {
     raw: it,
   }));
 }
+
+async function listSteamGridDbCandidates(term, apiKey) {
+  const lookup = await steamGridDbArtwork.request({ apiKey, action: 'search', query: term });
+  if (!lookup.ok) throw new Error(lookup.error || 'SteamGridDB search failed.');
+  const games = (lookup.games || [])
+    .map(game => ({ game, score: fuzzyScore(term, game.name) }))
+    .filter(result => result.score >= 0.55)
+    .sort((left, right) => right.score - left.score)
+    .slice(0, 3);
+  const groups = await Promise.all(games.map(async ({ game }) => {
+    const result = await steamGridDbArtwork.request({ apiKey, action: 'assets', gameId: game.id, kind: 'cover' });
+    if (!result.ok) return [];
+    return (result.assets || []).slice(0, 3).map(asset => ({
+      source: 'steamgriddb',
+      id: `sgdb-${game.id}-${asset.id}`,
+      name: game.name,
+      image: asset.thumb || asset.url,
+      year: '',
+      shortDescription: `${asset.width} × ${asset.height} portrait cover · ${asset.author}`,
+      raw: { gameId: game.id, asset: { url: asset.url, width: asset.width, height: asset.height, author: asset.author } },
+    }));
+  }));
+  return groups.flat();
+}
+
+async function expandSteamGridDbCandidate(candidate) {
+  const asset = candidate?.raw?.asset || {};
+  const image = String(asset.url || candidate?.image || '').trim();
+  if (!/^https:\/\//i.test(image) || !Number.isFinite(asset.width) || asset.height < asset.width * 1.15) return null;
+  const gameId = String(candidate.raw?.gameId || '').trim();
+  return {
+    source: 'steamgriddb',
+    name: String(candidate.name || '').trim(),
+    portraitImage: image,
+    capsuleImage: image,
+    website: /^\d+$/.test(gameId) ? `https://www.steamgriddb.com/game/${gameId}` : '',
+    artworkOnly: true,
+  };
+}
+
 async function expandSteam(c) {
   const det = await httpGetJson(`https://store.steampowered.com/api/appdetails?appids=${c.id}&l=en&cc=us`);
   const entry = det && det[c.id];
@@ -1910,6 +1957,7 @@ async function expandSteam(c) {
     about: stripHtml(d.about_the_game || '').slice(0, 1400),
     headerImage: d.header_image,
     capsuleImage: d.capsule_imagev5 || d.capsule_image,
+    portraitImage: `https://cdn.cloudflare.steamstatic.com/steam/apps/${c.id}/library_600x900.jpg`,
     background: d.background_raw || d.background,
     screenshots: (d.screenshots || []).slice(0, 6).map((s) => s.path_full),
     genres: (d.genres || []).map((g) => g.description),

@@ -61,6 +61,11 @@ export default function AppModalLayer({ context }) {
     settings,
     showSettings,
     setShowSettings,
+    exportLibraryBackup,
+    importLibraryBackup,
+    confirmCategoryRemoval,
+    removeCategoriesById,
+    resetLibraryGames,
     themeStudioOpen,
     installedCustomThemes,
     refreshCustomThemes,
@@ -188,7 +193,7 @@ export default function AppModalLayer({ context }) {
         aiModel={settings.aiModel || 'gemini-2.5-flash'}
       />
       <SettingsRecoveryBoundary open={showSettings} onClose={() => setShowSettings(false)} onReportBug={() => openFeedback('bug')}>
-        <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} settings={settings} setSettings={persistSettings} onShowChangelog={() => setChangelogOpen(true)} currentVersion={appVersion} />
+        <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} settings={settings} setSettings={persistSettings} onShowChangelog={() => setChangelogOpen(true)} currentVersion={appVersion} library={library} onExportLibrary={exportLibraryBackup} onImportLibrary={importLibraryBackup} onResetLibrary={resetLibraryGames} onConfirmCategoryRemoval={confirmCategoryRemoval} onRemoveCategories={removeCategoriesById} />
       </SettingsRecoveryBoundary>
       <ThemeStudioModal open={themeStudioOpen} onClose={() => setThemeStudioOpen(false)} settings={settings} setSettings={persistSettings} installedCustomThemes={installedCustomThemes} refreshCustomThemes={refreshCustomThemes} />
       <MascotCenterModal open={mascotCenterOpen} onClose={() => setMascotCenterOpen(false)} settings={settings} setSettings={persistSettings} />
@@ -359,6 +364,7 @@ export default function AppModalLayer({ context }) {
         open={!!fetchPickerGame}
         game={fetchPickerGame}
         geminiKey={settings.geminiKey || ''}
+        steamGridDbKey={settings.steamGridDbKey || ''}
         aiModel={settings.aiModel || 'gemini-2.5-flash'}
         progress={metadataRepairQueue.active ? {
           current: metadataRepairQueue.index + 1,

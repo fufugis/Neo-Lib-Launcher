@@ -53,17 +53,21 @@ function harness(overrides = {}) {
 
 {
   const requests = [];
+  const cachedImages = [];
   const { workflow, events } = harness({
+    games: [{ id: 'steam', name: 'Steam Game', appid: 42, launcher: 'steam', exePath: 'C:\\Games\\Steam\\game.exe', coverUrl: 'https://images.test/existing-cover.jpg' }],
     nativeApi: {
       deriveMetadataHints: async () => ({ hints: [{ query: 'Wrong extra title' }] }),
       fetchMetadata: async (request) => { requests.push(request); return { name: 'Steam Result', source: 'steam', headerImage: 'https://images.test/steam.jpg' }; },
-      cacheImage: async (url) => `cached:${url}`,
+      cacheImage: async (url) => { cachedImages.push(url); return `cached:${url}`; },
     },
   });
-  await workflow.refetchGame({ id: 'steam', name: 'Steam Game', appid: 42, launcher: 'steam', exePath: 'C:\\Games\\Steam\\game.exe' }, { silent: true });
+  await workflow.refetchGame({ id: 'steam', name: 'Steam Game', appid: 42, launcher: 'steam', exePath: 'C:\\Games\\Steam\\game.exe', coverUrl: 'https://images.test/existing-cover.jpg' }, { silent: true });
   assert.equal(requests.length, 1);
   assert.equal(requests[0].lockedAppid, 42, 'Known Steam identity must remain locked during automatic refresh');
-  assert.equal(events.updates[0].patch.coverUrl, 'cached:https://images.test/steam.jpg');
+  assert.equal(events.updates[0].patch.coverUrl, 'https://images.test/existing-cover.jpg', 'wide Steam headers must not replace an existing portrait cover');
+  assert.equal(events.updates[0].patch.headerImage, 'https://images.test/steam.jpg', 'wide Steam art remains available in the hero slot');
+  assert.deepEqual(cachedImages, [], 'wide headers are not cached as cover art');
   assert.deepEqual(events.fetching, [true, false]);
 }
 

@@ -26,6 +26,7 @@ export function hydrateLibrary(raw = {}, { now = Date.now(), resetRatings = fals
     games,
     categories: Array.isArray(raw.categories) ? raw.categories : [],
     gameOrderByCategory: objectOrEmpty(raw.gameOrderByCategory),
+    homeGameDataArchive: objectOrEmpty(raw.homeGameDataArchive),
     tools,
     toolCategories: Array.isArray(raw.toolCategories) ? raw.toolCategories : [],
     toolOrderByCategory: objectOrEmpty(raw.toolOrderByCategory),

@@ -34,6 +34,7 @@ import { useNeoLounge } from './components/lounge/useNeoLounge';
 import { createDemoLibrary } from './state/demo-library.mjs';
 import { createMetadataWorkflow } from './services/metadata-workflow.mjs';
 import { createCategoryPrivacyWorkflow } from './services/category-privacy-workflow.mjs';
+import { createLibraryManagementWorkflow } from './services/library-management-workflow.mjs';
 import { pickDetectedLauncher } from './services/launcher-detection-workflow.mjs';
 import { createAutoSortWorkflow } from './services/auto-sort-workflow.mjs';
 import { collectionCategoryAssignment, collectionFavoriteIds, collectionJourneyStatus, createCollectionReviewWorkflow } from './services/collection-mode.mjs';
@@ -1095,6 +1096,17 @@ export default function App() {
     onMascotActivity: setMascotActivity,
   });
 
+  const { exportLibraryBackup, importLibraryBackup, confirmCategoryRemoval, removeCategoriesById, resetLibraryGames } = createLibraryManagementWorkflow({
+    library,
+    setLibrary,
+    setUnlockedCategories,
+    setSelectedId,
+    setSelectedToolId,
+    nativeApi,
+    askConfirm,
+    notify,
+  });
+
 
   /* --- Auto-sort: create missing reviewed categories, assign, and support one exact undo --- */
   const { applyAutoSort: handleAutoSortApply, undoAutoSort } = createAutoSortWorkflow({
@@ -1675,6 +1687,11 @@ export default function App() {
           settings,
           showSettings,
           setShowSettings,
+          exportLibraryBackup,
+          importLibraryBackup,
+          confirmCategoryRemoval,
+          removeCategoriesById,
+          resetLibraryGames,
           themeStudioOpen,
           installedCustomThemes,
           refreshCustomThemes,

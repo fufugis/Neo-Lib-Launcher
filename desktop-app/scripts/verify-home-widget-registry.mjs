@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { BUILTIN_HOME_WIDGETS, HOME_WIDGET_API_VERSION, HOME_WIDGET_GRID, homeWidget, normaliseWidgetSize, widgetSizeIsAllowed, widgetsForSegment } from '../src/components/home/home-widget-registry.mjs';
 import { WIDGET_RESIZE_DIRECTIONS, resizeFreeWidget, resizeGridWidget } from '../src/components/home/home-widget-resize.mjs';
 
 const homeSource = readFileSync(new URL('../src/components/HomeHub.jsx', import.meta.url), 'utf8');
 const managerSource = readFileSync(new URL('../src/components/home/WidgetManagerModal.jsx', import.meta.url), 'utf8');
 const communityHost = readFileSync(new URL('../src/components/home/CommunityWidgetHost.jsx', import.meta.url), 'utf8');
+const require = createRequire(import.meta.url);
+const babel = createRequire(require.resolve('@vitejs/plugin-react'))('@babel/core');
+babel.parseSync(homeSource, { configFile: false, babelrc: false, parserOpts: { plugins: ['jsx'] } });
 
 const ids = BUILTIN_HOME_WIDGETS.map((widget) => widget.id);
 assert.equal(HOME_WIDGET_API_VERSION, 1);
@@ -39,6 +43,12 @@ assert.match(homeSource, /data-resize-direction=\{direction\}/, 'unlocked widget
 assert.match(homeSource, /RESIZE_GRIP_POSITION\[direction\]/, 'all eight grips must use explicit widget-relative edge positions');
 assert.doesNotMatch(homeSource, /direction\.includes\('n'\)/, 'resize grips must not rely on conditional utility positioning');
 assert.match(homeSource, /data-home-widget-held=/, 'the held widget must be visibly identifiable');
+assert.match(homeSource, /HOME_WIDGET_ACCENTS/, 'first-party widgets need restrained per-widget colour accents');
+assert.match(homeSource, /flex h-7 shrink-0/, 'the widget drag strip stays compact');
+assert.match(homeSource, /layoutUnlocked && <span className="font-mono text-\[8px\] text-muted\/75">\{sizeLabel\}<\/span>/, 'technical size labels stay out of the way until layout editing is unlocked');
+assert.match(homeSource, /function MyBestGames[\s\S]*?Your five highest personal ratings/, 'My Best Games keeps its content hint without repeating the widget title or adding a second outer card');
+assert.match(homeSource, /function GamingChronicle[\s\S]*?Milestones, sessions, ratings, and updates/, 'Gaming Chronicle keeps a concise content hint without a repeated title');
+assert.match(homeSource, /divide-y divide-\[rgb\(var\(--accent\)\/0\.12\)\]/, 'widget lists use light dividers instead of a stack of heavy nested cards');
 assert.match(homeSource, /data-testid="home-widget-drag-ghost"/, 'a grabbed widget must show a pointer-following drag card');
 assert.match(homeSource, /window\.addEventListener\('pointercancel', onCancel\)/, 'a canceled grid drag must clean up its pointer session');
 assert.match(homeSource, /window\.addEventListener\('blur', onBlur\)/, 'a grid drag must not stay stuck after window focus is lost');

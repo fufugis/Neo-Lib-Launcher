@@ -13,7 +13,8 @@ const isElectron = typeof window !== 'undefined' && !!window.api;
  *
  * Replaces the "auto cycle through sources" black-box with an explicit UI:
  *   - Editable query (auto-seeded from the game's exe/folder names)
- *   - Big "Auto fetch" button (uses the legacy aggregated search)
+ *   - Big "Search all sources" button (collects relevant results from every
+ *     available provider)
  *   - One button per source (Steam, GOG, itch, DLsite, VNDB, Ryuugames,
  *     F95Zone, Google, Ask AI). Each loads its own candidate list.
  *   - Carousel of candidates with left/right arrows, showing 1/N counter
@@ -24,15 +25,16 @@ const isElectron = typeof window !== 'undefined' && !!window.api;
  *   - open: boolean
  *   - game: the game being matched (used for query seeding + exe path)
  *   - geminiKey: optional, enables the "Ask AI" source
- *   - aiModel: selected, allow-listed AI model for Ask AI and auto fetch
+ *   - steamGridDbKey: optional, enables verified portrait-art suggestions
+ *   - aiModel: selected, allow-listed AI model for Ask AI and all-source search
  *   - onPick: (metadata) => void
  *   - onClose: () => void
  */
-export default function FetchSourcePicker({ open, game, geminiKey, aiModel = 'gemini-2.5-flash', progress, onPick, onStopQueue, onClose }) {
+export default function FetchSourcePicker({ open, game, geminiKey, steamGridDbKey, aiModel = 'gemini-2.5-flash', progress, onPick, onStopQueue, onClose }) {
   const dragControls = useDragControls();
   const dragBoundsRef = React.useRef(null);
   const [query, setQuery] = React.useState('');
-  const [source, setSource] = React.useState('auto');
+  const [source, setSource] = React.useState('all');
   const [candidates, setCandidates] = React.useState([]);
   const [cursor, setCursor] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
@@ -51,9 +53,9 @@ export default function FetchSourcePicker({ open, game, geminiKey, aiModel = 'ge
     setCandidates([]);
     setCursor(0);
     setShowMaturePreview(false);
-    setSource('auto');
+    setSource('all');
     setHints([]);
-    setStatusMsg('Pick a source — or hit "Auto fetch" to try everything.');
+    setStatusMsg('Search all sources, or choose one provider below.');
     if (window.api?.deriveMetadataHints) {
       window.api.deriveMetadataHints({ exePath: game.exePath || '', currentName: game.name || '' })
         .then((result) => setHints(result?.hints || []))
@@ -73,25 +75,27 @@ export default function FetchSourcePicker({ open, game, geminiKey, aiModel = 'ge
     setCandidates([]);
     setCursor(0);
     setShowMaturePreview(false);
-    setStatusMsg(`Searching ${prettyName(src)}…`);
+    setStatusMsg(src === 'all' ? 'Searching all available sources…' : `Searching ${prettyName(src)}…`);
     try {
-      if (src === 'auto') {
-        // Auto uses the legacy single-best-guess endpoint and presents it
-        // as a 1-result carousel so the UI is consistent.
-        const result = await window.api.fetchMetadata({ query, geminiKey, aiModel });
-        if (result) {
-          setCandidates([candidateFromMetadata(result)]);
-          setStatusMsg(`Auto-fetch found a match on ${prettyName(result.source || 'web')}.`);
+      if (src === 'all') {
+        const result = await window.api.listCandidates({ source: 'all', query, geminiKey, steamGridDbKey, aiModel });
+        const list = result?.candidates || [];
+        const errors = result?.sourceErrors || [];
+        setCandidates(list);
+        if (!list.length) {
+          setStatusMsg(errors.length
+            ? `No matching results. ${errors.length} source${errors.length === 1 ? '' : 's'} could not be reached; try a specific source or check your connection.`
+            : 'No relevant results across the available sources. Try a shorter or alternate title.');
         } else {
-          setStatusMsg('Auto-fetch found nothing. Try a specific source below.');
+          setStatusMsg(`Found ${list.length} relevant result${list.length === 1 ? '' : 's'} · checked ${result?.sourcesSearched || 0} sources${errors.length ? ` · ${errors.length} could not be reached` : ''}.`);
         }
       } else {
         const { candidates: list, error } = await window.api.listCandidates({
-          source: src, query, geminiKey, aiModel,
+          source: src, query, geminiKey, steamGridDbKey, aiModel,
         });
-        if (error) setStatusMsg(`Error: ${error}`);
         setCandidates(list || []);
-        if (!list || !list.length) setStatusMsg(`${prettyName(src)} returned nothing. Try editing the query.`);
+        if (error) setStatusMsg(`Error: ${error}`);
+        else if (!list || !list.length) setStatusMsg(`${prettyName(src)} returned nothing. Try editing the query.`);
         else setStatusMsg(`${list.length} possible result${list.length === 1 ? '' : 's'} on ${prettyName(src)}.`);
       }
     } catch (e) {
@@ -106,13 +110,7 @@ export default function FetchSourcePicker({ open, game, geminiKey, aiModel = 'ge
     if (!c) return;
     setExpanding(true);
     try {
-      let full;
-      if (source === 'auto') {
-        // Auto already gave us a full record — wrap it back out.
-        full = c.raw || c;
-      } else {
-        full = await window.api.expandCandidate({ candidate: c });
-      }
+      const full = await window.api.expandCandidate({ candidate: c });
       if (full) onPick(full);
       else setStatusMsg('Could not expand this result. Try another.');
     } catch (e) {
@@ -125,6 +123,7 @@ export default function FetchSourcePicker({ open, game, geminiKey, aiModel = 'ge
   const current = candidates[cursor];
   const SOURCES = [
     { id: 'steam',     label: 'Steam',       hint: 'Mainstream PC games' },
+    { id: 'steamgriddb', label: 'SteamGridDB covers', hint: 'Verified portrait community art' },
     { id: 'gog',       label: 'GOG',         hint: 'DRM-free classics + new releases' },
     { id: 'itch',      label: 'itch.io',     hint: 'Indie / Python / RPG-Maker' },
     { id: 'dlsite',    label: 'DLsite',      hint: 'JP indies + RJ-code lookup' },
@@ -195,7 +194,7 @@ export default function FetchSourcePicker({ open, game, geminiKey, aiModel = 'ge
               data-testid="fetch-picker-query"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') runSource('auto'); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') runSource('all'); }}
               className="w-full h-10 rounded-lg bg-panel/60 hairline px-3 text-[13px] focus:outline-none focus:border-[rgb(var(--accent)/0.7)]"
             />
             <div className="mt-1 text-[10.5px] text-muted/70">
@@ -220,7 +219,7 @@ export default function FetchSourcePicker({ open, game, geminiKey, aiModel = 'ge
             {/* Big Auto-fetch */}
             <button
               data-testid="fetch-picker-auto"
-              onClick={() => runSource('auto')}
+              onClick={() => runSource('all')}
               disabled={loading || !query.trim()}
               className="group flex w-full items-center justify-center gap-2 rounded-lg px-4 h-11 text-[13px] font-bold transition-all hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
@@ -230,7 +229,7 @@ export default function FetchSourcePicker({ open, game, geminiKey, aiModel = 'ge
               }}
             >
               <Sparkles size={14} className="transition-transform group-hover:rotate-12" />
-              {loading && source === 'auto' ? 'Auto fetching…' : 'Auto fetch (tries everything)'}
+              {loading && source === 'all' ? 'Searching all sources…' : 'Search all sources'}
             </button>
 
             {/* Per-source grid */}
@@ -316,7 +315,7 @@ export default function FetchSourcePicker({ open, game, geminiKey, aiModel = 'ge
                     data-testid="fetch-picker-result-card"
                   >
                     {current.image && (!sensitivePreview || showMaturePreview) ? (
-                      <img src={current.image} alt="" className="h-32 w-24 shrink-0 rounded-md object-cover hairline" />
+                      <img src={current.image} alt="" className="h-32 w-24 shrink-0 rounded-md bg-black/15 object-contain hairline" />
                     ) : (
                       <div className="h-32 w-24 shrink-0 rounded-md hairline bg-panel/60 grid place-items-center text-[10px] text-muted/60">
                         {sensitivePreview && !showMaturePreview ? 'cover hidden' : 'no cover'}
@@ -416,6 +415,7 @@ function prettyName(src) {
   return {
     auto: 'Auto-fetch',
     steam: 'Steam',
+    steamgriddb: 'SteamGridDB',
     gog: 'GOG',
     itch: 'itch.io',
     dlsite: 'DLsite',
@@ -428,15 +428,4 @@ function prettyName(src) {
     ai: 'Gemini AI',
     web: 'web search',
   }[src] || src;
-}
-function candidateFromMetadata(meta) {
-  return {
-    source: meta.source || 'web',
-    id: meta.appid || meta.website || meta.name,
-    name: meta.name,
-    image: meta.headerImage || meta.capsuleImage || meta.background || '',
-    year: (meta.releaseDate || '').slice(0, 4),
-    shortDescription: meta.shortDescription || meta.about || '',
-    raw: meta,
-  };
 }
