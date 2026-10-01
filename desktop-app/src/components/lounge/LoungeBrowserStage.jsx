@@ -43,7 +43,6 @@ export default function LoungeBrowserStage({ game, index, total, preferences, up
     data-preview-style="scene"
     style={{ '--lounge-preview-height': String(preferences.stageHeight) + 'px' }}
   >
-    <div className="lounge-scene-stage__light pointer-events-none absolute inset-0" aria-hidden="true" />
     <div className="lounge-scene-stage__content relative z-10 flex min-w-0 items-center gap-6 border border-white/30 p-5 text-white sm:p-7">
       {preferences.previewShowCover && <div className="lounge-scene-stage__cover hidden shrink-0 overflow-hidden rounded-2xl border-2 border-white/65 shadow-[0_20px_50px_rgb(0_0_0/0.45)] sm:block" aria-hidden="true"><div className="aspect-[2/3]"><LoungeCover game={game} /></div></div>}
       <div key={String(game.id) + '-scene-copy'} className="lounge-stage-copy min-w-0 flex-1">

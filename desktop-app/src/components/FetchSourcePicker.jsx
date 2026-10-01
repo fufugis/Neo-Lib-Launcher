@@ -33,7 +33,9 @@ const isElectron = typeof window !== 'undefined' && !!window.api;
 export default function FetchSourcePicker({ open, game, geminiKey, steamGridDbKey, aiModel = 'gemini-2.5-flash', progress, onPick, onStopQueue, onClose }) {
   const dragControls = useDragControls();
   const dragBoundsRef = React.useRef(null);
+  const searchRunRef = React.useRef(0);
   const [query, setQuery] = React.useState('');
+  const [manualPageUrl, setManualPageUrl] = React.useState('');
   const [source, setSource] = React.useState('all');
   const [candidates, setCandidates] = React.useState([]);
   const [cursor, setCursor] = React.useState(0);
@@ -50,6 +52,8 @@ export default function FetchSourcePicker({ open, game, geminiKey, steamGridDbKe
     if (!open || !game) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setQuery(deriveBestQuery(game));
+    setManualPageUrl('');
+    searchRunRef.current += 1;
     setCandidates([]);
     setCursor(0);
     setShowMaturePreview(false);
@@ -70,6 +74,8 @@ export default function FetchSourcePicker({ open, game, geminiKey, steamGridDbKe
       setStatusMsg('Only works in the installed app (Electron-only).');
       return;
     }
+    const searchRun = ++searchRunRef.current;
+    const searchQuery = query.trim();
     setSource(src);
     setLoading(true);
     setCandidates([]);
@@ -78,31 +84,48 @@ export default function FetchSourcePicker({ open, game, geminiKey, steamGridDbKe
     setStatusMsg(src === 'all' ? 'Searching all available sources…' : `Searching ${prettyName(src)}…`);
     try {
       if (src === 'all') {
-        const result = await window.api.listCandidates({ source: 'all', query, geminiKey, steamGridDbKey, aiModel });
+        const result = await window.api.listCandidates({ source: 'all', query: searchQuery, geminiKey, steamGridDbKey, aiModel });
+        if (searchRun !== searchRunRef.current) return;
         const list = result?.candidates || [];
         const errors = result?.sourceErrors || [];
         setCandidates(list);
         if (!list.length) {
           setStatusMsg(errors.length
             ? `No matching results. ${errors.length} source${errors.length === 1 ? '' : 's'} could not be reached; try a specific source or check your connection.`
-            : 'No relevant results across the available sources. Try a shorter or alternate title.');
+            : 'No relevant automatic results. Try a fuller title or Search Google in browser below.');
         } else {
           setStatusMsg(`Found ${list.length} relevant result${list.length === 1 ? '' : 's'} · checked ${result?.sourcesSearched || 0} sources${errors.length ? ` · ${errors.length} could not be reached` : ''}.`);
         }
       } else {
         const { candidates: list, error } = await window.api.listCandidates({
-          source: src, query, geminiKey, steamGridDbKey, aiModel,
+          source: src, query: searchQuery, geminiKey, steamGridDbKey, aiModel,
         });
+        if (searchRun !== searchRunRef.current) return;
         setCandidates(list || []);
         if (error) setStatusMsg(`Error: ${error}`);
-        else if (!list || !list.length) setStatusMsg(`${prettyName(src)} returned nothing. Try editing the query.`);
+        else if (!list || !list.length) setStatusMsg(src === 'google' ? 'Automatic web search found no usable pages. Search Google in browser below and paste a game page.' : `${prettyName(src)} returned nothing. Try editing the query.`);
         else setStatusMsg(`${list.length} possible result${list.length === 1 ? '' : 's'} on ${prettyName(src)}.`);
       }
     } catch (e) {
-      setStatusMsg(`Search failed: ${String(e)}`);
+      if (searchRun === searchRunRef.current) setStatusMsg(`Search failed: ${String(e)}`);
     } finally {
-      setLoading(false);
+      if (searchRun === searchRunRef.current) setLoading(false);
     }
+  };
+
+  const addPageFromBrowser = () => {
+    let parsed;
+    try { parsed = new URL(manualPageUrl.trim()); } catch { setStatusMsg('Paste a full HTTPS game page address from your browser.'); return; }
+    const host = parsed.hostname.toLowerCase();
+    if (parsed.protocol !== 'https:' || !host.includes('.') || host === 'localhost' || host.endsWith('.local') || /^(?:127\.|10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(host)) {
+      setStatusMsg('Use a public HTTPS game page, such as a store or official site.');
+      return;
+    }
+    const candidate = { source: 'google', id: parsed.href, name: query.trim() || game.name, image: '', year: '', shortDescription: 'Page selected from your browser. Choose Use this one to read and review its details.', raw: { url: parsed.href, title: query.trim() || game.name }, manual: true };
+    setSource('google');
+    setCandidates(previous => [candidate, ...previous.filter(item => item.id !== candidate.id)]);
+    setCursor(0);
+    setStatusMsg('Page added for review. Choose Use this one to load its metadata.');
   };
 
   const acceptCurrent = async () => {
@@ -112,7 +135,7 @@ export default function FetchSourcePicker({ open, game, geminiKey, steamGridDbKe
     try {
       const full = await window.api.expandCandidate({ candidate: c });
       if (full) onPick(full);
-      else setStatusMsg('Could not expand this result. Try another.');
+      else setStatusMsg(c.manual ? 'Could not read metadata from that page. Try its public store or official game page.' : 'Could not expand this result. Try another.');
     } catch (e) {
       setStatusMsg(`Could not load full details: ${String(e)}`);
     } finally {
@@ -133,7 +156,7 @@ export default function FetchSourcePicker({ open, game, geminiKey, steamGridDbKe
     { id: 'ryuugames', label: 'Ryuugames',   hint: 'VN repackages, JP→EN' },
     { id: 'f95zone',   label: 'F95Zone',     hint: 'Adult-game threads via DDG' },
     { id: 'google',    label: 'Google / DDG', hint: 'Web search fallback' },
-    { id: 'ai',        label: 'Ask AI',      hint: 'Gemini identifies the game' },
+    { id: 'ai',        label: 'Ask AI',      hint: 'Gemini checks Google Search' },
   ];
   const sensitivePreview = ['dlsite', 'jast', 'gamejolt', 'f95zone'].includes(current?.source);
 
@@ -193,7 +216,7 @@ export default function FetchSourcePicker({ open, game, geminiKey, steamGridDbKe
             <input
               data-testid="fetch-picker-query"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => { searchRunRef.current += 1; setLoading(false); setQuery(e.target.value); }}
               onKeyDown={(e) => { if (e.key === 'Enter') runSource('all'); }}
               className="w-full h-10 rounded-lg bg-panel/60 hairline px-3 text-[13px] focus:outline-none focus:border-[rgb(var(--accent)/0.7)]"
             />
@@ -256,6 +279,17 @@ export default function FetchSourcePicker({ open, game, geminiKey, steamGridDbKe
                   <span className="text-[10px] text-muted/80">{s.hint}</span>
                 </button>
               ))}
+            </div>
+            <div className="rounded-lg border border-[rgb(var(--border)/0.7)] bg-[rgb(var(--surface)/0.26)] p-2.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={() => window.api?.openExternal?.(`https://www.google.com/search?q=${encodeURIComponent(`${query.trim()} video game`)}`)} disabled={!query.trim()} className="rounded-md border border-[rgb(var(--accent-2)/0.55)] px-2.5 py-1.5 text-[10.5px] font-bold text-ink disabled:opacity-40">Search Google in browser ↗</button>
+                <span className="text-[10px] text-muted">If automatic results miss it, choose a real game page and paste its address here.</span>
+              </div>
+              <div className="mt-2 flex gap-2">
+                <input type="url" value={manualPageUrl} onChange={event => setManualPageUrl(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') addPageFromBrowser(); }} placeholder="Paste an official or store game page URL" aria-label="Game page URL from browser" className="min-w-0 flex-1 rounded-md border border-[rgb(var(--border)/0.65)] bg-[rgb(var(--panel)/0.5)] px-2.5 py-1.5 text-[11px] text-ink outline-none" />
+                <button type="button" onClick={addPageFromBrowser} disabled={!manualPageUrl.trim()} className="rounded-md bg-[rgb(var(--accent-2)/0.18)] px-2.5 py-1.5 text-[10.5px] font-bold text-ink disabled:opacity-40">Review page</button>
+              </div>
+              <p className="mt-1 text-[9px] text-muted">Ask AI may use your Gemini API quota for Google Search grounding. Every result remains yours to review before applying.</p>
             </div>
           </div>
 
@@ -334,6 +368,9 @@ export default function FetchSourcePicker({ open, game, geminiKey, steamGridDbKe
                       <p className="mt-1.5 text-[11.5px] text-muted/90 line-clamp-5">
                         {sensitivePreview && !showMaturePreview ? 'Mature-source preview hidden until you choose to reveal it.' : current.shortDescription || 'No preview text available. Pick this to load full details.'}
                       </p>
+                      {current.grounded && <p className="mt-1.5 text-[10px] text-[rgb(var(--accent-2))]">Gemini checked current Google Search results.</p>}
+                      {current.searchSuggestions && <iframe title="Google Search suggestions" sandbox="" referrerPolicy="no-referrer" srcDoc={current.searchSuggestions} className="mt-2 h-14 w-full rounded-md border border-[rgb(var(--border)/0.5)] bg-white" />}
+                      {(current.sourcePages?.length > 0 || current.raw?.url || current.raw?.website) && <div className="mt-2 flex flex-wrap gap-1.5">{(current.sourcePages?.length ? current.sourcePages : [{ url: current.raw?.url || current.raw?.website, title: 'Source page' }]).slice(0, 3).map((page, index) => <button key={`${page.url}-${index}`} type="button" onClick={() => window.api?.openExternal?.(page.url)} className="max-w-full truncate rounded-md border border-[rgb(var(--border)/0.65)] px-2 py-1 text-[9px] text-muted hover:text-ink" title={page.url}>{page.title || `Source ${index + 1}`} ↗</button>)}</div>}
                       {sensitivePreview && <button type="button" onClick={() => setShowMaturePreview((value) => !value)} className="mt-2 text-[10px] font-bold text-[rgb(var(--accent-2))] hover:underline">{showMaturePreview ? 'Hide mature previews' : 'Show mature previews'}</button>}
                       {['jast', 'gamejolt', 'dlsite'].includes(current.source) && <p className="mt-1 break-all text-[9px] text-muted/70">Source page · {current.id}</p>}
                     </div>

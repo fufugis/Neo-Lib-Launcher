@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { applyLoungeDesktopTheme, applyLoungePreset, applyLoungeScene, applyLoungeVisualPreset, DEFAULT_LOUNGE_PREFERENCES, LOUNGE_BROWSE_BAR_FILTERS, LOUNGE_PARTICLE_IDS, LOUNGE_PRESETS, LOUNGE_SCENES, LOUNGE_SURFACE_OPACITY_RANGE, LOUNGE_VISUAL_PRESETS, loungeBackgroundMediaKind, loungeBackgroundMotionStyle, matchesLoungeVisualPreset, normalizeLoungePreferences, showLoungeBrowseFilter } from '../src/components/lounge/lounge-layout-model.mjs';
+import { applyLoungeDesktopTheme, applyLoungePreset, applyLoungeScene, applyLoungeVisualPreset, DEFAULT_LOUNGE_PREFERENCES, LOUNGE_BROWSE_BAR_FILTERS, LOUNGE_COVER_FRAMES, LOUNGE_FRAME_COLORS, LOUNGE_LIGHT_LOOKS, LOUNGE_PARTICLE_IDS, LOUNGE_PRESETS, LOUNGE_SCENES, LOUNGE_SURFACE_OPACITY_RANGE, LOUNGE_VISUAL_PRESETS, loungeBackgroundMediaKind, loungeBackgroundMotionStyle, loungeFramePaletteStyle, loungeSceneParticleStyle, matchesLoungeVisualPreset, normalizeLoungePreferences, showLoungeBrowseFilter } from '../src/components/lounge/lounge-layout-model.mjs';
 import { hydrateSettings, mergeSettings } from '../src/state/settings-state.mjs';
-import { emulatorZoneGames, emulatorZoneStatus, LOUNGE_CONSOLES, nextLoungeConsole } from '../src/components/lounge/lounge-emulator-zone.mjs';
+import { emulatorZoneGames, emulatorZoneStatus, LOUNGE_CONSOLES, nextLoungeConsole, visibleLoungeConsoles } from '../src/components/lounge/lounge-emulator-zone.mjs';
 import { normalizeLoungeResume } from '../src/components/lounge/lounge-resume-model.mjs';
 import { normalizeLoungeSavedPresets } from '../src/components/lounge/lounge-saved-presets.mjs';
-import { findBrightestArea } from '../src/components/lounge/lounge-light-analysis.mjs';
+import { findBrightestArea, projectArtworkPoint } from '../src/components/lounge/lounge-light-analysis.mjs';
 
 const defaults = normalizeLoungePreferences(null);
 const lightSample = new Uint8ClampedArray(10 * 10 * 4);
@@ -15,6 +15,8 @@ const brightArea = findBrightestArea(lightSample, 10, 10);
 assert.ok(brightArea.x > 85 && brightArea.x < 100, 'bright area detection finds a localized highlight horizontally');
 assert.ok(brightArea.y > 15 && brightArea.y < 40, 'bright area detection finds a localized highlight vertically');
 assert.ok(brightArea.strength > 0.8, 'bright highlights create a strong simulated HDR source');
+assert.deepEqual(projectArtworkPoint({ x: 50, y: 50, strength: 0.8 }, 16 / 9, 3, 'cover'), { x: 50, y: 50, strength: 0.8 }, 'cover-highlight coordinates remain centered when the source and viewport are centered');
+assert.equal(projectArtworkPoint({ x: 50, y: 18, strength: 0.8 }, 16 / 9, 3, 'cover').strength, 0, 'a cover-cropped highlight outside the visible art cannot create a displaced ghost image');
 assert.equal(defaults.shelfPosition, 'bottom');
 assert.equal(defaults.carouselVerticalOffset, 0);
 assert.equal(defaults.panelOpacity, 82, 'Lounge panels remain readable without dimming artwork');
@@ -33,7 +35,51 @@ assert.equal(loungeBackgroundMediaKind('file:///C:/Lounge/loop.gif'), 'animated-
 assert.equal(loungeBackgroundMediaKind('file:///C:/Lounge/loop.webm'), 'video');
 assert.deepEqual(loungeBackgroundMotionStyle('loop.webm', 100, 65), loungeBackgroundMotionStyle('loop.webm', 100, 65), 'art motion phases remain stable instead of restarting randomly on rerender');
 assert.equal(defaults.waveStrength, 52);
+assert.equal(normalizeLoungePreferences({ waveStrength: 360 }).waveStrength, 300, 'wave control supports stronger custom values up to 300 percent');
+assert.equal(normalizeLoungePreferences({ lightBloom: 720, lightRays: 360 }).lightBloom, 600, 'bloom supports custom values up to 600 percent');
+assert.equal(normalizeLoungePreferences({ lightBloom: 360, lightRays: 360 }).lightRays, 300, 'rays support custom values up to 300 percent');
+const atmosphereControls = normalizeLoungePreferences({ waveDrift: 260, bloomSpread: 20, raySoftness: 120, lightShimmer: -10 });
+assert.equal(atmosphereControls.waveDrift, 200, 'wave drift stays within its expanded movement range');
+assert.equal(atmosphereControls.bloomSpread, 40, 'bloom spread keeps a useful minimum');
+assert.equal(atmosphereControls.raySoftness, 100, 'ray softness stays bounded');
+assert.equal(atmosphereControls.lightShimmer, 0, 'light shimmer supports a calm minimum');
+assert.deepEqual(Object.keys(LOUNGE_LIGHT_LOOKS), ['cinema', 'aurora', 'golden'], 'three editable light recipes are available');
+for (const look of Object.values(LOUNGE_LIGHT_LOOKS)) {
+  const choice = normalizeLoungePreferences({ ...defaults, ...look.settings });
+  for (const [key, value] of Object.entries(look.settings)) assert.equal(choice[key], value, `${look.label} keeps its ${key} setting`);
+  assert.deepEqual(hydrateSettings({ loungePreferences: choice }).loungePreferences, choice, `${look.label} persists through saved settings`);
+}
+const lightingBounds = normalizeLoungePreferences({ sceneDrift: 250, artSaturation: 250, artContrast: 20, artTemperature: -250, ribbonIntensity: 250, ribbonSpeed: 5, ribbonPosition: -10, edgeGlow: 250, edgeWidth: 250, edgePulse: -10 });
+assert.deepEqual([lightingBounds.sceneDrift, lightingBounds.artSaturation, lightingBounds.artContrast, lightingBounds.artTemperature, lightingBounds.ribbonIntensity, lightingBounds.ribbonSpeed, lightingBounds.ribbonPosition, lightingBounds.edgeGlow, lightingBounds.edgeWidth, lightingBounds.edgePulse], [200, 200, 70, -100, 100, 20, 0, 100, 180, 0], 'new light and art controls are bounded before rendering');
+assert.equal(defaults.ribbonIntensity, 0, 'new ribbons are opt-in for existing Lounges');
+assert.equal(defaults.edgeGlow, 0, 'new edge light is opt-in for existing Lounges');
+assert.equal(defaults.filmGrain, 0, 'film grain is off for existing Lounges');
+assert.equal(defaults.chromaticAberration, 0, 'chromatic aberration is off for existing Lounges');
+assert.deepEqual([normalizeLoungePreferences({ filmGrain: -5, chromaticAberration: 120 }).filmGrain, normalizeLoungePreferences({ filmGrain: -5, chromaticAberration: 120 }).chromaticAberration], [0, 100], 'film finish controls clamp to their visible range');
+assert.deepEqual([hydrateSettings({ loungePreferences: { filmGrain: 65, chromaticAberration: 35 } }).loungePreferences.filmGrain, hydrateSettings({ loungePreferences: { filmGrain: 65, chromaticAberration: 35 } }).loungePreferences.chromaticAberration], [65, 35], 'film finish controls survive saved settings');
 assert.equal(defaults.coverGlow, 'off', 'animated cover edges are opt-in');
+assert.equal(defaults.coverFrame, 'classic', 'existing saved Lounges keep the original carousel frame');
+assert.deepEqual(Object.keys(LOUNGE_COVER_FRAMES), ['classic', 'gallery', 'glass', 'chrome', 'reactor']);
+for (const coverFrame of Object.keys(LOUNGE_COVER_FRAMES)) {
+  const choice = normalizeLoungePreferences({ coverFrame, coverGlow: 'neon' });
+  assert.equal(choice.coverFrame, coverFrame);
+  assert.equal(choice.coverGlow, 'neon', 'frame and cover glow remain independent');
+  assert.equal(hydrateSettings({ loungePreferences: choice }).loungePreferences.coverFrame, coverFrame, 'frame choice survives saved-settings hydration');
+}
+assert.equal(normalizeLoungePreferences({ coverFrame: 'unexpected' }).coverFrame, 'classic', 'unknown frame presets are rejected');
+assert.equal(defaults.frameColor, 'theme', 'existing carousels retain their theme colour');
+assert.deepEqual(Object.keys(LOUNGE_FRAME_COLORS), ['theme', 'electric', 'orchid', 'gold', 'mint', 'ember', 'custom']);
+for (const frameColor of Object.keys(LOUNGE_FRAME_COLORS)) {
+  const choice = normalizeLoungePreferences({ coverFrame: 'reactor', coverGlow: 'neon', frameColor, frameCustomColor: '#A1b2C3' });
+  assert.equal(choice.frameColor, frameColor);
+  assert.equal(choice.coverFrame, 'reactor', 'frame shape remains independent of frame colour');
+  assert.equal(choice.coverGlow, 'neon', 'cover glow remains independent of frame colour');
+  assert.equal(hydrateSettings({ loungePreferences: choice }).loungePreferences.frameColor, frameColor, 'frame colour survives saved-settings hydration');
+}
+assert.equal(normalizeLoungePreferences({ frameColor: 'unknown' }).frameColor, 'theme', 'unknown frame colours are rejected');
+assert.equal(normalizeLoungePreferences({ frameCustomColor: 'red' }).frameCustomColor, defaults.frameCustomColor, 'invalid custom colours are rejected');
+assert.equal(loungeFramePaletteStyle('custom', '#A1B2C3')['--lounge-frame-primary'], '#a1b2c3', 'custom frame colour reaches the rendered CSS');
+assert.equal(loungeFramePaletteStyle('electric')['--lounge-frame-primary'], LOUNGE_FRAME_COLORS.electric.primary);
 assert.equal(defaults.specialTheme, 'theme', 'existing installations keep their desktop theme until a Lounge scene is chosen');
 assert.equal(defaults.desktopThemeOverride, '', 'Lounge follows the desktop theme by default');
 const loungeDesktopTheme = applyLoungeDesktopTheme(defaults, 'ocean');
@@ -56,7 +102,7 @@ assert.equal(showLoungeBrowseFilter('recent', ['recent'], true), true, 'a hidden
 assert.equal(normalizeLoungePreferences({ specialTheme: 'untrusted' }).specialTheme, 'theme');
 assert.deepEqual(normalizeLoungePreferences({ quickLinks: ['most', 'most', 'bad', 'recent'] }).quickLinks, ['most', 'recent']);
 assert.deepEqual(normalizeLoungePreferences({ quickLinks: [] }).quickLinks, []);
-for (const id of ['alpine', 'orbit', 'coast', 'neon', 'starlit']) {
+for (const id of ['alpine', 'orbit', 'coast', 'neon', 'starlit', 'solar', 'rainlight']) {
   assert.ok(LOUNGE_SCENES[id]);
   const scene = applyLoungeScene(defaults, id);
   assert.equal(scene.specialTheme, id);
@@ -64,6 +110,10 @@ for (const id of ['alpine', 'orbit', 'coast', 'neon', 'starlit']) {
   assert.equal(scene.backdropMode, 'theme');
   assert.equal(hydrateSettings({ loungePreferences: scene }).loungePreferences.specialTheme, id);
 }
+assert.equal(loungeSceneParticleStyle('solar'), 'fireflies', 'Solar Grove has warm ambient particles');
+assert.equal(loungeSceneParticleStyle('rainlight'), 'rain-drop', 'Rainlight City has rain particles');
+assert.equal(loungeSceneParticleStyle('alpine'), 'starlight', 'existing scene particles stay unchanged');
+assert.equal(loungeSceneParticleStyle('theme'), 'theme', 'desktop theme particles stay unchanged');
 assert.equal(applyLoungeScene({ ...defaults, specialTheme: 'coast', backdropMode: 'image' }, 'theme').backdropMode, 'theme');
 assert.equal(normalizeLoungePreferences({ coverGlow: 'soft' }).coverGlow, 'soft');
 assert.equal(normalizeLoungePreferences({ coverGlow: 'neon' }).coverGlow, 'neon');
@@ -83,6 +133,7 @@ assert.equal(normalizeLoungePreferences({ preset: 'custom', shelfPosition: 'top'
 assert.equal(defaults.previewStyle, 'cinema');
 assert.equal(defaults.entryScreen, 'games', 'existing installs resume their last game view by default');
 assert.equal(defaults.controlSize, 'comfortable');
+for (const controlSize of ['compact', 'comfortable', 'large']) assert.equal(hydrateSettings({ loungePreferences: { controlSize } }).loungePreferences.controlSize, controlSize, `${controlSize} viewing distance remains saved`);
 assert.equal(defaults.browseSort, 'library');
 assert.equal(hydrateSettings({ loungePreferences: { browseSort: 'name' } }).loungePreferences.browseSort, 'name');
 assert.equal(hydrateSettings({ loungePreferences: { showPrivateGamesInLounge: true } }).loungePreferences.showPrivateGamesInLounge, true, 'the private-game display preference is saved independently of session PIN unlocks');
@@ -99,6 +150,12 @@ assert.equal(hydrateSettings({ loungePreferences: { entryScreen: 'home' } }).lou
 assert.equal(normalizeLoungePreferences({ entryScreen: 'bogus' }).entryScreen, 'games');
 assert.equal(defaults.particleStyle, 'theme');
 assert(LOUNGE_PARTICLE_IDS.includes('falling-heart'));
+const newParticleStyles = ['prism-shards', 'digital-rain', 'ember-rise', 'halo-rings', 'starbursts', 'moon-wisps'];
+for (const particleStyle of newParticleStyles) {
+  assert.ok(LOUNGE_PARTICLE_IDS.includes(particleStyle), `${particleStyle} is offered as a Lounge particle style`);
+  assert.equal(normalizeLoungePreferences({ particleStyle }).particleStyle, particleStyle);
+  assert.equal(hydrateSettings({ loungePreferences: { particleStyle } }).loungePreferences.particleStyle, particleStyle, `${particleStyle} survives saved settings`);
+}
 const particleCatalog = JSON.parse(fs.readFileSync(new URL('../electron/themes/builtin-particles.json', import.meta.url), 'utf8'));
 assert.deepEqual(LOUNGE_PARTICLE_IDS.slice(2, 2 + particleCatalog.length), particleCatalog.map(item => item.id));
 assert(LOUNGE_PARTICLE_IDS.includes('fireflies'));
@@ -237,6 +294,10 @@ assert.deepEqual(emulatorZoneGames(retroGames, 'snes').map(game => game.id), ['a
 assert.equal(emulatorZoneStatus([], retroGames, 'snes').configured, false, 'an imported game never implies the emulator profile is set up');
 assert.equal(emulatorZoneStatus([{ platform: 'snes', emulatorPath: 'emulator.exe', romFolder: 'roms' }], retroGames, 'snes').configured, true);
 assert.equal(nextLoungeConsole(LOUNGE_CONSOLES[0].id, -1), LOUNGE_CONSOLES.at(-1).id, 'shoulder navigation wraps around');
+assert.equal(visibleLoungeConsoles('snes').length, 5, 'the compact picker never shows more than five consoles');
+assert.equal(visibleLoungeConsoles('snes')[2].id, 'snes', 'the active console stays centered');
+assert.deepEqual(visibleLoungeConsoles(LOUNGE_CONSOLES[0].id).map(console => console.offset), [-2, -1, 0, 1, 2], 'the five slots stay centered across wraparound');
+assert.deepEqual(visibleLoungeConsoles('a', [{ id: 'a' }, { id: 'b' }]).map(console => console.id), ['b', 'a'], 'small console lists never duplicate entries');
 const emulatorZoneSource = fs.readFileSync(new URL('../src/components/lounge/NeoLounge.jsx', import.meta.url), 'utf8');
 const loungeComponentsDirectory = new URL('../src/components/lounge/', import.meta.url);
 const loungeComponentSources = fs.readdirSync(loungeComponentsDirectory)
@@ -246,8 +307,16 @@ const loungeComponentSources = fs.readdirSync(loungeComponentsDirectory)
 const loungeStylesSource = fs.readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
 const loungeParticleLayerSource = fs.readFileSync(new URL('../src/components/lounge/LoungeParticleLayer.jsx', import.meta.url), 'utf8');
 const controllerSource = fs.readFileSync(new URL('../src/components/controller/ControllerNavigationBridge.jsx', import.meta.url), 'utf8');
+assert.match(loungeStylesSource, /\.lounge-browser\[data-shelf-position='bottom'\] \.lounge-browser-track[^\n]*align-items: flex-end/, 'horizontal carousel cards share a bottom baseline');
+assert.match(loungeStylesSource, /\.lounge-browser\[data-shelf-position='bottom'\] \.lounge-browser-card[^\n]*transform-origin: center bottom/, 'selected and neighboring card emphasis grows upward from the shared bottom edge');
+assert.match(loungeStylesSource, /\.lounge-browser-card\[data-lounge-selected='true'\] \{ transform: scale\(/, 'selected-card pop animation does not shift its bottom edge');
+assert.doesNotMatch(loungeStylesSource, /\.lounge-browser-card\[data-lounge-selected='true'\] \{ transform: translateY\(/, 'selected card no longer hangs below its carousel baseline');
 assert.match(emulatorZoneSource, /data-lounge-zone=\{zone\}/, 'the active Lounge zone is exposed to controller navigation');
 assert.match(emulatorZoneSource, /data-lounge-console/, 'every console has a controller target');
+assert.match(emulatorZoneSource, /data-lounge-source="pc" aria-selected=\{zone === 'home'\}/, 'PC selection has a visible and accessible active state');
+assert.match(emulatorZoneSource, /data-lounge-source="emulator" aria-selected=\{zone === 'emulator'\}/, 'Emulator selection has a visible and accessible active state');
+assert.match(emulatorZoneSource, /className="lounge-toolbar[^\n]+\{zone === 'home' &&/, 'game filters stay visible while Emulator is selected');
+assert.doesNotMatch(emulatorZoneSource, /data-testid="lounge-emulator-identity"/, 'a separate full-width emulator banner no longer takes vertical space');
 assert.match(emulatorZoneSource, /function LoungeTopButton/, 'Lounge navigation uses icon-first controls');
 assert.match(emulatorZoneSource, /className="lounge-top-icon__label" aria-hidden="true"/, 'visual dropdown labels supplement accessible button names');
 assert.match(emulatorZoneSource, /lounge-console-tab__label/, 'console labels can appear beneath the marks');

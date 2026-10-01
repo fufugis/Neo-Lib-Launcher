@@ -1,10 +1,11 @@
 import React from 'react';
 import { customThemeAssetUrl, customThemeCanvas, customThemeManifest, stockThemeAssetUrl, stockThemeFileUrl, stockThemeManifest } from '../../themes/stock-theme-registry.mjs';
 import { loungeSceneArt } from './lounge-scene-art.mjs';
-import { findBrightestArea } from './lounge-light-analysis.mjs';
+import { findBrightestArea, projectArtworkPoint } from './lounge-light-analysis.mjs';
 import { loungeBackgroundMediaKind, loungeBackgroundMotionStyle } from './lounge-layout-model.mjs';
 
 export default function LoungeLivingBackdrop({ theme, game, loungeLevel, motion, active, flowOpacity = 0.36, flowSeconds = 18, preferences, onBackgroundError }) {
+  const chromaticFilterId = `lounge-chromatic-${React.useId().replace(/[^a-z0-9_-]/gi, '')}`;
   const [failedGameArt, setFailedGameArt] = React.useState([]);
   const [failedBackgroundUrl, setFailedBackgroundUrl] = React.useState('');
   const [artRatio, setArtRatio] = React.useState(16 / 9);
@@ -117,25 +118,52 @@ export default function LoungeLivingBackdrop({ theme, game, loungeLevel, motion,
   const imageOpacity = mode === 'image' || sceneArt ? (preferences?.backgroundOpacity ?? 65) / 100 : artOpacity * (preferences?.backgroundOpacity ?? 65) / 65;
   const backgroundMoves = animated;
   const waveLevel = Math.max(0, Math.min(4, Number(loungeLevel) || 0)) / 4;
-  const waveStrength = Math.max(0, Math.min(100, Number(preferences?.waveStrength ?? 35) || 0));
+  const waveStrength = Math.max(0, Math.min(300, Number(preferences?.waveStrength ?? 35) || 0));
+  const waveGain = waveStrength / 100;
   const waveOpacity = backgroundMoves && preferences?.ambientMotion === 'waves'
-    ? Math.min(1, (waveStrength / 160) * 3 * (0.4 + 0.6 * waveLevel) * (motion === 'subtle' ? 0.7 : 1)) : 0;
+    ? Math.min(1, waveGain * (0.95 + 0.65 * waveLevel) * (motion === 'subtle' ? 0.7 : 1)) : 0;
   const atmosphereOpacity = Math.max(0, Math.min(100, Number(preferences?.atmosphereOpacity ?? 100))) / 100;
-  const lightBloom = Math.max(0, Math.min(100, Number(preferences?.lightBloom ?? 55))) / 100;
-  return <div className="lounge-living-backdrop pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true" data-lounge-backdrop-active={backgroundMoves ? 'true' : 'false'} data-lounge-backdrop-motion={preferences?.ambientMotion || 'drift'} data-lounge-user-motion={movingUserArt ? 'true' : 'false'} style={{ ...loungeBackgroundMotionStyle(preferences?.backgroundUrl, preferences?.backgroundZoom, backgroundMotion), '--lounge-atmosphere-opacity': atmosphereOpacity, '--lounge-motion-strength': motionStrength, '--lounge-wave-strength': waveStrength / 100, '--lounge-light-bloom': lightBloom, '--lounge-backdrop-art-opacity': Math.max(0, Math.min(1, imageOpacity)), '--lounge-backdrop-position-x': `${preferences?.backgroundPositionX ?? 50}%`, '--lounge-backdrop-position-y': `${preferences?.backgroundPositionY ?? 50}%`, '--lounge-bright-x': `${brightestArea.x}%`, '--lounge-bright-y': `${brightestArea.y}%`, '--lounge-bright-strength': brightestArea.strength, '--lounge-game-art-opacity': Math.min(0.9, (preferences?.backgroundOpacity ?? 65) / 100), '--lounge-backdrop-halo-opacity': animated ? Math.min(0.75, (0.12 + loungeLevel * 0.055) * (flow / 0.36) * lightBloom) : 0, '--lounge-backdrop-duration': `${duration}s`, '--lounge-wave-opacity': waveOpacity, '--lounge-light-rays': (preferences?.lightRays ?? 65) / 100, '--lounge-highlight-pulse': (preferences?.highlightPulse ?? 55) / 100 }}>
+  const lightBloom = Math.max(0, Math.min(600, Number(preferences?.lightBloom ?? 55))) / 100;
+  const bloomSpread = Math.max(40, Math.min(220, Number(preferences?.bloomSpread ?? 100)));
+  const raySoftness = Math.max(0, Math.min(100, Number(preferences?.raySoftness ?? 45)));
+  const lightShimmer = Math.max(0, Math.min(100, Number(preferences?.lightShimmer ?? 55)));
+  const waveDrift = Math.max(0, Math.min(200, Number(preferences?.waveDrift ?? 100))) / 100;
+  const sceneDrift = Math.max(0, Math.min(200, Number(preferences?.sceneDrift ?? 100))) / 100;
+  const artSaturation = Math.max(50, Math.min(200, Number(preferences?.artSaturation ?? 100))) / 100;
+  const artContrast = Math.max(70, Math.min(150, Number(preferences?.artContrast ?? 100))) / 100;
+  const artTemperature = Math.max(-100, Math.min(100, Number(preferences?.artTemperature ?? 0)));
+  const filmGrain = Math.max(0, Math.min(100, Number(preferences?.filmGrain ?? 0)));
+  const chromaticAberration = Math.max(0, Math.min(100, Number(preferences?.chromaticAberration ?? 0)));
+  const chromaticOffset = Number((chromaticAberration * 0.08).toFixed(2));
+  const ribbonIntensity = Math.max(0, Math.min(100, Number(preferences?.ribbonIntensity ?? 0))) / 100;
+  const ribbonSpeed = Math.max(20, Math.min(200, Number(preferences?.ribbonSpeed ?? 100)));
+  const ribbonPosition = Math.max(0, Math.min(100, Number(preferences?.ribbonPosition ?? 35)));
+  const edgeGlow = Math.max(0, Math.min(100, Number(preferences?.edgeGlow ?? 0))) / 100;
+  const edgeWidth = Math.max(20, Math.min(180, Number(preferences?.edgeWidth ?? 80)));
+  const edgePulse = Math.max(0, Math.min(100, Number(preferences?.edgePulse ?? 50))) / 100;
+  const shimmerDuration = Math.max(0.28, 1.35 - lightShimmer / 100) * duration;
+  const artworkFit = mode === 'theme' ? 'cover' : artFit;
+  const renderedBrightestArea = projectArtworkPoint(brightestArea, artRatio, screenRatio, artworkFit, preferences?.backgroundPositionX ?? 50, preferences?.backgroundPositionY ?? 50);
+  const specularSurface = mode === 'game' ? 'lounge-living-backdrop__game' : mode === 'image' ? 'lounge-living-backdrop__user-image' : 'lounge-living-backdrop__art';
+  return <div className="lounge-living-backdrop pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true" data-lounge-backdrop-active={backgroundMoves ? 'true' : 'false'} data-lounge-backdrop-motion={preferences?.ambientMotion || 'drift'} data-lounge-user-motion={movingUserArt ? 'true' : 'false'} data-lounge-edge-pulse={animated && edgePulse > 0 ? 'true' : 'false'} style={{ ...loungeBackgroundMotionStyle(preferences?.backgroundUrl, preferences?.backgroundZoom, backgroundMotion), '--lounge-scene-drift': sceneDrift, '--lounge-art-saturation': artSaturation, '--lounge-art-contrast': artContrast, '--lounge-chromatic-filter': chromaticAberration > 0 ? `url("#${chromaticFilterId}")` : 'brightness(1)', '--lounge-film-grain-opacity': filmGrain * 0.0055, '--lounge-temperature-color': artTemperature < 0 ? `rgb(80 155 255 / ${Math.abs(artTemperature) / 250})` : `rgb(255 169 86 / ${artTemperature / 250})`, '--lounge-ribbon-opacity': ribbonIntensity, '--lounge-ribbon-duration': `${duration * 100 / ribbonSpeed}s`, '--lounge-ribbon-y': `${ribbonPosition}%`, '--lounge-edge-opacity': edgeGlow, '--lounge-edge-width': `${edgeWidth}px`, '--lounge-edge-pulse': edgePulse, '--lounge-atmosphere-opacity': atmosphereOpacity, '--lounge-motion-strength': motionStrength, '--lounge-wave-strength': waveStrength / 100, '--lounge-wave-drift': waveDrift, '--lounge-light-bloom': lightBloom, '--lounge-bloom-spread': `${bloomSpread}%`, '--lounge-ray-blur': `${1 + raySoftness * 0.08}px`, '--lounge-shimmer-duration': `${shimmerDuration}s`, '--lounge-backdrop-art-opacity': Math.max(0, Math.min(1, imageOpacity)), '--lounge-backdrop-position-x': `${preferences?.backgroundPositionX ?? 50}%`, '--lounge-backdrop-position-y': `${preferences?.backgroundPositionY ?? 50}%`, '--lounge-bright-x': `${renderedBrightestArea.x}%`, '--lounge-bright-y': `${renderedBrightestArea.y}%`, '--lounge-bright-strength': renderedBrightestArea.strength, '--lounge-game-art-opacity': Math.min(0.9, (preferences?.backgroundOpacity ?? 65) / 100), '--lounge-backdrop-halo-opacity': animated ? Math.min(0.75, (0.12 + loungeLevel * 0.055) * (flow / 0.36) * lightBloom) : 0, '--lounge-backdrop-duration': `${duration}s`, '--lounge-wave-opacity': waveOpacity, '--lounge-light-rays': Math.max(0, Math.min(300, Number(preferences?.lightRays ?? 65))) / 100, '--lounge-highlight-pulse': (preferences?.highlightPulse ?? 55) / 100 }}>
+    {chromaticAberration > 0 && <svg width="0" height="0" focusable="false" className="absolute" aria-hidden="true"><defs><filter id={chromaticFilterId} x="-2%" y="-2%" width="104%" height="104%" colorInterpolationFilters="sRGB"><feColorMatrix in="SourceGraphic" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="red" /><feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="green" /><feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="blue" /><feOffset in="red" dx={chromaticOffset} result="redShift" /><feOffset in="blue" dx={-chromaticOffset} result="blueShift" /><feBlend in="green" in2="redShift" mode="screen" result="greenRed" /><feBlend in="greenRed" in2="blueShift" mode="screen" /></filter></defs></svg>}
     <div className="lounge-living-backdrop__canvas absolute inset-0" style={{ backgroundImage: canvas }} />
     {image && mode !== 'image' && <div className="lounge-living-backdrop__art absolute inset-0" style={{ backgroundImage: `url(${JSON.stringify(image)})` }} />}
     {mode === 'image' && image && (mediaKind === 'video'
       ? <video ref={backgroundVideoRef} src={image} muted loop playsInline preload="metadata" autoPlay={movingUserArt} onLoadedMetadata={event => sampleArtwork(event.currentTarget)} onLoadedData={event => sampleArtwork(event.currentTarget)} onError={() => { setFailedBackgroundUrl(image); onBackgroundError?.(); }} className="lounge-living-backdrop__user-image lounge-living-backdrop__user-video absolute inset-0 h-full w-full" style={{ objectFit: artFit, objectPosition: `${preferences?.backgroundPositionX ?? 50}% ${preferences?.backgroundPositionY ?? 50}%` }} />
       : <img src={image} alt="" onLoad={event => sampleArtwork(event.currentTarget)} onError={() => { setFailedBackgroundUrl(image); onBackgroundError?.(); }} className="lounge-living-backdrop__user-image absolute inset-0 h-full w-full" style={{ objectFit: artFit, objectPosition: `${preferences?.backgroundPositionX ?? 50}% ${preferences?.backgroundPositionY ?? 50}%` }} />)}
     {mode === 'game' && gameArt && <img src={gameArt} alt="" onLoad={event => setArtRatio(event.currentTarget.naturalWidth / Math.max(1, event.currentTarget.naturalHeight))} onError={() => setFailedGameArt(previous => [...previous, gameArt])} className="lounge-living-backdrop__game absolute inset-0 h-full w-full" style={{ objectFit: artFit, transform: `scale(${(preferences?.backgroundZoom ?? 100) / 100})` }} />}
-    {lightSource && loungeBackgroundMediaKind(lightSource) !== 'video' && <img src={lightSource} alt="" className="lounge-living-backdrop__specular absolute inset-0 h-full w-full" style={{ objectFit: artFit, objectPosition: `${preferences?.backgroundPositionX ?? 50}% ${preferences?.backgroundPositionY ?? 50}%`, transform: `scale(${(preferences?.backgroundZoom ?? 100) / 100})` }} />}
-    <div className="lounge-living-backdrop__fx absolute inset-0">
+    {lightSource && loungeBackgroundMediaKind(lightSource) !== 'video' && <img src={lightSource} alt="" className={`lounge-living-backdrop__specular ${specularSurface} absolute inset-0 h-full w-full`} style={{ objectFit: artworkFit, objectPosition: `${preferences?.backgroundPositionX ?? 50}% ${preferences?.backgroundPositionY ?? 50}%`, transform: mode === 'game' ? `scale(${(preferences?.backgroundZoom ?? 100) / 100})` : undefined }} />}
+    {artTemperature !== 0 && <div className="lounge-living-backdrop__color-grade absolute inset-0" />}
+      <div className="lounge-living-backdrop__fx absolute inset-0">
       <div className="lounge-living-backdrop__waves absolute inset-0" />
+      {ribbonIntensity > 0 && <div className="lounge-living-backdrop__ribbons absolute inset-0" />}
       <div className="lounge-living-backdrop__light absolute inset-0" />
       <div className="lounge-living-backdrop__bloom absolute inset-0" />
       {(sceneArt || mode === 'game' || mode === 'image') && <><div className="lounge-living-backdrop__rays absolute inset-0" data-lounge-scene-art={sceneArt ? preferences?.specialTheme : 'dynamic'} /><div className="lounge-living-backdrop__highlight absolute inset-0" /></>}
     </div>
     <div className="lounge-living-backdrop__shade absolute inset-0" />
+    {filmGrain > 0 && <div className="lounge-living-backdrop__grain absolute inset-0" />}
+    {edgeGlow > 0 && <div className="lounge-living-backdrop__edge absolute inset-0" />}
   </div>;
 }

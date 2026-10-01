@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, CalendarDays, Clock3, Gamepad2, Grid2X2, Heart, History, House, ListFilter, Moon, Music2, PanelsTopLeft, Play, Settings2, Sparkles, Trophy } from 'lucide-react';
+import { ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Clock3, Gamepad2, Grid2X2, Heart, History, House, ListFilter, Monitor, Moon, Music2, PanelsTopLeft, Play, Settings2, Sparkles, Trophy } from 'lucide-react';
 import { controllerFocusTargets, nextControllerFocus } from '../../input/controller-focus.mjs';
 import { applyWallFilter } from '../library/wall-filter-model.mjs';
 import LoungeDetails from './LoungeDetails';
@@ -17,12 +17,12 @@ import LoungeThemeGallery from './LoungeThemeGallery';
 import LoungeJumpPanel from './LoungeJumpPanel';
 import LoungeMascotNotice from './LoungeMascotNotice';
 import LoungeParticleLayer from './LoungeParticleLayer';
-import { emulatorZoneGames, emulatorZoneStatus, LOUNGE_CONSOLES, nextLoungeConsole } from './lounge-emulator-zone.mjs';
+import { emulatorZoneGames, emulatorZoneStatus, LOUNGE_CONSOLES, nextLoungeConsole, visibleLoungeConsoles } from './lounge-emulator-zone.mjs';
 import { scrollLoungeStripToControl } from './lounge-strip-scroll.mjs';
-import { centeredCarouselTarget } from './lounge-carousel-centering.mjs';
+import { centeredCarouselTarget, glideCarouselPosition } from './lounge-carousel-centering.mjs';
 import { normalizeLoungeResume } from './lounge-resume-model.mjs';
 import { LOUNGE_CONSOLE_LOGOS } from './lounge-console-logos.mjs';
-import { LOUNGE_QUICK_LINKS, normalizeLoungePreferences, showLoungeBrowseFilter } from './lounge-layout-model.mjs';
+import { LOUNGE_QUICK_LINKS, loungeFramePaletteStyle, loungeSceneParticleStyle, normalizeLoungePreferences, showLoungeBrowseFilter } from './lounge-layout-model.mjs';
 import { filterLoungeLetter } from './lounge-alphabet-model.mjs';
 import { BgAmbience } from '../ThemeVisuals';
 import { customThemeManifest, stockThemeManifest, themePaletteStyle } from '../../themes/stock-theme-registry.mjs';
@@ -43,6 +43,14 @@ const LoungeTopButton = React.forwardRef(function LoungeTopButton({ Icon, label,
 });
 const CONSOLE_ACCENTS = Object.freeze({ atari2600: '255 147 91', c64: '185 149 255', nes: '255 94 105', snes: '191 150 255', n64: '108 214 120', gb: '176 204 130', gbc: '255 162 88', gba: '141 163 255', nds: '163 197 255', '3ds': '255 101 132', gamecube: '171 145 255', wii: '110 204 236', wiiu: '112 194 255', switch: '255 91 103', genesis: '154 185 255', dreamcast: '255 164 93', ps1: '120 177 255', ps2: '95 165 255', psp: '135 192 255', arcade: '255 197 90' });
 const FILTER_ACCENTS = Object.freeze({ wall: '151 171 255', browser: '98 213 255', all: '117 218 255', continue: '108 230 177', favorites: '255 128 175', recent: '174 145 255', week: '111 206 255', progress: '255 188 108', added: '132 220 190', most: '255 211 109', az: '163 191 255', visual: '130 235 201' });
+const LoungeGameCard = React.memo(function LoungeGameCard({ game, layout, selected, distance, coverFrame, frameColor, updateAvailable, actions }) {
+  const browser = layout === 'browser';
+  return <button type="button" data-lounge-game data-lounge-game-id={game.id} data-lounge-cover-frame={browser ? coverFrame : undefined} data-lounge-frame-color={browser ? frameColor : undefined} data-lounge-selected={selected ? 'true' : undefined} data-lounge-distance={browser ? distance : undefined} aria-label={`Open Lounge details for ${game.name || 'Untitled game'}${updateAvailable ? ', possible update flagged' : ''}`} aria-current={selected ? 'true' : undefined} onFocus={() => actions.current.focus(game.id)} onClick={() => actions.current.open(game.id)} className={`lounge-game-card group relative overflow-hidden rounded-2xl border-2 text-left transition duration-200 focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[rgb(var(--accent))] ${browser ? 'lounge-browser-card shrink-0' : 'w-full'} ${selected ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent)/0.18)]' : 'border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.84)] hover:border-[rgb(var(--accent)/0.65)]'}`}>
+    <span className={`relative block overflow-hidden bg-[rgb(var(--accent)/0.18)] ${browser ? '' : 'aspect-[2/3]'}`} style={browser ? { aspectRatio: 'var(--lounge-card-aspect, 1 / 1)' } : undefined}><LoungeCover game={game} />{updateAvailable && <span className="absolute right-2 top-2 rounded-lg bg-amber-300 px-2 py-1 text-xs font-bold text-black">Update flagged</span>}</span>
+    <span className="lounge-card-caption flex h-10 items-center justify-center overflow-hidden px-1.5 py-1 text-center" title={game.name}><span className="lounge-card-caption__text font-bold" style={{ fontSize: game.name?.length > 32 ? 10 : game.name?.length > 22 ? 11 : 12 }}>{game.name || 'Untitled game'}</span></span>
+    {browser && <i className="lounge-card-frame" aria-hidden="true" />}
+  </button>;
+});
 export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMPTY_FAVORITES, updateLedger = {}, initialGameId = null, initialLayout = 'browser', initialPreferences, initialResume, onResumeChange, savedPresets = [], onSavedPresetsChange, onLayoutChange, onPreferencesChange, theme = 'synthwave', themeSettings = {}, mascotId = 'fungist', mascotEnabled = true, onExit, onLaunch, resting = false, restReason = '', soundsEnabled = true, controllerEnabled, privateGameCount = 0, privateGamesUnlocked = false, onRequestPrivateGames }) {
   const startingResume = React.useRef(normalizeLoungeResume(initialResume)).current;
   const [selectedId, setSelectedId] = React.useState(startingResume.gameId || initialGameId);
@@ -72,7 +80,8 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
   const surfaceRef = React.useRef(null);
   const shelfRef = React.useRef(null);
   const lastCenteredGame = React.useRef(null);
-  const carouselMotion = React.useRef({ frame: 0, target: 0, axis: 'left', shelf: null });
+  const carouselMotion = React.useRef({ frame: 0, target: 0, axis: 'left', shelf: null, lastFrameAt: 0 });
+  const cardActions = React.useRef({ focus: () => {}, open: () => {} });
   const wheelNavigation = React.useRef({ lastAt: 0, lastStepAt: 0, remainder: 0, selectedId: null });
   const ambienceAudioRef = React.useRef(null);
   const detailsRef = React.useRef(null);
@@ -98,23 +107,25 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
   const lastAction = React.useRef(0);
   const lastFocusedControl = React.useRef(null);
   const safeGames = Array.isArray(games) ? games : EMPTY_GAMES;
-  const viewGames = React.useMemo(() => zone === 'emulator' ? emulatorZoneGames(safeGames, consoleId) : view === 'favorites' ? sortLoungeBrowseGames(applyWallFilter(safeGames, 'favorites', favoriteIds), preferences.browseSort)
-    : view === 'recent' ? applyWallFilter(safeGames, 'recently-played')
-      : view === 'most' ? applyWallFilter(safeGames, 'most-played')
-        : view === 'continue' ? continueLoungeGames(safeGames)
-          : view === 'added' ? recentlyAddedLoungeGames(safeGames)
-            : view === 'week' ? recentlyActiveLoungeGames(safeGames)
-              : view === 'progress' ? inProgressLoungeGames(safeGames) : sortLoungeBrowseGames(safeGames, preferences.browseSort), [safeGames, favoriteIds, view, zone, consoleId, preferences.browseSort]);
+  const pcGames = React.useMemo(() => safeGames.filter(game => game?.source !== 'emulation'), [safeGames]);
+  const viewGames = React.useMemo(() => {
+    const sourceGames = zone === 'emulator' ? emulatorZoneGames(safeGames, consoleId) : pcGames;
+    return view === 'favorites' ? sortLoungeBrowseGames(applyWallFilter(sourceGames, 'favorites', favoriteIds), preferences.browseSort)
+      : view === 'recent' ? applyWallFilter(sourceGames, 'recently-played')
+        : view === 'most' ? applyWallFilter(sourceGames, 'most-played')
+          : view === 'continue' ? continueLoungeGames(sourceGames)
+            : view === 'added' ? recentlyAddedLoungeGames(sourceGames)
+              : view === 'week' ? recentlyActiveLoungeGames(sourceGames)
+                : view === 'progress' ? inProgressLoungeGames(sourceGames) : sortLoungeBrowseGames(sourceGames, preferences.browseSort);
+  }, [safeGames, pcGames, favoriteIds, view, zone, consoleId, preferences.browseSort]);
   const shownGames = React.useMemo(() => filterLoungeLetter(viewGames, letter), [viewGames, letter]);
   const viewLabel = { all: 'All games', continue: 'Continue playing', favorites: 'Favorites', recent: 'Recently played', week: 'Played this week', progress: 'In progress', added: 'Recently added', most: 'Most played' }[view] || 'this view';
   const activeConsole = LOUNGE_CONSOLES.find(console => console.id === consoleId) || LOUNGE_CONSOLES[0];
+  const visibleConsoles = visibleLoungeConsoles(activeConsole.id);
   const consoleStatus = emulatorZoneStatus(retroProfiles, safeGames, activeConsole.id);
   React.useEffect(() => {
     scrollLoungeStripToControl(surfaceRef.current?.querySelector('[data-lounge-filter][aria-pressed="true"]'));
   }, [view]);
-  React.useEffect(() => {
-    if (zone === 'emulator') scrollLoungeStripToControl(surfaceRef.current?.querySelector('[data-lounge-console][aria-pressed="true"]'), 'center');
-  }, [zone, consoleId]);
   const selected = shownGames.find((game) => game.id === selectedId) || shownGames[0] || null;
   const selectedIndex = shownGames.findIndex(game => game.id === selected?.id);
   React.useEffect(() => {
@@ -140,7 +151,7 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
     const shelf = shelfRef.current;
     if (!shelf || !selected) return;
     const centerSelection = () => {
-      const card = [...shelf.querySelectorAll('[data-lounge-game]')].find(element => element.dataset.loungeGameId === String(selected.id));
+      const card = shelf.querySelector('[data-lounge-selected="true"]');
       if (!card) return;
       const vertical = window.getComputedStyle(shelf).flexDirection === 'column';
       const viewport = vertical ? shelf.clientHeight : shelf.clientWidth;
@@ -150,19 +161,17 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
       const crossAxisSize = vertical ? card.offsetWidth : card.offsetHeight;
       const crossAxisPadding = Math.max(20, Math.ceil(crossAxisSize * (selectedScale - 1) / 2 + 12));
       shelf.style.padding = vertical ? `${edge}px ${crossAxisPadding}px` : `${crossAxisPadding}px ${edge}px`;
-      const cardRect = card.getBoundingClientRect();
-      const shelfRect = shelf.getBoundingClientRect();
       const target = vertical
-        ? centeredCarouselTarget(shelf.scrollTop, cardRect.top, shelfRect.top, cardRect.height, shelf.clientHeight)
-        : centeredCarouselTarget(shelf.scrollLeft, cardRect.left, shelfRect.left, cardRect.width, shelf.clientWidth);
+        ? centeredCarouselTarget(0, card.offsetTop, 0, cardSize, viewport)
+        : centeredCarouselTarget(0, card.offsetLeft, 0, cardSize, viewport);
       const axis = vertical ? 'top' : 'left';
-      const destination = Math.max(0, target);
+      const destination = Math.max(0, Math.min(target, vertical ? shelf.scrollHeight - viewport : shelf.scrollWidth - viewport));
       const reducedMotion = preferences.motion === 'off' || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       const motion = carouselMotion.current;
       if (motion.shelf !== shelf || motion.axis !== axis) {
         if (motion.frame) window.cancelAnimationFrame(motion.frame);
-        if (motion.shelf) motion.shelf.style.scrollSnapType = '';
         motion.frame = 0;
+        motion.lastFrameAt = 0;
         motion.shelf = shelf;
         motion.axis = axis;
       }
@@ -170,24 +179,21 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
       if (reducedMotion || lastCenteredGame.current == null) {
         if (motion.frame) window.cancelAnimationFrame(motion.frame);
         motion.frame = 0;
-        shelf.style.scrollSnapType = '';
+        motion.lastFrameAt = 0;
         shelf[axis === 'top' ? 'scrollTop' : 'scrollLeft'] = destination;
       } else if (!motion.frame) {
-        // Native scroll snapping can override each animation frame and make
-        // controller movement look like an instant card flip. The target is
-        // already an exact card center, so suspend snap only during the glide.
-        shelf.style.scrollSnapType = 'none';
-        const animate = () => {
+        const animate = timestamp => {
           const property = motion.axis === 'top' ? 'scrollTop' : 'scrollLeft';
           const current = motion.shelf?.[property] ?? 0;
           const distance = motion.target - current;
           if (Math.abs(distance) < 0.55) {
             if (motion.shelf) motion.shelf[property] = motion.target;
             motion.frame = 0;
-            if (motion.shelf) motion.shelf.style.scrollSnapType = '';
+            motion.lastFrameAt = 0;
             return;
           }
-          motion.shelf[property] = current + distance * 0.2;
+          motion.shelf[property] = glideCarouselPosition(current, motion.target, motion.lastFrameAt ? timestamp - motion.lastFrameAt : 16.7);
+          motion.lastFrameAt = timestamp;
           motion.frame = window.requestAnimationFrame(animate);
         };
         motion.frame = window.requestAnimationFrame(animate);
@@ -202,7 +208,6 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
   React.useEffect(() => () => {
     const motion = carouselMotion.current;
     if (motion.frame) window.cancelAnimationFrame(motion.frame);
-    if (motion.shelf) motion.shelf.style.scrollSnapType = '';
   }, []);
   const soundsActive = preferences.browseSoundEnabled && soundsEnabled && !resting && pageVisible && preferences.browseSoundVolume > 0;
   React.useEffect(() => {
@@ -252,10 +257,11 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
   const fxEnabled = !resting && pageVisible && loungeLevel > 0;
   const editingOpen = settingsOpen || soundOpen || visualOpen || themesOpen;
   const ambientFxEnabled = fxEnabled && !editingOpen;
-  const loungeParticleStyle = preferences.particleStyle === 'theme' && preferences.specialTheme !== 'theme' ? 'starlight' : preferences.particleStyle;
+  const loungeParticleStyle = preferences.particleStyle === 'theme' ? loungeSceneParticleStyle(preferences.specialTheme) : preferences.particleStyle;
   const loungeThemeSettings = { ...themeSettings, motionCadence: preferences.motion === 'subtle' ? 'calm' : themeSettings.motionCadence, effectsLevelByTheme: { ...themeSettings.effectsLevelByTheme, [effectiveTheme]: loungeLevel } };
   const visualStyle = {
     ...(preferences.specialTheme === 'theme' ? themePaletteStyle(effectiveTheme) : {}),
+    ...loungeFramePaletteStyle(preferences.frameColor, preferences.frameCustomColor),
     '--lounge-glow': ambientFxEnabled ? (loungeStyle.focusGlow ?? 0.75) : 0.2,
     '--lounge-flow-opacity': ambientFxEnabled ? (loungeStyle.flowOpacity ?? 0.36) : 0,
     '--lounge-atmosphere-opacity': preferences.atmosphereOpacity / 100,
@@ -385,13 +391,14 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
   const closeThemes = () => { flushPreferences(); setThemesOpen(false); window.requestAnimationFrame(() => themesFocusRef.current?.focus?.()); };
   const tuneVisualsFromThemes = () => { flushPreferences(); visualFocusRef.current = themesButtonRef.current; setThemesOpen(false); setVisualOpen(true); };
   const openVisualFromGuide = () => { flushPreferences(); visualFocusRef.current = visualButtonRef.current; setGuideOpen(false); setVisualOpen(true); };
-  const browseFromGuide = filter => { flushPreferences(); setGuideOpen(false); focusAfterViewChange.current = true; setLetter(''); setView(filter); changeLayout('wall'); window.requestAnimationFrame(() => surfaceRef.current?.querySelector('[data-lounge-selected="true"], [data-lounge-game], [data-lounge-filter][aria-pressed="true"]')?.focus()); };
+  const browseFromGuide = filter => { flushPreferences(); setGuideOpen(false); focusAfterViewChange.current = true; setLetter(''); setView(filter); if (zone === 'emulator') { chooseZone('home'); homeLayoutRef.current = 'wall'; setLayout('wall'); onLayoutChange?.('wall'); } else changeLayout('wall'); window.requestAnimationFrame(() => surfaceRef.current?.querySelector('[data-lounge-selected="true"], [data-lounge-game], [data-lounge-filter][aria-pressed="true"]')?.focus()); };
   const openGameFromGuide = id => {
     flushPreferences();
     guideFocusRef.current = guideFocusRef.current || document.activeElement;
     detailsRef.current = guideFocusRef.current;
     detailsBrowsed.current = false;
     setGuideOpen(false);
+    if (zone === 'emulator') chooseZone('home');
     setView('all');
     setSelectedId(id);
     setDetailsId(id);
@@ -443,7 +450,7 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
     const nextGame = shownGames[nextIndex];
     if (!nextGame || nextIndex === currentIndex) { state.remainder = 0; return; }
     state.selectedId = nextGame.id;
-    const nextButton = [...(shelfRef.current?.querySelectorAll('[data-lounge-game]') || [])].find(button => button.dataset.loungeGameId === String(nextGame.id));
+    const nextButton = shelfRef.current?.firstElementChild?.children[nextIndex];
     if (nextButton) nextButton.focus({ preventScroll: true });
     else selectGame(nextGame.id);
   };
@@ -471,12 +478,11 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
     if (next) { event.preventDefault(); const shelfGame = layout === 'browser' && next.matches?.('.lounge-browser-card'); next.focus({ preventScroll: true }); if (!shelfGame && !scrollLoungeStripToControl(next)) next.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }); }
   };
 
-  const coverButton = (game, index) => <button key={game.id} type="button" data-lounge-game data-lounge-game-id={game.id} data-lounge-selected={selected?.id === game.id ? 'true' : undefined} data-lounge-distance={layout === 'browser' ? Math.min(3, Math.abs(index - selectedIndex)) : undefined} aria-label={`Open Lounge details for ${game.name || 'Untitled game'}${updateLedger[game.id]?.status === 'available' ? ', possible update flagged' : ''}`} aria-current={selected?.id === game.id ? 'true' : undefined} onFocus={() => { focusedGameId.current = game.id; selectGame(game.id); }} onClick={() => openDetails(game.id)} className={`lounge-game-card group relative overflow-hidden rounded-2xl border-2 text-left transition duration-200 focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[rgb(var(--accent))] ${layout === 'browser' ? 'lounge-browser-card shrink-0' : 'w-full'} ${selected?.id === game.id ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent)/0.18)]' : 'border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.84)] hover:border-[rgb(var(--accent)/0.65)]'}`}>
-    <span className={`relative block overflow-hidden bg-[rgb(var(--accent)/0.18)] ${layout === 'browser' ? '' : 'aspect-[2/3]'}`} style={layout === 'browser' ? { aspectRatio: 'var(--lounge-card-aspect, 1 / 1)' } : undefined}><LoungeCover game={game} />{updateLedger[game.id]?.status === 'available' && <span className="absolute right-2 top-2 rounded-lg bg-amber-300 px-2 py-1 text-xs font-bold text-black">Update flagged</span>}</span>
-    <span className="lounge-card-caption flex h-10 items-center justify-center overflow-hidden px-1.5 py-1 text-center" title={game.name}><span className="lounge-card-caption__text font-bold" style={{ fontSize: game.name?.length > 32 ? 10 : game.name?.length > 22 ? 11 : 12 }}>{game.name || 'Untitled game'}</span></span>
-  </button>;
+  cardActions.current.focus = id => { focusedGameId.current = id; selectGame(id); };
+  cardActions.current.open = openDetails;
+  const coverButton = (game, index) => <LoungeGameCard key={game.id} game={game} layout={layout} selected={selected?.id === game.id} distance={layout === 'browser' ? Math.min(3, Math.abs(index - selectedIndex)) : undefined} coverFrame={preferences.coverFrame} frameColor={preferences.frameColor} updateAvailable={updateLedger[game.id]?.status === 'available'} actions={cardActions} />;
 
-  return <section ref={surfaceRef} data-testid="neo-lounge" data-controller-surface="lounge" data-lounge-zone={zone} data-theme={effectiveTheme} data-lounge-layout={layout} data-lounge-scene={preferences.specialTheme} data-lounge-control-size={preferences.controlSize} data-lounge-motion={preferences.motion} data-lounge-fx={ambientFxEnabled ? 'on' : 'off'} data-lounge-cover-glow={preferences.coverGlow} data-lounge-editing={editingOpen ? 'true' : undefined} data-lounge-paused={!pageVisible || resting ? 'true' : undefined} role="dialog" aria-modal="true" aria-busy={transitionBusy} aria-label="NEO Lounge" aria-describedby="lounge-control-help" onKeyDown={onKeyDown} onPointerDownCapture={() => { lastPointerDown.current = Date.now(); }} onFocusCapture={event => { const button = event.target.closest?.('button'); if (!button || button === lastFocusedControl.current) return; lastFocusedControl.current = button; if (!button.hasAttribute('data-lounge-game') && Date.now() - Math.max(lastPointerDown.current, lastAction.current) > 250) previewSound('move'); }} onClickCapture={event => { const button = event.target.closest?.('button'); if (!button || button.disabled || button.hasAttribute('data-lounge-sound-preview')) return; lastAction.current = Date.now(); previewSound(button.matches('[data-controller-close], [aria-label^="Dismiss"]') ? 'back' : button.matches('[data-lounge-game], .lounge-stage-action') ? 'explore' : 'confirm'); }} className="fixed inset-0 z-[9000] isolate flex flex-col overflow-hidden bg-[rgb(var(--surface))] text-ink" style={visualStyle}>
+  return <section ref={surfaceRef} data-testid="neo-lounge" data-controller-surface="lounge" data-lounge-zone={zone} data-theme={effectiveTheme} data-lounge-layout={layout} data-lounge-scene={preferences.specialTheme} data-lounge-control-size={preferences.controlSize} data-lounge-motion={preferences.motion} data-lounge-fx={ambientFxEnabled ? 'on' : 'off'} data-lounge-cover-glow={preferences.coverGlow} data-lounge-cover-frame={preferences.coverFrame} data-lounge-editing={editingOpen ? 'true' : undefined} data-lounge-paused={!pageVisible || resting ? 'true' : undefined} role="dialog" aria-modal="true" aria-busy={transitionBusy} aria-label="NEO Lounge" aria-describedby="lounge-control-help" onKeyDown={onKeyDown} onPointerDownCapture={() => { lastPointerDown.current = Date.now(); }} onFocusCapture={event => { const button = event.target.closest?.('button'); if (!button || button === lastFocusedControl.current) return; lastFocusedControl.current = button; if (!button.hasAttribute('data-lounge-game') && Date.now() - Math.max(lastPointerDown.current, lastAction.current) > 250) previewSound('move'); }} onClickCapture={event => { const button = event.target.closest?.('button'); if (!button || button.disabled || button.hasAttribute('data-lounge-sound-preview')) return; lastAction.current = Date.now(); previewSound(button.matches('[data-controller-close], [aria-label^="Dismiss"]') ? 'back' : button.matches('[data-lounge-game], .lounge-stage-action') ? 'explore' : 'confirm'); }} className="fixed inset-0 z-[9000] isolate flex flex-col overflow-hidden bg-[rgb(var(--surface))] text-ink" style={visualStyle}>
     <audio ref={ambienceAudioRef} src={ambienceUrl || undefined} loop preload="none" aria-hidden="true" onError={() => { if (ambienceUrl) setAmbienceError('This ambience file could not be played. Choose another MP3.'); }} />
     <LoungeLivingBackdrop theme={effectiveTheme} game={selected} loungeLevel={loungeLevel} motion={preferences.motion} active={ambientFxEnabled} flowOpacity={loungeStyle.flowOpacity} flowSeconds={loungeStyle.flowSeconds} preferences={preferences} />
     {preferences.specialTheme === 'theme' && <BgAmbience theme={effectiveTheme} settings={loungeThemeSettings} game={selected} resting={resting || !pageVisible || editingOpen} particlesEnabled={preferences.particleStyle === 'theme'} loungeMode />}
@@ -485,8 +491,7 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
     <header className="relative z-30 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.86)] px-4 py-3 sm:px-8">
       <div><p className="text-[10px] font-black uppercase tracking-[0.24em] text-[rgb(var(--accent))]">NEO Lounge</p><h1 className="text-lg font-bold sm:text-2xl">Your games, from the couch</h1>{resting && <span role="status" title={restReason} className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-[rgb(var(--accent)/0.45)] bg-[rgb(var(--panel)/0.8)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[rgb(var(--accent-2))]"><Moon size={12} aria-hidden="true" /> Rest active · background work paused</span>}</div>
       <nav aria-label="Lounge navigation" className="lounge-top-nav flex flex-wrap items-center gap-2">
-        <LoungeTopButton ref={homeButtonRef} Icon={House} label="Home" accent="100 213 255" homeZone pressed={zone === 'home'} onClick={() => zone === 'emulator' ? chooseZone('home') : openGuide()} />
-        <LoungeTopButton Icon={Gamepad2} label="Emulator Zone" accent="255 140 109" testId="lounge-emulator-zone-toggle" pressed={zone === 'emulator'} onClick={() => chooseZone('emulator')} />
+        <LoungeTopButton ref={homeButtonRef} Icon={House} label="Home" accent="100 213 255" homeZone pressed={guideOpen} onClick={() => zone === 'emulator' ? chooseZone('home') : openGuide()} />
         <LoungeTopButton Icon={Settings2} label="Settings" accent="255 199 111" pressed={settingsOpen} onClick={openSettings} />
         <LoungeTopButton Icon={Music2} label="Sound & Music" accent="255 133 203" testId="lounge-sound-toggle" pressed={soundOpen} onClick={openSound} />
         <LoungeTopButton ref={themesButtonRef} Icon={PanelsTopLeft} label="Themes" accent="172 143 255" pressed={themesOpen} onClick={openThemes} />
@@ -494,14 +499,26 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
         <LoungeTopButton ref={exitRef} Icon={ArrowLeft} label="Back to launcher" accent="255 143 161" controllerClose disabled={transitionBusy} onClick={requestExit} />
       </nav>
     </header>
-    {zone === 'home' && preferences.specialTheme !== 'theme' && preferences.quickLinks.length > 0 && <nav aria-label="Lounge top shortcuts" className="lounge-scene-shortcuts relative z-10 flex shrink-0 items-center gap-2 overflow-x-auto px-4 py-2 sm:px-8">{preferences.quickLinks.map(id => { const Icon = QUICK_LINK_ICONS[id]; return <button key={id} type="button" aria-label={LOUNGE_QUICK_LINKS[id]} aria-pressed={id === 'visual' ? visualOpen : view === id} onClick={() => id === 'visual' ? openVisual() : chooseView(id)} className="lounge-top-choice lounge-scene-shortcut lounge-nav-button" style={{ '--lounge-icon-color': FILTER_ACCENTS[id] || '141 203 255' }}><Icon size={25} aria-hidden="true" /><span className="lounge-top-choice__label" aria-hidden="true">{LOUNGE_QUICK_LINKS[id]}</span></button>; })}</nav>}
     <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4 sm:px-8 sm:py-5">
-      {zone === 'emulator' && <nav data-testid="lounge-console-strip" aria-label="Emulator Zone consoles" className="lounge-console-strip mb-3 flex shrink-0 items-center gap-2 overflow-x-auto rounded-2xl border border-[rgb(var(--accent)/0.55)] bg-[rgb(var(--panel)/0.72)] p-2"><span className="shrink-0 rounded-lg border border-[rgb(var(--accent)/0.55)] bg-[rgb(var(--accent)/0.16)] px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[rgb(var(--accent-2))]">LB · RB</span>{LOUNGE_CONSOLES.map(console => { const status = emulatorZoneStatus(retroProfiles, safeGames, console.id); return <button key={console.id} type="button" data-lounge-console aria-pressed={consoleId === console.id} onClick={() => chooseConsole(console.id)} aria-label={`${console.label}, ${status.count} game${status.count === 1 ? '' : 's'}${status.configured ? '' : ', setup needed'}`} className="lounge-console-tab lounge-nav-button" style={{ '--lounge-icon-color': CONSOLE_ACCENTS[console.id] || '154 206 255' }}><ConsoleLogo id={console.id} label={console.label} shortLabel={console.shortLabel} /><span className="lounge-console-tab__label" aria-hidden="true">{console.label}</span></button>; })}</nav>}
-      {zone === 'home' && <div className="lounge-toolbar mb-3 flex w-fit max-w-full self-start items-center gap-2 rounded-2xl border border-[rgb(var(--border)/0.78)] bg-[rgb(var(--panel)/0.6)] p-1.5"><div className="flex shrink-0 items-center gap-1" role="group" aria-label="Lounge layout">
+      <div data-testid="lounge-source-pane" className="lounge-source-pane mb-2 flex max-w-full shrink-0 flex-wrap items-center gap-2 self-start rounded-2xl border border-[rgb(var(--border)/0.78)] bg-[rgb(var(--panel)/0.7)] p-2">
+        <div className="lounge-source-tabs flex items-center gap-1" role="tablist" aria-label="Game source">
+          <button type="button" role="tab" data-lounge-source="pc" aria-selected={zone === 'home'} aria-label="PC games" onClick={() => chooseZone('home')} className="lounge-source-tab lounge-nav-button"><Monitor size={19} aria-hidden="true" /><span>PC</span></button>
+          <button type="button" role="tab" data-testid="lounge-emulator-zone-toggle" data-lounge-source="emulator" aria-selected={zone === 'emulator'} aria-label="Emulator games" onClick={() => chooseZone('emulator')} className="lounge-source-tab lounge-nav-button"><Gamepad2 size={19} aria-hidden="true" /><span>Emulator</span></button>
+        </div>
+        {zone === 'emulator' && <div className="lounge-console-picker flex min-w-0 items-center gap-1">
+          <button type="button" className="lounge-console-step lounge-nav-button" aria-label="Previous console" onClick={() => chooseConsole(nextLoungeConsole(consoleId, -1))}><ChevronLeft size={20} aria-hidden="true" /></button>
+          <nav data-testid="lounge-console-strip" aria-label="Emulator consoles" className="lounge-console-strip lounge-console-window">
+            {visibleConsoles.map(console => { const status = emulatorZoneStatus(retroProfiles, safeGames, console.id); return <button key={console.id} type="button" data-lounge-console data-offset={console.offset} aria-pressed={consoleId === console.id} onClick={() => chooseConsole(console.id)} aria-label={`${console.label}, ${status.count} game${status.count === 1 ? '' : 's'}${status.configured ? '' : ', setup needed'}`} className="lounge-console-tab lounge-nav-button" style={{ '--lounge-icon-color': CONSOLE_ACCENTS[console.id] || '154 206 255' }}><ConsoleLogo id={console.id} label={console.label} shortLabel={console.shortLabel} /><span className="lounge-console-tab__label" aria-hidden="true">{console.label}</span></button>; })}
+          </nav>
+          <button type="button" className="lounge-console-step lounge-nav-button" aria-label="Next console" onClick={() => chooseConsole(nextLoungeConsole(consoleId, 1))}><ChevronRight size={20} aria-hidden="true" /></button>
+          <span className="lounge-console-summary" aria-live="polite">{activeConsole.label} · {consoleStatus.configured ? `${consoleStatus.count} games` : 'Setup needed'}</span>
+        </div>}
+      </div>
+      {zone === 'home' && preferences.specialTheme !== 'theme' && preferences.quickLinks.length > 0 && <nav aria-label="Lounge top shortcuts" className="lounge-scene-shortcuts relative z-10 mb-2 flex max-w-full shrink-0 items-center gap-2 overflow-x-auto py-2">{preferences.quickLinks.map(id => { const Icon = QUICK_LINK_ICONS[id]; return <button key={id} type="button" aria-label={LOUNGE_QUICK_LINKS[id]} aria-pressed={id === 'visual' ? visualOpen : view === id} onClick={() => id === 'visual' ? openVisual() : chooseView(id)} className="lounge-top-choice lounge-scene-shortcut lounge-nav-button" style={{ '--lounge-icon-color': FILTER_ACCENTS[id] || '141 203 255' }}><Icon size={25} aria-hidden="true" /><span className="lounge-top-choice__label" aria-hidden="true">{LOUNGE_QUICK_LINKS[id]}</span></button>; })}</nav>}
+      <div className="lounge-toolbar mb-3 flex w-fit max-w-full self-start items-center gap-2 rounded-2xl border border-[rgb(var(--border)/0.78)] bg-[rgb(var(--panel)/0.6)] p-1.5">{zone === 'home' && <div className="flex shrink-0 items-center gap-1" role="group" aria-label="Lounge layout">
         {[['wall', 'Wall'], ['browser', 'Game browser']].map(([id, label]) => <button key={id} type="button" data-lounge-layout-button aria-pressed={layout === id} onClick={() => changeLayout(id)} aria-label={label} className="lounge-top-choice lounge-mode-toggle lounge-nav-button" style={{ '--lounge-icon-color': FILTER_ACCENTS[id] }}>{id === 'wall' ? <Grid2X2 size={25} aria-hidden="true" /> : <PanelsTopLeft size={25} aria-hidden="true" />}<span className="lounge-top-choice__label" aria-hidden="true">{label}</span></button>)}
-      </div><nav aria-label="Lounge game filters" className="lounge-filter-strip flex min-w-0 flex-none max-w-full items-center gap-1 overflow-x-auto whitespace-nowrap">{[['all', 'All games', Grid2X2], ['continue', 'Continue playing', Play], ['favorites', 'Favorites', Heart], ['recent', 'Recently played', History], ['week', 'Played this week', Clock3], ['progress', 'In progress', Play], ['added', 'Recently added', CalendarDays], ['most', 'Most played', Trophy]].filter(([id]) => showLoungeBrowseFilter(id, preferences.hiddenBrowseFilters, view === id)).map(([id, label, Icon]) => <button key={id} type="button" data-lounge-filter aria-label={label} aria-pressed={view === id} onClick={() => chooseView(id)} className="lounge-top-choice lounge-filter-toggle lounge-nav-button" style={{ '--lounge-icon-color': FILTER_ACCENTS[id] }}><Icon size={25} aria-hidden="true" /><span className="lounge-top-choice__label" aria-hidden="true">{label}</span></button>)}{showLoungeBrowseFilter('az', preferences.hiddenBrowseFilters, Boolean(letter) || jumpOpen) && <button type="button" onClick={openJump} aria-label={letter ? `Jump to letter, showing ${letter}` : 'Jump to a game letter'} aria-pressed={Boolean(letter)} className="lounge-top-choice lounge-filter-toggle lounge-nav-button" style={{ '--lounge-icon-color': FILTER_ACCENTS.az }}><ListFilter size={25} aria-hidden="true" /><span className="lounge-top-choice__label" aria-hidden="true">{letter ? `${letter} · ${shownGames.length}` : 'A–Z'}</span></button>}</nav></div>}
+      </div>}<nav aria-label="Lounge game filters" className="lounge-filter-strip flex min-w-0 flex-none max-w-full items-center gap-1 overflow-x-auto whitespace-nowrap">{[['all', 'All games', Grid2X2], ['continue', 'Continue playing', Play], ['favorites', 'Favorites', Heart], ['recent', 'Recently played', History], ['week', 'Played this week', Clock3], ['progress', 'In progress', Play], ['added', 'Recently added', CalendarDays], ['most', 'Most played', Trophy]].filter(([id]) => showLoungeBrowseFilter(id, preferences.hiddenBrowseFilters, view === id)).map(([id, label, Icon]) => <button key={id} type="button" data-lounge-filter aria-label={label} aria-pressed={view === id} onClick={() => chooseView(id)} className="lounge-top-choice lounge-filter-toggle lounge-nav-button" style={{ '--lounge-icon-color': FILTER_ACCENTS[id] }}><Icon size={25} aria-hidden="true" /><span className="lounge-top-choice__label" aria-hidden="true">{label}</span></button>)}{showLoungeBrowseFilter('az', preferences.hiddenBrowseFilters, Boolean(letter) || jumpOpen) && <button type="button" onClick={openJump} aria-label={letter ? `Jump to letter, showing ${letter}` : 'Jump to a game letter'} aria-pressed={Boolean(letter)} className="lounge-top-choice lounge-filter-toggle lounge-nav-button" style={{ '--lounge-icon-color': FILTER_ACCENTS.az }}><ListFilter size={25} aria-hidden="true" /><span className="lounge-top-choice__label" aria-hidden="true">{letter ? `${letter} · ${shownGames.length}` : 'A–Z'}</span></button>}</nav></div>
       <LoungeControlHints controllerEnabled={controllerEnabled} zone={zone} />
-      {zone === 'emulator' && <section data-testid="lounge-emulator-identity" className="lounge-console-identity mb-4 flex flex-wrap items-center gap-4 rounded-2xl border border-[rgb(var(--accent)/0.45)] bg-[rgb(var(--panel)/0.62)] px-5 py-4"><div className="lounge-console-identity__mark grid h-14 min-w-20 place-items-center rounded-xl border border-white/25 bg-[rgb(var(--accent)/0.18)] px-3 text-lg font-black text-white"><ConsoleLogo id={activeConsole.id} label={activeConsole.label} shortLabel={activeConsole.shortLabel} large /></div><div className="min-w-0 flex-1"><p className="text-[10px] font-black uppercase tracking-[0.22em] text-[rgb(var(--accent-2))]">Emulator Zone · {LOUNGE_CONSOLES.findIndex(console => console.id === activeConsole.id) + 1} / {LOUNGE_CONSOLES.length}</p><h2 className="mt-1 text-xl font-black sm:text-2xl">{activeConsole.label}</h2><p className="text-xs text-muted">{consoleStatus.configured ? `${consoleStatus.count} imported game${consoleStatus.count === 1 ? '' : 's'} · ${consoleStatus.profileName}` : 'Not set up yet · configure an installed emulator and ROM folder in the launcher Wizard.'}</p></div><span className="rounded-full border border-[rgb(var(--accent)/0.45)] px-3 py-1.5 text-[10px] font-black uppercase text-[rgb(var(--accent-2))]">LB / RB to switch</span></section>}
       {shownGames.length ? layout === 'browser' ? <div className="lounge-browser relative flex min-h-0 gap-4 pb-5" data-shelf-position={preferences.shelfPosition} onWheel={scrollCarousel} style={{ '--lounge-stage-height': `${preferences.stageHeight}px` }}>
         <div ref={shelfRef} className="lounge-browser-shelf relative z-10 flex min-h-0 shrink-0 overflow-auto" aria-label="Game shelf"><div className="lounge-browser-track flex shrink-0">{shownGames.map(coverButton)}</div></div>
         <LoungeBrowserStage game={selected} index={shownGames.findIndex(game => game.id === selected?.id)} total={shownGames.length} preferences={preferences} updateLedger={updateLedger} onOpenDetails={openDetails} />
@@ -513,7 +530,7 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
     {detailsGame && <LoungeGamePanel game={detailsGame} position={detailsIndex + 1} total={shownGames.length} updateLedger={updateLedger} onPrevious={() => stepDetails(-1)} onNext={() => stepDetails(1)} onClose={closeDetails} onLaunch={onLaunch} />}
     {settingsOpen && <LoungeSettingsPanel preferences={preferences} layout={layout} game={selected} privateGameCount={privateGameCount} privateGamesUnlocked={privateGamesUnlocked} onRequestPrivateGames={onRequestPrivateGames} onLayoutChange={changeLayout} onChange={changePreferences} onClose={closeSettings} />}
     {soundOpen && <LoungeSoundPanel preferences={preferences} soundsEnabled={soundsEnabled && !resting && pageVisible && audioFocused} onChange={changePreferences} onPreviewSound={previewPickerSound} ambienceError={ambienceError} onRetryAmbience={retryAmbience} onClose={closeSound} />}
-    {guideOpen && <LoungeGuidePanel games={safeGames} favoriteIds={favoriteIds} preferences={preferences} onPreferencesChange={changePreferences} updateLedger={updateLedger} onOpenGame={openGameFromGuide} onBrowse={browseFromGuide} onCustomize={openVisualFromGuide} onClose={closeGuide} />}
+    {guideOpen && <LoungeGuidePanel games={pcGames} favoriteIds={favoriteIds} preferences={preferences} onPreferencesChange={changePreferences} updateLedger={updateLedger} onOpenGame={openGameFromGuide} onBrowse={browseFromGuide} onCustomize={openVisualFromGuide} onClose={closeGuide} />}
     {themesOpen && <LoungeThemeGallery preferences={preferences} layout={layout} savedPresets={savedPresets} onSavedPresetsChange={onSavedPresetsChange} onLayoutChange={changeLayout} desktopTheme={theme} onChange={changePreferences} onTuneVisuals={tuneVisualsFromThemes} onClose={closeThemes} />}
     {visualOpen && <LoungeVisualBuilder preferences={preferences} game={selected} theme={effectiveTheme} loungeLevel={loungeLevel} flowOpacity={loungeStyle.flowOpacity} flowSeconds={loungeStyle.flowSeconds} effectsActive={fxEnabled} onChange={changePreferences} onClose={closeVisual} />}
     {jumpOpen && <LoungeJumpPanel games={viewGames} currentLetter={letter} onChoose={chooseLetter} onClose={closeJump} />}

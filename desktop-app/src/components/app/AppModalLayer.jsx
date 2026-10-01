@@ -116,6 +116,7 @@ export default function AppModalLayer({ context }) {
     fetchPickerGame,
     stopMetadataRepairQueue,
     tidyOpen,
+    tidyReviewMode,
     setTidyOpen,
     removeGame,
     setSelectedId,
@@ -383,10 +384,11 @@ export default function AppModalLayer({ context }) {
 
       <TidyUpModal
         open={tidyOpen}
-        games={library.games || []}
+        games={library.games || []} reviewMode={tidyReviewMode}
         onDelete={(id) => removeGame(id)}
         onSelect={(id) => { setSelectedId(id); setMode('library'); setTidyOpen(false); }}
         onRepairMetadata={beginMetadataRepairQueue}
+        onFixArtwork={(game) => { setTidyOpen(false); setRefreshReview({ games: [game], index: 0, field: 'cover', options: { query: game.name, steamGridDbKey: settings.steamGridDbKey || '' } }); }} onRefreshMetadata={(game) => { setTidyOpen(false); setRefreshReview({ games: [game], index: 0, field: 'all-locked', options: { query: game.name } }); }}
         onClose={() => setTidyOpen(false)}
       />
 

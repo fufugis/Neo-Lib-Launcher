@@ -531,15 +531,15 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
                 className="flex flex-col items-start rounded-md hairline px-3 py-2 text-left hover:border-[rgb(var(--accent-2)/0.55)] hover:bg-[rgb(var(--accent-2)/0.07)]"
               >
                 <span className="inline-flex items-center gap-2 text-xs font-semibold text-ink"><RotateCw size={15} className="text-[rgb(var(--accent-2))]" />Full metadata refresh</span>
-                <span className="mt-0.5 text-[10.5px] leading-snug text-muted">Shows the affected count before it starts.</span>
+                <span className="mt-0.5 text-[10.5px] leading-snug text-muted">Opens one scrollable list. Refresh only the games you choose.</span>
               </button>
               <button
                 data-testid="wizard-tidy-library-btn"
                 onClick={() => { onClose(); onTidyLibrary?.(); }}
                 className="flex flex-col items-start rounded-md hairline px-3 py-2 text-left hover:border-[rgb(var(--accent-2)/0.55)] hover:bg-[rgb(var(--accent-2)/0.07)]"
               >
-                <span className="inline-flex items-center gap-2 text-xs font-semibold text-ink"><ListChecks size={15} className="text-[rgb(var(--accent-2))]" />Tidy up library</span>
-                <span className="mt-0.5 text-[10.5px] leading-snug text-muted">Review duplicates and entries needing attention.</span>
+                <span className="inline-flex items-center gap-2 text-xs font-semibold text-ink"><ListChecks size={15} className="text-[rgb(var(--accent-2))]" />Scan covers & metadata</span>
+                <span className="mt-0.5 text-[10.5px] leading-snug text-muted">Audit all games, inspect covers, fix art and review metadata.</span>
               </button>
             </div>
           </div>

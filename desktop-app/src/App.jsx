@@ -43,7 +43,7 @@ import { journeyStatusAfterFirstLaunch } from './lib/game-journey-model.mjs';
 import { externalRootForGame, normalizeExternalLibraryRoots } from './lib/externalLibraryRoots.mjs';
 import { applyStockThemePalette, stockThemeAssetUrl, customThemeCanvas } from './themes/stock-theme-registry.mjs';
 import { useCustomThemes } from './themes/use-custom-themes';
-const APP_VERSION = '1.8.2';
+const APP_VERSION = '1.8.3';
 import { uid, guessNameFromPath, hashPin, formatPlaytime } from './lib/utils';
 import { normalizeGenreProfile, GENRE_TAXONOMY_VERSION } from './lib/genreTaxonomy';
 import { setSoundPack } from './lib/sound';
@@ -218,6 +218,7 @@ export default function App() {
         • Wizard's refetch flow */
   const [fetchPickerGame, setFetchPickerGame] = React.useState(null);
   const [tidyOpen, setTidyOpen] = React.useState(false);
+  const [tidyReviewMode, setTidyReviewMode] = React.useState('issues');
   const [saveManagerGame, setSaveManagerGame] = React.useState(null);
   const [launchDoctorGame, setLaunchDoctorGame] = React.useState(null);
 
@@ -1047,6 +1048,7 @@ export default function App() {
     libraryRef,
     setMetadataRepairQueue,
     setTidyOpen,
+    setTidyReviewMode,
     setSelectedId,
     setMode,
     setFetchPickerGame,
@@ -1535,7 +1537,7 @@ export default function App() {
         <main className="relative flex min-w-0 flex-1 flex-col">
           <div className="flex-1 min-h-0 overflow-hidden">
             {!isTools && settings.mode === 'home' ? (
-              <HomeHub games={homeGames} lockedGameCategories={lockedHomeCategoryByGameId} hasPrivateCategories={(library.categories || []).some((category) => category.private)} hasLockedPrivateCategories={(library.categories || []).some((category) => category.private && !unlockedCategories.includes(category.id))} onPanicLock={panicLockPrivateLibrary} resting={gameRestActive} minimalistic={settings.interfaceMode === 'minimalistic'} homeLayout={settings.homeLayout || {}} onUpdateHomeLayout={(homeLayout) => updateSetting({ homeLayout })} onUpdateUpdatesCache={(homeGameUpdatesCache) => updateSetting({ homeGameUpdatesCache })} onSelect={(id) => { if (lockedHomeCategoryByGameId[id]) { notify(`Unlock ${lockedHomeCategoryByGameId[id]} in Library to reveal this game.`); return; } setSelectedId(id); updateSetting({ mode: 'library', libraryViewMode: 'preview' }); }} onOpenPlaytimeImport={() => openPlaytimeImport({ force: true })} onOpenTidyUp={() => setTidyOpen(true)} />
+              <HomeHub games={homeGames} lockedGameCategories={lockedHomeCategoryByGameId} hasPrivateCategories={(library.categories || []).some((category) => category.private)} hasLockedPrivateCategories={(library.categories || []).some((category) => category.private && !unlockedCategories.includes(category.id))} onPanicLock={panicLockPrivateLibrary} resting={gameRestActive} minimalistic={settings.interfaceMode === 'minimalistic'} homeLayout={settings.homeLayout || {}} onUpdateHomeLayout={(homeLayout) => updateSetting({ homeLayout })} onUpdateUpdatesCache={(homeGameUpdatesCache) => updateSetting({ homeGameUpdatesCache })} onSelect={(id) => { if (lockedHomeCategoryByGameId[id]) { notify(`Unlock ${lockedHomeCategoryByGameId[id]} in Library to reveal this game.`); return; } setSelectedId(id); updateSetting({ mode: 'library', libraryViewMode: 'preview' }); }} onOpenPlaytimeImport={() => openPlaytimeImport({ force: true })} onOpenTidyUp={() => { setTidyReviewMode('issues'); setTidyOpen(true); }} />
             ) : !isTools && wallActive ? (
               <CoverWall
                 games={coverWallGames}
@@ -1675,7 +1677,7 @@ export default function App() {
           setWizardPrefillRoot,
           setWizardAutoScan,
           requestMetadataRefresh,
-          openTidyUp: () => setTidyOpen(true),
+          openTidyUp: (mode = 'issues') => { setTidyReviewMode(mode); setTidyOpen(true); },
           onRetroProfilesChange: (retroProfiles) => updateSetting({ retroProfiles }),
           onExternalLibraryRootsChange: (externalLibraryRoots) => updateSetting({ externalLibraryRoots: normalizeExternalLibraryRoots(externalLibraryRoots) }),
           importRetroGames,
@@ -1741,6 +1743,7 @@ export default function App() {
           fetchPickerGame,
           stopMetadataRepairQueue,
           tidyOpen,
+          tidyReviewMode,
           setTidyOpen,
           removeGame,
           setSelectedId,

@@ -10,6 +10,16 @@ function ChoiceRow({ label, value, choices, onChange }) {
   return <fieldset className="mt-5"><legend className="mb-2 text-xs font-black uppercase tracking-[0.16em] text-muted">{label}</legend><div className="flex flex-wrap gap-2">{choices.map(([id, text]) => <button key={id} type="button" aria-pressed={value === id} onClick={() => onChange(id)} className={`lounge-setting-choice rounded-xl border px-3 py-2 text-sm font-bold ${value === id ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent)/0.2)] text-ink' : 'border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.48)] text-muted'}`}>{text}</button>)}</div></fieldset>;
 }
 
+const VIEWING_DISTANCES = [
+  ['compact', 'Near · desk', '48px top buttons · 74 × 54px browse tiles', 'Icons first; names appear on focus or hover.'],
+  ['comfortable', 'Medium · sofa', '66 × 72px top buttons · 92 × 70px browse tiles', 'Names remain visible for quick reading.'],
+  ['large', 'Far · across room', '96 × 96px top buttons · 120 × 94px browse tiles', 'Larger icons, names and controller targets.'],
+];
+
+function ViewingDistancePicker({ value, onChange }) {
+  return <fieldset className="mt-5"><legend className="mb-2 text-xs font-black uppercase tracking-[0.16em] text-muted">Viewing distance</legend><p className="mb-3 text-xs text-muted">Concrete sizes for Lounge navigation, filters and console tabs. Preview text and game covers have their own size controls.</p><div className="grid gap-2">{VIEWING_DISTANCES.map(([id, label, dimensions, note]) => <button key={id} type="button" aria-pressed={value === id} onClick={() => onChange(id)} className={`lounge-setting-choice flex min-h-16 items-center gap-3 rounded-xl border px-4 py-3 text-left ${value === id ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent)/0.2)]' : 'border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.48)]'}`}><span aria-hidden="true" className={`shrink-0 rounded-md border-2 border-[rgb(var(--accent))] ${id === 'compact' ? 'h-5 w-5' : id === 'comfortable' ? 'h-7 w-7' : 'h-9 w-9'}`} /><span><strong className="block text-sm">{label}</strong><span className="block text-xs text-[rgb(var(--accent-2))]">{dimensions}</span><small className="block text-xs text-muted">{note}</small></span></button>)}</div></fieldset>;
+}
+
 function Range({ label, value, min, max, step = 1, unit = 'px', onChange }) {
   const id = `lounge-range-${label.replaceAll(' ', '-')}`;
   return <div className="mt-4 text-sm"><div className="mb-2 flex justify-between gap-3"><label htmlFor={id} className="font-semibold">{label}</label><b className="text-[rgb(var(--accent-2))]">{value}{unit}</b></div><div className="flex items-center gap-3"><button type="button" aria-label={`Decrease ${label}`} disabled={value <= min} onClick={() => onChange(Math.max(min, value - step))} className="lounge-setting-choice rounded-lg border border-[rgb(var(--border))] px-2.5 py-1 font-bold disabled:opacity-40">−</button><input id={id} type="range" min={min} max={max} step={step} value={value} onChange={event => onChange(Number(event.target.value))} className="min-w-0 flex-1 accent-[rgb(var(--accent))]" /><button type="button" aria-label={`Increase ${label}`} disabled={value >= max} onClick={() => onChange(Math.min(max, value + step))} className="lounge-setting-choice rounded-lg border border-[rgb(var(--border))] px-2.5 py-1 font-bold disabled:opacity-40">+</button></div></div>;
@@ -72,7 +82,7 @@ export default function LoungeSettingsPanel({ preferences, layout, game, private
           <ChoiceRow label="When I enter Lounge" value={preferences.entryScreen} choices={[["games", "Resume last view"], ["home", "Show Lounge Home"]]} onChange={entryScreen => onChange(normalizeLoungePreferences({ ...preferences, entryScreen }))} />
           <p className="mt-2 text-xs text-muted">Lounge stays closed at app startup. Resume remembers your last Zone, filter, console and game; Home opens its guide first.</p>
           <ChoiceRow label="Lounge view" value={layout} choices={[["browser", "Game Browser"], ["wall", "Cover Wall"]]} onChange={onLayoutChange} />
-          <ChoiceRow label="Navigation size" value={preferences.controlSize} choices={[["compact", "Compact"], ["comfortable", "Comfortable"], ["large", "Couch-size"]]} onChange={controlSize => set({ controlSize })} />
+          <ViewingDistancePicker value={preferences.controlSize} onChange={controlSize => set({ controlSize })} />
           {layout === 'browser' && <>
             <ChoiceRow label="Game shelf position" value={preferences.shelfPosition} choices={POSITIONS} onChange={shelfPosition => set({ shelfPosition })} />
             <p className="mt-2 text-xs text-muted">Top and bottom scroll horizontally; left and right vertically. Narrow windows adapt. Ready-made layouts are under Themes → Lounge presets.</p>

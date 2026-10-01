@@ -5,7 +5,7 @@ import { EMPTY_REFRESH_QUEUE } from '../src/state/metadata-refresh-state.mjs';
 function harness(overrides = {}) {
   const events = {
     notices: [], reviews: [], fetching: [], updates: [], accepts: [], troubleshoot: [],
-    queue: [], picker: [], selected: [], modes: [], confirms: [], tidy: [],
+    queue: [], picker: [], selected: [], modes: [], confirms: [], tidy: [], reviewModes: [],
   };
   const games = overrides.games || [{ id: 'game-1', name: 'Test Game', exePath: 'C:\\Games\\Test\\game.exe' }];
   const nativeApi = overrides.nativeApi || {
@@ -25,6 +25,7 @@ function harness(overrides = {}) {
     libraryRef: { current: { games } },
     setMetadataRepairQueue: (value) => events.queue.push(value),
     setTidyOpen: (value) => events.tidy.push(value),
+    setTidyReviewMode: (value) => events.reviewModes.push(value),
     setSelectedId: (value) => events.selected.push(value),
     setMode: (value) => events.modes.push(value),
     setFetchPickerGame: (value) => events.picker.push(value),
@@ -101,8 +102,9 @@ function harness(overrides = {}) {
   workflow.requestMetadataRefresh('full');
   assert.equal(events.confirms[0]?.confirmLabel, 'Refresh all 1');
   events.confirms[0].onConfirm();
-  assert.equal(events.reviews[0]?.games[0]?.id, 'game-1');
-  assert.match(events.notices.at(-1), /Nothing is replaced without your selection/);
+  assert.deepEqual(events.reviewModes, ['all']);
+  assert.deepEqual(events.tidy, [true], 'full metadata refresh opens one scrollable review list instead of a popup per game');
+  assert.match(events.notices.at(-1), /scrollable review list/);
 }
 
 console.log('PASS: metadata workflow preserves reviewed refresh, store identity locks, Battle.net identity, cached artwork, repair queues and bulk confirmation. Injected native API only.');

@@ -21,6 +21,7 @@ export function createMetadataWorkflow({
   libraryRef,
   setMetadataRepairQueue,
   setTidyOpen,
+  setTidyReviewMode,
   setSelectedId,
   setMode,
   setFetchPickerGame,
@@ -210,12 +211,12 @@ export function createMetadataWorkflow({
   };
   
   const metadataRefreshTargets = (mode = 'missing') => {
-    return selectMetadataRefreshTargets(currentItems, mode, now());
+    return selectMetadataRefreshTargets(libraryRef.current.games || currentItems, mode, now());
   };
-  
+
   const requestMetadataRefresh = (mode = 'missing') => {
     const targets = metadataRefreshTargets(mode);
-    const manual = currentItems.filter((g) => g.manualOverride).length;
+    const manual = (libraryRef.current.games || currentItems).filter((g) => g.manualOverride).length;
     if (!targets.length) {
       notify(mode === 'full'
         ? 'No non-manual games are available for a full refresh.'
@@ -236,16 +237,18 @@ export function createMetadataWorkflow({
   };
   
   const refetchAll = async (mode = 'missing') => {
-    if (currentItems.length === 0) return;
+    const allGames = libraryRef.current.games || currentItems;
+    if (allGames.length === 0) return;
     const targets = metadataRefreshTargets(mode);
-    const skipped = currentItems.length - targets.length;
+    const skipped = allGames.length - targets.length;
     if (!targets.length) {
       notify(mode === 'full' ? 'No non-manual games are available for a full refresh.' : 'No incomplete or stale non-manual metadata needs a refresh.');
       return;
     }
     if (!isElectron) { notify('Re-fetch only works in the installed app.'); return; }
-    setRefreshReview({ games: targets, index: 0, field: 'all-locked' });
-    notify(`Review ${targets.length} games individually. Nothing is replaced without your selection.${skipped ? ` ${skipped} entries left untouched.` : ''}`);
+    setTidyReviewMode?.(mode === 'full' ? 'all' : 'issues');
+    setTidyOpen(true);
+    notify(`${targets.length} games are ready in the scrollable review list. Choose which game to refresh; nothing changes until you accept it.${skipped ? ` ${skipped} manual entries are protected.` : ''}`);
   };
 
   return {

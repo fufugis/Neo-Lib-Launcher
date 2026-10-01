@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { getChronicle, getLibraryHealth, getRecommendations, maskHomeNews, maskHomeUpdates, normaliseGameUpdates } from '../src/components/home/home-model.mjs';
+import { libraryArtworkAudit } from '../src/components/home/library-artwork-audit.mjs';
 import { LIBRARY_FONT_OPTIONS, libraryFontFamily } from '../src/components/library/library-visual-model.mjs';
 import { splitLibrarySections } from '../src/components/library/library-tree-model.mjs';
 import { appendMascotNotice, libraryCommandFor, messageFor, noticeCooldownMs, voiceForNotice } from '../src/components/mascot/fungist-model.mjs';
@@ -117,7 +118,7 @@ assert.match(sidebarSource, /library\/LibraryTree/);
 assert.match(sidebarSource, /library\/LibraryToolbarControls/);
 assert.match(sidebarSource, /data-testid="side-navigation-rail"/, 'Sidebar navigation mode needs a dedicated icon rail.');
 assert.match(sidebarSource, /label="Lounge" hint="Couch mode" tone="255 125 210" expanded=\{expanded\} onClick=\{onEnterLounge\} testid="sidebar-rail-lounge-btn"/, 'Sidebar rail needs a direct Lounge shortcut with its own colour profile.');
-assert.equal(new Set([...sidebarSource.matchAll(/<RailNavigationButton[^\n]+tone="([\d ]+)"/g)].map(match => match[1])).size, 6, 'primary rail destinations and Wizard must have distinct fixed colour profiles');
+assert.ok(new Set([...sidebarSource.matchAll(/<RailNavigationButton[^\n]+tone="([\d ]+)"/g)].map(match => match[1])).size >= 16, 'direct sidebar destinations and utility actions must have distinct fixed colour profiles');
 assert.match(sidebarSource, /tone=\{manualResting \? '255 204 112' : '163 165 255'\}/, 'Rest and Wake must remain visually distinct');
 for (const hint of ['Your dashboard', 'Browse games', 'Cover view', 'Utilities', 'Couch mode', 'Add games', 'Pause background', 'Resume activity']) {
   assert.ok(sidebarSource.includes(hint), `Expanded navigation needs a concise explanation: ${hint}`);
@@ -139,7 +140,7 @@ assert.match(sidebarSource, /testid="sidebar-wizard-btn"/, 'Library must retain 
 assert.match(sidebarSource, /\(!sideNavigation \|\| isTools\) && \(\(\) =>/, 'Sidebar layout must remove the redundant Library action row.');
 assert.match(sidebarSource, /!isTools && !sideNavigation && <button type="button" data-testid="sidebar-select-games"/, 'Default layout must keep Select in the Library action row.');
 assert.match(sidebarSource, /sideNavigation && <button type="button" data-testid="sidebar-select-games"/, 'Sidebar layout must move Select beside Library filters.');
-assert.match(sidebarSource, /data-testid="side-navigation-actions-divider"[\s\S]*?testid="sidebar-rail-wizard-btn"[\s\S]*?testid="sidebar-rail-rest-toggle"/, 'Sidebar actions must sit below a divider in the navigation rail.');
+assert.match(sidebarSource, /data-testid="side-navigation-primary-divider"[\s\S]*?testid="sidebar-rail-wizard-btn"[\s\S]*?testid="sidebar-rail-rest-toggle"/, 'Sidebar actions must sit below a divider in the navigation rail.');
 assert.match(appSource, /onOpenWizard=\{\(\) => setShowWizard\(true\)\} manualResting=\{manualRestActive\} onToggleManualRest=\{toggleManualRest\}/, 'The rail must receive the real Wizard and Rest handlers.');
 assert.doesNotMatch(sidebarSource, /testid="sidebar-add-btn"|data-testid="add-menu-game"/, 'Library must not restore a duplicate Add-game control outside Wizard.');
 assert.match(wizardSource, /data-testid="wizard-manual-add-section"/, 'Wizard must visibly own the manual add route.');
@@ -378,8 +379,20 @@ const lockedUpdates = maskHomeUpdates({ items: [{ id: 'secret', name: 'Real titl
 assert.equal(lockedUpdates.items[0].name, 'Locked game');
 assert.deepEqual(normaliseGameUpdates(null).items, []);
 
-const health = getLibraryHealth([{ id: 'hidden', homeLocked: true }, { id: 'visible', name: 'Visible', coverUrl: 'cover', description: 'Ready', exePath: 'game.exe', genreProfile: { rawTags: ['Action'] } }]);
+const health = getLibraryHealth([{ id: 'hidden', homeLocked: true }, { id: 'visible', name: 'Visible', coverUrl: 'cover', description: 'Ready', developers: ['Studio'], releaseDate: '2024', exePath: 'game.exe', genreProfile: { rawTags: ['Action'] } }]);
 assert.equal(health.score, 100, 'Private placeholders must not reduce health');
+const incompleteHealth = getLibraryHealth([{ id: 'thin', name: 'Thin metadata', headerImage: 'banner_1200x400.jpg', shortDescription: '', exePath: 'thin.exe' }]);
+assert.ok(incompleteHealth.score < 100, 'A banner must not count as portrait cover art, and missing metadata must reduce library health');
+assert.equal(incompleteHealth.missingArt, 1);
+const artworkAudit = libraryArtworkAudit([
+  { id: 'wide', name: 'Wide Banner', coverUrl: 'https://cdn.test/banner_1200x400.jpg' },
+  { id: 'missing', name: 'Missing Cover', about: 'Details', exePath: 'missing.exe' },
+  { id: 'reuse-a', name: 'First Game', coverUrl: 'https://cdn.test/shared_600x900.jpg' },
+  { id: 'reuse-b', name: 'Second Game', coverUrl: 'https://cdn.test/shared_600x900.jpg' },
+]);
+assert.ok(artworkAudit.find((row) => row.game.id === 'wide')?.reasons.includes('Not portrait artwork'));
+assert.ok(artworkAudit.find((row) => row.game.id === 'missing')?.reasons.includes('Missing cover'));
+assert.ok(artworkAudit.find((row) => row.game.id === 'reuse-a')?.reasons.includes('Same cover used by multiple games'));
 const now = Date.UTC(2026, 8, 16);
 const games = [{ id: 'forza', name: 'Forza Horizon 5', genres: ['Racing'], exePath: 'forza.exe', playtime: 600, lastPlayedAt: now - 30 * 86400000, rating: 4.8, addedAt: now - 40 * 86400000 }];
 assert.equal(libraryCommandFor('Launch Forza 5', games)?.game?.id, 'forza');

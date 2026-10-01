@@ -7,6 +7,12 @@ const image = n => `https://example.test/image-${n}.png`;
 const record = { name: 'Example', source: 'steam', icon: image(1), capsuleImage: image(1), headerImage: image(2), background: image(3), screenshots: [image(4), image(4), image(5)], about: 'Full description', shortDescription: 'Short description' };
 assert.equal(fieldCandidates(record, 'icon').length, 2, 'deduplicate images');
 assert.equal(fieldCandidates({ icon: 'javascript:alert(1)' }, 'icon').length, 0, 'reject unsafe image protocols');
+assert.equal(fieldCandidates({ name: 'Wide', capsuleImage: 'https://example.test/banner_1200x400.jpg' }, 'cover').length, 0, 'known landscape results never become portrait cover candidates');
+assert.equal(fieldCandidates({ name: 'Missing', headerImage: image(99) }, 'cover').length, 0, 'hero banners never become portrait cover candidates');
+const coverPatch = selectedRefreshPatch('cover', fieldCandidates({ name: 'Example', source: 'steamgriddb', portraitImage: image(24) }, 'cover'), { artworkLocks: {}, artworkRevisions: [] });
+assert.equal(coverPatch.coverUrl, image(24));
+assert.equal(coverPatch.portraitImage, image(24));
+assert.equal(coverPatch.artworkSources.cover, 'steamgriddb');
 assert.deepEqual(selectedRefreshPatch('icon', fieldCandidates(record, 'icon').slice(1)), { icon: image(2) });
 assert.deepEqual(selectedRefreshPatch('banner', fieldCandidates(record, 'banner').slice(0, 1)), { headerImage: image(3), background: image(3) });
 assert.deepEqual(selectedRefreshPatch('screenshots', fieldCandidates(record, 'screenshots')), { screenshots: [image(4), image(5)] });
@@ -51,6 +57,15 @@ const retroSearch = createRefreshSearch({
 await retroSearch.next(5);
 assert(retroQueries.length > 0 && retroQueries.every(query => query === 'Mario World SNES'), 'Retro review searches with the selected console');
 
+const searchedSources = [];
+const coverSearch = createRefreshSearch({
+  fetchMetadata: async () => null,
+  listCandidates: async ({ source }) => { searchedSources.push(source); return { candidates: [] }; },
+  expandCandidate: async () => null,
+}, { name: 'Example' }, 'cover', { steamGridDbKey: 'configured-key' });
+await coverSearch.next(5);
+assert.ok(searchedSources.includes('steamgriddb'), 'cover repair includes reviewed portrait recommendations when a SteamGridDB key is configured');
+
 let cancelled = false, release, moreCalls = 0;
 const cancellation = createRefreshSearch({ fetchMetadata: () => new Promise(resolve => { release = resolve; }), listCandidates: async () => { moreCalls++; return {}; } }, { name: 'Test' }, 'icon');
 const running = cancellation.next(5, () => cancelled);
@@ -62,7 +77,7 @@ assert.equal(empty.candidates.length, 0); assert.equal(empty.more, false); asser
 
 const require = createRequire(import.meta.url);
 const babel = createRequire(require.resolve('@vitejs/plugin-react'))('@babel/core');
-for (const relative of ['src/App.jsx', 'src/components/RefreshCandidatesModal.jsx', 'src/components/ChangelogModal.jsx', 'src/components/library/CollectionActions.jsx']) {
+for (const relative of ['src/App.jsx', 'src/components/RefreshCandidatesModal.jsx', 'src/components/TidyUpModal.jsx', 'src/components/WizardModal.jsx', 'src/components/app/AppModalLayer.jsx', 'src/components/ChangelogModal.jsx', 'src/components/library/CollectionActions.jsx']) {
   babel.parseSync(fs.readFileSync(new URL(`../${relative}`, import.meta.url), 'utf8'), { configFile: false, babelrc: false, parserOpts: { plugins: ['jsx'] } });
 }
 const app = fs.readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
@@ -71,5 +86,5 @@ assert.ok(surgical.includes('setRefreshReview'));
 assert.ok(!surgical.includes('updateGame('), 'field refresh cannot save before review');
 const workflow = fs.readFileSync(new URL('../src/services/metadata-workflow.mjs', import.meta.url), 'utf8');
 const bulk = workflow.slice(workflow.indexOf('const refetchAll'), workflow.indexOf('return {', workflow.indexOf('const refetchAll')));
-assert.ok(bulk.includes('setRefreshReview')); assert.ok(!bulk.includes('autoApply: true'), 'bulk refresh cannot auto-apply');
-console.log('PASS: field patches, safe identity, deduplication, five-result paging, source exhaustion, Blizzard ID, cancellation, source errors, JSX parsing and shared refresh routing. No network or real library writes.');
+assert.ok(bulk.includes('setTidyReviewMode')); assert.ok(bulk.includes('setTidyOpen(true)')); assert.ok(!bulk.includes('autoApply: true'), 'bulk refresh opens the scrollable list and cannot auto-apply');
+console.log('PASS: field patches, safe identity, cover-only results, SteamGridDB suggestions, five-result paging, source exhaustion, Blizzard ID, cancellation, source errors, JSX parsing and scrollable bulk review routing. No network or real library writes.');

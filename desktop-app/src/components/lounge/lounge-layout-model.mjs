@@ -18,6 +18,8 @@ export const LOUNGE_SCENES = Object.freeze({
   coast: Object.freeze({ label: 'Sunlit Coast', note: 'Bright turquoise water, white cliffs and golden light.' }),
   neon: Object.freeze({ label: 'Neon Gallery', note: 'NEO-LIB power emblem in a cinematic violet-and-cyan gallery.' }),
   starlit: Object.freeze({ label: 'Starlit Road', note: 'Anime nightscape, moonlit road and quiet violet horizon.' }),
+  solar: Object.freeze({ label: 'Solar Grove', note: 'Golden sunbeams through a deep emerald forest.' }),
+  rainlight: Object.freeze({ label: 'Rainlight City', note: 'Rain-washed skyline, luminous towers and blue-hour reflections.' }),
 });
 const desktopThemeIds = new Set(THEMES.map(theme => theme.id));
 const validLoungeDesktopTheme = id => desktopThemeIds.has(id) || /^custom:[a-z0-9][a-z0-9-]{1,63}$/.test(id || '');
@@ -31,6 +33,37 @@ export function showLoungeBrowseFilter(id, hidden, active = false) {
   return id === 'all' || active || !Array.isArray(hidden) || !hidden.includes(id);
 }
 export const LOUNGE_PARTICLE_IDS = Object.freeze(['theme', 'none', 'soft-rain', 'rain-drop', 'falling-heart', 'sakura-petal', 'warm-ember', 'starlight', 'bubble', ...LOUNGE_EXTRA_PARTICLES.map(item => item.id)]);
+export const LOUNGE_COVER_FRAMES = Object.freeze({
+  classic: Object.freeze({ label: 'Classic', note: 'The familiar rounded carousel card.' }),
+  gallery: Object.freeze({ label: 'Gallery', note: 'A quiet, squared-off matte frame.' }),
+  glass: Object.freeze({ label: 'Glass', note: 'Clear frosted edges with a soft sheen.' }),
+  chrome: Object.freeze({ label: 'Chrome', note: 'A cool metallic bevel around the whole card.' }),
+  reactor: Object.freeze({ label: 'Reactor', note: 'A flowing two-colour edge around art and title.' }),
+});
+export const LOUNGE_FRAME_COLORS = Object.freeze({
+  theme: Object.freeze({ label: 'Follow theme', primary: 'rgb(var(--accent))', secondary: 'rgb(var(--accent-2))' }),
+  electric: Object.freeze({ label: 'Electric', primary: '#63dfff', secondary: '#bb8cff' }),
+  orchid: Object.freeze({ label: 'Orchid', primary: '#ef83ff', secondary: '#87c8ff' }),
+  gold: Object.freeze({ label: 'Gold', primary: '#ffd37a', secondary: '#fff1b4' }),
+  mint: Object.freeze({ label: 'Mint', primary: '#80f1bf', secondary: '#bbffe0' }),
+  ember: Object.freeze({ label: 'Ember', primary: '#ff9e6b', secondary: '#ffd37a' }),
+  custom: Object.freeze({ label: 'Custom', primary: '', secondary: '#ffffff' }),
+});
+export function loungeFramePaletteStyle(colorId, customColor) {
+  const choice = LOUNGE_FRAME_COLORS[colorId] || LOUNGE_FRAME_COLORS.theme;
+  const safeCustom = /^#[\da-f]{6}$/i.test(customColor || '') ? customColor.toLowerCase() : '#7dd3fc';
+  return { '--lounge-frame-primary': colorId === 'custom' ? safeCustom : choice.primary, '--lounge-frame-secondary': choice.secondary };
+}
+export const LOUNGE_LIGHT_LOOKS = Object.freeze({
+  cinema: Object.freeze({ label: 'Cinema glow', note: 'Gentle light, richer art, quiet movement.', settings: Object.freeze({ artSaturation: 112, artContrast: 118, artTemperature: 10, sceneDrift: 65, ribbonIntensity: 18, ribbonSpeed: 65, ribbonPosition: 30, edgeGlow: 24, edgeWidth: 80, edgePulse: 20 }) }),
+  aurora: Object.freeze({ label: 'Living aurora', note: 'Flowing colour and a bright, breathing edge.', settings: Object.freeze({ artSaturation: 134, artContrast: 112, artTemperature: -24, sceneDrift: 140, ribbonIntensity: 78, ribbonSpeed: 125, ribbonPosition: 34, edgeGlow: 65, edgeWidth: 115, edgePulse: 75 }) }),
+  golden: Object.freeze({ label: 'Golden hour', note: 'Warm, scenic highlights with a softer rim.', settings: Object.freeze({ artSaturation: 121, artContrast: 108, artTemperature: 52, sceneDrift: 85, ribbonIntensity: 42, ribbonSpeed: 70, ribbonPosition: 44, edgeGlow: 32, edgeWidth: 90, edgePulse: 35 }) }),
+});
+export function loungeSceneParticleStyle(scene) {
+  if (scene === 'solar') return 'fireflies';
+  if (scene === 'rainlight') return 'rain-drop';
+  return scene === 'theme' ? 'theme' : 'starlight';
+}
 export const LOUNGE_VISUAL_PRESETS = Object.freeze({
   cinema: Object.freeze({ label: 'Game cinema', note: 'Game art · gentle motion', backdropMode: 'game', backgroundOpacity: 68, backgroundPositionY: 45, panelOpacity: 84, ambientMotion: 'drift', ambientPace: 'slow', waveStrength: 25, motion: 'subtle', fxLevel: 'theme' }),
   themeGlow: Object.freeze({ label: 'Theme glow', note: 'Theme art · flowing colour', backdropMode: 'theme', backgroundOpacity: 58, backgroundPositionY: 50, panelOpacity: 78, ambientMotion: 'waves', ambientPace: 'steady', waveStrength: 42, motion: 'full', fxLevel: 'theme' }),
@@ -61,6 +94,9 @@ export const DEFAULT_LOUNGE_PREFERENCES = Object.freeze({
   particleGlow: 65,
   particleSpeed: 100,
   coverGlow: 'off',
+  coverFrame: 'classic',
+  frameColor: 'theme',
+  frameCustomColor: '#7dd3fc',
   specialTheme: 'theme',
   desktopThemeOverride: '',
   quickLinks: ['continue', 'favorites', 'most'],
@@ -102,6 +138,22 @@ export const DEFAULT_LOUNGE_PREFERENCES = Object.freeze({
   highlightPulse: 55,
   vignette: 35,
   waveScale: 50,
+  waveDrift: 100,
+  bloomSpread: 100,
+  raySoftness: 45,
+  lightShimmer: 55,
+  sceneDrift: 100,
+  artSaturation: 100,
+  artContrast: 100,
+  artTemperature: 0,
+  filmGrain: 0,
+  chromaticAberration: 0,
+  ribbonIntensity: 0,
+  ribbonSpeed: 100,
+  ribbonPosition: 35,
+  edgeGlow: 0,
+  edgeWidth: 80,
+  edgePulse: 50,
   browseSoundEnabled: true,
   browseSoundVolume: 25,
   browseMoveLevel: 100,
@@ -130,6 +182,8 @@ const ambientPaces = new Set(['slow', 'steady', 'lively']);
 const particleStyles = new Set(LOUNGE_PARTICLE_IDS);
 const particleColors = new Set(LOUNGE_PARTICLE_COLORS.map(item => item.id));
 const coverGlows = new Set(['off', 'soft', 'neon']);
+const coverFrames = new Set(Object.keys(LOUNGE_COVER_FRAMES));
+const frameColors = new Set(Object.keys(LOUNGE_FRAME_COLORS));
 const browseSoundStyles = new Set(['glass', 'pulse', 'orbit', 'samples']);
 const ambienceTracks = new Set(['none', 'ambience-1', 'ambience-2', 'ambience-3', 'ambience-4', 'custom']);
 const controlSizes = new Set(['compact', 'comfortable', 'large']);
@@ -204,6 +258,9 @@ export function normalizeLoungePreferences(value) {
     particleGlow: bounded(input.particleGlow, defaults.particleGlow, 0, 100),
     particleSpeed: bounded(input.particleSpeed, defaults.particleSpeed, 25, 200),
     coverGlow: coverGlows.has(input.coverGlow) ? input.coverGlow : defaults.coverGlow,
+    coverFrame: coverFrames.has(input.coverFrame) ? input.coverFrame : defaults.coverFrame,
+    frameColor: frameColors.has(input.frameColor) ? input.frameColor : defaults.frameColor,
+    frameCustomColor: /^#[\da-f]{6}$/i.test(input.frameCustomColor || '') ? input.frameCustomColor.toLowerCase() : defaults.frameCustomColor,
     specialTheme: Object.hasOwn(LOUNGE_SCENES, input.specialTheme) ? input.specialTheme : defaults.specialTheme,
     desktopThemeOverride: validLoungeDesktopTheme(input.desktopThemeOverride) ? input.desktopThemeOverride : '',
     quickLinks,
@@ -238,13 +295,29 @@ export function normalizeLoungePreferences(value) {
     previewShowMetacritic: input.previewShowMetacritic !== false,
     ambientMotion: legacyDefaultVisuals ? defaults.ambientMotion : ambientMotions.has(input.ambientMotion) ? input.ambientMotion : defaults.ambientMotion,
     ambientPace: ambientPaces.has(input.ambientPace) ? input.ambientPace : defaults.ambientPace,
-    waveStrength: legacyDefaultVisuals ? defaults.waveStrength : bounded(input.waveStrength, defaults.waveStrength, 0, 100),
+    waveStrength: legacyDefaultVisuals ? defaults.waveStrength : bounded(input.waveStrength, defaults.waveStrength, 0, 300),
     atmosphereOpacity: bounded(input.atmosphereOpacity, defaults.atmosphereOpacity, 0, 100),
-    lightBloom: bounded(input.lightBloom, defaults.lightBloom, 0, 100),
-    lightRays: bounded(input.lightRays, defaults.lightRays, 0, 100),
+    lightBloom: bounded(input.lightBloom, defaults.lightBloom, 0, 600),
+    lightRays: bounded(input.lightRays, defaults.lightRays, 0, 300),
     highlightPulse: bounded(input.highlightPulse, defaults.highlightPulse, 0, 100),
     vignette: bounded(input.vignette, defaults.vignette, 0, 100),
     waveScale: bounded(input.waveScale, defaults.waveScale, 0, 100),
+    waveDrift: bounded(input.waveDrift, defaults.waveDrift, 0, 200),
+    bloomSpread: bounded(input.bloomSpread, defaults.bloomSpread, 40, 220),
+    raySoftness: bounded(input.raySoftness, defaults.raySoftness, 0, 100),
+    lightShimmer: bounded(input.lightShimmer, defaults.lightShimmer, 0, 100),
+    sceneDrift: bounded(input.sceneDrift, defaults.sceneDrift, 0, 200),
+    artSaturation: bounded(input.artSaturation, defaults.artSaturation, 50, 200),
+    artContrast: bounded(input.artContrast, defaults.artContrast, 70, 150),
+    artTemperature: bounded(input.artTemperature, defaults.artTemperature, -100, 100),
+    filmGrain: bounded(input.filmGrain, defaults.filmGrain, 0, 100),
+    chromaticAberration: bounded(input.chromaticAberration, defaults.chromaticAberration, 0, 100),
+    ribbonIntensity: bounded(input.ribbonIntensity, defaults.ribbonIntensity, 0, 100),
+    ribbonSpeed: bounded(input.ribbonSpeed, defaults.ribbonSpeed, 20, 200),
+    ribbonPosition: bounded(input.ribbonPosition, defaults.ribbonPosition, 0, 100),
+    edgeGlow: bounded(input.edgeGlow, defaults.edgeGlow, 0, 100),
+    edgeWidth: bounded(input.edgeWidth, defaults.edgeWidth, 20, 180),
+    edgePulse: bounded(input.edgePulse, defaults.edgePulse, 0, 100),
     browseSoundEnabled: input.browseSoundEnabled !== false,
     browseSoundVolume: bounded(input.browseSoundVolume, defaults.browseSoundVolume, 0, 100),
     browseMoveLevel: bounded(input.browseMoveLevel, defaults.browseMoveLevel, 0, 100),

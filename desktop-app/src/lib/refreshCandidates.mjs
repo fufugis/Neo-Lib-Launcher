@@ -11,6 +11,12 @@ export function fieldCandidates(record, field) {
     const value = record.about || record.shortDescription;
     return value ? [{ ...base, value, key: value }] : [];
   }
+  if (field === 'cover') {
+    const value = record.portraitImage || record.capsuleImage || record.coverUrl;
+    const dimensions = String(value || '').match(/(?:^|[^\d])(\d{2,4})[x×](\d{2,4})(?:[^\d]|$)/i);
+    const knownLandscape = dimensions && Number(dimensions[1]) >= Number(dimensions[2]);
+    return imageUrl(value) && !knownLandscape ? [{ ...base, value, key: value }] : [];
+  }
   if (field === 'artwork') {
     const values = [record.portraitImage, record.capsuleImage, record.icon, record.headerImage, record.background, record.logoImage || record.logo].filter(imageUrl);
     return values.length ? [{ ...base, value: record, key: JSON.stringify(values) }] : [];
@@ -23,6 +29,16 @@ export function fieldCandidates(record, field) {
 export function selectedRefreshPatch(field, candidates, game = {}) {
   if (!candidates.length) return {};
   const { value, record } = candidates[0];
+  if (field === 'cover') {
+    const locks = normalizeArtworkLocks(game.artworkLocks);
+    if (locks.cover) return {};
+    return {
+      artworkRevisions: appendArtworkRevision(game.artworkRevisions, artworkSnapshot(game, { reason: 'before-cover-art-review' })),
+      coverUrl: value,
+      portraitImage: value,
+      artworkSources: { ...(game.artworkSources || {}), cover: record.source || 'Artwork review' },
+    };
+  }
   if (field === 'icon') return { icon: value };
   if (field === 'banner') return { headerImage: value, background: value };
   if (field === 'description') return { about: cleanDescriptionText(value), shortDescription: cleanDescriptionText(record.shortDescription || value) };
@@ -59,7 +75,7 @@ export function createRefreshSearch(api, game, field, options = {}) {
   const found = [], seen = new Set(), failures = [];
   const query = options.query || game.metadataQuery || game.name;
   const native = [game.launcher, game.source].find(source => ['itch', 'itchio', 'gog', 'f95zone', 'vndb', 'dlsite', 'jast', 'gamejolt', 'ryuugames'].includes(source));
-  const sources = [...new Set([native === 'itchio' ? 'itch' : native || 'steam', 'steam', 'gog', 'google'])];
+  const sources = [...new Set([native === 'itchio' ? 'itch' : native || 'steam', 'steam', 'gog', ...(options.steamGridDbKey ? ['steamgriddb'] : []), 'google'])];
   const pending = [];
   let initial = true;
   const add = record => fieldCandidates(record, field).forEach(c => { if (!seen.has(c.key)) { seen.add(c.key); found.push(c); } });

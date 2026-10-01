@@ -33,7 +33,7 @@ export default function LoungeParticleLayer({ styleId, level, motion, amount = 1
       const maskStyle = source && tint ? { maskImage: `url(${JSON.stringify(source)})`, WebkitMaskImage: `url(${JSON.stringify(source)})`, maskSize: 'contain', WebkitMaskSize: 'contain', maskRepeat: 'no-repeat', WebkitMaskRepeat: 'no-repeat' } : {};
       const visual = (className, key) => source && !tint
         ? <img key={key} src={source} alt="" draggable={false} className={`custom-theme-particle__sprite ${className}`} />
-        : <span key={key} className={`custom-theme-particle__sprite ${baseClass} ${className}`} style={{ backgroundColor: tint || preset.color, ...maskStyle }} />;
+        : <span key={key} className={`custom-theme-particle__sprite ${baseClass} ${className}`} style={{ backgroundColor: preset.shape === 'ring' ? 'transparent' : tint || preset.color, ...maskStyle }} />;
       return <span key={`${styleId}-${index}`} className={`custom-theme-particle custom-theme-particle--${preset.direction}`} style={style}>
         {visual('custom-theme-particle__ghost custom-theme-particle__ghost--one', 'ghost-one')}
         {visual('custom-theme-particle__ghost custom-theme-particle__ghost--two', 'ghost-two')}

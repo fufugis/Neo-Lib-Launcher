@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Wand2, ChevronDown, Tag, ArrowDownUp, Moon, Sun,
   Library as LibIcon, Boxes, CheckSquare, Columns, Home, Check, ListTree, Tv2,
+  Palette, SlidersHorizontal, PanelLeft, Gamepad2, UserRound, Settings2, Sparkles, RefreshCw, Lightbulb, Power,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { stockThemeAssetUrl, customThemeManifest } from '../themes/stock-theme-registry.mjs';
@@ -702,35 +703,29 @@ export function SideNavigationRail({ mode, libraryViewMode, onOpenHome, onOpenLi
     onFocusCapture={() => setExpanded(true)}
     onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setExpanded(false); }}
     onKeyDown={(event) => { if (event.key === 'Escape') setExpanded(false); }}
-    className="absolute inset-y-0 left-0 z-50 flex flex-col overflow-hidden border-r border-[rgb(var(--border)/0.8)] bg-[rgb(var(--surface)/0.97)] px-1 py-2 shadow-[8px_0_24px_-20px_rgba(0,0,0,.95)] backdrop-blur-xl transition-[width,box-shadow] duration-200 ease-out motion-reduce:transition-none"
+    className="absolute inset-y-0 left-0 z-50 flex flex-col overflow-x-hidden overflow-y-auto border-r border-[rgb(var(--border)/0.8)] bg-[rgb(var(--surface)/0.97)] px-1 py-2 shadow-[8px_0_24px_-20px_rgba(0,0,0,.95)] backdrop-blur-xl transition-[width,box-shadow] duration-200 ease-out motion-reduce:transition-none"
     style={{ width: expanded ? 148 : 48 }}
   >
-    <AppControlMenu
-      sidebarMode
-      sidebarExpanded={expanded}
-      sidebarEnabled
-      onToggleSidebar={(enabled) => { if (!enabled) onDisableSidebar?.(); }}
-      minimalisticEnabled={minimalisticEnabled} onToggleMinimalistic={onToggleMinimalistic}
-      onOpenThemes={onOpenThemes}
-      onOpenMascot={onOpenMascot}
-      onOpenVisuals={onOpenVisuals}
-      onOpenControllers={onOpenControllers}
-      onOpenSettings={onOpenSettings}
-      onOpenChangelog={onOpenChangelog}
-      onEnterLounge={onEnterLounge}
-      onCheckForUpdates={onCheckForUpdates}
-      onOpenFeedback={onOpenFeedback}
-      onQuit={onQuit}
-    />
-    <span className="mx-1 my-2 h-px shrink-0 bg-[rgb(var(--border)/0.65)]" />
+    <RailNavigationButton icon={<Tv2 size={21} />} label="Lounge" hint="Couch mode" tone="255 125 210" expanded={expanded} onClick={onEnterLounge} testid="sidebar-rail-lounge-btn" />
+    <span data-testid="side-navigation-lounge-divider" className="mx-1 my-2 h-px shrink-0 bg-[rgb(var(--border)/0.65)]" />
     <RailNavigationButton icon={<Home size={21} />} label="Home" hint="Your dashboard" tone="82 183 255" expanded={expanded} active={mode === 'home'} onClick={onOpenHome} testid="tab-home" />
     <RailNavigationButton icon={<LibIcon size={21} />} label="Library" hint="Browse games" tone="66 218 229" expanded={expanded} active={mode === 'library' && libraryViewMode !== 'wall'} onClick={onOpenLibrary} testid="tab-library" />
     <RailNavigationButton icon={<Columns size={21} />} label="Wall" hint="Cover view" tone="185 143 255" expanded={expanded} active={mode === 'library' && libraryViewMode === 'wall'} onClick={onOpenWall} testid="tab-cover-wall" />
+    <span data-testid="side-navigation-primary-divider" className="mx-1 my-2 h-px shrink-0 bg-[rgb(var(--border)/0.65)]" />
     <RailNavigationButton icon={<Boxes size={21} />} label="Tools" hint="Utilities" tone="92 220 165" expanded={expanded} active={mode === 'tools'} onClick={onOpenTools} testid="tab-tools" />
-    <RailNavigationButton icon={<Tv2 size={21} />} label="Lounge" hint="Couch mode" tone="255 125 210" expanded={expanded} onClick={onEnterLounge} testid="sidebar-rail-lounge-btn" />
-    <span data-testid="side-navigation-actions-divider" className="mx-1 my-2 h-px shrink-0 bg-[rgb(var(--border)/0.65)]" />
     <RailNavigationButton icon={<Wand2 size={21} />} label="Wizard" hint="Add games" tone="255 197 100" expanded={expanded} onClick={onOpenWizard} testid="sidebar-rail-wizard-btn" />
     <RailNavigationButton icon={manualResting ? <Sun size={21} /> : <Moon size={21} />} label={manualResting ? 'Wake up' : 'Rest Zzz'} hint={manualResting ? 'Resume activity' : 'Pause background'} tone={manualResting ? '255 204 112' : '163 165 255'} expanded={expanded} active={manualResting} onClick={onToggleManualRest} testid="sidebar-rail-rest-toggle" />
+    <span data-testid="side-navigation-personalise-divider" className="mx-1 my-2 h-px shrink-0 bg-[rgb(var(--border)/0.65)]" />
+    <RailNavigationButton icon={<Palette size={21} />} label="Theme" hint="Colour and atmosphere" tone="255 155 222" expanded={expanded} onClick={onOpenThemes} testid="sidebar-rail-themes-btn" />
+    <RailNavigationButton icon={<SlidersHorizontal size={21} />} label="Visual tweaks" hint="Layout, motion and FX" tone="122 190 255" expanded={expanded} onClick={onOpenVisuals} testid="sidebar-rail-visuals-btn" />
+    <RailNavigationButton icon={<PanelLeft size={21} />} label="Sidebar" hint="On · click to turn off" tone="255 173 112" expanded={expanded} active onClick={onDisableSidebar} testid="sidebar-rail-sidebar-toggle" />
+    <RailNavigationButton icon={<Gamepad2 size={21} />} label="Controllers" hint="Pads and input" tone="126 222 186" expanded={expanded} onClick={onOpenControllers} testid="sidebar-rail-controllers-btn" />
+    <RailNavigationButton icon={<UserRound size={21} />} label="Mascot" hint="Companion and chat" tone="217 160 255" expanded={expanded} onClick={onOpenMascot} testid="sidebar-rail-mascot-btn" />
+    <RailNavigationButton icon={<Settings2 size={21} />} label="Settings" hint="Startup, sound and data" tone="172 189 255" expanded={expanded} onClick={onOpenSettings} testid="sidebar-rail-settings-btn" />
+    <RailNavigationButton icon={<Sparkles size={21} />} label="Patch notes" hint="What changed" tone="255 207 122" expanded={expanded} onClick={onOpenChangelog} testid="sidebar-rail-changelog-btn" />
+    <RailNavigationButton icon={<RefreshCw size={21} />} label="Updates" hint="Check for a new version" tone="120 224 255" expanded={expanded} onClick={onCheckForUpdates} testid="sidebar-rail-updates-btn" />
+    <RailNavigationButton icon={<Lightbulb size={21} />} label="Help" hint="Feedback and ideas" tone="255 220 112" expanded={expanded} onClick={onOpenFeedback} testid="sidebar-rail-feedback-btn" />
+    <RailNavigationButton icon={<Power size={21} />} label="Quit" hint="Close NEO-LIB" tone="255 126 152" expanded={expanded} onClick={onQuit} testid="sidebar-rail-quit-btn" />
     <span className={`mt-auto overflow-hidden whitespace-nowrap px-2 pb-1 text-[8px] font-bold uppercase tracking-[0.16em] text-muted transition-opacity ${expanded ? 'opacity-75' : 'opacity-0'}`}>Navigation</span>
   </nav></div>;
 }

@@ -29,7 +29,9 @@ function createMetadataCandidateService({ cleanSearchTerm, listSources, expandSo
         if (seen.has(key)) return null;
         seen.add(key);
         const relevance = titleRelevance(term, candidate.name);
-        return relevance >= 0.35 ? { ...candidate, source: sourceId, relevance } : null;
+        return relevance >= 0.35 || (sourceId === 'ai' && candidate.grounded)
+          ? { ...candidate, source: sourceId, relevance: Math.max(relevance, candidate.grounded ? 0.35 : 0) }
+          : null;
       }).filter(Boolean));
       candidates.sort((left, right) => right.relevance - left.relevance || left.source.localeCompare(right.source));
       const sourceErrors = settled.filter(result => result.failed).map(result => result.id);
@@ -66,6 +68,10 @@ function titleRelevance(query, title) {
   const haystack = normalize(title);
   if (!needle || !haystack) return 0;
   if (needle === haystack) return 1;
+  const joinedNeedle = needle.replace(/\s+/g, '');
+  const joinedTitle = haystack.replace(/\s+/g, '');
+  if (joinedNeedle === joinedTitle) return 1;
+  if (joinedNeedle.length >= 5 && joinedTitle.includes(joinedNeedle)) return 0.94;
   if (` ${haystack} `.includes(` ${needle} `)) return 0.94;
   const queryTokens = new Set(needle.split(/\s+/).filter(token => token.length > 1));
   const titleTokens = new Set(haystack.split(/\s+/).filter(token => token.length > 1));
@@ -76,6 +82,7 @@ function titleRelevance(query, title) {
 }
 
 function candidateMetadataFallback(candidate) {
+  if (candidate.manual) return null;
   if (candidate.source === 'ai' && !candidate.raw) return null;
   const raw = candidate.raw && typeof candidate.raw === 'object' ? candidate.raw : {};
   const image = String(candidate.image || raw.tiny_image || raw.coverVertical || raw.image || '').trim();

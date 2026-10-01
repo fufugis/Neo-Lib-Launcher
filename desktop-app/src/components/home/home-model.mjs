@@ -1,3 +1,5 @@
+import { libraryArtworkAudit } from './library-artwork-audit.mjs';
+
 export const PLATFORM = Object.freeze({ steam: 'Steam', epic: 'Epic', gog: 'GOG', ea: 'EA app', ubisoft: 'Ubisoft', battlenet: 'Battle.net', riot: 'Riot', xbox: 'Xbox / Game Pass', rockstar: 'Rockstar', itch: 'itch.io', private: 'Protected', local: 'Local' });
 
 export function platformOf(game) {
@@ -35,15 +37,25 @@ export function maskHomeUpdates(value, lockedGameCategories) {
 
 export function getLibraryHealth(games) {
   const inspectableGames = games.filter((game) => !game.homeLocked);
-  const missingArt = inspectableGames.filter((game) => !(game.coverUrl || game.headerImage || game.background)).length;
+  const artworkRows = libraryArtworkAudit(inspectableGames);
+  const missingArt = artworkRows.filter((row) => row.reasons.length > 0).length;
   const missingDetails = inspectableGames.filter((game) => ![game.description, game.about, game.shortDescription].some((value) => String(value || '').trim())).length;
   const noLaunchTarget = inspectableGames.filter((game) => !(game.exePath || game.launchUrl)).length;
+  const missingGenres = inspectableGames.filter((game) => !(game.genreProfile?.core?.length || game.genreProfile?.rawTags?.length || game.genres?.length || game.genreTags?.length)).length;
+  const missingCredits = inspectableGames.filter((game) => !(game.developers?.length || game.publishers?.length)).length;
+  const missingReleaseDate = inspectableGames.filter((game) => !(game.releaseDate || game.year)).length;
   const names = new Map();
   for (const game of inspectableGames) { const key = String(game.name || '').toLowerCase().replace(/[^a-z0-9]/g, ''); if (key) names.set(key, (names.get(key) || 0) + 1); }
   const duplicates = [...names.values()].reduce((total, count) => total + (count > 1 ? count - 1 : 0), 0);
-  const issues = missingArt + missingDetails + noLaunchTarget + duplicates;
-  const genreProfile = inspectableGames.filter((game) => Array.isArray(game.genreProfile?.rawTags) && game.genreProfile.rawTags.length > 0).length;
-  return { missingArt, missingDetails, noLaunchTarget, duplicates, genreProfile, score: Math.max(0, Math.round(100 - ((issues / Math.max(inspectableGames.length, 1)) * 35))) };
+  const checksPerGame = 6;
+  const failedChecks = missingArt + missingDetails + missingGenres + missingCredits + missingReleaseDate + noLaunchTarget + duplicates;
+  const totalChecks = inspectableGames.length * checksPerGame + duplicates;
+  const genreProfile = inspectableGames.length - missingGenres;
+  return {
+    missingArt, missingDetails, noLaunchTarget, duplicates, genreProfile, missingGenres, missingCredits, missingReleaseDate,
+    totalChecks, failedChecks,
+    score: totalChecks ? Math.max(0, Math.round(((totalChecks - failedChecks) / totalChecks) * 100)) : 0,
+  };
 }
 
 export function getRecommendations(games, news, now = Date.now()) {

@@ -2189,7 +2189,7 @@ async function expandF95(c) {
 
 async function listGoogleCandidates(term) {
   try {
-    const results = await publicWebProvider.searchGameMetadata(term);
+    const results = await publicWebProvider.searchGameCandidates(term);
     return (results || []).slice(0, 8).map((r) => ({
       source: 'google',
       id: r.url,
@@ -2204,6 +2204,13 @@ async function listGoogleCandidates(term) {
 async function expandGoogle(c) {
   const r = c.raw || {};
   const url = r.url || c.id || '';
+  const steamApp = String(url).match(/^https:\/\/store\.steampowered\.com\/app\/(\d+)(?:\/|$)/i);
+  if (steamApp) {
+    try {
+      const details = await expandSteam({ id: steamApp[1], name: c.name });
+      if (details) return details;
+    } catch { /* The source page may still provide reviewed metadata. */ }
+  }
   let page = {};
   if (/^https?:\/\/[^/]*\.itch\.io\//i.test(url)) {
     const itch = await itchDetails(url);
@@ -2222,6 +2229,7 @@ async function expandGoogle(c) {
       };
     } catch { /* The reviewed search snippet remains usable. */ }
   }
+  if (c.manual && !page.title && !page.description && !page.image) return null;
   const description = page.description || r.snippet || '';
   const identityText = `${description} ${r.title || ''}`.toLowerCase();
   const genres = [
@@ -2267,20 +2275,14 @@ async function metadataFromPublicResult(top, fallbackName) {
 }
 
 async function listAiCandidates(term, geminiKey, aiModel) {
-  if (!geminiKey) return [{
-    source: 'ai',
-    id: 'ai-key-missing',
-    name: 'Gemini API key required',
-    image: '',
-    year: '',
-    shortDescription: 'Add your Gemini API key in Settings → Integrations to use the "Ask AI" source.',
-    raw: null,
-  }];
+  if (!String(geminiKey || '').trim()) throw new Error('Add your Gemini API key in Settings → Integrations to use Ask AI.');
   const metadata = await requestGeminiGameMetadata(geminiKey, term, aiModel);
+  const { searchSuggestions, sourcePages, grounded, ...reviewedMetadata } = metadata;
   return [{
     source: 'ai', id: 'gemini-1', name: metadata.name, image: '',
-    year: (metadata.releaseDate || '').slice(0, 4),
-    shortDescription: metadata.shortDescription || '', raw: metadata,
+    year: (String(metadata.releaseDate || '').match(/\b(?:19|20)\d{2}\b/) || [])[0] || '',
+    shortDescription: metadata.shortDescription || '', raw: reviewedMetadata,
+    searchSuggestions, sourcePages, grounded,
   }];
 }
 

@@ -9,7 +9,8 @@ function createGeminiProviderService({ httpPostJson, cleanSearchTerm, models, de
     if (!value || typeof value !== 'object') return null;
     const name = String(value.name || '').trim().slice(0, 180);
     if (!name) return null;
-    return { source: 'gemini', name, shortDescription: String(value.shortDescription || '').trim().slice(0, 700), about: String(value.about || '').trim().slice(0, 3000), genres: textList(value.genres), developers: textList(value.developers), publishers: textList(value.publishers), releaseDate: String(value.releaseDate || '').trim().slice(0, 80), website: String(value.website || '').trim().slice(0, 500), metacritic: Number.isFinite(Number(value.metacritic)) ? Number(value.metacritic) : null, screenshots: [], queryEvidence: fallbackName };
+    const score = value.metacritic == null || value.metacritic === '' ? null : Number(value.metacritic);
+    return { source: 'gemini', name, shortDescription: String(value.shortDescription || '').trim().slice(0, 700), about: String(value.about || '').trim().slice(0, 3000), genres: textList(value.genres), developers: textList(value.developers), publishers: textList(value.publishers), releaseDate: String(value.releaseDate || '').trim().slice(0, 80), website: /^https:\/\//i.test(String(value.website || '')) ? String(value.website).trim().slice(0, 500) : '', metacritic: Number.isFinite(score) && score >= 0 && score <= 100 ? score : null, screenshots: [], queryEvidence: fallbackName };
   }
   async function requestGameMetadata(apiKey, query, model) {
     const key = String(apiKey || '').trim();
@@ -17,15 +18,22 @@ function createGeminiProviderService({ httpPostJson, cleanSearchTerm, models, de
     const activeModel = resolveModel(model);
     if (!key) throw new Error('Add a Gemini API key in Settings first.');
     if (!term) throw new Error('Enter a game name before asking AI.');
-    const prompt = `You identify PC video games from rough local filenames and folder names.\n\nGame clue: "${term}"\n\nReturn ONLY one JSON object with this exact shape:\n{"name":"canonical title or empty","shortDescription":"","about":"","genres":[],"developers":[],"publishers":[],"releaseDate":"","website":"official game/store/wiki URL or empty","metacritic":null}\n\nRules: Do not invent a title when uncertain. Keep genres specific when known. Do not include markdown, commentary, download links, or file paths.`;
-    const data = await httpPostJson(`https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${encodeURIComponent(key)}`, { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.1, maxOutputTokens: 900 } });
+    const prompt = `Identify this PC video game using Google Search. The clue may be a rough local executable or folder name, and obscure games may be absent from big stores. Search the exact clue and sensible spaced/title variants; verify the identity against a real game page before filling details.\n\nGame clue: "${term}"\n\nReturn ONLY one JSON object with this shape:\n{"name":"canonical title or empty","shortDescription":"","about":"","genres":[],"developers":[],"publishers":[],"releaseDate":"","website":"https URL of an official game/store/wiki page or empty","metacritic":null}\n\nIf the search evidence does not identify a game, leave name empty. Do not invent a title, review score, release date or website. Do not include markdown, commentary, download links or file paths.`;
+    const data = await httpPostJson(`https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${encodeURIComponent(key)}`, { contents: [{ parts: [{ text: prompt }] }], tools: [{ google_search: {} }], generationConfig: { temperature: 0.1, maxOutputTokens: 1300 } });
     if (data?.error?.message) throw new Error(`Gemini: ${data.error.message}`);
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const response = data?.candidates?.[0];
+    const text = (response?.content?.parts || []).map(part => part?.text || '').join('\n').trim();
     let parsed;
-    try { parsed = JSON.parse(text); } catch { throw new Error('Gemini returned an unreadable metadata response.'); }
+    try {
+      const first = text.indexOf('{');
+      const last = text.lastIndexOf('}');
+      parsed = JSON.parse(first >= 0 && last > first ? text.slice(first, last + 1) : text);
+    } catch { throw new Error('Gemini returned an unreadable metadata response.'); }
     const normalized = normalizeMetadata(parsed, term);
-    if (!normalized) throw new Error('Gemini could not identify this game confidently. Try a clearer title clue or another source.');
-    return normalized;
+    if (!normalized) throw new Error('Gemini found no verified game for this clue. Try a fuller title or search Google in your browser.');
+    const grounding = response?.groundingMetadata || {};
+    const sourcePages = (grounding.groundingChunks || []).map(chunk => ({ url: String(chunk?.web?.uri || ''), title: String(chunk?.web?.title || '') })).filter(page => /^https:\/\//i.test(page.url)).slice(0, 5);
+    return { ...normalized, sourcePages, searchSuggestions: String(grounding.searchEntryPoint?.renderedContent || '').slice(0, 40000), grounded: Array.isArray(grounding.webSearchQueries) && grounding.webSearchQueries.length > 0 };
   }
   function normalizeHistory(history) {
     if (!Array.isArray(history)) return [];

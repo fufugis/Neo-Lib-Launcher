@@ -9,7 +9,10 @@ export function metadataRefreshTargets(items = [], mode = 'missing', now = Date.
     // The missing-metadata queue repairs portrait covers. A hero/header image
     // or scenic background cannot satisfy that need and should not hide a game
     // from the queue just because it has some other artwork.
-    const missingArt = !(item.portraitImage || item.coverUrl || item.capsuleImage);
+    const cover = String(item.portraitImage || item.coverUrl || item.capsuleImage || '').trim();
+    const dimensions = cover.match(/(?:^|[^\d])(\d{2,4})[x×](\d{2,4})(?:[^\d]|$)/i);
+    const knownWideArt = dimensions && Number(dimensions[1]) >= Number(dimensions[2]);
+    const missingArt = !cover || Boolean(knownWideArt);
     const missingCopy = !(item.about || item.shortDescription);
     const missingIdentity = !(item.genres?.length || item.genreTags?.length || item.genreProfile?.core?.length);
     const lastFetch = Number(item.metadataFetchedAt || item.metadataUpdatedAt || 0);

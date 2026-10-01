@@ -47,8 +47,19 @@ const { createMetadataCandidateService } = require('../electron/providers/metada
   const steamFallback = await service.expandCandidate({ candidate: { source: 'steam', id: '12345', name: 'Windrose', image: 'https://art.test/header.jpg' } });
   assert.equal(steamFallback.appid, '12345');
   assert.match(steamFallback.portraitImage, /12345\/library_600x900\.jpg$/);
+  assert.equal(await service.expandCandidate({ candidate: { source: 'broken', id: 'https://game.test/', name: 'Rare Game', manual: true } }), null, 'a pasted page that cannot be read is not silently accepted as metadata');
   assert.equal(await service.expandCandidate({ candidate: { source: 'unknown' } }), null);
   assert.equal(await service.expandCandidate({}), null);
+  const hardTitleService = createMetadataCandidateService({
+    cleanSearchTerm: value => String(value || '').trim(),
+    listSources: {
+      google: async () => [{ source: 'google', id: 'https://game.test/monolith', name: 'Monolith Bay' }],
+      ai: async () => [{ source: 'ai', id: 'verified', name: 'The Secret Harbour', grounded: true, raw: { name: 'The Secret Harbour' } }],
+    },
+    expandSources: {},
+  });
+  const hardTitles = await hardTitleService.listCandidates({ source: 'all', query: 'MonolithBay', geminiKey: 'key' });
+  assert.deepEqual(new Set(hardTitles.candidates.map(candidate => candidate.source)), new Set(['google', 'ai']), 'joined executable names match spaced web titles and grounded AI suggestions remain reviewable');
   assert.throws(() => createMetadataCandidateService({}), /requires search normalization/);
   console.log('PASS: metadata-candidate orchestration allow-lists list/expand sources, preserves context and normalization, and contains empty, unknown, malformed and throwing providers. No provider or network request ran.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
