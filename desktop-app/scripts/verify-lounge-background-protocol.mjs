@@ -11,15 +11,39 @@ try {
   const name = '12345678-1234-1234-1234-123456789abc.jpg';
   await fs.writeFile(path.join(root, name), Buffer.from([255, 216, 255, 0]));
   let fetched = 0;
-  const handler = createLoungeBackgroundHandler(root, async (url, options) => { fetched++; assert.equal(url, pathToFileURL(path.join(root, name)).href); return new Response('jpeg', { status: options.headers.has('Range') ? 206 : 200 }); });
+  // Windows CI can expose TEMP through an 8.3 alias (RUNNER~1). The handler
+  // deliberately resolves it; compare the transport URL to the same real file,
+  // not the original spelling. Capture mock failures outside the handler's
+  // error boundary so a fixture assertion cannot masquerade as a missing file.
+  const expectedFileUrl = pathToFileURL(await fs.realpath(path.join(root, name))).href;
+  let transportFailure;
+  const fetchFile = async (url, options) => {
+    fetched++;
+    try { assert.equal(url, expectedFileUrl); }
+    catch (error) { transportFailure = error; throw error; }
+    return new Response('jpeg', { status: options.headers.has('Range') ? 206 : 200 });
+  };
+  const handler = createLoungeBackgroundHandler(root, fetchFile);
   const valid = `neolib-background://asset/${name}`;
   const good = await handler(new Request(valid));
+  if (transportFailure) throw transportFailure;
   assert.equal(good.status, 200); assert.equal(good.headers.get('Content-Type'), 'image/jpeg');
   assert.equal(good.headers.get('Access-Control-Allow-Origin'), '*');
   assert.equal(await good.text(), 'jpeg');
   assert.equal((await handler(new Request(valid, { headers: { Range: 'bytes=0-1' } }))).status, 206);
   for (const url of [`neolib-background://other/${name}`, 'neolib-background://asset/settings.json', `neolib-background://asset/sub/${name}`, `neolib-background://asset/${name}?path=other`, `neolib-background://asset/%2e%2e%2f${name}`, `neolib-background://asset/user:password@${name}`]) assert.notEqual((await handler(new Request(url))).status, 200);
   assert.equal(fetched, 2, 'unsafe paths never reach file transport');
+  // A directory alias is allowed as the configured private root, but the
+  // actual file transport must still use its canonical path.
+  const alias = path.join(root, 'root-alias');
+  await fs.symlink(root, alias, process.platform === 'win32' ? 'junction' : 'dir');
+  try {
+    const aliasHandler = createLoungeBackgroundHandler(alias, fetchFile);
+    const aliasResult = await aliasHandler(new Request(valid));
+    if (transportFailure) throw transportFailure;
+    assert.equal(aliasResult.status, 200, 'canonicalized private-root aliases remain readable');
+    assert.equal(fetched, 3);
+  } finally { await fs.unlink(alias); }
   assert.equal((await handler(new Request(valid, { method: 'POST' }))).status, 403);
   assert.equal(loungeBackgroundDisplayUrl(`file:///C:/Users/Test/lounge-backgrounds/${name}`), valid);
   for (const url of ['https://example.com/a.jpg', 'file:///C:/Users/Test/a.jpg', 'file:///C:/Users/Test/lounge-backgrounds/settings.json']) assert.equal(loungeBackgroundDisplayUrl(url), url);

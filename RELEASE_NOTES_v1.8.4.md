@@ -132,6 +132,8 @@ Home pauses underlying Lounge effects and carousel movement while open, with sta
 
 ## Release status
 
+Windows CI fixture compatibility has been corrected for canonical temporary-directory paths, including short-path aliases. A directory-alias regression and the complete prebuild verification suite pass locally. The GitHub Node 22 rerun and real installer build still need confirmation; production background access restrictions are unchanged.
+
 Source preparation is complete: package, displayed version, current in-app changelog and Windows release workflow target v1.8.4. Targeted release-hardening, configuration, provenance, startup and renderer checks pass. The complete build gate, production rendering measurements, installer/portable inspection and Windows acceptance remain pending. This preparation does not publish a tag, create an installer or certify the outstanding Lounge visual changes.
 
 The application/package version is 1.8.4. This document is a feature summary, not proof of a successful installer build or installed-app acceptance; those checks remain tracked in [WINDOWS_ACCEPTANCE_V1.8.4.md](WINDOWS_ACCEPTANCE_V1.8.4.md).
