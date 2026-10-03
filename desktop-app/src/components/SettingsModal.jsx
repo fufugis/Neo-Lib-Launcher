@@ -8,7 +8,7 @@ import qrUrl from '../assets/donate-qr.png';
 import { SettingsSection as Section, SettingsToggle as Toggle } from './settings/SettingsControls';
 import { hashPin } from '../lib/utils';
 
-export default function SettingsModal({ open, onClose, settings, setSettings, onShowChangelog, currentVersion = '1.8.3', library, onExportLibrary, onImportLibrary, onResetLibrary, onConfirmCategoryRemoval, onRemoveCategories }) {
+export default function SettingsModal({ open, onClose, settings, setSettings, onShowChangelog, currentVersion = '1.8.4', library, onExportLibrary, onImportLibrary, onResetLibrary, onConfirmCategoryRemoval, onRemoveCategories }) {
   const setKey = (patch) => setSettings({ ...settings, ...patch });
   const [showKey, setShowKey] = React.useState(false);
   const [showArtworkKey, setShowArtworkKey] = React.useState(false);
