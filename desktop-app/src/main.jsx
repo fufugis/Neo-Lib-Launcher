@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom/client';
 import './styles.css';
 import { getSkimlinksScriptSrc } from './lib/deals';
 
+if (import.meta.env.DEV) import('./lib/startup-performance.mjs').then(module => module.collectStartupPerformance());
+
 function readableFailure(error) {
   return String(error?.stack || error?.message || error || 'Unknown startup error').slice(0, 5000);
 }

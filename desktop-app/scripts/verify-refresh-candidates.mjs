@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
-import { fieldCandidates, selectedRefreshPatch, createRefreshSearch } from '../src/lib/refreshCandidates.mjs';
+import { fieldCandidates, selectedRefreshPatch, createRefreshSearch, matchesCoverTitle } from '../src/lib/refreshCandidates.mjs';
 
 const image = n => `https://example.test/image-${n}.png`;
 const record = { name: 'Example', source: 'steam', icon: image(1), capsuleImage: image(1), headerImage: image(2), background: image(3), screenshots: [image(4), image(4), image(5)], about: 'Full description', shortDescription: 'Short description' };
@@ -65,6 +65,29 @@ const coverSearch = createRefreshSearch({
 }, { name: 'Example' }, 'cover', { steamGridDbKey: 'configured-key' });
 await coverSearch.next(5);
 assert.ok(searchedSources.includes('steamgriddb'), 'cover repair includes reviewed portrait recommendations when a SteamGridDB key is configured');
+assert(matchesCoverTitle('TerraTech Legion', { name: 'TerraTech: Legion™' }), 'punctuation does not hide the exact game');
+assert(!matchesCoverTitle('TerraTech Legion', { name: 'TerraTech Legion Demo' }), 'a demo is not the requested game');
+assert(!matchesCoverTitle('TerraTech Legion', { name: 'TerraTech Legion Soundtrack' }), 'a soundtrack is not the requested game');
+assert(!matchesCoverTitle('TerraTech Legion', { name: 'Rising Heat' }), 'unrelated titles are excluded');
+assert(matchesCoverTitle('Local name', { source: 'steam', id: '77', name: 'Renamed store title' }, { appid: 77 }), 'a locked Steam app identity can retain a renamed title');
+const reviewedIds = [];
+const verifiedUrls = [];
+const workingAlternate = 'https://example.test/working-portrait.png';
+const reviewedCovers = createRefreshSearch({
+  fetchMetadata: async () => ({ source: 'steam', name: 'TerraTech Legion', portraitImage: image(50) }),
+  listCandidates: async ({ source }) => ({ candidates: source === 'steam' ? [
+    { source, id: 1, name: 'TerraTech Legion Demo' },
+    { source, id: 2, name: 'TerraTech Legion' },
+    { source, id: 3, name: 'TerraTech Legion Soundtrack' },
+  ] : source === 'gog' ? [{ source, id: 4, name: 'TerraTech Legion' }] : [] }),
+  expandCandidate: async ({ candidate }) => { reviewedIds.push(candidate.id); return { source: candidate.source, name: candidate.name, portraitImage: image(candidate.id) }; },
+}, { name: 'TerraTech Legion' }, 'cover', {}, async url => { verifiedUrls.push(url); return url === image(4) ? workingAlternate : false; });
+const reviewed = await reviewedCovers.next(5);
+assert.deepEqual(reviewedIds, [2, 4], 'only exact-title results reach artwork expansion');
+assert.deepEqual(verifiedUrls, [image(50), image(2), image(4)], 'each distinct cover is verified before suggestion');
+assert.deepEqual(reviewed.candidates.map(candidate => candidate.value), [workingAlternate], 'only a verified working portrait URL becomes selectable artwork');
+assert.equal(selectedRefreshPatch('cover', reviewed.candidates, {}).coverUrl, workingAlternate, 'the verified URL, not the broken original, is saved');
+assert(reviewed.failures.some(message => message.includes('cover images were skipped')), 'unavailable images are explained');
 
 let cancelled = false, release, moreCalls = 0;
 const cancellation = createRefreshSearch({ fetchMetadata: () => new Promise(resolve => { release = resolve; }), listCandidates: async () => { moreCalls++; return {}; } }, { name: 'Test' }, 'icon');
@@ -87,4 +110,28 @@ assert.ok(!surgical.includes('updateGame('), 'field refresh cannot save before r
 const workflow = fs.readFileSync(new URL('../src/services/metadata-workflow.mjs', import.meta.url), 'utf8');
 const bulk = workflow.slice(workflow.indexOf('const refetchAll'), workflow.indexOf('return {', workflow.indexOf('const refetchAll')));
 assert.ok(bulk.includes('setTidyReviewMode')); assert.ok(bulk.includes('setTidyOpen(true)')); assert.ok(!bulk.includes('autoApply: true'), 'bulk refresh opens the scrollable list and cannot auto-apply');
-console.log('PASS: field patches, safe identity, cover-only results, SteamGridDB suggestions, five-result paging, source exhaustion, Blizzard ID, cancellation, source errors, JSX parsing and scrollable bulk review routing. No network or real library writes.');
+const wizard = fs.readFileSync(new URL('../src/components/WizardModal.jsx', import.meta.url), 'utf8');
+const wizardScanButton = wizard.match(/data-testid="wizard-tidy-library-btn"[\s\S]*?<\/button>/)?.[0] || '';
+assert.match(wizardScanButton, /onTidyLibrary/, 'cover audit opens from Wizard');
+assert.doesNotMatch(wizardScanButton, /onClose\(/, 'opening cover audit must not close Wizard');
+assert.match(wizard, /<Modal open=\{open && !suspended && !launcherConfirm\}/, 'Wizard stays mounted while the audit is in front');
+const modalLayer = fs.readFileSync(new URL('../src/components/app/AppModalLayer.jsx', import.meta.url), 'utf8');
+const auditWiring = modalLayer.slice(modalLayer.indexOf('<TidyUpModal'), modalLayer.indexOf('<PostPlayRatingModal'));
+assert.match(modalLayer, /<WizardModal\s+open=\{showWizard\}\s+suspended=\{tidyOpen \|\| Boolean\(refreshReview\)\}/, 'Wizard hides during audit and cover picker without losing its open state');
+assert.match(auditWiring, /open=\{tidyOpen\}\s+suspended=\{Boolean\(refreshReview\)\}/, 'audit stays open behind the cover picker');
+for (const handler of ['onFixArtwork', 'onRefreshMetadata']) {
+  const handoff = auditWiring.match(new RegExp(`${handler}=\\{\\(game\\) => \\{[^}]*setRefreshReview`))?.[0] || '';
+  assert.ok(handoff, `${handler} opens a focused picker`);
+  assert.doesNotMatch(handoff, /setTidyOpen\(false\)/, `${handler} must preserve the audit session`);
+}
+assert.match(modalLayer, /onClose=\{\(\) => setRefreshReview\(null\)\}/, 'cancelling one repair returns to the audit');
+assert.match(modalLayer, /setRefreshReview\(review => review\.index \+ 1 < review\.games\.length \? \{ \.\.\.review, index: review\.index \+ 1 \} : null\)/, 'applying one repair returns to the audit');
+const audit = fs.readFileSync(new URL('../src/components/TidyUpModal.jsx', import.meta.url), 'utf8');
+assert.match(audit, /className=\{`fixed inset-0 z-\[220\][^`]*\$\{suspended \? 'invisible pointer-events-none'/, 'audit is hidden, not unmounted, during a focused repair');
+const picker = fs.readFileSync(new URL('../src/components/RefreshCandidatesModal.jsx', import.meta.url), 'utf8');
+assert.match(picker, /createRefreshSearch\(window\.api, game, field, options, verifySuggestedPortrait\)/, 'picker verifies each cover image before listing it');
+assert.match(picker, /store_item_assets\/steam\/apps\/\$\{legacySteam\[1\]\}\/library_600x900\.jpg/, 'Steam portraits try the newer asset path when the legacy path is absent');
+assert.match(picker, /onError=\{\(\) => setFailedImages\(old => new Set\(\[\.\.\.old, item\.key\]\)\)\}/, 'late image failures cannot be applied');
+assert.match(picker, /const valid = await verifyPortraitImage\(manualCover\.value\)/, 'pasted artwork is checked before it can be selected');
+assert.match(picker, /setSelected\(\[manualCover\.key\]\)/, 'only a verified pasted cover becomes selectable');
+console.log('PASS: field patches, safe identity, exact-title verified portrait suggestions, SteamGridDB route, paging, source exhaustion, Blizzard ID, cancellation, source errors, JSX parsing, scrollable bulk review and repeatable Wizard artwork repair routing. No network or real library writes.');

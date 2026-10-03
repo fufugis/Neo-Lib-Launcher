@@ -41,7 +41,7 @@ import { collectionCategoryAssignment, collectionFavoriteIds, collectionJourneyS
 import { mergeRetroImport } from './state/retro-import-state.mjs';
 import { journeyStatusAfterFirstLaunch } from './lib/game-journey-model.mjs';
 import { externalRootForGame, normalizeExternalLibraryRoots } from './lib/externalLibraryRoots.mjs';
-import { applyStockThemePalette, stockThemeAssetUrl, customThemeCanvas } from './themes/stock-theme-registry.mjs';
+import { applyStockThemePalette, stockThemeAssetUrl, customThemeCanvas, preloadSidebarArtwork } from './themes/stock-theme-registry.mjs';
 import { useCustomThemes } from './themes/use-custom-themes';
 const APP_VERSION = '1.8.3';
 import { uid, guessNameFromPath, hashPin, formatPlaytime } from './lib/utils';
@@ -143,40 +143,35 @@ export default function App() {
     setSoundPack(gameRestActive || settings.soundsEnabled === false ? 'none' : (settings.soundPack || 'synthwave'));
   }, [gameRestActive, settings.soundsEnabled, settings.soundPack]);
 
-  /* --- CRT boot animation on first paint --- */
-  const [bootDone, setBootDone] = React.useState(false);
-  React.useEffect(() => {
-    const t = setTimeout(() => setBootDone(true), 1400);
-    return () => clearTimeout(t);
-  }, []);
+  const [startupReady, setStartupReady] = React.useState(false);
+  const [startupError, setStartupError] = React.useState('');
 
   /* --- Tutorial state (first-time popup) --- */
   const [tutorialOpen, setTutorialOpen] = React.useState(false);
   const [tutorialVisualsOpen, setTutorialVisualsOpen] = React.useState(false);
   const [visualsOpen, setVisualsOpen] = React.useState(false);
   React.useEffect(() => { if (tutorialOpen) setVisualsOpen(tutorialVisualsOpen); }, [tutorialOpen, tutorialVisualsOpen]);
-  const [introHiddenThisSession, setIntroHiddenThisSession] = React.useState(false);
   const [fungistWelcomeKey, setFungistWelcomeKey] = React.useState(0);
   const postIntroGreetingScheduled = React.useRef(false);
   React.useEffect(() => {
     // Open tutorial if user hasn't dismissed it AND setting allows
     const seen = isElectron ? settings.tutorialSeen : (typeof localStorage !== 'undefined' && localStorage.getItem('neo-lib-tutorial-seen') === '1');
-    if ((!seen || settings.tutorialAlwaysShow) && (introHiddenThisSession || settings.skipIntro)) {
+    if (startupReady && (!seen || settings.tutorialAlwaysShow)) {
       // Never put tutorial audio or a spotlight over the startup sequence.
       const t = setTimeout(() => setTutorialOpen(true), 340);
       return () => clearTimeout(t);
     }
     return undefined;
-  }, [introHiddenThisSession, settings.skipIntro, settings.tutorialSeen, settings.tutorialAlwaysShow]);
+  }, [startupReady, settings.tutorialSeen, settings.tutorialAlwaysShow]);
 
   React.useEffect(() => {
-    if (!introHiddenThisSession || tutorialOpen || postIntroGreetingScheduled.current) return undefined;
+    if (!startupReady || tutorialOpen || postIntroGreetingScheduled.current) return undefined;
     const timer = window.setTimeout(() => {
       postIntroGreetingScheduled.current = true;
       setFungistWelcomeKey(Date.now());
     }, 620);
     return () => window.clearTimeout(timer);
-  }, [introHiddenThisSession, tutorialOpen]);
+  }, [startupReady, tutorialOpen]);
 
   /* --- Troubleshoot state (smart refetch) --- */
   const [troubleshoot, setTroubleshoot] = React.useState({ open: false, game: null });
@@ -341,8 +336,7 @@ export default function App() {
   React.useEffect(() => {
     (async () => {
       if (isElectron) {
-        const lib = await nativeApi.loadLibrary();
-        const s = await nativeApi.loadSettings();
+        const [lib, s] = await Promise.all([nativeApi.loadLibrary(), nativeApi.loadSettings().then(saved => { preloadSidebarArtwork(saved?.theme); return saved; })]);
         // Rating System v2 deliberately starts everyone fresh. Earlier whole-
         // star ratings are not comparable to the new precise fractional scale,
         // so clear them exactly once rather than quietly reinterpreting them.
@@ -361,6 +355,7 @@ export default function App() {
         setSettings(cleanSettings);
         setSelectedId(restoredNavigation.selectedGameId);
         setSelectedToolId(restoredNavigation.selectedToolId);
+        setStartupReady(true);
 
         // First desktop run: read only the ordinary Windows adapter list, then
         // add managed GPU-Z / CPU-Z and a genuine vendor control-centre shortcut
@@ -469,8 +464,9 @@ export default function App() {
         });
         setSelectedId(null);
         setSelectedToolId(DEMO_TOOLS[0].id);
+        setStartupReady(true);
       }
-    })();
+    })().catch(error => { console.error('NEO-LIB startup hydration failed', error); setStartupError('Could not load your saved library and settings. Close and reopen NEO-LIB; your saved data has not been replaced.'); });
   }, []);
 
   React.useEffect(() => {
@@ -1356,6 +1352,7 @@ export default function App() {
   // disappear merely because the player lowers global FX for performance.
   const specialNavDecorationOpacity = activeVisuals.navigationDecorationOpacity;
 
+  if (!startupReady) return <main role="status" className="flex h-screen items-center justify-center bg-[#111018] text-white"><p>{startupError || 'Loading your library…'}</p></main>;
   return (
     <div className="neolib-app-shell relative flex h-screen w-screen flex-col bg-surface text-ink" data-neolib-resting={gameRestActive ? 'true' : 'false'} data-interface-mode={settings.interfaceMode === 'minimalistic' ? 'minimalistic' : 'default'} data-special-theme={specialUiTheme || undefined} style={{
       backgroundImage: customThemeCanvas(settings.theme),
@@ -1752,8 +1749,6 @@ export default function App() {
           ratingPromptGame,
           setRatingPromptGame,
           confetti,
-          introHiddenThisSession,
-          setIntroHiddenThisSession,
           feedbackOpen,
           feedbackInitialMode,
           setFeedbackOpen,
@@ -1785,7 +1780,6 @@ export default function App() {
           detectedLauncher,
           importDetectedLauncher,
           setDetectedLauncher,
-          bootDone,
           toast,
           appVersion: APP_VERSION,
         }}

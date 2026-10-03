@@ -1,6 +1,7 @@
 // IPC surface for native file/folder pickers. Selection policy stays explicit
 // here while the caller only receives the same path/result shapes as before.
 const { importLoungeBackground } = require('../images/lounge-background-import.cjs');
+const { backgroundProfile, validProfile } = require('../images/lounge-background-profile.cjs');
 const { importLoungeAudio } = require('../audio/lounge-audio-import.cjs');
 
 function registerDialogIpc({ registerIpc, dialog, getMainWindow, loungeBackgroundRoot, loungeAudioRoot }) {
@@ -57,6 +58,12 @@ function registerDialogIpc({ registerIpc, dialog, getMainWindow, loungeBackgroun
   }, value => value === null || (isPlainObject(value) && (value.ok === true
     ? isBoundedString(value.url, { required: true, max: 2048 }) && value.url.startsWith('file:///')
     : value.ok === false && isBoundedString(value.error, { required: true, max: 160 }))), null));
+
+  registerIpc('dialog:loungeBackgroundProfile', guardResult(async (_event, url, profile) => {
+    if (typeof loungeBackgroundRoot !== 'function') return null;
+    if (!isBoundedString(url, { required: true, max: 2048 }) || (profile !== undefined && !validProfile(profile))) return null;
+    return backgroundProfile(loungeBackgroundRoot(), url, profile);
+  }, value => value === null || validProfile(value), null));
 
   registerIpc('dialog:importLoungeAudio', guardResult(async () => {
     const selected = await pickFirst({

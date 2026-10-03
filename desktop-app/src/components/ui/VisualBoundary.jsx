@@ -9,9 +9,9 @@ export const UI_LAYERS = Object.freeze({
 });
 
 /** Keeps menus outside clipped library/preview panes while preserving their DOM. */
-export function renderForegroundPortal(children) {
+export function renderForegroundPortal(children, host) {
   if (typeof document === 'undefined' || !document.body) return children;
-  return createPortal(children, document.body);
+  return createPortal(children, host || document.body);
 }
 
 /** Decorative art is always hidden from assistive tech and can never intercept input. */

@@ -13,7 +13,7 @@ const importSource = wizard.slice(wizard.indexOf('  const importLauncherItems'),
 assert(!importSource.includes('fetchMetadata'), 'imports must not wait on metadata');
 assert(!importSource.includes('cacheImage'), 'imports must not wait on image downloads');
 assert(wizard.includes('renderForegroundPortal(<AnimatePresence>') && wizard.includes("from './ui/VisualBoundary'"), 'confirmation shares the central top-level display plane');
-assert(wizard.includes('open={open && !launcherConfirm}'), 'wizard cannot cover confirmation');
+assert(wizard.includes('open={open && !suspended && !launcherConfirm}'), 'wizard cannot cover confirmation or a focused library repair');
 assert(wizard.includes('if (run !== launcherRun.current) return;'), 'late scan results ignored');
 assert(wizard.includes('Cancel scan'), 'scan can be cancelled');
 await assert.rejects(boundedLauncherScan(() => new Promise(() => {}), 5), /timed out/);

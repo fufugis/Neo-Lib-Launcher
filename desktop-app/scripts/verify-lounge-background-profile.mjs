@@ -1,0 +1,66 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
+import { artworkLightingProfile, preparedArtworkLighting, projectArtworkPoint } from '../src/components/lounge/lounge-light-analysis.mjs';
+const require = createRequire(import.meta.url);
+const { backgroundProfile, validProfile } = require('../electron/images/lounge-background-profile.cjs');
+const root = await fs.mkdtemp(path.join(os.tmpdir(), 'neo-light-profile-'));
+try {
+  const pixels = new Uint8ClampedArray(96 * 54 * 4);
+  for (let i = 0; i < pixels.length; i += 4) { pixels[i + 3] = 255; if (i / 4 % 96 > 75 && i / 4 < 960) pixels.fill(255, i, i + 4); }
+  const profile = artworkLightingProfile(pixels, 96, 54, 3840, 2160);
+  assert(validProfile(profile)); assert(profile.area.x > 75 && profile.area.y < 20);
+  const tinted = new Uint8ClampedArray(11 * 11 * 4);
+  for (let pixel = 0; pixel < 121; pixel++) tinted.set([5, 10, 80, 255], pixel * 4);
+  for (let y = 4; y <= 6; y++) for (let x = 4; x <= 6; x++) tinted.set([255, 150, 40, 255], (y * 11 + x) * 4);
+  const local = artworkLightingProfile(tinted, 11, 11);
+  assert.deepEqual(local.area.color, [255, 150, 40], 'highlight uses local warm light rather than the blue whole-image palette');
+  assert(local.color[2] > local.color[0]);
+  assert.deepEqual(projectArtworkPoint(local.area, 1, 1, 'cover', 50, 50, 150).color, local.area.color, 'framing keeps the source tint');
+  assert.equal(validProfile({ ...profile, area: { ...profile.area, color: [999, 0, 0] } }), false);
+  assert(profile.brightness.some(value => value > 0));
+  const file = path.join(root, 'a0a04063-1288-7c10-913c-1757e1161d19.png');
+  await fs.writeFile(file, Buffer.alloc(12));
+  const url = pathToFileURL(file).href;
+  assert.equal(await backgroundProfile(root, url), null);
+  assert.deepEqual(await backgroundProfile(root, url, profile), profile);
+  assert.deepEqual(await backgroundProfile(root, url), profile, 'disk profile survives fresh reads');
+  assert.equal(await backgroundProfile(root, url, { ...profile, brightness: [] }), null);
+  assert.equal(await backgroundProfile(root, pathToFileURL(path.join(root, '..', 'outside.png')).href, profile), null);
+  const arbitrary = path.join(root, 'original.png'); await fs.writeFile(arbitrary, Buffer.alloc(12));
+  assert.equal(await backgroundProfile(root, pathToFileURL(arbitrary).href, profile), null);
+  let reads = 0;
+  const api = { async loungeBackgroundProfile() { reads++; return profile; } };
+  globalThis.document = { createElement() { throw new Error('Saved lighting must not read pixels again'); } };
+  const [first, second] = await Promise.all([preparedArtworkLighting(url, {}, api), preparedArtworkLighting(url, {}, api)]);
+  assert.equal(reads, 1); assert(first.persisted && second.persisted);
+  let samples = 0, writes = 0;
+  globalThis.document = { createElement() { samples++; return { getContext: () => ({ drawImage() {}, getImageData: () => ({ data: pixels }) }) }; } };
+  const freshUrl = url + '?new-test';
+  const newApi = { async loungeBackgroundProfile(_url, value) { if (!value) return null; writes++; return value; } };
+  const fresh = await preparedArtworkLighting(freshUrl, { naturalWidth: 3840, naturalHeight: 2160 }, newApi);
+  await preparedArtworkLighting(freshUrl, {}, newApi);
+  assert(fresh.persisted); assert.equal(samples, 1); assert.equal(writes, 1, 'missing profiles are sampled and saved exactly once');
+  const legacy = { ...profile, area: { x: profile.area.x, y: profile.area.y, strength: profile.area.strength } };
+  let upgrades = 0;
+  const upgraded = await preparedArtworkLighting(url + '?legacy', { naturalWidth: 3840, naturalHeight: 2160 }, { async loungeBackgroundProfile(_url, value) { if (!value) return legacy; upgrades++; return value; } });
+  assert.deepEqual(upgraded.area.color, [255, 255, 255]); assert.equal(upgrades, 1, 'older metadata gains a sampled light tint once');
+  const styles = await fs.readFile('src/styles.css', 'utf8');
+  for (const name of ['specular', 'highlight']) {
+    const rules = [...styles.matchAll(new RegExp('\\.lounge-living-backdrop__' + name + ' \\{([^}]+)\\}', 'g'))];
+    const painted = rules.find(match => match[1].includes('background:'))[1];
+    assert(painted.includes('--lounge-highlight-color'));
+    assert(!/rgb\(255 (255|244|233)/.test(painted), 'highlight no longer adds a fixed white/warm source');
+  }
+  assert.equal(projectArtworkPoint(first.area, 16 / 9, 16 / 9).x, profile.area.x);
+  await fs.appendFile(file, 'changed');
+  assert.equal(await backgroundProfile(root, url), null, 'modified artwork invalidates its sidecar');
+  await fs.writeFile(file + '.lighting.json', '{broken');
+  assert.equal(await backgroundProfile(root, url), null, 'corrupt profiles recover through resampling');
+  assert(await backgroundProfile(root, url, profile));
+  assert.deepEqual(await backgroundProfile(root, url), profile);
+  console.log('PASS: versioned lighting profiles, light/brightness/color analysis, private-path bounds, disk reuse, concurrent deduplication, source invalidation and corrupt-file recovery.');
+} finally { await fs.rm(root, { recursive: true, force: true }); delete globalThis.document; }

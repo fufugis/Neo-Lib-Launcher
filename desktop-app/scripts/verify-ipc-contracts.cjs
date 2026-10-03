@@ -538,6 +538,7 @@ async function main() {
   dialogResult = { canceled: false, filePaths: ['C:\\Images\\cover.png'] };
   assert.deepEqual(await dialogHandlers['dialog:pickImage']({}), { path: 'C:\\Images\\cover.png', url: 'file://C:/Images/cover.png' });
   assert.equal(await dialogHandlers['dialog:importLoungeBackground']({}), null);
+  assert.equal(await dialogHandlers['dialog:loungeBackgroundProfile']({}, '../../outside.png', { version: 999 }), null);
   assert.equal(await dialogHandlers['dialog:importLoungeAudio']({}), null);
   assert.deepEqual(await dialogHandlers['dialog:pickThemeVideo']({}), { path: 'C:\\Images\\cover.png', url: 'file://C:/Images/cover.png' });
   dialogResult = { canceled: false, filePaths: [42] };

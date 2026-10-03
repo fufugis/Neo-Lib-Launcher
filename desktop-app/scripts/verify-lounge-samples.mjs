@@ -6,7 +6,12 @@ import { DEFAULT_LOUNGE_SAMPLES, LOUNGE_SAMPLE_GROUPS, LOUNGE_SAMPLE_ROLES, loun
 const directory = path.resolve(import.meta.dirname, '../src/assets/lounge/sounds');
 const expected = Object.values(LOUNGE_SAMPLE_GROUPS).flat().map(id => `${id}.mp3`).sort();
 const actual = fs.readdirSync(directory).filter(name => name.toLowerCase().endsWith('.mp3')).sort();
-assert.deepEqual(actual, expected, 'all 37 supplied Lounge clips must be bundled and selectable');
+assert.deepEqual(actual, expected, 'all supplied Lounge clips must be bundled and selectable');
+assert.equal(expected.length, 44);
+for (const id of ['ClickF', 'ClickG', 'ClickH', 'ClickI', 'ClickJ', 'ClickK', 'ClickL']) {
+  assert(LOUNGE_SAMPLE_GROUPS.Clicks.includes(id));
+  for (const role of Object.keys(LOUNGE_SAMPLE_ROLES)) assert.equal(normalizeLoungeSamples({ [role]: id })[role], id, 'new clicks can be saved for every sound role');
+}
 for (const filename of actual) {
   const bytes = fs.readFileSync(path.join(directory, filename));
   assert.ok(bytes.length > 1000 && bytes.subarray(0, 3).toString() === 'ID3', `${filename} must be a nonempty MP3`);
@@ -35,4 +40,4 @@ assert.doesNotMatch(controls, /<select id=\{`lounge-sample-/, 'immediate-apply s
 assert.match(picker, /onClick=\{\(\) => audition\(id\)\}/, 'clicking a clip auditions it');
 assert.match(picker, /onClick=\{\(\) => onUse\(id\)\}/, 'Use is a separate action per clip');
 assert.match(picker, /event\.key === 'Escape'[\s\S]*onClose\(\)/, 'Escape closes without applying');
-console.log('PASS: 37 Lounge-only samples, per-role choices, on-demand decoding and selective attenuation.');
+console.log('PASS: 44 Lounge-only samples including ClickF–ClickL, per-role choices, on-demand decoding and selective attenuation.');

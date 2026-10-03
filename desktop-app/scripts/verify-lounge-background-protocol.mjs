@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
+import { loungeBackgroundDisplayUrl } from '../src/components/lounge/lounge-background-url.mjs';
+const { createLoungeBackgroundHandler } = createRequire(import.meta.url)('../electron/images/lounge-background-protocol.cjs');
+const root = await fs.mkdtemp(path.join(os.tmpdir(), 'neolib-background-protocol-'));
+try {
+  const name = '12345678-1234-1234-1234-123456789abc.jpg';
+  await fs.writeFile(path.join(root, name), Buffer.from([255, 216, 255, 0]));
+  let fetched = 0;
+  const handler = createLoungeBackgroundHandler(root, async (url, options) => { fetched++; assert.equal(url, pathToFileURL(path.join(root, name)).href); return new Response('jpeg', { status: options.headers.has('Range') ? 206 : 200 }); });
+  const valid = `neolib-background://asset/${name}`;
+  const good = await handler(new Request(valid));
+  assert.equal(good.status, 200); assert.equal(good.headers.get('Content-Type'), 'image/jpeg');
+  assert.equal(good.headers.get('Access-Control-Allow-Origin'), '*');
+  assert.equal(await good.text(), 'jpeg');
+  assert.equal((await handler(new Request(valid, { headers: { Range: 'bytes=0-1' } }))).status, 206);
+  for (const url of [`neolib-background://other/${name}`, 'neolib-background://asset/settings.json', `neolib-background://asset/sub/${name}`, `neolib-background://asset/${name}?path=other`, `neolib-background://asset/%2e%2e%2f${name}`, `neolib-background://asset/user:password@${name}`]) assert.notEqual((await handler(new Request(url))).status, 200);
+  assert.equal(fetched, 2, 'unsafe paths never reach file transport');
+  assert.equal((await handler(new Request(valid, { method: 'POST' }))).status, 403);
+  assert.equal(loungeBackgroundDisplayUrl(`file:///C:/Users/Test/lounge-backgrounds/${name}`), valid);
+  for (const url of ['https://example.com/a.jpg', 'file:///C:/Users/Test/a.jpg', 'file:///C:/Users/Test/lounge-backgrounds/settings.json']) assert.equal(loungeBackgroundDisplayUrl(url), url);
+  const main = await fs.readFile('electron/main.js', 'utf8');
+  assert(main.indexOf('protocol.handle(\'neolib-background\'') < main.indexOf("recordLaunchSafety('app-ready'"));
+  assert(!main.includes('webSecurity: false'), 'browser security remains enabled');
+  console.log('PASS: bounded copied-background route, JPEG content type/CORS, range forwarding, safe renderer mapping and startup registration.');
+} finally { await fs.rm(root, { recursive: true, force: true }); }

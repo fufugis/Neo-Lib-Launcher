@@ -58,6 +58,7 @@ contextBridge.exposeInMainWorld('api', {
   pickSaveFolder: () => ipcRenderer.invoke('dialog:pickSaveFolder'),
   pickImage: () => ipcRenderer.invoke('dialog:pickImage'),
   importLoungeBackground: () => ipcRenderer.invoke('dialog:importLoungeBackground'),
+  loungeBackgroundProfile: (url, profile) => ipcRenderer.invoke('dialog:loungeBackgroundProfile', url, profile),
   importLoungeAudio: () => ipcRenderer.invoke('dialog:importLoungeAudio'),
   pickThemeVideo: () => ipcRenderer.invoke('dialog:pickThemeVideo'),
   pickWidgetManifest: () => ipcRenderer.invoke('dialog:pickWidgetManifest'),

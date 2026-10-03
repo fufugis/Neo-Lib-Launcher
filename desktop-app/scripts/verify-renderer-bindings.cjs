@@ -15,7 +15,7 @@ const browserGlobals = new Set([
   'setInterval', 'clearInterval', 'CustomEvent', 'Event', 'Image', 'Audio',
   'File', 'Blob', 'FormData', 'URL', 'URLSearchParams', 'TextEncoder',
   'TextDecoder', 'AbortController', 'AbortSignal', 'structuredClone', 'atob',
-  'btoa', 'React',
+  'btoa', 'React', 'ResizeObserver', 'MutationObserver', 'IntersectionObserver', 'PerformanceObserver', 'WheelEvent',
 ]);
 const languageGlobals = new Set([
   'Array', 'Boolean', 'Date', 'Error', 'EvalError', 'Infinity', 'Intl', 'JSON',

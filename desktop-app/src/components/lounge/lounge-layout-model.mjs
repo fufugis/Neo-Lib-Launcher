@@ -1,6 +1,9 @@
 import { DEFAULT_LOUNGE_SAMPLES, normalizeLoungeSamples } from './lounge-sample-model.mjs';
 import { LOUNGE_EXTRA_PARTICLES, LOUNGE_PARTICLE_COLORS } from './lounge-particle-presets.mjs';
 import { THEMES } from '../../lib/utils.js';
+import { HOME_WIDGET_BY_ID } from '../home/home-widget-registry.mjs';
+import { resolveLoungePanelPositions } from './lounge-widget-layout.mjs';
+import { LOUNGE_EFFECTS, normalizeLoungeEffects } from './lounge-effect-model.mjs';
 
 export const LOUNGE_SURFACE_OPACITY_RANGE = Object.freeze({ min: 0, max: 100 });
 
@@ -20,6 +23,8 @@ export const LOUNGE_SCENES = Object.freeze({
   starlit: Object.freeze({ label: 'Starlit Road', note: 'Anime nightscape, moonlit road and quiet violet horizon.' }),
   solar: Object.freeze({ label: 'Solar Grove', note: 'Golden sunbeams through a deep emerald forest.' }),
   rainlight: Object.freeze({ label: 'Rainlight City', note: 'Rain-washed skyline, luminous towers and blue-hour reflections.' }),
+  steampunk: Object.freeze({ label: 'Steampunk', note: 'Brass clockwork towers, copper bridges and amber furnace light.' }),
+  'anime-winter': Object.freeze({ label: 'Anime Winter', note: 'Snowbound anime village, permafrost mountains and brilliant ice-blue sunlight.' }),
 });
 const desktopThemeIds = new Set(THEMES.map(theme => theme.id));
 const validLoungeDesktopTheme = id => desktopThemeIds.has(id) || /^custom:[a-z0-9][a-z0-9-]{1,63}$/.test(id || '');
@@ -60,6 +65,8 @@ export const LOUNGE_LIGHT_LOOKS = Object.freeze({
   golden: Object.freeze({ label: 'Golden hour', note: 'Warm, scenic highlights with a softer rim.', settings: Object.freeze({ artSaturation: 121, artContrast: 108, artTemperature: 52, sceneDrift: 85, ribbonIntensity: 42, ribbonSpeed: 70, ribbonPosition: 44, edgeGlow: 32, edgeWidth: 90, edgePulse: 35 }) }),
 });
 export function loungeSceneParticleStyle(scene) {
+  if (scene === 'steampunk') return 'rust-flakes';
+  if (scene === 'anime-winter') return 'blizzard';
   if (scene === 'solar') return 'fireflies';
   if (scene === 'rainlight') return 'rain-drop';
   return scene === 'theme' ? 'theme' : 'starlight';
@@ -76,12 +83,15 @@ export const DEFAULT_LOUNGE_PREFERENCES = Object.freeze({
   preset: 'cinema',
   shelfWidth: 220,
   wallCoverSize: 220,
+  emulatorSize: 100,
+  emulatorCarouselWidth: 1600,
   coverAspect: 'portrait',
   controlSize: 'comfortable',
   browseSort: 'library',
   hiddenBrowseFilters: [],
   carouselVerticalOffset: 0,
   selectedGameScale: 145,
+  carouselShowTitles: true,
   motion: 'full',
   fxLevel: 'theme',
   particleStyle: 'theme',
@@ -94,6 +104,7 @@ export const DEFAULT_LOUNGE_PREFERENCES = Object.freeze({
   particleGlow: 65,
   particleSpeed: 100,
   coverGlow: 'off',
+  coverGlowStrength: 100,
   coverFrame: 'classic',
   frameColor: 'theme',
   frameCustomColor: '#7dd3fc',
@@ -111,11 +122,20 @@ export const DEFAULT_LOUNGE_PREFERENCES = Object.freeze({
   panelOpacity: 82,
   shelfOpacity: 66,
   previewPosition: 'left',
+  widgetAreaEnabled: false,
+  widgetPosition: 'right',
+  widgetIds: ['best-games', 'recent'],
+  widgetWidth: 36,
+  widgetHeight: 420,
+  widgetZoom: 100,
+  widgetVerticalOffset: 24,
+  widgetShowBox: true,
   previewWidth: 60,
   previewBoxHeight: 220,
   previewVerticalOffset: 24,
   previewCornerRadius: 26,
   previewTextScale: 100,
+  previewCoverScale: 100,
   previewPanelOpacity: 82,
   previewShowIndex: true,
   previewShowFactIcons: true,
@@ -133,6 +153,9 @@ export const DEFAULT_LOUNGE_PREFERENCES = Object.freeze({
   ambientPace: 'steady',
   waveStrength: 52,
   atmosphereOpacity: 70,
+  ambientLight: 100, themeFlow: 100,
+  smokeStrength: 35, smokeSize: 90, smokeSpeed: 70,
+  coldRayStrength: 65, coldRaySpread: 85, coldRaySoftness: 45,
   lightBloom: 55,
   lightRays: 65,
   highlightPulse: 55,
@@ -172,7 +195,6 @@ export const DEFAULT_LOUNGE_PREFERENCES = Object.freeze({
 
 const positions = new Set(['top', 'bottom', 'left', 'right']);
 const previewStyles = new Set(['cinema', 'framed', 'clean']);
-const previewPositions = new Set(['left', 'center', 'right']);
 const infoDensities = new Set(['minimal', 'balanced', 'rich']);
 const motions = new Set(['full', 'subtle', 'off']);
 const backdropModes = new Set(['theme', 'game', 'image', 'light', 'dark', 'clear']);
@@ -202,13 +224,14 @@ export function loungeBackgroundMediaKind(url = '') {
 }
 
 export function loungeBackgroundMotionStyle(url, zoom = 100, intensity = 55) {
-  const base = Math.max(0.5, Math.min(2, Number(zoom) || 100)) / 100;
+  const base = Math.max(50, Math.min(200, Number(zoom) || 100)) / 100;
   const amount = Math.max(0, Math.min(100, Number(intensity) || 0)) / 100;
   let hash = 0;
   for (const character of String(url || 'lounge')) hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
   const driftX = (hash % 2 ? 1 : -1) * amount * 1.6;
   const driftY = (hash % 3 ? -1 : 1) * amount * 0.9;
   return {
+    '--lounge-art-zoom': String(base),
     '--lounge-user-zoom-near': String(base + amount * 0.018),
     '--lounge-user-zoom-far': String(base + amount * 0.05),
     '--lounge-user-zoom-pulse': String(base + amount * 0.08),
@@ -230,16 +253,20 @@ export function normalizeLoungePreferences(value) {
   const homeHiddenTiles = Array.isArray(input.homeHiddenTiles) ? [...new Set(input.homeHiddenTiles.filter(id => LOUNGE_HOME_TILE_IDS.includes(id)))] : [];
   const quickLinks = Array.isArray(input.quickLinks) ? [...new Set(input.quickLinks.filter(id => Object.hasOwn(LOUNGE_QUICK_LINKS, id)))].slice(0, 5) : defaults.quickLinks;
   const ambienceCustomUrl = safeAmbienceUrl(input.ambienceCustomUrl);
+  const resolvedPanels = resolveLoungePanelPositions(input.shelfPosition || defaults.shelfPosition, input.previewPosition || defaults.previewPosition, input.widgetPosition || defaults.widgetPosition);
   return {
     preset: Object.hasOwn(LOUNGE_PRESETS, input.preset) ? input.preset : input.preset === 'custom' ? 'custom' : defaults.preset,
     shelfPosition: input.preset === 'cinema' && input.shelfPosition === 'top' ? 'bottom' : positions.has(input.shelfPosition) ? input.shelfPosition : defaults.shelfPosition,
-    carouselVerticalOffset: bounded(input.carouselVerticalOffset, defaults.carouselVerticalOffset, 0, 300),
+    carouselVerticalOffset: bounded(input.carouselVerticalOffset, defaults.carouselVerticalOffset, -300, 300),
     selectedGameScale: bounded(input.selectedGameScale, defaults.selectedGameScale, 100, 200),
+    carouselShowTitles: input.carouselShowTitles !== false,
     coverSize: input.preset === 'cinema' && input.coverSize === 116 ? defaults.coverSize : bounded(input.coverSize, defaults.coverSize, 84, 184),
     gap: bounded(input.gap, defaults.gap, 8, 28),
     stageHeight: bounded(input.stageHeight, defaults.stageHeight, 320, 760),
     shelfWidth: bounded(input.shelfWidth, defaults.shelfWidth, 156, 320),
     wallCoverSize: bounded(input.wallCoverSize, defaults.wallCoverSize, 170, 320),
+    emulatorSize: bounded(input.emulatorSize, defaults.emulatorSize, 70, 150),
+    emulatorCarouselWidth: bounded(input.emulatorCarouselWidth, defaults.emulatorCarouselWidth, 800, 2400),
     coverAspect: input.coverAspect === 'square' ? 'portrait' : coverAspects.has(input.coverAspect) ? input.coverAspect : defaults.coverAspect,
     controlSize: controlSizes.has(input.controlSize) ? input.controlSize : defaults.controlSize,
     browseSort: browseSorts.has(input.browseSort) ? input.browseSort : defaults.browseSort,
@@ -258,6 +285,7 @@ export function normalizeLoungePreferences(value) {
     particleGlow: bounded(input.particleGlow, defaults.particleGlow, 0, 100),
     particleSpeed: bounded(input.particleSpeed, defaults.particleSpeed, 25, 200),
     coverGlow: coverGlows.has(input.coverGlow) ? input.coverGlow : defaults.coverGlow,
+    coverGlowStrength: bounded(input.coverGlowStrength, defaults.coverGlowStrength, 0, 200),
     coverFrame: coverFrames.has(input.coverFrame) ? input.coverFrame : defaults.coverFrame,
     frameColor: frameColors.has(input.frameColor) ? input.frameColor : defaults.frameColor,
     frameCustomColor: /^#[\da-f]{6}$/i.test(input.frameCustomColor || '') ? input.frameCustomColor.toLowerCase() : defaults.frameCustomColor,
@@ -274,13 +302,21 @@ export function normalizeLoungePreferences(value) {
     backgroundPositionY: bounded(input.backgroundPositionY, defaults.backgroundPositionY, 0, 100),
     panelOpacity: legacyDefaultVisuals ? defaults.panelOpacity : bounded(input.panelOpacity, defaults.panelOpacity, LOUNGE_SURFACE_OPACITY_RANGE.min, LOUNGE_SURFACE_OPACITY_RANGE.max),
     shelfOpacity: bounded(input.shelfOpacity, defaults.shelfOpacity, LOUNGE_SURFACE_OPACITY_RANGE.min, LOUNGE_SURFACE_OPACITY_RANGE.max),
-    previewPosition: previewPositions.has(input.previewPosition) ? input.previewPosition : defaults.previewPosition,
+    ...resolvedPanels,
+    widgetAreaEnabled: input.widgetAreaEnabled === true,
+    widgetIds: Array.isArray(input.widgetIds) ? [...new Set(input.widgetIds.filter(id => Object.hasOwn(HOME_WIDGET_BY_ID, id)))].slice(0, 4) : [...defaults.widgetIds],
+    widgetWidth: bounded(input.widgetWidth, defaults.widgetWidth, 20, 100),
+    widgetHeight: bounded(input.widgetHeight, defaults.widgetHeight, 160, 8640),
+    widgetZoom: bounded(input.widgetZoom, defaults.widgetZoom, 75, 200),
+    widgetVerticalOffset: bounded(input.widgetVerticalOffset, defaults.widgetVerticalOffset, -300, 300),
+    widgetShowBox: input.widgetShowBox !== false,
     previewWidth: bounded(input.previewWidth, defaults.previewWidth, 20, 100),
-    previewBoxHeight: bounded(input.previewBoxHeight, defaults.previewBoxHeight, 160, 460),
+    previewBoxHeight: bounded(input.previewBoxHeight, defaults.previewBoxHeight, 80, 8640),
     previewVerticalOffset: bounded(input.previewVerticalOffset, defaults.previewVerticalOffset, -300, 100),
     previewCornerRadius: bounded(input.previewCornerRadius, defaults.previewCornerRadius, 0, 48),
     previewTextScale: bounded(input.previewTextScale, defaults.previewTextScale, 75, 135),
-    previewPanelOpacity: bounded(input.previewPanelOpacity, defaults.previewPanelOpacity, 35, 100),
+    previewCoverScale: bounded(input.previewCoverScale, defaults.previewCoverScale, 50, 250),
+    previewPanelOpacity: bounded(input.previewPanelOpacity, defaults.previewPanelOpacity, 20, 100),
     previewShowIndex: input.previewShowIndex !== false,
     previewShowFactIcons: input.previewShowFactIcons !== false,
     previewShowCover: input.previewShowCover !== false,
@@ -297,6 +333,15 @@ export function normalizeLoungePreferences(value) {
     ambientPace: ambientPaces.has(input.ambientPace) ? input.ambientPace : defaults.ambientPace,
     waveStrength: legacyDefaultVisuals ? defaults.waveStrength : bounded(input.waveStrength, defaults.waveStrength, 0, 300),
     atmosphereOpacity: bounded(input.atmosphereOpacity, defaults.atmosphereOpacity, 0, 100),
+    ambientLight: bounded(input.ambientLight, defaults.ambientLight, 0, 100),
+    themeFlow: bounded(input.themeFlow, defaults.themeFlow, 0, 100),
+    effects: normalizeLoungeEffects(input, defaults),
+    smokeStrength: bounded(input.smokeStrength, defaults.smokeStrength, 0, 100),
+    smokeSize: bounded(input.smokeSize, defaults.smokeSize, 40, 160),
+    smokeSpeed: bounded(input.smokeSpeed, defaults.smokeSpeed, 20, 200),
+    coldRayStrength: bounded(input.coldRayStrength, defaults.coldRayStrength, 0, 300),
+    coldRaySpread: bounded(input.coldRaySpread, defaults.coldRaySpread, 30, 150),
+    coldRaySoftness: bounded(input.coldRaySoftness, defaults.coldRaySoftness, 0, 100),
     lightBloom: bounded(input.lightBloom, defaults.lightBloom, 0, 600),
     lightRays: bounded(input.lightRays, defaults.lightRays, 0, 300),
     highlightPulse: bounded(input.highlightPulse, defaults.highlightPulse, 0, 100),
@@ -343,7 +388,8 @@ export function applyLoungePreset(current, preset) {
 export function applyLoungeScene(current, id) {
   if (!Object.hasOwn(LOUNGE_SCENES, id)) return normalizeLoungePreferences(current);
   if (id === 'theme') return normalizeLoungePreferences({ ...current, specialTheme: 'theme', desktopThemeOverride: '', backdropMode: 'theme' });
-  return normalizeLoungePreferences({ ...current, specialTheme: id, preset: 'custom', shelfPosition: 'bottom', coverSize: 140, stageHeight: 450, previewStyle: 'clean', infoDensity: 'rich', backdropMode: 'theme', backgroundOpacity: 96, panelOpacity: 82, ambientMotion: 'waves', ambientPace: 'slow', waveStrength: 42, coverGlow: 'soft' });
+  const sceneEffects = id === 'steampunk' ? { smoke: true, 'cold-rays': false } : id === 'anime-winter' ? { smoke: false, 'cold-rays': true } : { smoke: false, 'cold-rays': false };
+  return normalizeLoungePreferences({ ...current, specialTheme: id, effects: { ...current.effects, ...sceneEffects, waves: true, 'card-glow': true }, preset: 'custom', shelfPosition: 'bottom', coverSize: 140, stageHeight: 450, previewStyle: 'clean', infoDensity: 'rich', backdropMode: 'theme', backgroundOpacity: 96, panelOpacity: 82, ambientMotion: 'waves', ambientPace: 'slow', waveStrength: 42, coverGlow: 'soft' });
 }
 
 export function applyLoungeDesktopTheme(current, id) {
@@ -354,7 +400,13 @@ export function applyLoungeDesktopTheme(current, id) {
 export function applyLoungeVisualPreset(current, id) {
   if (!Object.hasOwn(LOUNGE_VISUAL_PRESETS, id)) return normalizeLoungePreferences(current);
   const { label, note, ...visual } = LOUNGE_VISUAL_PRESETS[id];
-  return normalizeLoungePreferences({ ...current, ...visual });
+  const effects = { ...current.effects };
+  for (const effect of LOUNGE_EFFECTS) {
+    const control = effect.controls[0];
+    if (Object.hasOwn(visual, control.key)) effects[effect.id] = visual[control.key] !== control.neutral;
+    if (effect.id === 'card-glow' && Object.hasOwn(visual, 'coverGlow')) effects[effect.id] = visual.coverGlow !== 'off';
+  }
+  return normalizeLoungePreferences({ ...current, ...visual, effects });
 }
 
 export function matchesLoungeVisualPreset(current, id) {

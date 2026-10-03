@@ -693,6 +693,15 @@ export default function Sidebar({
   );
 }
 
+const RAIL_GROUP_TONES = Object.freeze({
+  lounge: '237 143 209',
+  browse: '112 192 242',
+  tools: '230 189 121',
+  personalise: '183 159 239',
+  app: '134 207 203',
+  exit: '238 145 159',
+});
+
 export function SideNavigationRail({ mode, libraryViewMode, onOpenHome, onOpenLibrary, onOpenWall, onOpenTools, onOpenWizard, manualResting, onToggleManualRest, onOpenThemes, onOpenMascot, onOpenVisuals, onOpenControllers, onOpenSettings, onOpenChangelog, onEnterLounge, onCheckForUpdates, onOpenFeedback, onQuit, onDisableSidebar, minimalisticEnabled, onToggleMinimalistic }) {
   const [expanded, setExpanded] = React.useState(false);
   return <div className="relative z-50 h-full w-12 shrink-0" data-testid="side-navigation-slot"><nav
@@ -706,28 +715,37 @@ export function SideNavigationRail({ mode, libraryViewMode, onOpenHome, onOpenLi
     className="absolute inset-y-0 left-0 z-50 flex flex-col overflow-x-hidden overflow-y-auto border-r border-[rgb(var(--border)/0.8)] bg-[rgb(var(--surface)/0.97)] px-1 py-2 shadow-[8px_0_24px_-20px_rgba(0,0,0,.95)] backdrop-blur-xl transition-[width,box-shadow] duration-200 ease-out motion-reduce:transition-none"
     style={{ width: expanded ? 148 : 48 }}
   >
-    <RailNavigationButton icon={<Tv2 size={21} />} label="Lounge" hint="Couch mode" tone="255 125 210" expanded={expanded} onClick={onEnterLounge} testid="sidebar-rail-lounge-btn" />
-    <span data-testid="side-navigation-lounge-divider" className="mx-1 my-2 h-px shrink-0 bg-[rgb(var(--border)/0.65)]" />
-    <RailNavigationButton icon={<Home size={21} />} label="Home" hint="Your dashboard" tone="82 183 255" expanded={expanded} active={mode === 'home'} onClick={onOpenHome} testid="tab-home" />
-    <RailNavigationButton icon={<LibIcon size={21} />} label="Library" hint="Browse games" tone="66 218 229" expanded={expanded} active={mode === 'library' && libraryViewMode !== 'wall'} onClick={onOpenLibrary} testid="tab-library" />
-    <RailNavigationButton icon={<Columns size={21} />} label="Wall" hint="Cover view" tone="185 143 255" expanded={expanded} active={mode === 'library' && libraryViewMode === 'wall'} onClick={onOpenWall} testid="tab-cover-wall" />
-    <span data-testid="side-navigation-primary-divider" className="mx-1 my-2 h-px shrink-0 bg-[rgb(var(--border)/0.65)]" />
-    <RailNavigationButton icon={<Boxes size={21} />} label="Tools" hint="Utilities" tone="92 220 165" expanded={expanded} active={mode === 'tools'} onClick={onOpenTools} testid="tab-tools" />
-    <RailNavigationButton icon={<Wand2 size={21} />} label="Wizard" hint="Add games" tone="255 197 100" expanded={expanded} onClick={onOpenWizard} testid="sidebar-rail-wizard-btn" />
-    <RailNavigationButton icon={manualResting ? <Sun size={21} /> : <Moon size={21} />} label={manualResting ? 'Wake up' : 'Rest Zzz'} hint={manualResting ? 'Resume activity' : 'Pause background'} tone={manualResting ? '255 204 112' : '163 165 255'} expanded={expanded} active={manualResting} onClick={onToggleManualRest} testid="sidebar-rail-rest-toggle" />
-    <span data-testid="side-navigation-personalise-divider" className="mx-1 my-2 h-px shrink-0 bg-[rgb(var(--border)/0.65)]" />
-    <RailNavigationButton icon={<Palette size={21} />} label="Theme" hint="Colour and atmosphere" tone="255 155 222" expanded={expanded} onClick={onOpenThemes} testid="sidebar-rail-themes-btn" />
-    <RailNavigationButton icon={<SlidersHorizontal size={21} />} label="Visual tweaks" hint="Layout, motion and FX" tone="122 190 255" expanded={expanded} onClick={onOpenVisuals} testid="sidebar-rail-visuals-btn" />
-    <RailNavigationButton icon={<PanelLeft size={21} />} label="Sidebar" hint="On · click to turn off" tone="255 173 112" expanded={expanded} active onClick={onDisableSidebar} testid="sidebar-rail-sidebar-toggle" />
-    <RailNavigationButton icon={<Gamepad2 size={21} />} label="Controllers" hint="Pads and input" tone="126 222 186" expanded={expanded} onClick={onOpenControllers} testid="sidebar-rail-controllers-btn" />
-    <RailNavigationButton icon={<UserRound size={21} />} label="Mascot" hint="Companion and chat" tone="217 160 255" expanded={expanded} onClick={onOpenMascot} testid="sidebar-rail-mascot-btn" />
-    <RailNavigationButton icon={<Settings2 size={21} />} label="Settings" hint="Startup, sound and data" tone="172 189 255" expanded={expanded} onClick={onOpenSettings} testid="sidebar-rail-settings-btn" />
-    <RailNavigationButton icon={<Sparkles size={21} />} label="Patch notes" hint="What changed" tone="255 207 122" expanded={expanded} onClick={onOpenChangelog} testid="sidebar-rail-changelog-btn" />
-    <RailNavigationButton icon={<RefreshCw size={21} />} label="Updates" hint="Check for a new version" tone="120 224 255" expanded={expanded} onClick={onCheckForUpdates} testid="sidebar-rail-updates-btn" />
-    <RailNavigationButton icon={<Lightbulb size={21} />} label="Help" hint="Feedback and ideas" tone="255 220 112" expanded={expanded} onClick={onOpenFeedback} testid="sidebar-rail-feedback-btn" />
-    <RailNavigationButton icon={<Power size={21} />} label="Quit" hint="Close NEO-LIB" tone="255 126 152" expanded={expanded} onClick={onQuit} testid="sidebar-rail-quit-btn" />
-    <span className={`mt-auto overflow-hidden whitespace-nowrap px-2 pb-1 text-[8px] font-bold uppercase tracking-[0.16em] text-muted transition-opacity ${expanded ? 'opacity-75' : 'opacity-0'}`}>Navigation</span>
+    <RailSectionHeader label="Lounge" tone={RAIL_GROUP_TONES.lounge} expanded={expanded} testid="side-navigation-lounge-header" />
+    <RailNavigationButton icon={<Tv2 size={21} />} label="Lounge" hint="Couch mode" tone={RAIL_GROUP_TONES.lounge} expanded={expanded} onClick={onEnterLounge} testid="sidebar-rail-lounge-btn" />
+    <RailSectionHeader label="Browse" tone={RAIL_GROUP_TONES.browse} expanded={expanded} testid="side-navigation-lounge-divider" />
+    <RailNavigationButton icon={<Home size={21} />} label="Home" hint="Your dashboard" tone={RAIL_GROUP_TONES.browse} expanded={expanded} active={mode === 'home'} onClick={onOpenHome} testid="tab-home" />
+    <RailNavigationButton icon={<LibIcon size={21} />} label="Library" hint="Browse games" tone={RAIL_GROUP_TONES.browse} expanded={expanded} active={mode === 'library' && libraryViewMode !== 'wall'} onClick={onOpenLibrary} testid="tab-library" />
+    <RailNavigationButton icon={<Columns size={21} />} label="Wall" hint="Cover view" tone={RAIL_GROUP_TONES.browse} expanded={expanded} active={mode === 'library' && libraryViewMode === 'wall'} onClick={onOpenWall} testid="tab-cover-wall" />
+    <RailSectionHeader label="Actions" tone={RAIL_GROUP_TONES.tools} expanded={expanded} testid="side-navigation-primary-divider" />
+    <RailNavigationButton icon={<Boxes size={21} />} label="Tools" hint="Utilities" tone={RAIL_GROUP_TONES.tools} expanded={expanded} active={mode === 'tools'} onClick={onOpenTools} testid="tab-tools" />
+    <RailNavigationButton icon={<Wand2 size={21} />} label="Wizard" hint="Add games" tone={RAIL_GROUP_TONES.tools} expanded={expanded} onClick={onOpenWizard} testid="sidebar-rail-wizard-btn" />
+    <RailNavigationButton icon={manualResting ? <Sun size={21} /> : <Moon size={21} />} label={manualResting ? 'Wake up' : 'Rest Zzz'} hint={manualResting ? 'Resume activity' : 'Pause background'} tone={RAIL_GROUP_TONES.tools} expanded={expanded} active={manualResting} onClick={onToggleManualRest} testid="sidebar-rail-rest-toggle" />
+    <RailSectionHeader label="Personalise" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} testid="side-navigation-personalise-divider" />
+    <RailNavigationButton icon={<Palette size={21} />} label="Theme" hint="Colour and atmosphere" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} onClick={onOpenThemes} testid="sidebar-rail-themes-btn" />
+    <RailNavigationButton icon={<SlidersHorizontal size={21} />} label="Visual tweaks" hint="Layout, motion and FX" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} onClick={onOpenVisuals} testid="sidebar-rail-visuals-btn" />
+    <RailNavigationButton icon={<PanelLeft size={21} />} label="Sidebar" hint="On · click to turn off" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} active onClick={onDisableSidebar} testid="sidebar-rail-sidebar-toggle" />
+    <RailNavigationButton icon={<Gamepad2 size={21} />} label="Controllers" hint="Pads and input" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} onClick={onOpenControllers} testid="sidebar-rail-controllers-btn" />
+    <RailNavigationButton icon={<UserRound size={21} />} label="Mascot" hint="Companion and chat" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} onClick={onOpenMascot} testid="sidebar-rail-mascot-btn" />
+    <RailSectionHeader label="NEO-LIB" tone={RAIL_GROUP_TONES.app} expanded={expanded} testid="side-navigation-app-divider" />
+    <RailNavigationButton icon={<Settings2 size={21} />} label="Settings" hint="Startup, sound and data" tone={RAIL_GROUP_TONES.app} expanded={expanded} onClick={onOpenSettings} testid="sidebar-rail-settings-btn" />
+    <RailNavigationButton icon={<Sparkles size={21} />} label="Patch notes" hint="What changed" tone={RAIL_GROUP_TONES.app} expanded={expanded} onClick={onOpenChangelog} testid="sidebar-rail-changelog-btn" />
+    <RailNavigationButton icon={<RefreshCw size={21} />} label="Updates" hint="Check for a new version" tone={RAIL_GROUP_TONES.app} expanded={expanded} onClick={onCheckForUpdates} testid="sidebar-rail-updates-btn" />
+    <RailNavigationButton icon={<Lightbulb size={21} />} label="Help" hint="Feedback and ideas" tone={RAIL_GROUP_TONES.app} expanded={expanded} onClick={onOpenFeedback} testid="sidebar-rail-feedback-btn" />
+    <RailSectionHeader label="Exit" tone={RAIL_GROUP_TONES.exit} expanded={expanded} testid="side-navigation-exit-divider" />
+    <RailNavigationButton icon={<Power size={21} />} label="Quit" hint="Close NEO-LIB" tone={RAIL_GROUP_TONES.exit} expanded={expanded} onClick={onQuit} testid="sidebar-rail-quit-btn" />
   </nav></div>;
+}
+
+function RailSectionHeader({ label, tone, expanded, testid }) {
+  return <h2 data-testid={testid} className="neo-rail-section" style={{ '--rail-color': tone }}>
+    <span className="neo-rail-section__rule" aria-hidden="true" />
+    <span className={`neo-rail-section__label ${expanded ? 'opacity-100' : 'opacity-0'}`}>{label}</span>
+  </h2>;
 }
 
 function RailNavigationButton({ icon, label, hint, tone, expanded, active, onClick, testid }) {

@@ -2,6 +2,7 @@ import React from 'react';
 import { createControllerNavigator } from '../../services/controller-navigation-service.mjs';
 import { canControllerActivate, controllerFocusSurface, controllerFocusTargets, nextControllerFocus, nextControllerGridFocus } from '../../input/controller-focus.mjs';
 import { scrollLoungeStripToControl } from '../lounge/lounge-strip-scroll.mjs';
+import { loungeControllerRoute } from '../lounge/lounge-controller-route.mjs';
 
 // One opt-in focus owner. It never synthesizes pointer input for game launches.
 export default function ControllerNavigationBridge({ enabled, preferredFingerprint, resting, privacyEpoch, onBlockedLaunch }) {
@@ -27,6 +28,8 @@ export default function ControllerNavigationBridge({ enabled, preferredFingerpri
     };
     const navigate = (command) => {
       if (document.visibilityState === 'hidden' || !document.hasFocus()) return;
+      const pictureClose = document.querySelector('[data-testid="lounge-picture-viewer"] [data-controller-close]');
+      if (pictureClose) { pictureClose.click(); return true; }
       const surface = controllerFocusSurface(document);
       const targets = controllerFocusTargets(surface);
       if (focused && (!focused.isConnected || !targets.includes(focused))) clear();
@@ -36,14 +39,19 @@ export default function ControllerNavigationBridge({ enabled, preferredFingerpri
         focused.setAttribute('data-controller-focused', 'true');
       }
       const current = focused;
-      if (surface?.getAttribute?.('data-controller-surface') === 'lounge' && surface.getAttribute('data-lounge-zone') === 'emulator' && ['previous-section', 'next-section'].includes(command)) {
-        const consoles = [...surface.querySelectorAll('[data-lounge-console]')].filter(button => targets.includes(button));
-        if (!consoles.length) return;
-        const activeIndex = Math.max(0, consoles.findIndex(button => button.getAttribute('aria-pressed') === 'true'));
-        const offset = command === 'previous-section' ? -1 : 1;
-        const target = consoles[(activeIndex + offset + consoles.length) % consoles.length];
-        focus(target);
-        if (canControllerActivate(target)) target.click();
+      const route = loungeControllerRoute(surface, current, command, targets);
+      if (route) {
+        if (route.focus) focus(route.focus);
+        if (route.click && canControllerActivate(route.click)) route.click.click();
+        return;
+      }
+      if (current?.matches?.('input[type="range"]') && ['left', 'right'].includes(command)) {
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+        const step = Number(current.step) || 1;
+        const value = Math.max(Number(current.min) || 0, Math.min(Number(current.max) || 100, Number(current.value) + (command === 'left' ? -step : step)));
+        setter?.call(current, String(value));
+        current.dispatchEvent(new Event('input', { bubbles: true }));
+        current.dispatchEvent(new Event('change', { bubbles: true }));
         return;
       }
       if (surface?.getAttribute?.('data-controller-surface') === 'lounge' && ['previous-section', 'next-section'].includes(command)) {
@@ -68,7 +76,7 @@ export default function ControllerNavigationBridge({ enabled, preferredFingerpri
             const index = cards.indexOf(card);
             const step = direction === 'left' || direction === 'up' ? -1 : 1;
             const adjacent = cards[index + step];
-            if (adjacent) { focus(adjacent); return; }
+            focus(adjacent || card); return;
           }
         }
         focus(nextControllerGridFocus(current, direction) || nextControllerFocus(targets, current, direction));
@@ -94,6 +102,9 @@ export default function ControllerNavigationBridge({ enabled, preferredFingerpri
         if (close && canControllerActivate(close)) close.click();
         else if (surface?.matches?.('[data-testid="app-control-menu"]')) document.querySelector('[data-testid="app-control-menu-toggle"]')?.click();
         else clear();
+      } else if ((command === 'menu' || command === 'home') && surface?.getAttribute?.('data-controller-surface') === 'lounge') {
+        const action = surface.querySelector(command === 'menu' ? '[data-testid="lounge-settings-toggle"]' : '[data-lounge-home-zone]');
+        if (action && canControllerActivate(action)) { focus(action); action.click(); }
       } else if (command === 'menu' && surface === document.body) {
         const menu = document.querySelector('[data-testid="app-control-menu-toggle"]');
         if (menu && canControllerActivate(menu)) { focus(menu); menu.click(); }
@@ -105,11 +116,20 @@ export default function ControllerNavigationBridge({ enabled, preferredFingerpri
     const navigator = createControllerNavigator({
       getPreferredFingerprint: () => preferredFingerprint,
       strictPreferred: true,
-      getContext: () => ({
-        textEntry: Boolean(document.activeElement?.matches?.('input:not([type="checkbox"]), textarea, select, [contenteditable="true"]')),
-        modalOpen: controllerFocusSurface(document) !== document.body,
-      }),
+      getContext: () => {
+        const surface = controllerFocusSurface(document);
+        return {
+          textEntry: Boolean(document.activeElement?.matches?.('input:not([type="checkbox"]):not([type="range"]), textarea, select, [contenteditable="true"]')),
+          modalOpen: surface !== document.body && surface?.getAttribute?.('data-controller-surface') !== 'lounge',
+        };
+      },
       onCommand: navigate,
+      onButtonPress: () => {
+        const close = document.querySelector('[data-testid="lounge-picture-viewer"] [data-controller-close]');
+        if (!close) return false;
+        close.click();
+        return true;
+      },
     });
     const pointer = () => clear();
     const syncRunning = () => {

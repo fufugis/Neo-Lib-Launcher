@@ -11,6 +11,36 @@ export default function LoungeGamePanel({ game, position = 1, total = 1, updateL
   const [enlargedScreenshot, setEnlargedScreenshot] = React.useState('');
   const closeRef = React.useRef(null);
   const bodyRef = React.useRef(null);
+  const pictureOpener = React.useRef(null);
+  const dismissedKey = React.useRef('');
+  const closePicture = React.useCallback(() => {
+    setEnlargedScreenshot('');
+  }, []);
+  React.useEffect(() => {
+    if (!enlargedScreenshot) pictureOpener.current?.focus({ preventScroll: true });
+  }, [enlargedScreenshot]);
+  React.useEffect(() => {
+    const keyDown = event => {
+      if (dismissedKey.current === event.code) {
+        event.preventDefault(); event.stopImmediatePropagation(); return;
+      }
+      if (!enlargedScreenshot) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      dismissedKey.current = event.code;
+      closePicture();
+    };
+    const keyUp = event => {
+      if (dismissedKey.current !== event.code) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      dismissedKey.current = '';
+    };
+    window.addEventListener('keydown', keyDown, true);
+    window.addEventListener('keyup', keyUp, true);
+    return () => {
+      window.removeEventListener('keydown', keyDown, true);
+      window.removeEventListener('keyup', keyUp, true);
+    };
+  }, [enlargedScreenshot, closePicture]);
   React.useEffect(() => { closeRef.current?.focus(); }, []);
   React.useEffect(() => { setError(''); setEnlargedScreenshot(''); if (bodyRef.current) bodyRef.current.scrollTop = 0; }, [game.id]);
   const media = previewMedia(game);
@@ -45,11 +75,16 @@ export default function LoungeGamePanel({ game, position = 1, total = 1, updateL
           {Array.isArray(game.genres) && game.genres.length > 0 && <p className="text-xs font-bold uppercase tracking-[0.16em] text-[rgb(var(--accent-2))]">{game.genres.map(genre => typeof genre === 'string' ? genre : genre?.name).filter(Boolean).join(' · ')}</p>}
           <h3 className="mt-2 text-sm font-black uppercase tracking-[0.18em] text-muted">About this game</h3>
           <p className="mt-3 line-clamp-5 max-w-3xl text-base leading-relaxed">{story[0] || game.description || 'No game description is available yet.'}</p>
-          {gallery.length > 0 && <div className="mt-6"><h3 className="mb-3 text-sm font-black uppercase tracking-[0.18em] text-muted">A closer look</h3><div className="lounge-detail-gallery flex gap-3 overflow-x-auto" role="group" aria-label="Game screenshots">{gallery.map((src, index) => <button key={`${src}-${index}`} type="button" aria-label={`${enlargedScreenshot === src ? 'Return' : 'Enlarge'} screenshot ${index + 1} for ${game.name || 'this game'}`} aria-pressed={enlargedScreenshot === src} data-controller-screenshot="true" onClick={() => setEnlargedScreenshot(current => current === src ? '' : src)} className="lounge-detail-shot h-40 w-64 shrink-0 overflow-hidden rounded-xl border border-white/20 focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))] sm:h-48 sm:w-80"><img src={src} alt="" aria-hidden="true" className="h-full w-full object-cover" /></button>)}</div></div>}
         </div><aside className="lounge-detail-facts flex flex-wrap content-start gap-2 lg:flex-col" aria-label="Game facts">{detailFacts.map(([label, value]) => <span key={label} className="min-w-[110px] flex-1 rounded-xl border border-[rgb(var(--border)/0.72)] bg-[rgb(var(--panel)/0.62)] px-3 py-2 lg:flex-none"><b className="block text-[10px] uppercase tracking-[0.16em] text-muted">{label}</b><span className="mt-1 block truncate text-sm font-semibold" title={String(value)}>{value}</span></span>)}</aside></div>
+          {gallery.length > 0 && <div className="lounge-detail-media mt-6"><h3 className="mb-3 text-sm font-black uppercase tracking-[0.18em] text-muted">A closer look</h3><div className="lounge-detail-gallery grid grid-cols-1 gap-3 sm:grid-cols-3" role="group" aria-label="Game screenshots">{gallery.map((src, index) => <button key={`${src}-${index}`} type="button" aria-label={`${enlargedScreenshot === src ? 'Return' : 'Enlarge'} screenshot ${index + 1} for ${game.name || 'this game'}`} aria-pressed={enlargedScreenshot === src} data-controller-screenshot="true" onClick={event => { pictureOpener.current = event.currentTarget; setEnlargedScreenshot(src); }} className="lounge-detail-shot aspect-video w-full overflow-hidden rounded-xl border border-white/20 focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--accent))]"><img src={src} alt="" aria-hidden="true" className="h-full w-full object-cover" /></button>)}</div></div>}
         {error && <p role="alert" className="mt-4 rounded-xl border border-rose-300/35 bg-rose-500/10 px-3 py-2 text-sm font-semibold text-rose-200">{error}</p>}
       </div>
       <div className="lounge-detail-actions flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-[rgb(var(--border)/0.72)] bg-[rgb(var(--panel)/0.9)] px-5 py-3 sm:px-8"><span className="text-xs text-muted">Use mouse or keyboard to launch. Lounge stays open behind the game.</span><button type="button" data-neolib-launch="true" disabled={busy} onClick={launch} className="lounge-launch-button inline-flex items-center gap-2 rounded-xl bg-[rgb(var(--accent))] px-6 py-2.5 text-base font-black text-[rgb(var(--surface))] disabled:opacity-50"><Play size={19} />{busy ? 'Opening…' : 'Launch game'}<ArrowUpRight size={17} /></button></div>
     </section>
+    {enlargedScreenshot && <div data-testid="lounge-picture-viewer" role="dialog" aria-modal="true" aria-label={`Screenshot of ${game.name || 'game'}`} className="fixed inset-0 z-[9200] flex items-center justify-center bg-black/95 p-3 sm:p-6" onClickCapture={event => { event.preventDefault(); event.stopPropagation(); closePicture(); }} onContextMenu={event => { event.preventDefault(); closePicture(); }}>
+      <img src={enlargedScreenshot} alt={`Screenshot of ${game.name || 'game'}`} className="h-full w-full object-contain" />
+      <button type="button" autoFocus data-controller-close aria-label="Close picture" onClick={closePicture} className="absolute right-5 top-5 rounded-xl border border-white/50 bg-black/75 p-3 text-white"><X size={28} /></button>
+      <p className="pointer-events-none absolute bottom-5 rounded-full bg-black/80 px-4 py-2 text-sm text-white">Press any button or click to return</p>
+    </div>}
   </div>;
 }

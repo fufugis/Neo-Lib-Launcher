@@ -52,7 +52,11 @@ function operationFailure(operation, label) {
   return operation?.message || `${label} unavailable.`;
 }
 
-export default function HomeHub({ games = [], lockedGameCategories = {}, hasPrivateCategories = false, hasLockedPrivateCategories = false, onPanicLock, onSelect, onOpenPlaytimeImport, onOpenTidyUp, resting = false, minimalistic = false, homeLayout = {}, onUpdateHomeLayout, onUpdateUpdatesCache }) {
+export default function HomeHub({ games = [], lockedGameCategories = {}, hasPrivateCategories = false, hasLockedPrivateCategories = false, onPanicLock, onSelect, onOpenPlaytimeImport, onOpenTidyUp, resting = false, minimalistic = false, homeLayout = {}, onUpdateHomeLayout, onUpdateUpdatesCache, embeddedWidgetIds = null }) {
+  const embedded = Array.isArray(embeddedWidgetIds);
+  const needsNews = !embedded || embeddedWidgetIds.includes('news') || embeddedWidgetIds.includes('chronicle') || embeddedWidgetIds.includes('play-next');
+  const needsReleases = !embedded || embeddedWidgetIds.includes('released-week');
+  const needsUpdates = !embedded || embeddedWidgetIds.includes('updates');
   const [range, setRange] = React.useState('week');
   const [rankingScope, setRankingScope] = React.useState('period');
   const [news, setNews] = React.useState({ loading: false, items: [], error: '', operation: null });
@@ -79,6 +83,7 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
   const railRef = React.useRef(null);
   const homeGridHostRef = React.useRef(null);
   const operations = React.useRef({});
+  React.useEffect(() => () => { Object.values(operations.current).forEach(operation => operation?.cancel('Home widget host closed.')); }, []);
   const rangeMeta = RANGES[range];
   const visibleTrackableGames = React.useMemo(() => games.filter((game) => !game.homeLocked), [games]);
   const visibleNews = React.useMemo(() => ({ ...news, items: news.items.map((item) => maskHomeNews(item, lockedGameCategories)) }), [news, lockedGameCategories]);
@@ -151,10 +156,11 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
     return () => { observer?.disconnect(); window.removeEventListener('resize', sync); };
   }, []);
   const loadCommunityWidgets = React.useCallback(async () => {
+    if (embedded) return;
     const result = await window.api?.listWidgets?.();
     setCommunityWidgets(result?.ok && Array.isArray(result.widgets) ? result.widgets : []);
     setRecoverableWidgets(result?.ok && Array.isArray(result.recoverable) ? result.recoverable : []);
-  }, []);
+  }, [embedded]);
   React.useEffect(() => { loadCommunityWidgets(); }, [loadCommunityWidgets]);
   React.useEffect(() => { if (widgetManagerOpen) loadCommunityWidgets(); }, [widgetManagerOpen, loadCommunityWidgets]);
   const importWidget = React.useCallback(async () => {
@@ -290,7 +296,7 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
   };
 
   React.useEffect(() => {
-    if (resting || !window.api?.fetchAllNews) return undefined;
+    if (resting || !needsNews || !window.api?.fetchAllNews) return undefined;
     // Named games without Steam/GOG/itch identities are intentionally included:
     // the main process gives their official site and web-discovery path a turn.
     const eligible = visibleTrackableGames.filter((game) => game && String(game.name || '').trim());
@@ -313,10 +319,10 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
       else setNews((value) => ({ ...value, loading: false, error: operationFailure(outcome.state, 'Game news'), operation: outcome.state }));
     });
     return () => operation.cancel('Home news request replaced or Home closed.');
-  }, [rangeMeta.days, resting, visibleTrackableGames]);
+  }, [rangeMeta.days, resting, visibleTrackableGames, needsNews]);
 
   const refreshWeeklyReleases = React.useCallback(async (force = false) => {
-    if (resting || !window.api?.fetchWeeklyReleases) return;
+    if (resting || !needsReleases || !window.api?.fetchWeeklyReleases) return;
     operations.current.releases?.cancel('Replaced by a newer release request.');
     const operation = createBoundedOperation({ domain: 'weekly-releases', total: 1, timeoutMs: 25_000, task: async () => {
       const result = await window.api.fetchWeeklyReleases({ force });
@@ -330,7 +336,7 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
       const result = outcome.value || {};
       setWeeklyReleases({ loading: false, items: result.items || [], criteria: result.criteria || '', tier: result.tier || 'major', fetchedAt: result.fetchedAt || 0, error: '', operation: outcome.state });
     } else setWeeklyReleases((value) => ({ ...value, loading: false, error: operationFailure(outcome.state, 'Release discovery'), operation: outcome.state }));
-  }, [resting]);
+  }, [resting, needsReleases]);
 
   React.useEffect(() => { refreshWeeklyReleases(false); }, [refreshWeeklyReleases]);
 
@@ -356,12 +362,12 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
   const refreshGameUpdatesRef = React.useRef(refreshGameUpdates);
   refreshGameUpdatesRef.current = refreshGameUpdates;
   React.useEffect(() => {
-    if (resting) return undefined;
+    if (resting || !needsUpdates) return undefined;
     // Home is already mounted behind the CRT intro. Do not let that hidden
     // mount start executable/version inspection while NEO-LIB is booting.
     const timer = window.setTimeout(() => refreshGameUpdatesRef.current(), 35_000);
     return () => window.clearTimeout(timer);
-  }, [resting]);
+  }, [resting, needsUpdates]);
 
   const scrollNews = (direction) => railRef.current?.scrollBy({ left: direction * 420, behavior: 'smooth' });
   const scanStorage = async () => {
@@ -397,6 +403,13 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
     chronicle: <GamingChronicle entries={chronicle} onSelect={onSelect} />,
     recent: <section className="pb-1"><p className="mb-1 px-2 text-[10px] text-muted">Latest plays · chronological</p>{played.length ? <div className="divide-y divide-[rgb(var(--accent)/0.12)]">{played.slice(0, 5).map((game) => <button key={game.id} onClick={() => onSelect?.(game.id)} className="flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left transition hover:bg-[rgb(var(--accent)/0.055)]"><Cover game={game} /><span className="min-w-0 flex-1"><span className="block truncate text-xs font-bold">{game.name}</span><span className="mt-0.5 flex items-center gap-1 text-[10px] text-muted"><Gamepad2 size={10} />{PLATFORM[platformOf(game)]}</span></span><span className="hidden text-right text-[10px] text-muted sm:block">Played<br /><b className="text-ink">{relative(game.lastPlayedAt)}</b></span><span className="font-mono text-xs font-bold text-[rgb(var(--accent-2))]">{hours(game.playtime)}</span></button>)}</div> : <p className="px-2 py-5 text-center text-xs text-muted">Your latest sessions will appear here.</p>}</section>,
   };
+  if (embedded) return <section className="lounge-home-widgets" aria-label="Imported Home widgets" data-testid="lounge-home-widgets" onWheel={event => event.stopPropagation()}>
+    {embeddedWidgetIds.length ? embeddedWidgetIds.map(id => paneContent[id] && <section key={id} className="lounge-home-widget" aria-label={homeWidget(id)?.label} data-home-pane-id={id} style={{ '--accent': HOME_WIDGET_ACCENTS[id]?.[0], '--accent-2': HOME_WIDGET_ACCENTS[id]?.[1] }}>
+      <h3 className="lounge-home-widget-heading mb-2 text-xs font-black text-[rgb(var(--accent-2))]">{homeWidget(id)?.label}</h3>
+      <div className="lounge-home-widget-content"><div className="lounge-home-widget-zoom">{paneContent[id]}</div></div>
+    </section>) : <p className="p-4 text-sm text-muted">Choose Home widgets in Lounge Settings → Widgets.</p>}
+    {newsDetail && <NewsDetail item={newsDetail} onClose={() => setNewsDetail(null)} />}
+  </section>;
   const communityPaneContent = Object.fromEntries(enabledCommunityWidgets.map((widget) => {
     const config = communityConfig[widget.id] || {};
     return [widget.id, <CommunityWidgetHost key={widget.id} widget={widget} grants={config.grants || []} storage={config.storage || {}} games={games} onStorageChange={(storageValue) => updateCommunityConfig(widget.id, { ...config, storage: storageValue })} />];

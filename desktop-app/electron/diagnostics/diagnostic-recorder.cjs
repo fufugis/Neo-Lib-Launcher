@@ -66,6 +66,7 @@ function createDiagnosticRecorder({
     throw new TypeError('createDiagnosticRecorder requires fs, path and directory dependencies.');
   }
   const file = () => path.join(directory(), 'neolib-diagnostics.jsonl');
+  const recentConsoleEntries = new Map();
 
   function ensureDirectory() {
     fs.mkdirSync(directory(), { recursive: true });
@@ -91,14 +92,29 @@ function createDiagnosticRecorder({
 
   function record(event, details = {}) {
     try {
+      const recordedAt = now();
+      const eventName = safeToken(event, 'unknown-event');
+      const cleanDetails = sanitizeDetails(details, path);
+      if (eventName === 'renderer-console') {
+        const fingerprint = JSON.stringify(cleanDetails);
+        const lastAt = recentConsoleEntries.get(fingerprint);
+        if (lastAt != null && recordedAt.getTime() - lastAt < 10_000) return true;
+        recentConsoleEntries.set(fingerprint, recordedAt.getTime());
+        if (recentConsoleEntries.size > 128) {
+          for (const [key, timestamp] of recentConsoleEntries) {
+            if (recordedAt.getTime() - timestamp > 10_000) recentConsoleEntries.delete(key);
+          }
+          if (recentConsoleEntries.size > 128) recentConsoleEntries.delete(recentConsoleEntries.keys().next().value);
+        }
+      }
       const entry = {
-        at: now().toISOString(),
-        event: safeToken(event, 'unknown-event'),
+        at: recordedAt.toISOString(),
+        event: eventName,
         appVersion: safeToken(appVersion),
         os: safeToken(platform),
         osRelease: safeToken(release),
         arch: safeToken(arch),
-        ...sanitizeDetails(details, path),
+        ...cleanDetails,
       };
       const line = `${JSON.stringify(entry)}\n`;
       ensureDirectory();

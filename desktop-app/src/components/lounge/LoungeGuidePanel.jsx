@@ -25,8 +25,8 @@ export default function LoungeGuidePanel({ games, favoriteIds = [], preferences,
   const [failedHero, setFailedHero] = React.useState('');
   const [failedBackdrop, setFailedBackdrop] = React.useState('');
   const [editingHome, setEditingHome] = React.useState(false);
-  React.useEffect(() => { (firstActionRef.current || closeRef.current)?.focus(); }, []);
-  const snapshot = loungeGuideSnapshot(games, Date.now(), favoriteIds);
+  React.useEffect(() => { (firstActionRef.current || closeRef.current)?.focus({ preventScroll: true }); }, []);
+  const snapshot = React.useMemo(() => loungeGuideSnapshot(games, Date.now(), favoriteIds), [games, favoriteIds]);
   const favoriteSet = new Set(favoriteIds.map(String));
   const favoriteCount = games.filter(game => favoriteSet.has(String(game.id))).length;
   const mostPlayedCount = applyWallFilter(games, 'most-played').length;

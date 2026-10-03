@@ -1,6 +1,6 @@
 export const LOUNGE_SAMPLE_GROUPS = Object.freeze({
   'Buttons': Object.freeze(['ButtonA', 'ButtonB', 'ButtonC', 'ButtonD', 'ButtonE', 'ButtonF']),
-  'Clicks': Object.freeze(['ClickA', 'ClickB', 'ClickC', 'ClickD', 'ClickE']),
+  'Clicks': Object.freeze(['ClickA', 'ClickB', 'ClickC', 'ClickD', 'ClickE', 'ClickF', 'ClickG', 'ClickH', 'ClickI', 'ClickJ', 'ClickK', 'ClickL']),
   'Reactions': Object.freeze(['complete1', 'complete2', 'cool1', 'cool2', 'damn1', 'damn2', 'explor1', 'explor2', 'extrovert1', 'extrovert2', 'fine1', 'fine2', 'hmm1', 'hmm2', 'mystic1', 'mystic2', 'neg1', 'neg2', 'ok1', 'ok2', 'oops1', 'oops2', 'pos1', 'pos2', 'under1', 'under2']),
 });
 

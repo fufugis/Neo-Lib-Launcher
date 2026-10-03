@@ -45,7 +45,7 @@ function operationFailureMessage(operation, label) {
   return operation?.message || `${label} failed.`;
 }
 
-export default function WizardModal({ open, onClose, onImport, onAccept, onAddManual, onRefreshLibrary, onTidyLibrary, onRetroProfilesChange, onImportRoms, retroProfiles = [], onExternalLibraryRootsChange, externalLibraryRoots = [], geminiKey, aiModel = 'gemini-2.5-flash', existingExePaths = [], existingGames = [], prefilledRoot = '', autoScan = false }) {
+export default function WizardModal({ open, suspended = false, onClose, onImport, onAccept, onAddManual, onRefreshLibrary, onTidyLibrary, onRetroProfilesChange, onImportRoms, retroProfiles = [], onExternalLibraryRootsChange, externalLibraryRoots = [], geminiKey, aiModel = 'gemini-2.5-flash', existingExePaths = [], existingGames = [], prefilledRoot = '', autoScan = false }) {
   const [step, setStep] = React.useState(1);
   const [root, setRoot] = React.useState('');
   const [candidates, setCandidates] = React.useState([]);
@@ -467,7 +467,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
 
   return (
     <>
-    <Modal open={open && !launcherConfirm} onClose={onClose} title="Add Games · Wizard" wide testid="wizard-modal">
+    <Modal open={open && !suspended && !launcherConfirm} onClose={onClose} title="Add Games · Wizard" wide testid="wizard-modal">
       {step === 1 && (
         <div className="space-y-4 p-6">
           <div className="flex items-start gap-3 rounded-xl border border-[rgb(var(--accent)/0.3)] bg-[rgb(var(--accent)/0.08)] p-3">
@@ -535,7 +535,7 @@ export default function WizardModal({ open, onClose, onImport, onAccept, onAddMa
               </button>
               <button
                 data-testid="wizard-tidy-library-btn"
-                onClick={() => { onClose(); onTidyLibrary?.(); }}
+                onClick={() => onTidyLibrary?.()}
                 className="flex flex-col items-start rounded-md hairline px-3 py-2 text-left hover:border-[rgb(var(--accent-2)/0.55)] hover:bg-[rgb(var(--accent-2)/0.07)]"
               >
                 <span className="inline-flex items-center gap-2 text-xs font-semibold text-ink"><ListChecks size={15} className="text-[rgb(var(--accent-2))]" />Scan covers & metadata</span>

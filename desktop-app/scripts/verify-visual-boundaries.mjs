@@ -117,9 +117,21 @@ assert.match(sidebarSource, /library\/LibraryIconGrid/);
 assert.match(sidebarSource, /library\/LibraryTree/);
 assert.match(sidebarSource, /library\/LibraryToolbarControls/);
 assert.match(sidebarSource, /data-testid="side-navigation-rail"/, 'Sidebar navigation mode needs a dedicated icon rail.');
-assert.match(sidebarSource, /label="Lounge" hint="Couch mode" tone="255 125 210" expanded=\{expanded\} onClick=\{onEnterLounge\} testid="sidebar-rail-lounge-btn"/, 'Sidebar rail needs a direct Lounge shortcut with its own colour profile.');
-assert.ok(new Set([...sidebarSource.matchAll(/<RailNavigationButton[^\n]+tone="([\d ]+)"/g)].map(match => match[1])).size >= 16, 'direct sidebar destinations and utility actions must have distinct fixed colour profiles');
-assert.match(sidebarSource, /tone=\{manualResting \? '255 204 112' : '163 165 255'\}/, 'Rest and Wake must remain visually distinct');
+assert.match(sidebarSource, /label="Lounge" hint="Couch mode" tone=\{RAIL_GROUP_TONES\.lounge\} expanded=\{expanded\} onClick=\{onEnterLounge\} testid="sidebar-rail-lounge-btn"/, 'Sidebar rail keeps its direct Lounge shortcut');
+const railGroups = {
+  lounge: ['sidebar-rail-lounge-btn'],
+  browse: ['tab-home', 'tab-library', 'tab-cover-wall'],
+  tools: ['tab-tools', 'sidebar-rail-wizard-btn', 'sidebar-rail-rest-toggle'],
+  personalise: ['sidebar-rail-themes-btn', 'sidebar-rail-visuals-btn', 'sidebar-rail-sidebar-toggle', 'sidebar-rail-controllers-btn', 'sidebar-rail-mascot-btn'],
+  app: ['sidebar-rail-settings-btn', 'sidebar-rail-changelog-btn', 'sidebar-rail-updates-btn', 'sidebar-rail-feedback-btn'],
+  exit: ['sidebar-rail-quit-btn'],
+};
+for (const [group, testids] of Object.entries(railGroups)) {
+  assert.match(sidebarSource, new RegExp(`<RailSectionHeader label="[^"]+" tone=\\{RAIL_GROUP_TONES\\.${group}\\}`), `${group} has a visible rail section heading`);
+  for (const testid of testids) assert.match(sidebarSource, new RegExp(`<RailNavigationButton[^\\n]+tone=\\{RAIL_GROUP_TONES\\.${group}\\}[^\\n]+testid="${testid}"`), `${testid} uses its section accent`);
+}
+assert.match(sidebarSource, /className="neo-rail-section"/, 'section headings retain a labelled rule in the expanded rail');
+assert.match(sidebarSource, /manualResting \? 'Wake up' : 'Rest Zzz'/, 'Rest and Wake remain distinguishable by text and active state');
 for (const hint of ['Your dashboard', 'Browse games', 'Cover view', 'Utilities', 'Couch mode', 'Add games', 'Pause background', 'Resume activity']) {
   assert.ok(sidebarSource.includes(hint), `Expanded navigation needs a concise explanation: ${hint}`);
 }
@@ -140,7 +152,7 @@ assert.match(sidebarSource, /testid="sidebar-wizard-btn"/, 'Library must retain 
 assert.match(sidebarSource, /\(!sideNavigation \|\| isTools\) && \(\(\) =>/, 'Sidebar layout must remove the redundant Library action row.');
 assert.match(sidebarSource, /!isTools && !sideNavigation && <button type="button" data-testid="sidebar-select-games"/, 'Default layout must keep Select in the Library action row.');
 assert.match(sidebarSource, /sideNavigation && <button type="button" data-testid="sidebar-select-games"/, 'Sidebar layout must move Select beside Library filters.');
-assert.match(sidebarSource, /data-testid="side-navigation-primary-divider"[\s\S]*?testid="sidebar-rail-wizard-btn"[\s\S]*?testid="sidebar-rail-rest-toggle"/, 'Sidebar actions must sit below a divider in the navigation rail.');
+assert.match(sidebarSource, /testid="side-navigation-primary-divider"[\s\S]*?testid="sidebar-rail-wizard-btn"[\s\S]*?testid="sidebar-rail-rest-toggle"/, 'Sidebar actions sit below their labelled section break.');
 assert.match(appSource, /onOpenWizard=\{\(\) => setShowWizard\(true\)\} manualResting=\{manualRestActive\} onToggleManualRest=\{toggleManualRest\}/, 'The rail must receive the real Wizard and Rest handlers.');
 assert.doesNotMatch(sidebarSource, /testid="sidebar-add-btn"|data-testid="add-menu-game"/, 'Library must not restore a duplicate Add-game control outside Wizard.');
 assert.match(wizardSource, /data-testid="wizard-manual-add-section"/, 'Wizard must visibly own the manual add route.');

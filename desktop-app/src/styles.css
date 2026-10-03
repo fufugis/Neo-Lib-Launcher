@@ -1665,6 +1665,18 @@ html[data-sidebar-resizing='true'], html[data-sidebar-resizing='true'] * { curso
 .lounge-procedural-particle--ring { border: 2px solid currentColor; border-radius: 50%; box-shadow: 0 0 var(--particle-glow-blur, 0px) currentColor, inset 0 0 var(--particle-glow-core-blur, 0px) currentColor; }
 .lounge-procedural-particle--starburst { clip-path: polygon(50% 0, 58% 39%, 100% 50%, 58% 59%, 50% 100%, 42% 59%, 0 50%, 42% 39%); background-image: radial-gradient(circle, white, transparent 35%); }
 .lounge-procedural-particle--wisp { border-radius: 50%; transform: scaleX(1.55) rotate(-20deg); background-image: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.72) 52%, transparent); box-shadow: 0 0 var(--particle-glow-spread, 0px) currentColor; }
+.lounge-procedural-particle--rust { clip-path: polygon(12% 4%, 73% 0, 100% 28%, 82% 61%, 56% 100%, 8% 74%, 25% 40%); background-image: linear-gradient(135deg, #d39258, transparent 55%, #623a26); filter: none; }
+.lounge-procedural-particle--blizzard { border-radius: 60%; transform: scaleY(.16) rotate(-24deg); background-image: linear-gradient(90deg, transparent, #e7f8ff 70%, white); }
+[data-particle-style='blizzard'] .custom-theme-particle--drift { animation-name: lounge-blizzard-sweep; }
+@keyframes lounge-blizzard-sweep { 0% { transform: translate3d(-4vw, -12vh, 0); opacity: 0; } 8%, 85% { opacity: var(--fx-opacity); } 100% { transform: translate3d(108vw, 42vh, 0); opacity: 0; } }
+.lounge-smoke-plume { position: absolute; width: var(--smoke-size); height: calc(var(--smoke-size) * 1.65); margin: calc(var(--smoke-size) * -1.4) 0 0 calc(var(--smoke-size) * -.5); border-radius: 50%; background: radial-gradient(ellipse at 48% 65%, rgb(161 156 150 / .35), transparent 65%), radial-gradient(ellipse at 62% 36%, rgb(209 206 201 / .28), transparent 63%); opacity: var(--smoke-opacity); animation: lounge-smoke-rise 40s ease-in-out infinite; }
+@keyframes lounge-smoke-rise { 0% { transform: translate3d(0, 24px, 0) scale(.65); opacity: 0; } 20% { opacity: var(--smoke-opacity); } 65% { opacity: calc(var(--smoke-opacity) * .65); } 100% { transform: translate3d(45px, -125px, 0) scale(1.2); opacity: 0; } }
+.lounge-cold-rays { position: absolute; margin-left: -50px; margin-top: -24px; background: conic-gradient(from 112deg at 6% 3%, transparent 0deg 7deg, rgb(180 229 255 / .45) 9deg 13deg, transparent 18deg 28deg, rgb(141 211 255 / .3) 32deg 37deg, transparent 42deg 55deg, rgb(219 247 255 / .38) 59deg 63deg, transparent 70deg 360deg); mask-image: radial-gradient(ellipse at 6% 3%, black, transparent 72%); filter: blur(var(--cold-softness)); transform-origin: 6% 3%; animation: lounge-cold-ray-breathe 24s ease-in-out infinite alternate; }
+@keyframes lounge-cold-ray-breathe { from { transform: rotate(-2deg); } to { transform: rotate(2deg); } }
+.lounge-local-atmosphere[data-moving='false'] * { animation: none; }
+@media (prefers-reduced-motion: reduce) { .lounge-local-atmosphere * { animation: none; } }
+[data-lounge-scene='steampunk'] { --ink: 255 246 229; --muted: 215 191 156; --surface: 29 20 15; --panel: 53 35 24; --border: 145 103 61; --accent: 222 162 80; --accent-2: 124 198 184; --grad-1: 73 44 24; --grad-2: 20 26 26; }
+[data-lounge-scene='anime-winter'] { --ink: 243 251 255; --muted: 186 215 237; --surface: 12 26 43; --panel: 23 46 68; --border: 116 169 211; --accent: 133 219 255; --accent-2: 218 232 255; --grad-1: 32 83 127; --grad-2: 15 31 56; }
 .custom-theme-reaction { position: absolute; display: block; object-fit: contain; pointer-events: none; opacity: 0; animation: custom-reaction-pop 1.2s ease-out both; }
 .theme-creator-sprite { position: absolute; display: block; object-fit: contain; pointer-events: none; opacity: 0; animation-timing-function: linear; animation-iteration-count: infinite; }
 .theme-creator-sprite--rise { animation-name: creator-preview-rise; }
@@ -2093,8 +2105,29 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 }
 [data-testid='neo-lounge']::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 4; box-shadow: inset 0 0 var(--lounge-vignette-blur, 30px) rgb(0 0 0 / var(--lounge-vignette-alpha, .1)); }
 .lounge-visual-preview::after { content: ''; position: absolute; inset: 0; z-index: 8; pointer-events: none; box-shadow: inset 0 0 var(--lounge-vignette-blur, 30px) rgb(0 0 0 / var(--lounge-vignette-alpha, .1)); }
-.lounge-living-backdrop__fx { opacity: var(--lounge-atmosphere-opacity, 1); }
+.lounge-living-backdrop__fx { right: auto; bottom: auto; width: 50%; height: 50%; opacity: var(--lounge-atmosphere-opacity, 1); transform: scale(2); transform-origin: top left; }
 .lounge-living-backdrop { z-index: 0; }
+/* Contain background blend effects within scenery instead of letting them
+   sample/repaint the foreground covers. No effect layers are removed. */
+.lounge-living-backdrop { isolation: isolate; }
+/* Explicit scenery stack. Shade affects artwork, not light/smoke emissions.
+   Broad glows stay behind detailed rays/plumes; strength sliders stay intact. */
+.lounge-living-backdrop__canvas { z-index: 0; }
+.lounge-living-backdrop__art, .lounge-living-backdrop__user-image, .lounge-living-backdrop__game { z-index: 1; }
+.lounge-living-backdrop__color-grade { z-index: 2; }
+.lounge-living-backdrop__shade { z-index: 3; }
+.lounge-living-backdrop__specular { z-index: 4; }
+.lounge-living-backdrop__fx { z-index: 5; }
+.lounge-living-backdrop__grain { z-index: 6; }
+.lounge-living-backdrop__edge { z-index: 7; }
+.lounge-living-backdrop__fx > .lounge-living-backdrop__waves { z-index: 0; }
+.lounge-living-backdrop__fx > .lounge-living-backdrop__ribbons { z-index: 1; }
+.lounge-living-backdrop__fx > .lounge-living-backdrop__light { z-index: 2; }
+.lounge-living-backdrop__fx > .lounge-living-backdrop__bloom { z-index: 3; }
+.lounge-living-backdrop__fx > .lounge-living-backdrop__highlight { z-index: 4; }
+.lounge-living-backdrop__fx > .lounge-living-backdrop__rays { z-index: 5; }
+.lounge-living-backdrop__fx > .lounge-local-atmosphere { z-index: 6; }
+.lounge-game-card { isolation: isolate; }
 [data-testid='neo-lounge'][data-lounge-scene='alpine'], [data-testid='lounge-visual-preview'][data-lounge-scene='alpine'] { --ink: 244 251 255; --muted: 187 217 233; --surface: 7 21 39; --panel: 13 38 61; --border: 109 190 222; --accent: 105 226 255; --accent-2: 255 205 137; --grad-1: 14 48 84; --grad-2: 5 18 37; }
 [data-testid='neo-lounge'][data-lounge-scene='orbit'], [data-testid='lounge-visual-preview'][data-lounge-scene='orbit'] { --ink: 246 250 255; --muted: 181 202 235; --surface: 5 13 35; --panel: 16 31 69; --border: 92 132 214; --accent: 93 177 255; --accent-2: 163 208 255; --grad-1: 13 42 94; --grad-2: 4 10 32; }
 [data-testid='neo-lounge'][data-lounge-scene='coast'], [data-testid='lounge-visual-preview'][data-lounge-scene='coast'] { --ink: 246 253 255; --muted: 204 232 231; --surface: 8 37 47; --panel: 14 68 77; --border: 115 211 216; --accent: 77 227 223; --accent-2: 255 214 150; --grad-1: 27 111 132; --grad-2: 7 43 58; }
@@ -2110,9 +2143,9 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 .lounge-scene-shortcut:active { transform: scale(0.96); }
 .lounge-living-backdrop__canvas, .lounge-living-backdrop__art { background-size: cover; background-position: var(--lounge-backdrop-position-x, 50%) var(--lounge-backdrop-position-y, 50%); }
 .lounge-living-backdrop__canvas { animation: lounge-background-drift var(--lounge-backdrop-duration) ease-in-out infinite alternate; }
-.lounge-living-backdrop__art { opacity: var(--lounge-backdrop-art-opacity); filter: saturate(var(--lounge-art-saturation, 1)) contrast(var(--lounge-art-contrast, 1)) var(--lounge-chromatic-filter, brightness(1)); animation: lounge-background-drift calc(var(--lounge-backdrop-duration) * 1.3) ease-in-out infinite alternate-reverse; }
-.lounge-living-backdrop__game { opacity: var(--lounge-game-art-opacity); object-position: var(--lounge-backdrop-position-x, 50%) var(--lounge-backdrop-position-y, 50%); filter: saturate(var(--lounge-art-saturation, 1)) contrast(var(--lounge-art-contrast, 1)) var(--lounge-chromatic-filter, brightness(1)); transition: opacity 350ms ease, transform 400ms ease; }
-.lounge-living-backdrop__user-image { opacity: var(--lounge-backdrop-art-opacity); filter: saturate(var(--lounge-art-saturation, 1)) contrast(var(--lounge-art-contrast, 1)) var(--lounge-chromatic-filter, brightness(1)); transition: opacity 350ms ease, transform 400ms ease; }
+.lounge-living-backdrop__art { opacity: var(--lounge-backdrop-art-opacity); transform: scale(var(--lounge-art-zoom, 1)); filter: saturate(var(--lounge-art-saturation, 1)) contrast(var(--lounge-art-contrast, 1)) var(--lounge-chromatic-filter, brightness(1)); animation: lounge-art-drift calc(var(--lounge-backdrop-duration) * 1.3) ease-in-out infinite alternate-reverse; }
+.lounge-living-backdrop__game { opacity: var(--lounge-game-art-opacity); object-position: var(--lounge-backdrop-position-x, 50%) var(--lounge-backdrop-position-y, 50%); transform: scale(var(--lounge-art-zoom, 1)); filter: saturate(var(--lounge-art-saturation, 1)) contrast(var(--lounge-art-contrast, 1)) var(--lounge-chromatic-filter, brightness(1)); transition: opacity 350ms ease, transform 400ms ease; }
+.lounge-living-backdrop__user-image { opacity: var(--lounge-backdrop-art-opacity); transform: scale(var(--lounge-art-zoom, 1)); filter: saturate(var(--lounge-art-saturation, 1)) contrast(var(--lounge-art-contrast, 1)) var(--lounge-chromatic-filter, brightness(1)); transition: opacity 350ms ease, transform 400ms ease; }
 .lounge-living-backdrop__color-grade { background: var(--lounge-temperature-color, transparent); mix-blend-mode: soft-light; }
 .lounge-living-backdrop__user-image { transform-origin: center; }
 [data-lounge-user-motion='true'] .lounge-living-backdrop__user-image { animation: lounge-user-art-living var(--lounge-user-duration, 38s) ease-in-out var(--lounge-user-delay, 0s) infinite; }
@@ -2122,40 +2155,75 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
   49% { transform: scale(var(--lounge-user-zoom-near, 1.01)) translate3d(var(--lounge-user-drift-x-return, 0.3%), 0, 0); }
   76% { transform: scale(var(--lounge-user-zoom-pulse, 1.05)) translate3d(var(--lounge-user-drift-x, -0.6%), var(--lounge-user-drift-y-return, -0.18%), 0); }
 }
-.lounge-living-backdrop__waves { opacity: var(--lounge-wave-opacity); background: radial-gradient(ellipse 65% 30% at 12% 60%, rgb(var(--accent-2) / 0.68), transparent 78%), radial-gradient(ellipse 65% 32% at 84% 40%, rgb(var(--accent) / 0.62), transparent 78%), linear-gradient(115deg, transparent 22%, rgb(255 255 255 / 0.1) 50%, transparent 76%); background-size: var(--lounge-wave-size, 200%) var(--lounge-wave-size, 200%); transform: scale(1.2); animation: lounge-wave-flow calc(var(--lounge-backdrop-duration) * 1.4) ease-in-out infinite alternate; }
-.lounge-living-backdrop__ribbons { opacity: var(--lounge-ribbon-opacity, 0); background: linear-gradient(112deg, transparent 13%, rgb(var(--accent) / 0.02) 25%, rgb(var(--accent) / 0.48) 37%, rgb(var(--accent-2) / 0.24) 44%, transparent 56%), linear-gradient(72deg, transparent 34%, rgb(var(--accent-2) / 0.32) 43%, rgb(255 255 255 / 0.14) 47%, transparent 55%); background-repeat: no-repeat; background-size: 190% 58%, 175% 68%; background-position: 50% var(--lounge-ribbon-y, 35%), 50% var(--lounge-ribbon-y, 35%); filter: blur(26px) saturate(1.6); mix-blend-mode: screen; animation: lounge-ribbon-flow var(--lounge-ribbon-duration, 30s) ease-in-out infinite alternate; }
+.lounge-living-backdrop__waves { inset: -35%; --lounge-wave-travel-x: min(8%, calc(5% * var(--lounge-motion-strength, 1) * var(--lounge-wave-strength, 1) * var(--lounge-wave-drift, 1))); --lounge-wave-travel-y: min(3.2%, calc(2% * var(--lounge-motion-strength, 1) * var(--lounge-wave-strength, 1) * var(--lounge-wave-drift, 1))); --lounge-wave-turn: min(3deg, calc(3deg * var(--lounge-motion-strength, 1) * var(--lounge-wave-drift, 1))); mask-image: radial-gradient(ellipse 50% 50% at center, #000 35%, transparent 100%); opacity: var(--lounge-wave-opacity); background: radial-gradient(ellipse 65% 30% at 12% 60%, rgb(var(--accent-2) / 0.68), transparent 78%), radial-gradient(ellipse 65% 32% at 84% 40%, rgb(var(--accent) / 0.62), transparent 78%), linear-gradient(115deg, transparent 22%, rgb(255 255 255 / 0.1) 50%, transparent 76%); background-size: var(--lounge-wave-size, 200%) var(--lounge-wave-size, 200%); transform: scale(1.2); animation: lounge-wave-flow calc(var(--lounge-backdrop-duration) * 1.4) ease-in-out infinite alternate; }
+.lounge-living-backdrop__ribbons { opacity: var(--lounge-ribbon-opacity, 0); background: linear-gradient(112deg, transparent 13%, rgb(var(--accent) / 0.02) 25%, rgb(var(--accent) / 0.48) 37%, rgb(var(--accent-2) / 0.24) 44%, transparent 56%), linear-gradient(72deg, transparent 34%, rgb(var(--accent-2) / 0.32) 43%, rgb(255 255 255 / 0.14) 47%, transparent 55%); background-repeat: no-repeat; background-size: 190% 58%, 175% 68%; background-position: 50% var(--lounge-ribbon-y, 35%), 50% var(--lounge-ribbon-y, 35%); filter: blur(13px) saturate(1.6); mix-blend-mode: screen; animation: lounge-ribbon-flow var(--lounge-ribbon-duration, 30s) ease-in-out infinite alternate; }
 .lounge-living-backdrop__edge { opacity: var(--lounge-edge-opacity, 0); box-shadow: inset 0 0 var(--lounge-edge-width, 80px) rgb(var(--accent) / 0.56), inset 0 0 calc(var(--lounge-edge-width, 80px) * 0.36) rgb(var(--accent-2) / 0.35); mix-blend-mode: screen; }
 [data-lounge-edge-pulse='true'] .lounge-living-backdrop__edge { animation: lounge-edge-breathe calc(var(--lounge-backdrop-duration) * 0.6) ease-in-out infinite alternate; }
 @keyframes lounge-ribbon-flow { from { transform: translate3d(-7%, 2%, 0) rotate(-2deg) scale(1.04); } to { transform: translate3d(7%, -2%, 0) rotate(2deg) scale(1.09); } }
-@keyframes lounge-edge-breathe { from { opacity: calc(var(--lounge-edge-opacity, 0) * (1 - var(--lounge-edge-pulse, 0) * 0.65)); } to { opacity: var(--lounge-edge-opacity, 0); } }
+@keyframes lounge-edge-breathe { from { opacity: calc(var(--lounge-edge-opacity, 0) * (1 - var(--lounge-edge-pulse, 0) * 0.25)); } to { opacity: var(--lounge-edge-opacity, 0); } }
 .lounge-living-backdrop__light { opacity: var(--lounge-backdrop-halo-opacity); background: radial-gradient(ellipse at 15% 23%, rgb(var(--accent) / 0.55), transparent 45%), radial-gradient(ellipse at 84% 72%, rgb(var(--accent-2) / 0.48), transparent 43%); background-size: 140% 140%; animation: lounge-background-drift var(--lounge-backdrop-duration) ease-in-out infinite alternate; }
-.lounge-living-backdrop__bloom { opacity: min(1, calc(var(--lounge-light-bloom, 0) * 0.78)); background: radial-gradient(ellipse 24% 37% at 20% 22%, rgb(var(--accent-2) / 0.88), transparent 82%), radial-gradient(ellipse 32% 28% at 78% 70%, rgb(var(--accent) / 0.82), transparent 84%), radial-gradient(ellipse 20% 25% at 62% 18%, rgb(255 255 255 / 0.46), transparent 86%); background-size: var(--lounge-bloom-spread, 100%) var(--lounge-bloom-spread, 100%); mix-blend-mode: screen; filter: blur(var(--lounge-bloom-blur, 34px)) saturate(calc(1.65 + var(--lounge-light-bloom, 0) * 0.3)) brightness(calc(1.4 + var(--lounge-light-bloom, 0) * 0.4)); transform: scale(1.1); animation: lounge-bloom-drift var(--lounge-shimmer-duration, calc(var(--lounge-backdrop-duration) * 0.48)) ease-in-out infinite alternate; }
-.lounge-living-backdrop__specular { opacity: calc(var(--lounge-highlight-pulse) * var(--lounge-bright-strength, 0.35)); mix-blend-mode: screen; filter: brightness(2.8) contrast(2.7) saturate(1.8); -webkit-mask-image: radial-gradient(ellipse 25% 23% at var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%), black, transparent 100%); mask-image: radial-gradient(ellipse 25% 23% at var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%), black, transparent 100%); animation: lounge-specular-pulse calc(var(--lounge-backdrop-duration) * 0.48) ease-in-out infinite alternate; }
-@keyframes lounge-specular-pulse { from { opacity: calc(var(--lounge-highlight-pulse) * var(--lounge-bright-strength, 0.35) * 0.45); } to { opacity: calc(var(--lounge-highlight-pulse) * var(--lounge-bright-strength, 0.35)); } }
+/* Spread scales radii, never the background tile or its anchor coordinates.
+   100% retains the original radii; 40/220% gives 0.4/2.2 times their size. */
+.lounge-living-backdrop__bloom { opacity: min(1, calc(var(--lounge-light-bloom, 0) * 0.78)); background: radial-gradient(ellipse calc(var(--lounge-bloom-spread, 100%) * 0.24) calc(var(--lounge-bloom-spread, 100%) * 0.37) at 20% 22%, rgb(var(--accent-2) / 0.88), transparent 82%), radial-gradient(ellipse calc(var(--lounge-bloom-spread, 100%) * 0.32) calc(var(--lounge-bloom-spread, 100%) * 0.28) at 78% 70%, rgb(var(--accent) / 0.82), transparent 84%), radial-gradient(ellipse calc(var(--lounge-bloom-spread, 100%) * 0.20) calc(var(--lounge-bloom-spread, 100%) * 0.25) at 62% 18%, rgb(255 255 255 / 0.46), transparent 86%); background-size: 100% 100%; background-repeat: no-repeat; mix-blend-mode: screen; filter: blur(var(--lounge-bloom-blur, 17px)) saturate(calc(2 + var(--lounge-light-bloom, 0) * 0.4)) brightness(calc(1 + var(--lounge-light-bloom, 0) * 0.8)); transform: scale(1.1); animation: lounge-bloom-drift var(--lounge-shimmer-duration, calc(var(--lounge-backdrop-duration) * 0.48)) ease-in-out infinite alternate; }
+.lounge-living-backdrop__specular { left: var(--lounge-bright-x, 72%); top: var(--lounge-bright-y, 18%); width: min(34%, 560px); height: min(38%, 380px); border-radius: 50%; opacity: calc(var(--lounge-highlight-pulse) * var(--lounge-bright-strength, 0.35)); background: radial-gradient(ellipse at center, rgb(var(--lounge-highlight-color, 255 255 255) / 0.85), rgb(var(--lounge-highlight-color, 255 255 255) / 0.42) 28%, transparent 72%); mix-blend-mode: screen; filter: blur(10px); transform: translate(-50%, -50%); animation: lounge-specular-pulse calc(var(--lounge-backdrop-duration) * 0.48) ease-in-out infinite alternate; }
+@keyframes lounge-specular-pulse { from { opacity: calc(var(--lounge-highlight-pulse) * var(--lounge-bright-strength, 0.35) * 0.75); } to { opacity: calc(var(--lounge-highlight-pulse) * var(--lounge-bright-strength, 0.35)); } }
 .lounge-living-backdrop:has(.lounge-living-backdrop__rays) .lounge-living-backdrop__art { animation: lounge-scene-pan calc(var(--lounge-backdrop-duration) * 2.6) ease-in-out infinite alternate; filter: saturate(calc(1.16 * var(--lounge-art-saturation, 1))) contrast(calc(1.14 * var(--lounge-art-contrast, 1))) var(--lounge-chromatic-filter, brightness(1)); }
-.lounge-living-backdrop:has(.lounge-living-backdrop__rays) .lounge-living-backdrop__specular { filter: brightness(2.8) contrast(2.7) saturate(1.8); }
 .lounge-living-backdrop:has(.lounge-living-backdrop__rays) .lounge-living-backdrop__waves { background: radial-gradient(ellipse 36% 22% at 43% 20%, rgb(var(--accent) / 0.7), transparent 80%), radial-gradient(ellipse 42% 30% at 76% 57%, rgb(var(--accent-2) / 0.58), transparent 85%); opacity: var(--lounge-wave-opacity); filter: saturate(calc(1 + var(--lounge-wave-strength, 1) * 0.55)) brightness(calc(1 + var(--lounge-wave-strength, 1) * 0.22)); }
 .lounge-living-backdrop:has(.lounge-living-backdrop__rays) .lounge-living-backdrop__light { background: radial-gradient(ellipse 45% 33% at 73% 38%, rgb(var(--accent) / 0.12), transparent 72%); }
 .lounge-living-backdrop__rays { opacity: 0; }
-.lounge-living-backdrop__rays[data-lounge-scene-art='dynamic'], .lounge-living-backdrop__rays[data-lounge-scene-art='alpine'], .lounge-living-backdrop__rays[data-lounge-scene-art='coast'], .lounge-living-backdrop__rays[data-lounge-scene-art='solar'] { opacity: calc(var(--lounge-light-rays) * var(--lounge-bright-strength, 0.35)); background: conic-gradient(from 198deg at var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%), transparent 0deg 7deg, rgb(255 249 226 / 0.38) 10deg 13deg, transparent 17deg 29deg, rgb(255 255 255 / 0.25) 32deg 35deg, transparent 40deg 50deg, rgb(255 247 218 / 0.31) 54deg 58deg, transparent 64deg 360deg), radial-gradient(ellipse 19% 16% at var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%), rgb(255 255 255 / 0.88), rgb(255 229 174 / 0.42) 30%, transparent 100%); mix-blend-mode: screen; filter: blur(var(--lounge-ray-blur, 2px)) brightness(1.45); transform-origin: var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%); animation: lounge-dynamic-rays var(--lounge-shimmer-duration, calc(var(--lounge-backdrop-duration) * 0.8)) ease-in-out infinite alternate; }
-.lounge-living-backdrop__highlight { opacity: calc(var(--lounge-highlight-pulse) * var(--lounge-bright-strength, 0.35)); background: radial-gradient(ellipse 24% 18% at var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%), rgb(255 255 255 / 0.78), rgb(255 233 193 / 0.34) 35%, transparent 100%), radial-gradient(ellipse 30% 34% at var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%), rgb(var(--accent-2) / 0.28), transparent 82%); mix-blend-mode: screen; filter: saturate(1.55) contrast(1.55); transform-origin: var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%); animation: lounge-highlight-breathe var(--lounge-shimmer-duration, calc(var(--lounge-backdrop-duration) * 0.28)) ease-in-out infinite alternate; }
-@keyframes lounge-dynamic-rays { from { opacity: calc(var(--lounge-light-rays) * 0.35); transform: translate3d(-3%, 1.5%, 0) rotate(-5deg); filter: blur(var(--lounge-ray-blur, 2px)) brightness(0.7); } to { opacity: var(--lounge-light-rays); transform: translate3d(3%, -1.5%, 0) rotate(5deg); filter: blur(var(--lounge-ray-blur, 2px)) brightness(1.9); } }
-@keyframes lounge-bloom-drift { from { opacity: min(1, calc(var(--lounge-light-bloom, 0) * 0.4)); transform: scale(1.04) translate3d(-2%, 1.4%, 0); filter: blur(var(--lounge-bloom-blur, 34px)) saturate(calc(1.4 + var(--lounge-light-bloom, 0) * 0.25)) brightness(calc(0.8 + var(--lounge-light-bloom, 0) * 0.4)); } to { opacity: min(1, calc(var(--lounge-light-bloom, 0) * 0.92)); transform: scale(1.16) translate3d(2%, -1.4%, 0); filter: blur(var(--lounge-bloom-blur, 34px)) saturate(calc(2 + var(--lounge-light-bloom, 0) * 0.4)) brightness(calc(1 + var(--lounge-light-bloom, 0) * 0.8)); } }
-@keyframes lounge-highlight-breathe { from { opacity: calc(var(--lounge-highlight-pulse) * 0.3); transform: scale(0.98); filter: brightness(0.6) blur(2px); } to { opacity: var(--lounge-highlight-pulse); transform: scale(1.02); filter: brightness(2) blur(9px); } }
+.lounge-living-backdrop__rays[data-lounge-scene-art='steampunk'],
+.lounge-living-backdrop__rays[data-lounge-scene-art='dynamic'], .lounge-living-backdrop__rays[data-lounge-scene-art='alpine'], .lounge-living-backdrop__rays[data-lounge-scene-art='coast'], .lounge-living-backdrop__rays[data-lounge-scene-art='solar'] { opacity: calc(var(--lounge-light-rays) * var(--lounge-bright-strength, 0.35)); background: conic-gradient(from 198deg at var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%), transparent 0deg 7deg, rgb(255 249 226 / 0.38) 10deg 13deg, transparent 17deg 29deg, rgb(255 255 255 / 0.25) 32deg 35deg, transparent 40deg 50deg, rgb(255 247 218 / 0.31) 54deg 58deg, transparent 64deg 360deg), radial-gradient(ellipse 19% 16% at var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%), rgb(255 255 255 / 0.88), rgb(255 229 174 / 0.42) 30%, transparent 100%); mix-blend-mode: screen; filter: blur(var(--lounge-ray-blur, 2px)) brightness(1.9); transform-origin: var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%); animation: lounge-dynamic-rays var(--lounge-shimmer-duration, calc(var(--lounge-backdrop-duration) * 0.8)) ease-in-out infinite alternate; }
+/* Keep the expensive full-screen filters static; shimmer uses composited opacity and transforms. */
+.lounge-living-backdrop__highlight { opacity: calc(var(--lounge-highlight-pulse) * var(--lounge-bright-strength, 0.35)); background: radial-gradient(ellipse 24% 18% at var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%), rgb(var(--lounge-highlight-color, 255 255 255) / 0.78), rgb(var(--lounge-highlight-color, 255 255 255) / 0.34) 35%, transparent 100%), radial-gradient(ellipse 30% 34% at var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%), rgb(var(--lounge-highlight-color, 255 255 255) / 0.28), transparent 82%); mix-blend-mode: screen; filter: blur(4.5px); transform-origin: var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%); animation: lounge-highlight-breathe var(--lounge-shimmer-duration, calc(var(--lounge-backdrop-duration) * 0.28)) ease-in-out infinite alternate; }
+@keyframes lounge-dynamic-rays { from { opacity: calc(var(--lounge-light-rays) * 0.72); transform: translate3d(-3%, 1.5%, 0) rotate(-5deg); } to { opacity: var(--lounge-light-rays); transform: translate3d(3%, -1.5%, 0) rotate(5deg); } }
+@keyframes lounge-bloom-drift { from { opacity: min(1, calc(var(--lounge-light-bloom, 0) * 0.75)); transform: scale(1.04) translate3d(-2%, 1.4%, 0); } to { opacity: min(1, calc(var(--lounge-light-bloom, 0) * 0.92)); transform: scale(1.16) translate3d(2%, -1.4%, 0); } }
+@keyframes lounge-highlight-breathe { from { opacity: calc(var(--lounge-highlight-pulse) * 0.78); transform: scale(0.98); } to { opacity: var(--lounge-highlight-pulse); transform: scale(1.02); } }
+/* A source-coloured fan belongs to Highlight Pulse, independently of regular
+   Light Rays. Its gradients/mask are static; only opacity/transform animate. */
+.lounge-living-backdrop__highlight::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: conic-gradient(from 160deg at var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%), transparent 0deg 5deg, rgb(var(--lounge-highlight-color, 255 255 255) / 0.3) 9deg 12deg, transparent 18deg 29deg, rgb(var(--lounge-highlight-color, 255 255 255) / 0.22) 34deg 38deg, transparent 44deg 59deg, rgb(var(--lounge-highlight-color, 255 255 255) / 0.28) 64deg 68deg, transparent 74deg 360deg);
+  mask-image: radial-gradient(ellipse 42% 55% at var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%), #000 8%, transparent 80%);
+  transform-origin: var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%);
+  opacity: 0.5;
+  animation: lounge-pulse-ray-sway calc(var(--lounge-shimmer-duration, 12s) * 0.85) ease-in-out infinite alternate;
+}
+@keyframes lounge-pulse-ray-sway {
+  0% { opacity: 0.36; transform: rotate(-1.8deg) scale(0.99); }
+  45% { opacity: 0.58; transform: rotate(0.3deg) scale(1.01); }
+  100% { opacity: 0.44; transform: rotate(1.8deg) scale(1.02); }
+}
+[data-lounge-backdrop-active='false'] .lounge-living-backdrop__highlight::before { animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .lounge-living-backdrop__highlight::before { animation: none !important; }
+}
 .lounge-living-backdrop__rays[data-lounge-scene-art='orbit'] { opacity: calc(var(--lounge-light-rays) * var(--lounge-bright-strength, 0.35)); background: conic-gradient(from 118deg at var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%), transparent 0deg, rgb(var(--accent-2) / 0.24) 6deg, transparent 14deg, transparent 26deg, rgb(var(--accent) / 0.18) 32deg, transparent 39deg, transparent 360deg), radial-gradient(circle at var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%), rgb(214 238 255 / 0.7), rgb(var(--accent) / 0.22) 8%, transparent 35%); mix-blend-mode: screen; transform-origin: var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%); animation: lounge-orbit-rays var(--lounge-shimmer-duration, calc(var(--lounge-backdrop-duration) * 0.65)) ease-in-out infinite alternate; }
 .lounge-living-backdrop__rays[data-lounge-scene-art='neon'], .lounge-living-backdrop__rays[data-lounge-scene-art='rainlight'] { opacity: calc(var(--lounge-light-rays) * var(--lounge-bright-strength, 0.35)); background: conic-gradient(from 180deg at var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%), transparent 0deg 8deg, rgb(var(--accent) / 0.32) 12deg 16deg, transparent 20deg 34deg, rgb(var(--accent-2) / 0.28) 39deg 43deg, transparent 49deg 360deg), radial-gradient(ellipse 21% 25% at var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%), rgb(255 255 255 / 0.55), rgb(var(--accent) / 0.28) 45%, transparent 100%); mix-blend-mode: screen; transform-origin: var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%); animation: lounge-orbit-rays var(--lounge-shimmer-duration, calc(var(--lounge-backdrop-duration) * 0.65)) ease-in-out infinite alternate; }
+.lounge-living-backdrop__rays[data-lounge-scene-art='anime-winter'],
 .lounge-living-backdrop__rays[data-lounge-scene-art='starlit'] { opacity: calc(var(--lounge-light-rays) * var(--lounge-bright-strength, 0.35)); background: conic-gradient(from 198deg at var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%), transparent 0deg 9deg, rgb(225 235 255 / 0.3) 13deg 16deg, transparent 21deg 35deg, rgb(var(--accent) / 0.2) 40deg 44deg, transparent 50deg 360deg), radial-gradient(circle at var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%), rgb(225 235 255 / 0.54), rgb(var(--accent) / 0.18) 10%, transparent 35%); mix-blend-mode: screen; transform-origin: var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%); animation: lounge-orbit-rays var(--lounge-shimmer-duration, calc(var(--lounge-backdrop-duration) * 0.65)) ease-in-out infinite alternate; }
+.lounge-living-backdrop__rays[data-lounge-scene-art='anime-winter'],
+.lounge-living-backdrop__rays:is([data-lounge-scene-art='orbit'], [data-lounge-scene-art='neon'], [data-lounge-scene-art='rainlight'], [data-lounge-scene-art='starlit']) { filter: brightness(1.8) blur(var(--lounge-ray-blur, 1px)); }
 [data-testid='neo-lounge'][data-lounge-scene='starlit'] .lounge-living-backdrop__light { background: radial-gradient(ellipse 47% 24% at 52% 67%, rgb(var(--accent-2) / 0.1), transparent 78%); }
 [data-testid='neo-lounge'][data-lounge-scene='starlit'] .lounge-living-backdrop__shade { background: linear-gradient(180deg, rgb(4 10 34 / 0.08), transparent 48%, rgb(3 9 31 / 0.17)); }
 [data-testid='neo-lounge'][data-lounge-scene='neon'] .lounge-living-backdrop__shade { background: linear-gradient(180deg, rgb(3 2 16 / 0.05), transparent 48%, rgb(3 2 16 / 0.2)); }
 [data-testid='neo-lounge'][data-lounge-scene='neon'] .lounge-living-backdrop__art { filter: saturate(calc(1.08 * var(--lounge-art-saturation, 1))) contrast(calc(1.06 * var(--lounge-art-contrast, 1))) var(--lounge-chromatic-filter, brightness(1)); }
 .lounge-living-backdrop__shade { background: linear-gradient(180deg, rgb(var(--surface) / 0.12), rgb(var(--surface) / 0.34)); }
-.lounge-living-backdrop__grain { background-image: url('./assets/lounge/film-grain.svg'); background-size: 160px 160px; background-repeat: repeat; mix-blend-mode: overlay; opacity: var(--lounge-film-grain-opacity, 0); animation: lounge-film-grain-shift 420ms steps(1, end) infinite; }
-@keyframes lounge-film-grain-shift { 0%, 100% { background-position: 0 0; } 25% { background-position: -41px 29px; } 50% { background-position: 37px -23px; } 75% { background-position: -19px -53px; } }
+/* Rasterize grading at a stable artwork size; animate its outer composite.
+   Combining full-screen SVG filters and changing scale on one node causes
+   repeated filter-surface allocation and visible tile corruption on Windows. */
+.lounge-living-backdrop :is(.lounge-living-backdrop__art, .lounge-living-backdrop__game, .lounge-living-backdrop__user-image) { filter: none !important; will-change: transform; }
+.lounge-art-pixels { background-size: cover; background-position: var(--lounge-backdrop-position-x, 50%) var(--lounge-backdrop-position-y, 50%); filter: saturate(calc(var(--lounge-grade-saturation, 1) * var(--lounge-art-saturation, 1))) contrast(calc(var(--lounge-grade-contrast, 1) * var(--lounge-art-contrast, 1))) var(--lounge-chromatic-filter, brightness(1)); }
+.lounge-art-pixels[data-gpu-art-ready='true'] { filter: none; }
+.lounge-living-backdrop:has(.lounge-living-backdrop__rays) .lounge-living-backdrop__art { --lounge-grade-saturation: 1.16; --lounge-grade-contrast: 1.14; }
+[data-testid='neo-lounge']:not([data-lounge-scene='theme']) .lounge-living-backdrop__art { --lounge-grade-saturation: 1.14; --lounge-grade-contrast: 1.12; }
+[data-testid='neo-lounge'][data-lounge-scene='neon'] .lounge-living-backdrop__art { --lounge-grade-saturation: 1.08; --lounge-grade-contrast: 1.06; }
+.lounge-living-backdrop__grain { inset: -64px; background-image: url('./assets/lounge/film-grain.svg'); background-size: 160px 160px; background-repeat: repeat; mix-blend-mode: overlay; opacity: var(--lounge-film-grain-opacity, 0); animation: lounge-film-grain-shift 8s steps(8, end) infinite alternate; }
+@keyframes lounge-film-grain-shift { from { transform: translate3d(-16px, 12px, 0); } to { transform: translate3d(16px, -12px, 0); } }
 @keyframes lounge-background-drift { from { transform: scale(calc(1 + 0.06 * var(--lounge-scene-drift, 1))) translate3d(calc(-1.3% * var(--lounge-motion-strength, 1) * var(--lounge-scene-drift, 1)), calc(-0.7% * var(--lounge-motion-strength, 1) * var(--lounge-scene-drift, 1)), 0); } to { transform: scale(calc(1 + 0.06 * var(--lounge-scene-drift, 1))) translate3d(calc(1.3% * var(--lounge-motion-strength, 1) * var(--lounge-scene-drift, 1)), calc(0.7% * var(--lounge-motion-strength, 1) * var(--lounge-scene-drift, 1)), 0); } }
-@keyframes lounge-scene-pan { from { transform: scale(calc(1 + 0.035 * var(--lounge-scene-drift, 1))) translate3d(calc(-0.8% * var(--lounge-motion-strength, 1) * var(--lounge-scene-drift, 1)), calc(0.3% * var(--lounge-motion-strength, 1) * var(--lounge-scene-drift, 1)), 0); } to { transform: scale(calc(1 + 0.06 * var(--lounge-scene-drift, 1))) translate3d(calc(0.8% * var(--lounge-motion-strength, 1) * var(--lounge-scene-drift, 1)), calc(-0.3% * var(--lounge-motion-strength, 1) * var(--lounge-scene-drift, 1)), 0); } }
-@keyframes lounge-orbit-rays { from { opacity: calc(var(--lounge-light-rays) * 0.3); transform: translate3d(-1.5%, 0.8%, 0); filter: brightness(0.7) blur(var(--lounge-ray-blur, 1px)); } to { opacity: var(--lounge-light-rays); transform: translate3d(1.5%, -0.8%, 0); filter: brightness(1.8) blur(var(--lounge-ray-blur, 1px)); } }
-@keyframes lounge-wave-flow { from { transform: scale(1.2) translate3d(calc(-5% * var(--lounge-motion-strength, 1) * var(--lounge-wave-strength, 1) * var(--lounge-wave-drift, 1)), calc(2% * var(--lounge-motion-strength, 1) * var(--lounge-wave-strength, 1) * var(--lounge-wave-drift, 1)), 0) rotate(calc(-3deg * var(--lounge-motion-strength, 1) * var(--lounge-wave-drift, 1))); } to { transform: scale(1.2) translate3d(calc(5% * var(--lounge-motion-strength, 1) * var(--lounge-wave-strength, 1) * var(--lounge-wave-drift, 1)), calc(-2% * var(--lounge-motion-strength, 1) * var(--lounge-wave-strength, 1) * var(--lounge-wave-drift, 1)), 0) rotate(calc(3deg * var(--lounge-motion-strength, 1) * var(--lounge-wave-drift, 1))); } }
+@keyframes lounge-art-drift { from { transform: scale(var(--lounge-art-zoom-drift, 1.06)) translate3d(calc(-1.3% * var(--lounge-motion-strength, 1) * var(--lounge-scene-drift, 1)), calc(-0.7% * var(--lounge-motion-strength, 1) * var(--lounge-scene-drift, 1)), 0); } to { transform: scale(var(--lounge-art-zoom-drift, 1.06)) translate3d(calc(1.3% * var(--lounge-motion-strength, 1) * var(--lounge-scene-drift, 1)), calc(0.7% * var(--lounge-motion-strength, 1) * var(--lounge-scene-drift, 1)), 0); } }
+@keyframes lounge-scene-pan { from { transform: scale(var(--lounge-art-zoom-near, 1.035)) translate3d(calc(-0.8% * var(--lounge-motion-strength, 1) * var(--lounge-scene-drift, 1)), calc(0.3% * var(--lounge-motion-strength, 1) * var(--lounge-scene-drift, 1)), 0); } to { transform: scale(var(--lounge-art-zoom-far, 1.06)) translate3d(calc(0.8% * var(--lounge-motion-strength, 1) * var(--lounge-scene-drift, 1)), calc(-0.3% * var(--lounge-motion-strength, 1) * var(--lounge-scene-drift, 1)), 0); } }
+@keyframes lounge-orbit-rays { from { opacity: calc(var(--lounge-light-rays) * 0.72); transform: translate3d(-1.5%, 0.8%, 0); } to { opacity: var(--lounge-light-rays); transform: translate3d(1.5%, -0.8%, 0); } }
+@keyframes lounge-wave-flow { from { transform: scale(1.2) translate3d(calc(-1 * var(--lounge-wave-travel-x)), var(--lounge-wave-travel-y), 0) rotate(calc(-1 * var(--lounge-wave-turn))); } to { transform: scale(1.2) translate3d(var(--lounge-wave-travel-x), calc(-1 * var(--lounge-wave-travel-y)), 0) rotate(var(--lounge-wave-turn)); } }
 [data-lounge-backdrop-active='false'] .lounge-living-backdrop__canvas,
 [data-lounge-backdrop-active='false'] .lounge-living-backdrop__art,
 [data-lounge-backdrop-active='false'] .lounge-living-backdrop__game,
@@ -2188,7 +2256,8 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 .lounge-detail-hero-shade { background: linear-gradient(0deg, rgb(var(--surface)) 0%, rgb(var(--surface) / 0.62) 42%, rgb(0 0 0 / 0.1) 100%), linear-gradient(90deg, rgb(0 0 0 / 0.35), transparent 75%); }
 .lounge-detail-hero--portrait { filter: blur(20px) saturate(1.15); transform: scale(1.12); }
 .lounge-detail-body { background-image: linear-gradient(135deg, rgb(var(--accent) / 0.06), transparent 48%); }
-.lounge-detail-gallery { padding: 16px 4px 20px; scroll-padding-inline: 12px; scroll-padding-block: 16px; }
+.lounge-detail-gallery { padding: 4px; }
+.lounge-detail-media { grid-column: 1 / -1; }
 .lounge-detail-shot { position: relative; z-index: 0; transform: scale(1); transform-origin: center; box-shadow: 0 8px 24px rgb(0 0 0 / 0.25); transition: transform 220ms cubic-bezier(.18,.78,.22,1), border-color 180ms ease, box-shadow 220ms ease; }
 .lounge-detail-shot:is(:hover, :focus-visible, [data-controller-focused='true'], [aria-pressed='true']) { z-index: 2; transform: scale(1.14); border-color: rgb(var(--accent) / 0.9); box-shadow: 0 0 0 2px rgb(var(--accent) / 0.68), 0 18px 42px rgb(0 0 0 / 0.48), 0 0 32px rgb(var(--accent) / 0.28); }
 @media (prefers-reduced-motion: reduce) { .lounge-detail-shot { transition: none; } }
@@ -2210,15 +2279,14 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
    shelf can live on any edge without duplicating game cards or focus logic. */
 .lounge-browser { width: 100%; }
 .lounge-source-pane { box-shadow: inset 0 1px rgb(255 255 255 / 0.12), 0 10px 28px rgb(0 0 0 / 0.14); }
+.lounge-source-pane[data-lounge-source='emulator'] { width: auto; }
 .lounge-source-tab { display: inline-flex; min-width: 88px; min-height: 48px; align-items: center; justify-content: center; gap: 7px; padding: 0 12px; border: 1px solid rgb(var(--border) / 0.7); border-radius: 11px; color: rgb(var(--ink) / 0.75); font-size: 12px; font-weight: 900; transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease; }
 .lounge-source-tab[data-lounge-source='pc'] { --source-color: 98 213 255; }
 .lounge-source-tab[data-lounge-source='emulator'] { --source-color: 255 158 107; }
 .lounge-source-tab:hover, .lounge-source-tab:focus-visible, .lounge-source-tab[aria-selected='true'] { border-color: rgb(var(--source-color) / 0.9); background: rgb(var(--source-color) / 0.24); color: rgb(var(--ink)); box-shadow: inset 0 -3px rgb(var(--source-color) / 0.8), 0 0 18px rgb(var(--source-color) / 0.24); }
-.lounge-source-tab:focus-visible, .lounge-console-step:focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 2px; }
-.lounge-console-picker { max-width: 100%; flex-wrap: wrap; }
-.lounge-console-step { display: grid; width: 36px; height: 48px; flex: 0 0 36px; place-items: center; border: 1px solid rgb(var(--accent) / 0.45); border-radius: 10px; color: rgb(var(--accent-2)); }
-.lounge-console-step:hover, .lounge-console-step:focus-visible { background: rgb(var(--accent) / 0.2); }
-.lounge-console-window { display: grid; width: min(365px, calc(100vw - 128px)); grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: center; gap: 3px; overflow: hidden; }
+.lounge-source-tab:focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 2px; }
+.lounge-console-picker { display: grid; flex: 1 1 0; min-width: 0; max-width: 100%; grid-template-columns: minmax(0, 1fr); align-items: center; }
+.lounge-console-window { display: grid; width: 100%; min-width: 0; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: center; gap: 10px; overflow: visible; }
 .lounge-console-window .lounge-console-tab { width: 100%; min-width: 0; height: 55px; padding: 3px; border-radius: 10px; opacity: 0.78; filter: blur(0.5px); transition: opacity 240ms ease, filter 240ms ease, transform 240ms ease, border-color 240ms ease, box-shadow 240ms ease; }
 .lounge-console-window .lounge-console-tab[data-offset='-2'], .lounge-console-window .lounge-console-tab[data-offset='2'] { opacity: 0.34; filter: blur(2px); transform: scale(0.86); }
 .lounge-console-window .lounge-console-tab[data-offset='-1'], .lounge-console-window .lounge-console-tab[data-offset='1'] { opacity: 0.67; filter: blur(0.8px); transform: scale(0.94); }
@@ -2226,11 +2294,11 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 .lounge-console-window .lounge-console-tab:not([aria-pressed='true']):is(:hover, :focus-visible, [data-controller-focused='true']) { opacity: 1; filter: none; transform: scale(1); }
 .lounge-console-window .lounge-console-logo { width: min(100%, 61px); height: 25px; padding: 2px 4px; }
 .lounge-console-window .lounge-console-tab__label { height: 17px; max-width: 65px; font-size: 8px; line-height: 9px; }
-.lounge-console-summary { max-width: 140px; overflow: hidden; color: rgb(var(--accent-2)); font-size: 10px; font-weight: 900; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
 .lounge-console-window .lounge-console-tab[aria-pressed='true'] .lounge-console-tab__label { opacity: 1; transform: none; }
-@media (max-width: 760px) { .lounge-console-summary { flex-basis: 100%; max-width: none; padding-left: 2px; } }
+@media (max-width: 1480px) { .lounge-console-dock .lounge-console-picker { flex: 1 1 100%; } }
+@media (max-width: 620px) { .lounge-console-window { gap: 4px; } }
 @media (prefers-reduced-motion: reduce) { .lounge-source-tab, .lounge-console-window .lounge-console-tab { transition: none; } }
-.lounge-top-nav { padding-bottom: 2px; }
+.lounge-top-nav { max-width: 100%; padding-bottom: 2px; }
 .lounge-top-icon { --lounge-icon-color: 120 210 255; position: relative; display: grid; place-items: center; width: 58px; height: 58px; flex: 0 0 58px; border: 1px solid rgb(var(--lounge-icon-color) / 0.42); border-radius: 16px; background: linear-gradient(150deg, rgb(var(--lounge-icon-color) / 0.2), rgb(var(--surface) / 0.7)); color: rgb(var(--lounge-icon-color)); box-shadow: inset 0 1px rgb(255 255 255 / 0.16); transition: transform 220ms ease, border-color 220ms ease, background-color 220ms ease, box-shadow 220ms ease; }
 .lounge-top-icon:hover, .lounge-top-icon:focus-visible, .lounge-top-icon[aria-pressed='true'] { border-color: rgb(var(--lounge-icon-color) / 0.95); background: linear-gradient(145deg, rgb(var(--lounge-icon-color) / 0.34), rgb(var(--panel) / 0.82)); box-shadow: inset 0 1px rgb(255 255 255 / 0.26), 0 0 0 2px rgb(var(--lounge-icon-color) / 0.26), 0 0 26px rgb(var(--lounge-icon-color) / 0.25); transform: translateY(-2px); }
 .lounge-top-icon:focus-visible { outline: 2px solid rgb(var(--lounge-icon-color)); outline-offset: 3px; }
@@ -2260,15 +2328,27 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 .lounge-console-logo { display: block; width: 92px; height: 28px; object-fit: contain; object-position: center; padding: 3px 7px; border-radius: 6px; background: rgb(255 255 255 / 0.92); }
 .lounge-console-logo--large { width: 100px; height: 48px; padding: 6px 9px; }
 .lounge-console-logo-fallback { display: block; text-align: center; font-size: 0.85rem; font-weight: 900; line-height: 1.1; }
-.lounge-browser[data-shelf-position='top'] { flex-direction: column; }
+.lounge-browser[data-shelf-position='top'] { flex: 1 1 auto; flex-direction: column; }
 .lounge-browser[data-shelf-position='bottom'] { flex: 1 1 auto; flex-direction: column-reverse; justify-content: space-between; }
 .lounge-browser[data-shelf-position='left'] { flex-direction: row; }
 .lounge-browser[data-shelf-position='right'] { flex-direction: row-reverse; }
 .lounge-browser[data-shelf-position='left'],
 .lounge-browser[data-shelf-position='right'] { height: max(calc(var(--lounge-stage-height) + 20px), calc(100dvh - 210px)); }
 .lounge-browser-shelf { scrollbar-color: rgb(var(--accent) / 0.65) transparent; overflow-anchor: none; }
+/* Preserve launcher state beneath Lounge without laying out or painting its
+   invisible panels. Inert alone only blocks input, not rendering work. */
+.neolib-ui-foreground[inert] { display: none !important; }
+.lounge-game-content { display: contents; }
+[data-lounge-zone='emulator'] .lounge-main-content { --lounge-console-dock-height: calc(clamp(110px, 10vh, 150px) * var(--lounge-emulator-size, 1)); padding-bottom: calc(var(--lounge-console-dock-height) + 90px); overflow: hidden; }
+[data-lounge-zone='emulator'] .lounge-console-dock { position: fixed; left: 50%; right: auto; bottom: 20px; width: min(var(--lounge-emulator-width, 1600px), calc(100% - 64px)); max-width: none; transform: translateX(-50%); z-index: 25; margin: 0; padding: 12px; background: rgb(var(--panel) / var(--lounge-panel-opacity)); }
+[data-lounge-zone='emulator'] .lounge-console-picker { flex: 1; max-width: none; }
+[data-lounge-zone='emulator'] .lounge-browser-shelf { transform: none !important; }
+[data-lounge-zone='emulator'] .lounge-browser { flex: 1; min-height: 0; }
+[data-lounge-zone='emulator'] .lounge-console-collapse { align-self: flex-end; flex: 0 0 auto; padding: 8px 14px; border: 1px solid rgb(var(--border)); border-radius: 12px; margin-bottom: 8px; }
+[data-lounge-zone='emulator'] .lounge-empty-state { min-height: 0; overflow-y: auto; }
+.lounge-browser { isolation: isolate; transform: translateZ(0); }
 .lounge-browser[data-shelf-position='top'] .lounge-browser-shelf,
-.lounge-browser[data-shelf-position='bottom'] .lounge-browser-shelf { transform: translateY(var(--lounge-carousel-offset, 0px)); transition: transform 300ms cubic-bezier(.2,.75,.25,1); }
+.lounge-browser[data-shelf-position='bottom'] .lounge-browser-shelf { transform: translateY(var(--lounge-carousel-applied-offset, var(--lounge-carousel-offset, 0px))); transition: transform 300ms cubic-bezier(.2,.75,.25,1); }
 .lounge-browser[data-shelf-position='top'] .lounge-browser-shelf,
 .lounge-browser[data-shelf-position='bottom'] .lounge-browser-shelf { scrollbar-width: none; -ms-overflow-style: none; }
 .lounge-browser[data-shelf-position='top'] .lounge-browser-shelf::-webkit-scrollbar,
@@ -2276,23 +2356,41 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 .lounge-browser-track { gap: var(--lounge-card-gap); width: max-content; align-items: start; padding: 8px; border: 1px solid rgb(var(--border) / var(--lounge-shelf-edge-opacity)); border-radius: 18px; box-shadow: 0 10px 28px rgb(0 0 0 / var(--lounge-shelf-shadow-opacity)); }
 .lounge-browser[data-shelf-position='top'] .lounge-browser-track,
 .lounge-browser[data-shelf-position='bottom'] .lounge-browser-track { align-items: flex-end; }
-.lounge-browser-shelf { perspective: 900px; }
-.lounge-browser-card { transform: scale(1); transform-origin: center; transition: transform 420ms cubic-bezier(.18,.78,.22,1), filter 360ms ease, border-color 320ms ease, box-shadow 360ms ease; }
-.lounge-browser-card[data-lounge-selected='true'],
-.lounge-browser-card[data-lounge-distance='1'],
-.lounge-browser-card[data-lounge-distance='2'] { will-change: transform; }
+/* A flat shelf needs no 3D projection. Keep filters off the entire glowing
+   card, and retarget scale transitions from the currently displayed size. */
+.lounge-browser-card { transform: scale(1); transform-origin: center; transition: transform 460ms cubic-bezier(.18,.9,.25,1.12), border-color 320ms ease; }
+/* Keep small cover layers stable while the shelf moves. Promoting/demoting
+   only the nearest cards on every selection can leave stale scroll damage. */
+.lounge-browser-card { will-change: transform; }
+.lounge-browser-track { will-change: transform; }
+.lounge-browser-shelf { overflow: hidden !important; }
+.lounge-browser-card[data-lounge-card-visible='false'] { will-change: auto; box-shadow: none !important; }
+.lounge-browser-card[data-lounge-card-visible='false']::before,
+.lounge-browser-card[data-lounge-card-visible='false']::after { content: none !important; }
 .lounge-browser[data-shelf-position='top'] .lounge-browser-card,
 .lounge-browser[data-shelf-position='bottom'] .lounge-browser-card { transform-origin: center bottom; }
-.lounge-browser-card:not([data-lounge-selected='true']) { filter: saturate(0.94) brightness(0.92); }
-.lounge-browser-card[data-lounge-selected='true'] { transform: scale(var(--lounge-selected-cover-scale, 1.45)); z-index: 3; animation: lounge-cover-focus-pop 460ms cubic-bezier(.16,.82,.2,1) both; }
-@keyframes lounge-cover-focus-pop { 0% { transform: scale(1.2); } 38% { transform: scale(calc(var(--lounge-selected-cover-scale, 1.45) + 0.09)); } 72% { transform: scale(calc(var(--lounge-selected-cover-scale, 1.45) - 0.03)); } 100% { transform: scale(var(--lounge-selected-cover-scale, 1.45)); } }
+.lounge-browser-card > span:first-child { filter: saturate(0.94) brightness(0.92); transition: filter 360ms ease; }
+.lounge-browser-card[data-lounge-selected='true'] > span:first-child { filter: none; }
+.lounge-browser-card[data-lounge-selected='true'] { transform: scale(var(--lounge-selected-cover-scale, 1.45)); z-index: 3; }
 .lounge-browser-card[data-lounge-selected='true'] > .lounge-card-caption { border-top: 2px solid rgb(var(--accent-2) / 0.8); background: rgb(var(--accent) / 0.18); }
 .lounge-browser-card[data-lounge-distance='1'] { transform: scale(1.2); z-index: 2; }
 .lounge-browser-card[data-lounge-distance='2'] { transform: scale(1.1); z-index: 1; }
 .lounge-browser-card[data-lounge-distance='3']:hover,
-.lounge-browser-card[data-lounge-distance='3']:focus-visible { transform: scale(1.03); filter: saturate(1.1) brightness(1.08); }
+.lounge-browser-card[data-lounge-distance='3']:focus-visible { transform: scale(1.03); }
+/* Covers move under the mouse while scrolling: hovering must not lift a
+   card out from under the pointer and trigger alternating hover frames. */
+.lounge-browser-card:hover:not([data-lounge-selected='true']):not(:focus-visible) { transform: scale(var(--lounge-hover-card-scale, 1)); filter: none; }
+.lounge-browser-card[data-lounge-distance='1'] { --lounge-hover-card-scale: 1.2; }
+.lounge-browser-card[data-lounge-distance='2'] { --lounge-hover-card-scale: 1.1; }
+.lounge-browser-card:is(:hover, :focus-visible) > span:first-child { filter: saturate(1.1) brightness(1.08); }
 .lounge-browser[data-shelf-position='top'] .lounge-browser-shelf,
 .lounge-browser[data-shelf-position='bottom'] .lounge-browser-shelf { width: 100%; align-items: start; }
+/* Extend only the horizontal carousel through the page gutters. Its bounded
+   animation viewport now clips at the screen, not inside the scenery. */
+.lounge-main-content { --lounge-content-gutter: 16px; }
+@media (min-width: 640px) { .lounge-main-content { --lounge-content-gutter: 32px; } }
+[data-testid='neo-lounge'] .lounge-main-content:has(.lounge-browser:is([data-shelf-position='top'], [data-shelf-position='bottom'])) { overflow: visible; }
+.lounge-browser:is([data-shelf-position='top'], [data-shelf-position='bottom']) > .lounge-browser-shelf { width: calc(100% + var(--lounge-content-gutter) * 2); margin-inline: calc(-1 * var(--lounge-content-gutter)); }
 .lounge-browser[data-shelf-position='left'] .lounge-browser-shelf,
 .lounge-browser[data-shelf-position='right'] .lounge-browser-shelf { width: var(--lounge-shelf-width); align-self: stretch; flex-direction: column; align-items: center; }
 .lounge-browser[data-shelf-position='left'] .lounge-browser-track,
@@ -2303,12 +2401,23 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 .lounge-browser[data-shelf-position='right'] .lounge-browser-card { width: var(--lounge-side-cover-size); }
 .lounge-browser-card { width: var(--lounge-cover-size); flex: 0 0 var(--lounge-cover-size); }
 .lounge-card-caption__text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; line-height: 1.18; overflow-wrap: anywhere; }
+[data-lounge-carousel-titles='false'] .lounge-browser-card > .lounge-card-caption { display: none; }
+[data-testid='lounge-visual-preview-carousel'][data-lounge-carousel-titles='false'] .lounge-mini-card-caption { display: none; }
+[data-testid='lounge-visual-preview-carousel'][data-lounge-carousel-titles='false'] .lounge-game-card > span:first-child { height: 100%; }
 .lounge-browser[data-shelf-position='left'] .lounge-browser-card,
 .lounge-browser[data-shelf-position='right'] .lounge-browser-card { max-width: 100%; }
 .lounge-wall-grid { gap: var(--lounge-card-gap); justify-items: center; border-radius: 22px; background: radial-gradient(ellipse at 50% 0%, rgb(var(--accent) / 0.13), transparent 65%), linear-gradient(180deg, rgb(var(--panel) / 0.22), transparent 35%); }
 .lounge-empty-state { background: radial-gradient(circle at 86% 8%, rgb(var(--accent) / 0.23), transparent 42%), linear-gradient(135deg, rgb(var(--panel) / 0.9), rgb(var(--surface) / 0.88)); box-shadow: inset 0 1px rgb(255 255 255 / 0.08), 0 20px 55px rgb(0 0 0 / 0.2); }
 .lounge-empty-orb { background: radial-gradient(circle, rgb(var(--accent-2) / 0.22), rgb(var(--accent) / 0.08) 54%, transparent 72%); filter: blur(10px); }
+[data-testid='neo-lounge'] .lounge-source-pane { background: rgb(var(--panel) / var(--lounge-panel-opacity)); }
+[data-testid='neo-lounge'] .lounge-empty-state { background: radial-gradient(circle at 86% 8%, rgb(var(--accent) / calc(var(--lounge-panel-opacity) * 0.23)), transparent 42%), linear-gradient(135deg, rgb(var(--panel) / var(--lounge-panel-opacity)), rgb(var(--surface) / var(--lounge-panel-opacity))); box-shadow: inset 0 1px rgb(255 255 255 / calc(var(--lounge-panel-opacity) * 0.08)), 0 20px 55px rgb(0 0 0 / calc(var(--lounge-panel-opacity) * 0.2)); }
+[data-testid='neo-lounge'] .lounge-empty-orb { opacity: var(--lounge-panel-opacity); }
+[data-testid='neo-lounge'] .lounge-console-tab:is(:hover, :focus-visible, [aria-pressed='true']) { background: linear-gradient(145deg, rgb(var(--lounge-icon-color) / calc(var(--lounge-panel-opacity) * 0.28)), rgb(var(--panel) / var(--lounge-panel-opacity))); }
 .lounge-wall-grid .lounge-game-card { width: min(100%, var(--lounge-wall-cover-size)); box-shadow: 0 10px 28px rgb(0 0 0 / 0.26), inset 0 1px rgb(255 255 255 / 0.08); }
+.lounge-wall-grid .lounge-game-card { transition: border-color 200ms ease; }
+.lounge-wall-grid .lounge-game-card:hover:not([data-lounge-selected='true']):not(:focus-visible) { transform: none; filter: none; }
+.lounge-wall-grid .lounge-game-card > span:first-child { transition: filter 200ms ease; }
+.lounge-wall-grid .lounge-game-card:hover > span:first-child { filter: brightness(1.1); }
 .lounge-wall-grid .lounge-game-card[data-lounge-selected='true'],
 .lounge-wall-grid .lounge-game-card:focus-visible { box-shadow: 0 0 0 3px rgb(var(--accent) / 0.8), 0 0 calc(50px * var(--lounge-glow)) rgb(var(--accent) / 0.75), 0 18px 38px rgb(0 0 0 / 0.45); }
 .lounge-wall-details { background-image: linear-gradient(90deg, rgb(var(--accent) / 0.16), transparent 34%), linear-gradient(0deg, rgb(0 0 0 / 0.13), transparent); box-shadow: 0 -14px 42px rgb(0 0 0 / 0.22), inset 0 2px rgb(var(--accent) / 0.24); }
@@ -2317,6 +2426,10 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 .lounge-scene-stage { justify-content: var(--lounge-preview-justify, flex-start); border-color: transparent; background-color: transparent; box-shadow: none; outline: none; overflow: visible; }
 .lounge-scene-stage__content { width: min(var(--lounge-preview-box-width, 52%), calc(100% - 40px)); min-height: min(var(--lounge-preview-box-height, 220px), calc(var(--lounge-preview-height) - 56px), 56vh); margin-inline: 20px; margin-bottom: var(--lounge-preview-offset, 24px); border-radius: var(--lounge-preview-radius, 26px); font-size: calc(1rem * var(--lounge-preview-text-scale, 1)); container-type: inline-size; background: linear-gradient(110deg, rgb(var(--surface) / var(--lounge-preview-panel-opacity)), rgb(var(--panel) / calc(var(--lounge-preview-panel-opacity) * 0.9)) 70%, rgb(var(--surface) / calc(var(--lounge-preview-panel-opacity) * 0.85))); box-shadow: 0 20px 60px rgb(0 0 0 / 0.34), inset 0 1px rgb(255 255 255 / 0.14); outline: none; }
 .lounge-scene-stage__cover { width: clamp(120px, 13vw, 190px); }
+/* Box height is independent of the surrounding hero region. Position via
+   transform so flex sizing cannot absorb the requested vertical movement. */
+.lounge-scene-stage__content { height: min(var(--lounge-preview-box-height, 220px), 100dvh); min-height: 0; margin-bottom: 0; transform: translateY(calc(-1 * var(--lounge-preview-offset, 24px))); overflow-y: auto; }
+.lounge-scene-stage__cover { width: min(clamp(120px, 13vw, 190px), calc((min(var(--lounge-preview-box-height, 220px), 100dvh) - 56px) * 0.6667)); max-height: 100%; }
 .lounge-scene-stage__content .lounge-stage-title { font-size: clamp(22px, calc(46px * var(--lounge-preview-text-scale, 1)), 72px); }
 @container (max-width: 640px) {
   .lounge-scene-stage__cover { display: none !important; }
@@ -2325,18 +2438,31 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 .lounge-scene-stage::after { display: none; }
 [data-testid='neo-lounge'][data-lounge-motion='off'] .lounge-scene-shortcut { transition: none; }
 @media (prefers-reduced-motion: reduce) { .lounge-scene-shortcut { transition: none; } }
-.lounge-browser[data-shelf-position='bottom'] .lounge-browser-stage { flex: 0 1 var(--lounge-preview-height); min-height: min(260px, var(--lounge-preview-height)); }
+.lounge-browser[data-shelf-position='bottom'] .lounge-browser-stage { flex: 0 0 var(--lounge-stage-height); min-height: var(--lounge-stage-height); }
 [data-lounge-cover-glow='soft'] .lounge-game-card { box-shadow: 0 0 0 2px rgb(var(--accent) / 0.7), 0 0 16px rgb(var(--accent) / 0.42); }
 [data-lounge-cover-glow='neon'] .lounge-game-card { box-shadow: 0 0 0 2px rgb(var(--accent) / 0.98), 0 0 22px 3px rgb(var(--accent) / 0.88), 0 0 42px 8px rgb(var(--accent-2) / 0.62), inset 0 0 15px rgb(var(--accent) / 0.35); }
 [data-lounge-cover-glow='soft'] .lounge-game-card > span:first-child::after,
 [data-lounge-cover-glow='neon'] .lounge-game-card > span:first-child::after { content: ''; position: absolute; z-index: 2; inset: 0; pointer-events: none; border-radius: inherit; border: 2px solid rgb(var(--accent) / 0.95); box-shadow: inset 0 0 12px rgb(var(--accent) / 0.62), inset 0 0 2px rgb(var(--accent-2) / 0.7); }
-[data-lounge-cover-glow='neon'] .lounge-game-card > span:first-child::after { inset: 0; padding: 3px; border: 0; background: conic-gradient(from var(--lounge-neon-angle), transparent 0deg 18deg, rgb(var(--accent)) 30deg, rgb(var(--accent-2)) 43deg, white 49deg, rgb(var(--accent-2)) 55deg, transparent 76deg 112deg, rgb(var(--accent-2)) 132deg, rgb(var(--accent)) 147deg, white 154deg, rgb(var(--accent)) 162deg, transparent 186deg 238deg, rgb(var(--accent)) 260deg, rgb(var(--accent-2)) 278deg, white 286deg, rgb(var(--accent-2)) 294deg, transparent 322deg 360deg); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; box-shadow: 0 0 22px 3px rgb(var(--accent) / 0.95), 0 0 42px 7px rgb(var(--accent-2) / 0.78), inset 0 0 14px rgb(var(--accent) / 0.82); animation: lounge-neon-orbit 2.1s linear infinite, lounge-neon-breathe 850ms ease-in-out infinite alternate; }
+[data-lounge-cover-glow='neon'] .lounge-game-card > span:first-child::after { inset: 0; padding: 3px; border: 0; background: conic-gradient(from var(--lounge-neon-angle), transparent 0deg 18deg, rgb(var(--accent)) 30deg, rgb(var(--accent-2)) 43deg, white 49deg, rgb(var(--accent-2)) 55deg, transparent 76deg 112deg, rgb(var(--accent-2)) 132deg, rgb(var(--accent)) 147deg, white 154deg, rgb(var(--accent)) 162deg, transparent 186deg 238deg, rgb(var(--accent)) 260deg, rgb(var(--accent-2)) 278deg, white 286deg, rgb(var(--accent-2)) 294deg, transparent 322deg 360deg); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; box-shadow: 0 0 22px 3px rgb(var(--accent) / 0.95), 0 0 42px 7px rgb(var(--accent-2) / 0.78), inset 0 0 14px rgb(var(--accent) / 0.82); }
+[data-lounge-cover-glow='neon'] .lounge-game-card:is([data-lounge-selected='true'], [data-lounge-distance='1'], :hover, :focus-visible) > span:first-child::after { animation: lounge-neon-orbit 2.1s linear infinite, lounge-neon-breathe 850ms ease-in-out infinite alternate; }
 @keyframes lounge-neon-orbit { to { --lounge-neon-angle: 360deg; } }
-@keyframes lounge-neon-breathe { from { opacity: 0.82; filter: brightness(1.05) drop-shadow(0 0 8px rgb(var(--accent))); } to { opacity: 1; filter: brightness(1.75) drop-shadow(0 0 23px rgb(var(--accent-2))); } }
-@media (prefers-reduced-motion: reduce) { [data-lounge-cover-glow='neon'] .lounge-game-card > span:first-child::after { animation: none; opacity: 1; filter: brightness(1.35); } }
+/* Keep peak glow, but do not rerasterize a different blur radius every frame
+   while the same card is scaling and scrolling. Orbit and breathing remain. */
+[data-lounge-cover-glow='neon'] .lounge-game-card:is([data-lounge-selected='true'], [data-lounge-distance='1'], :hover, :focus-visible) > span:first-child::after { filter: brightness(1.75) drop-shadow(0 0 23px rgb(var(--accent-2))); }
+@keyframes lounge-neon-breathe { from { opacity: min(1, calc(0.82 * var(--lounge-card-glow-gain, 1))); } to { opacity: min(1, var(--lounge-card-glow-gain, 1)); } }
+@media (prefers-reduced-motion: reduce) { [data-lounge-cover-glow='neon'] .lounge-game-card > span:first-child::after { animation: none !important; opacity: 1; filter: brightness(1.35); } }
 [data-testid='neo-lounge'][data-lounge-motion='off'] .lounge-game-card > span:first-child::after,
 [data-testid='neo-lounge'][data-lounge-paused='true'] .lounge-game-card > span:first-child::after { animation: none; opacity: 1; filter: brightness(1.35); }
 .lounge-frame-sample { border-radius: 1rem; border-color: rgb(var(--accent) / 0.7); }
+/* External halos belong on the button's own shadow, not solely inside the
+   clipped artwork mask. The shelf reserves their scaled falloff above/below. */
+:is([data-lounge-cover-glow='soft'], [data-lounge-cover-glow='neon']) .lounge-game-card {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--lounge-frame-primary, rgb(var(--accent))) var(--lounge-card-glow-near-alpha, 88%), transparent),
+    0 0 calc(22px * var(--lounge-card-glow-radius, 1)) calc(3px * var(--lounge-card-glow-radius, 1)) color-mix(in srgb, var(--lounge-frame-primary, rgb(var(--accent))) var(--lounge-card-glow-near-alpha, 88%), transparent),
+    0 0 calc(42px * var(--lounge-card-glow-radius, 1)) calc(8px * var(--lounge-card-glow-radius, 1)) color-mix(in srgb, var(--lounge-frame-secondary, rgb(var(--accent-2))) var(--lounge-card-glow-far-alpha, 62%), transparent) !important;
+}
+[data-lounge-cover-glow='soft'] .lounge-game-card { --lounge-card-glow-radius: calc(var(--lounge-card-glow-gain, 1) * 0.5); }
+:is([data-lounge-cover-glow='soft'], [data-lounge-cover-glow='neon']) .lounge-game-card > span:first-child::after { visibility: var(--lounge-card-glow-visibility, visible); opacity: min(1, var(--lounge-card-glow-gain, 1)); }
 .lounge-game-card[data-lounge-cover-frame] .lounge-card-frame { position: absolute; z-index: 2; inset: 0; display: block; pointer-events: none; border-radius: inherit; }
 .lounge-game-card[data-lounge-cover-frame='gallery'] { border-radius: 6px; border-color: rgb(var(--ink) / 0.48); background: rgb(var(--surface) / 0.94); }
 .lounge-game-card[data-lounge-cover-frame='gallery'] .lounge-card-frame { inset: 4px; border: 1px solid rgb(var(--ink) / 0.38); border-radius: 2px; box-shadow: inset 0 0 0 3px rgb(var(--surface) / 0.36); }
@@ -2345,7 +2471,8 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 .lounge-game-card[data-lounge-cover-frame='chrome'] { border-radius: 11px; border-color: rgb(210 226 242 / 0.82); background: rgb(var(--surface) / 0.95); }
 .lounge-game-card[data-lounge-cover-frame='chrome'] .lounge-card-frame { inset: 0; padding: 3px; background: linear-gradient(140deg, white, rgb(142 174 197), rgb(35 54 75), rgb(223 239 255) 72%, rgb(76 96 120)); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; box-shadow: inset 0 0 12px rgb(255 255 255 / 0.46); }
 .lounge-game-card[data-lounge-cover-frame='reactor'] { border-radius: 16px; border-color: rgb(var(--accent) / 0.92); background: rgb(var(--panel) / 0.9); }
-.lounge-game-card[data-lounge-cover-frame='reactor'] .lounge-card-frame { inset: 0; padding: 3px; background: conic-gradient(from var(--lounge-neon-angle), rgb(var(--accent) / 0.22), rgb(var(--accent)), white, rgb(var(--accent-2)), rgb(var(--accent) / 0.22), rgb(var(--accent-2)), white, rgb(var(--accent))); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; filter: brightness(1.3) drop-shadow(0 0 6px rgb(var(--accent))); animation: lounge-neon-orbit 3.1s linear infinite, lounge-frame-breathe 1.4s ease-in-out infinite alternate; }
+.lounge-game-card[data-lounge-cover-frame='reactor'] .lounge-card-frame { inset: 0; padding: 3px; background: conic-gradient(from var(--lounge-neon-angle), rgb(var(--accent) / 0.22), rgb(var(--accent)), white, rgb(var(--accent-2)), rgb(var(--accent) / 0.22), rgb(var(--accent-2)), white, rgb(var(--accent))); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; filter: brightness(1.3) drop-shadow(0 0 6px rgb(var(--accent))); }
+.lounge-game-card[data-lounge-cover-frame='reactor']:is([data-lounge-selected='true'], [data-lounge-distance='1'], :hover, :focus-visible) .lounge-card-frame { animation: lounge-neon-orbit 3.1s linear infinite, lounge-frame-breathe 1.4s ease-in-out infinite alternate; }
 .lounge-game-card[data-lounge-frame-color]:not([data-lounge-frame-color='theme']) { border-color: var(--lounge-frame-primary); }
 .lounge-browser-card[data-lounge-selected='true'][data-lounge-frame-color]:not([data-lounge-frame-color='theme']) > .lounge-card-caption { border-top-color: var(--lounge-frame-secondary); }
 .lounge-game-card[data-lounge-cover-frame='gallery'][data-lounge-frame-color]:not([data-lounge-frame-color='theme']) .lounge-card-frame { border-color: color-mix(in srgb, var(--lounge-frame-primary) 75%, transparent); }
@@ -2359,7 +2486,8 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 .lounge-game-card[data-lounge-frame-color]:not([data-lounge-frame-color='theme']):focus-visible::before { background: var(--lounge-frame-secondary); box-shadow: 0 0 12px 2px var(--lounge-frame-primary); }
 .lounge-game-card[data-lounge-selected='true'][data-lounge-frame-color]:not([data-lounge-frame-color='theme'])::after,
 .lounge-game-card[data-lounge-frame-color]:not([data-lounge-frame-color='theme']):focus-visible::after { border-color: color-mix(in srgb, var(--lounge-frame-secondary) 60%, transparent); }
-@keyframes lounge-frame-breathe { from { opacity: 0.66; filter: brightness(0.9) drop-shadow(0 0 3px var(--lounge-frame-primary, rgb(var(--accent)))); } to { opacity: 1; filter: brightness(1.6) drop-shadow(0 0 10px var(--lounge-frame-secondary, rgb(var(--accent-2)))); } }
+.lounge-game-card[data-lounge-cover-frame='reactor']:is([data-lounge-selected='true'], [data-lounge-distance='1'], :hover, :focus-visible) .lounge-card-frame { filter: brightness(1.6) drop-shadow(0 0 10px var(--lounge-frame-secondary, rgb(var(--accent-2)))); }
+@keyframes lounge-frame-breathe { from { opacity: 0.66; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .lounge-game-card[data-lounge-cover-frame='reactor'] .lounge-card-frame { animation: none !important; opacity: 1; } }
 [data-lounge-motion='off'] .lounge-card-frame,
 [data-testid='neo-lounge'][data-lounge-paused='true'] .lounge-card-frame,
@@ -2411,12 +2539,56 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 .lounge-visual-choice, .lounge-visual-step { transition: transform 160ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease; }
 .lounge-visual-choice:hover:not(:disabled), .lounge-visual-step:hover:not(:disabled) { border-color: rgb(var(--accent) / 0.7); box-shadow: 0 0 24px rgb(var(--accent) / 0.16); }
 .lounge-visual-choice:active:not(:disabled), .lounge-visual-step:active:not(:disabled) { transform: scale(0.96); }
+/* Desk/sofa modes trim only the slider container, not the slider or buttons.
+   Across-room mode retains its original generous padding and targets. */
+[data-testid='neo-lounge']:is([data-lounge-control-size='compact'], [data-lounge-control-size='comfortable']) .lounge-visual-slider-box { margin-top: 10px; padding-block: 8px; }
+[data-testid='neo-lounge']:is([data-lounge-control-size='compact'], [data-lounge-control-size='comfortable']) .lounge-visual-slider-label { margin-bottom: 4px; }
+[data-testid='neo-lounge']:is([data-lounge-control-size='compact'], [data-lounge-control-size='comfortable']) .lounge-visual-effect-box { padding-block: 10px; }
 .lounge-nav-button { min-height: 48px; }
+.lounge-sound-rows > fieldset { margin-top: 0; }
+@media (min-width: 640px) {
+  .lounge-sound-row > fieldset > div { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .lounge-sound-row [aria-label='Lounge sample assignments'] > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lounge-sound-rows > fieldset > div { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+/* Across-room mode: roomier dialogs, without scaling scenery, mini previews or
+   draggable transforms. Small screens retain their existing compact layouts. */
+@media (min-width: 900px) and (min-height: 600px) {
+  [data-testid='neo-lounge'][data-lounge-control-size='large'] [aria-modal='true'] {
+    --lounge-popup-text-gain: 1.12;
+    font-size: 1.12rem;
+  }
+  :where([data-testid='neo-lounge'][data-lounge-control-size='large'] [aria-modal='true']) .text-xs { --lounge-popup-font: 0.75rem; }
+  :where([data-testid='neo-lounge'][data-lounge-control-size='large'] [aria-modal='true']) .text-sm { --lounge-popup-font: 0.875rem; }
+  :where([data-testid='neo-lounge'][data-lounge-control-size='large'] [aria-modal='true']) .text-base { --lounge-popup-font: 1rem; }
+  :where([data-testid='neo-lounge'][data-lounge-control-size='large'] [aria-modal='true']) .text-lg { --lounge-popup-font: 1.125rem; }
+  :where([data-testid='neo-lounge'][data-lounge-control-size='large'] [aria-modal='true']) .text-xl { --lounge-popup-font: 1.25rem; }
+  :where([data-testid='neo-lounge'][data-lounge-control-size='large'] [aria-modal='true']) .text-2xl,
+  :where([data-testid='neo-lounge'][data-lounge-control-size='large'] [aria-modal='true']) .sm\:text-2xl { --lounge-popup-font: 1.5rem; }
+  :where([data-testid='neo-lounge'][data-lounge-control-size='large'] [aria-modal='true']) .text-3xl { --lounge-popup-font: 1.875rem; }
+  :where([data-testid='neo-lounge'][data-lounge-control-size='large'] [aria-modal='true']) .text-4xl,
+  :where([data-testid='neo-lounge'][data-lounge-control-size='large'] [aria-modal='true']) .sm\:text-4xl { --lounge-popup-font: 2.25rem; }
+  :where([data-testid='neo-lounge'][data-lounge-control-size='large'] [aria-modal='true']) .text-\[10px\] { --lounge-popup-font: 10px; }
+  :where([data-testid='neo-lounge'][data-lounge-control-size='large'] [aria-modal='true']) .text-\[11px\] { --lounge-popup-font: 11px; }
+  [data-testid='neo-lounge'][data-lounge-control-size='large'] [aria-modal='true'] :is(.text-xs, .text-sm, .text-base, .text-lg, .text-xl, .text-2xl, .sm\:text-2xl, .text-3xl, .text-4xl, .sm\:text-4xl, .text-\[10px\], .text-\[11px\]):not(:where([data-testid='lounge-visual-preview'] *, .lounge-settings-live-preview *)) {
+    font-size: calc(var(--lounge-popup-font) * var(--lounge-popup-text-gain));
+  }
+  [data-testid='neo-lounge'][data-lounge-control-size='large'] [data-testid='lounge-settings-panel'] > aside { max-width: 810px; }
+  [data-testid='neo-lounge'][data-lounge-control-size='large'] [data-testid='lounge-sound-panel'] > aside { max-width: 1040px; }
+  [data-testid='neo-lounge'][data-lounge-control-size='large'] [data-testid='lounge-visual-builder'] > section { max-width: 1660px; }
+  [data-testid='neo-lounge'][data-lounge-control-size='large'] [data-testid='lounge-theme-gallery'] > section.max-w-5xl,
+  [data-testid='neo-lounge'][data-lounge-control-size='large'] .lounge-detail-panel { max-width: 1180px; }
+  [data-testid='neo-lounge'][data-lounge-control-size='large'] [data-testid='lounge-jump-panel'] > section { max-width: 880px; }
+  [data-testid='neo-lounge'][data-lounge-control-size='large'] .lounge-guide-panel { max-width: 1760px; }
+  [data-testid='neo-lounge'][data-lounge-control-size='large'] [aria-modal='true'] button:not(:where([data-testid='lounge-visual-preview'] *)) { min-height: 40px; }
+  [data-testid='neo-lounge'][data-lounge-control-size='large'] [aria-modal='true'] input[type='range'] { min-height: 28px; }
+  [data-testid='neo-lounge'][data-lounge-control-size='large'] [aria-modal='true'] button > svg { min-width: 20px; min-height: 20px; }
+}
 [data-testid='neo-lounge'][data-lounge-control-size='compact'] { --lounge-nav-width: 48px; --lounge-nav-height: 48px; --lounge-nav-icon: 22px; --lounge-nav-label: 10px; --lounge-tile-width: 74px; --lounge-tile-height: 54px; --lounge-tile-icon: 22px; --lounge-tile-label: 9px; --lounge-console-width: 104px; --lounge-console-height: 68px; --lounge-hint-height: 40px; --lounge-hint-font: 13px; }
 [data-testid='neo-lounge'][data-lounge-control-size='comfortable'] { --lounge-nav-width: 66px; --lounge-nav-height: 72px; --lounge-nav-icon: 26px; --lounge-nav-label: 10px; --lounge-tile-width: 92px; --lounge-tile-height: 70px; --lounge-tile-icon: 26px; --lounge-tile-label: 11px; --lounge-console-width: 118px; --lounge-console-height: 80px; --lounge-hint-height: 46px; --lounge-hint-font: 14px; }
 [data-testid='neo-lounge'][data-lounge-control-size='large'] { --lounge-nav-width: 96px; --lounge-nav-height: 96px; --lounge-nav-icon: 36px; --lounge-nav-label: 13px; --lounge-tile-width: 120px; --lounge-tile-height: 94px; --lounge-tile-icon: 34px; --lounge-tile-label: 14px; --lounge-console-width: 160px; --lounge-console-height: 106px; --lounge-hint-height: 58px; --lounge-hint-font: 17px; }
-[data-testid='neo-lounge'] .lounge-top-icon { display: flex; flex: 0 0 var(--lounge-nav-width); width: var(--lounge-nav-width); height: var(--lounge-nav-height); flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
-[data-testid='neo-lounge'] .lounge-top-icon > svg { width: var(--lounge-nav-icon); height: var(--lounge-nav-icon); }
+[data-testid='neo-lounge'] .lounge-top-icon { display: flex; flex: 0 0 var(--lounge-nav-width); width: var(--lounge-nav-width); height: var(--lounge-nav-height); flex-direction: column; align-items: center; justify-content: center; gap: 5px; padding: 5px 4px; }
+[data-testid='neo-lounge'] .lounge-top-icon > svg { width: var(--lounge-nav-icon); height: var(--lounge-nav-icon); flex: 0 0 var(--lounge-nav-icon); }
 [data-testid='neo-lounge'] .lounge-top-choice { flex: 0 0 var(--lounge-tile-width); width: var(--lounge-tile-width); min-width: var(--lounge-tile-width); height: var(--lounge-tile-height); min-height: var(--lounge-tile-height); }
 [data-testid='neo-lounge'] .lounge-top-choice svg { width: var(--lounge-tile-icon); height: var(--lounge-tile-icon); }
 [data-testid='neo-lounge'] .lounge-top-choice__label { max-width: calc(var(--lounge-tile-width) - 8px); font-size: var(--lounge-tile-label); line-height: 1.12; height: auto; min-height: calc(var(--lounge-tile-label) * 2.25); }
@@ -2429,6 +2601,25 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 [data-testid='neo-lounge']:is([data-lounge-control-size='comfortable'], [data-lounge-control-size='large']) .lounge-top-icon__label,
 [data-testid='neo-lounge']:is([data-lounge-control-size='comfortable'], [data-lounge-control-size='large']) .lounge-top-choice__label,
 [data-testid='neo-lounge']:is([data-lounge-control-size='comfortable'], [data-lounge-control-size='large']) .lounge-console-tab__label { position: static; display: -webkit-box; width: 100%; height: auto; max-width: 100%; padding: 0; border: 0; background: transparent; box-shadow: none; font-size: var(--lounge-nav-label); line-height: 1.12; text-align: center; opacity: 1; transform: none; }
+[data-testid='neo-lounge'] .lounge-console-window .lounge-console-tab { width: 100%; min-width: 0; max-width: 100%; height: var(--lounge-console-height); flex: none; padding: 5px; }
+[data-testid='neo-lounge'] .lounge-console-window .lounge-console-logo { width: min(92%, 140px); height: clamp(28px, calc(var(--lounge-console-height) * 0.43), 50px); flex: 0 0 auto; }
+[data-testid='neo-lounge'] .lounge-console-window .lounge-console-tab__label { width: 100%; max-width: calc(100% - 8px); font-size: max(11px, var(--lounge-nav-label)); line-height: 1.12; }
+/* TV-readable center trio; only the distant systems fade into the edges. */
+[data-lounge-zone='emulator'] .lounge-console-window { grid-template-columns: var(--lounge-console-columns, .75fr 1.15fr 1.3fr 1.15fr .75fr); gap: 12px; }
+[data-testid='neo-lounge'][data-lounge-zone='emulator'] .lounge-console-window .lounge-console-tab { height: var(--lounge-console-dock-height); padding: 10px; gap: 10px; }
+[data-testid='neo-lounge'][data-lounge-zone='emulator'] .lounge-console-window .lounge-console-logo { width: min(92%, calc(230px * var(--lounge-emulator-size, 1))); height: calc(clamp(44px, 5vh, 72px) * var(--lounge-emulator-size, 1)); }
+[data-testid='neo-lounge'][data-lounge-zone='emulator'] .lounge-console-window .lounge-console-tab__label { display: -webkit-box; position: static; height: auto; font-size: calc(clamp(14px, 1.2vw, 20px) * var(--lounge-emulator-size, 1)); line-height: 1.2; font-weight: 900; opacity: 1; transform: none; }
+[data-lounge-zone='emulator'] .lounge-console-window .lounge-console-tab { opacity: .5; filter: blur(1px); }
+[data-lounge-zone='emulator'] .lounge-console-window .lounge-console-tab[data-offset='0'] { opacity: 1; filter: none; }
+[data-lounge-zone='emulator'] .lounge-console-window .lounge-console-tab:is([data-offset='-1'], [data-offset='1']) { opacity: 1; filter: none; transform: scale(.98); }
+[data-lounge-zone='emulator'] .lounge-console-window .lounge-console-tab:is([data-offset='-2'], [data-offset='2']) { opacity: .5; filter: blur(1px); transform: scale(.9); }
+@media (max-width: 760px) {
+  [data-lounge-zone='emulator'] .lounge-console-dock { width: calc(100% - 24px); padding: 8px; }
+  [data-lounge-zone='emulator'] .lounge-console-window { grid-template-columns: 1fr 1.15fr 1fr; gap: 6px; }
+  [data-lounge-zone='emulator'] .lounge-console-window .lounge-console-tab:not([data-offset='-1'], [data-offset='0'], [data-offset='1']) { display: none; }
+  [data-lounge-zone='emulator'] .lounge-main-content { padding-bottom: calc(var(--lounge-console-dock-height) + 140px); }
+}
+[data-testid='neo-lounge']:is([data-lounge-control-size='comfortable'], [data-lounge-control-size='large']) .lounge-top-icon__label { display: block; overflow: hidden; color: rgb(var(--ink)); font-weight: 850; line-height: 1.15; text-wrap: balance; text-shadow: 0 1px 3px rgb(0 0 0 / 0.45); }
 [data-testid='neo-lounge']:is([data-lounge-control-size='comfortable'], [data-lounge-control-size='large']) .lounge-top-choice__label { font-size: var(--lounge-tile-label); }
 [data-testid='neo-lounge'][data-lounge-control-size='compact'] .lounge-top-choice__label { height: 24px; }
 [data-testid='neo-lounge'] .lounge-toolbar { padding-block: 3px; }
@@ -2439,8 +2630,51 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 [data-testid='neo-lounge'] .lounge-top-choice:is(:hover, :focus-visible, [data-controller-focused='true'], [aria-pressed='true']) { border-color: rgb(var(--lounge-icon-color)); background: linear-gradient(145deg, rgb(var(--lounge-icon-color) / 0.3), rgb(var(--panel) / 0.84)); box-shadow: inset 0 1px rgb(255 255 255 / 0.22), 0 0 0 2px rgb(var(--lounge-icon-color) / 0.24), 0 0 24px rgb(var(--lounge-icon-color) / 0.28); }
 [data-testid='neo-lounge'] .lounge-top-choice:is(:focus-visible, [data-controller-focused='true']) { outline: 3px solid rgb(var(--lounge-icon-color)) !important; outline-offset: 2px; }
 [data-testid='neo-lounge'] .lounge-top-choice[data-controller-focused='true'] .lounge-top-choice__label { opacity: 1; transform: translateY(0); }
+/* A moving pointer target can repeatedly lose/regain hover at its edge.
+   Keep geometry stable and avoid repainting animated glow extents over scenery. */
+[data-testid='neo-lounge'] :is(.lounge-top-choice, .lounge-source-tab, .lounge-hints-toggle) {
+  transform: none;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+[data-testid='neo-lounge'] :is(.lounge-top-choice, .lounge-source-tab, .lounge-hints-toggle):is(:hover, :focus-visible, :active, [data-controller-focused='true'], [aria-pressed='true'], [aria-selected='true']) {
+  transform: none;
+}
+[data-testid='neo-lounge'][data-lounge-motion='off'] :is(.lounge-top-choice, .lounge-source-tab, .lounge-hints-toggle) { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  [data-testid='neo-lounge'] :is(.lounge-top-choice, .lounge-source-tab, .lounge-hints-toggle) { transition: none; }
+}
 .lounge-guide-heading { background: radial-gradient(circle at 18% 0%, rgb(var(--accent) / 0.22), transparent 54%), linear-gradient(120deg, rgb(var(--panel)), rgb(var(--surface))); }
-.lounge-guide-backdrop { opacity: 0.3; filter: blur(28px) saturate(1.18); transform: scale(1.07); }
+/* A dedicated, stationary browsing dock: source on the left, one quiet
+   layout/filter strip on the right. Distance presets retain readable targets. */
+.lounge-browse-dock { position: sticky; top: 0; z-index: 20; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 8px 16px; flex: 0 0 auto; margin-bottom: 10px; }
+.lounge-browse-dock > .lounge-source-pane { grid-column: 1; grid-row: 1; margin-bottom: 0; }
+[data-lounge-zone='emulator'] .lounge-browse-dock > .lounge-source-pane { grid-column: 1; grid-row: 1; }
+.lounge-browse-dock > .lounge-scene-shortcuts { grid-column: 1 / -1; grid-row: 3; margin-bottom: 0; }
+/* Place browsing beside navigation on wide displays, below telemetry.
+   Fixed positioning keeps it out of the content scroll/animation pipeline. */
+@media (min-width: 1500px) {
+  [data-testid='neo-lounge'] > .lounge-main-content { z-index: 40; }
+  [data-testid='neo-lounge'] .lounge-browse-dock > .lounge-toolbar { position: fixed; top: 64px; right: 32px; max-width: calc(100vw - 720px); }
+}
+[data-testid='neo-lounge'] .lounge-browse-dock > .lounge-toolbar { grid-column: 2; grid-row: 1; justify-self: end; margin: 0; padding: 4px; border-radius: 12px; gap: 4px; background: rgb(var(--panel) / var(--lounge-panel-opacity)); }
+[data-testid='neo-lounge'] .lounge-toolbar { --lounge-filter-height: 36px; --lounge-filter-font: 11px; --lounge-filter-icon: 16px; }
+[data-testid='neo-lounge'][data-lounge-control-size='comfortable'] .lounge-toolbar { --lounge-filter-height: 42px; --lounge-filter-font: 12px; --lounge-filter-icon: 18px; }
+[data-testid='neo-lounge'][data-lounge-control-size='large'] .lounge-toolbar { --lounge-filter-height: 48px; --lounge-filter-font: 14px; --lounge-filter-icon: 20px; }
+[data-testid='neo-lounge'] .lounge-toolbar .lounge-filter-strip { flex: 0 1 auto; padding: 2px; scrollbar-width: none; }
+[data-testid='neo-lounge'] .lounge-toolbar .lounge-filter-strip::-webkit-scrollbar { display: none; }
+[data-testid='neo-lounge'] .lounge-toolbar .lounge-top-choice { flex: 0 0 auto; flex-direction: row; width: auto; min-width: 0; height: var(--lounge-filter-height); min-height: var(--lounge-filter-height); padding: 0 10px; gap: 6px; border-color: transparent; border-radius: 8px; background: transparent; box-shadow: none; }
+[data-testid='neo-lounge'] .lounge-toolbar .lounge-top-choice svg { flex: none; width: var(--lounge-filter-icon); height: var(--lounge-filter-icon); }
+[data-testid='neo-lounge'] .lounge-toolbar .lounge-top-choice__label { display: block; max-width: none; height: auto; min-height: 0; font-size: var(--lounge-filter-font); line-height: 1.15; white-space: nowrap; opacity: 1; transform: none; transition: none; }
+[data-testid='neo-lounge'] .lounge-toolbar .lounge-top-choice:is(:hover, :focus-visible, [data-controller-focused='true'], [aria-pressed='true']) { background: rgb(var(--lounge-icon-color) / 0.14); border-color: rgb(var(--lounge-icon-color) / 0.45); box-shadow: none; transform: none; }
+[data-testid='neo-lounge'] .lounge-toolbar .lounge-top-choice[aria-pressed='true'] { box-shadow: inset 0 -2px rgb(var(--lounge-icon-color) / 0.8); }
+@media (max-width: 900px) {
+  .lounge-browse-dock { grid-template-columns: minmax(0, 1fr); }
+  [data-testid='neo-lounge'] .lounge-browse-dock > .lounge-toolbar { grid-column: 1; }
+  .lounge-browse-dock > .lounge-source-pane { grid-row: 2; }
+}
+/* Half-resolution decorative blur has the same displayed crop/softness,
+   but only a quarter of the filtered surface area. Hero/covers stay sharp. */
+.lounge-guide-backdrop { opacity: 0.3; inset: -3.5% auto auto -3.5%; width: 50%; height: 50%; filter: blur(14px) saturate(1.18); transform: scale(2.14); transform-origin: top left; }
 .lounge-guide-backdrop-shade { background: linear-gradient(180deg, rgb(var(--surface) / 0.42), rgb(var(--surface) / 0.75)); }
 .lounge-guide-feature { box-shadow: inset 0 0 50px rgb(var(--accent) / 0.15), 0 18px 45px rgb(0 0 0 / 0.25); }
 .lounge-guide-feature-fallback { background-image: linear-gradient(130deg, rgb(var(--grad-1)), rgb(var(--grad-2)) 60%, rgb(var(--accent) / 0.32)); }
@@ -2450,6 +2684,12 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 .lounge-guide-open:active, .lounge-guide-recent:active, .lounge-guide-destination:active, .lounge-guide-next-up:active { transform: scale(0.97); }
 .lounge-guide-next-up:hover { border-color: rgb(var(--accent) / 0.7); }
 .lounge-guide-recent:hover { border-color: rgb(var(--accent) / 0.65); }
+/* Home is a separate paint group, not a translucent animated card layer.
+   Retain its artwork and accents without shifting pointer targets or
+   transitioning large shadow extents on every hover. */
+.lounge-guide-panel { isolation: isolate; }
+.lounge-guide-panel :is(.lounge-guide-open, .lounge-guide-recent, .lounge-guide-stat, .lounge-guide-destination, .lounge-guide-next-up) { transition: border-color 170ms ease, background-color 170ms ease; }
+.lounge-guide-panel :is(.lounge-guide-open, .lounge-guide-recent, .lounge-guide-stat, .lounge-guide-destination, .lounge-guide-next-up):is(:hover, :active) { transform: none; }
 .lounge-guide-stat { background-image: linear-gradient(115deg, rgb(var(--accent) / 0.09), transparent 72%); }
 .lounge-settings-aura { background: radial-gradient(circle at 90% 0%, rgb(var(--accent-2) / 0.28), transparent 48%); }
 .lounge-layout-mini { display: flex; gap: 5px; height: 82px; width: 100%; border: 1px solid rgb(var(--accent) / 0.38); border-radius: 10px; padding: 6px; background: linear-gradient(135deg, rgb(var(--surface)), rgb(var(--accent) / 0.18)); }
@@ -2508,8 +2748,11 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 [data-testid='side-navigation-rail'] { scrollbar-width: none; }
 [data-testid='side-navigation-rail']::-webkit-scrollbar { display: none; }
 
-/* Each desktop navigation destination has its own restrained accent. The
-   colour remains visible in both the expanded sidebar and compact icon rail. */
+/* Small section labels and one restrained accent per navigation group make
+   the long rail scannable without turning every control into a new colour. */
+.neo-rail-section { position: relative; display: flex; height: 17px; min-height: 17px; flex: 0 0 17px; align-items: center; margin: 2px 2px 3px; overflow: hidden; white-space: nowrap; }
+.neo-rail-section__rule { position: absolute; right: 3px; left: 3px; height: 1px; background: rgb(var(--rail-color) / 0.48); }
+.neo-rail-section__label { position: relative; max-width: 116px; overflow: hidden; margin-left: 5px; padding: 0 5px; background: rgb(var(--surface) / 0.98); color: rgb(var(--rail-color)); font-size: 9px; font-weight: 900; letter-spacing: 0.14em; line-height: 15px; text-overflow: ellipsis; text-transform: uppercase; transition: opacity 150ms ease; }
 .neo-rail-button {
   --rail-color: 110 190 255;
   position: relative;
@@ -2535,6 +2778,30 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 .neo-rail-button:is(:hover, :focus-visible) { transform: translateX(2px); }
 .neo-rail-button:focus-visible { outline: 2px solid rgb(var(--rail-color)); outline-offset: 2px; }
 .neo-rail-button:active { transform: translateX(2px) scale(0.97); }
+
+/* Optional Home widgets live inside the free scene region, not a new overlay
+   across the carousel. No full-screen filters, scale transforms or animations. */
+.lounge-composition { position: relative; flex: 1 1 auto; min-width: 0; min-height: 0; overflow: visible; }
+.lounge-mini-composition-slot { overflow: hidden; }
+.lounge-mini-composition-slot > div { width: 100% !important; height: 100% !important; transform: none !important; }
+.lounge-composition-hero, [data-testid='lounge-widget-area'] { position: absolute; min-width: 0; min-height: 0; overflow: hidden; border-radius: var(--lounge-preview-radius, 26px); }
+.lounge-composition-hero .lounge-browser-stage { width: 100%; height: 100%; min-height: 0; max-height: 100%; }
+.lounge-composition-hero .lounge-scene-stage__content { width: 100%; height: 100%; min-height: 0; margin: 0; transform: none; overflow: auto; }
+.lounge-composition-hero .lounge-scene-stage__cover { width: min(calc(190px * var(--lounge-preview-cover-scale, 1)), 40%); max-height: none; }
+.lounge-stage-portrait { width: min(calc(clamp(140px, 15vw, 240px) * var(--lounge-preview-cover-scale, 1)), 40%); }
+[data-testid='lounge-widget-area'] { container-type: inline-size; padding: 12px; color: rgb(var(--ink)); }
+[data-testid='lounge-widget-area'][data-show-box='true'] { border: 1px solid rgb(var(--accent) / 0.35); background: rgb(var(--panel) / var(--lounge-preview-panel-opacity)); }
+[data-testid='lounge-widget-area'][data-show-box='false'] { border: 0; background: transparent; }
+.lounge-home-widgets { display: grid; grid-auto-rows: minmax(140px, 1fr); gap: 12px; height: 100%; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.lounge-widget-zoom { width: 100%; height: 100%; min-width: 0; min-height: 0; }
+/* Grid/tile/scrollport geometry is unzoomed. Only inner content scales;
+   auto width lets CSS zoom fill the tile without double-compensating it. */
+.lounge-home-widget-heading, .lounge-home-widget-zoom { zoom: var(--lounge-widget-zoom, 1); min-width: 0; }
+.lounge-home-widget-heading { flex-shrink: 0; }
+.lounge-home-widget { display: flex; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; border-radius: 12px; padding: 8px; }
+.lounge-home-widget-content { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.lounge-home-widget-content > section, .lounge-home-widget-content > div > section, .lounge-home-widget-zoom > div > section { margin-bottom: 0; background: transparent; box-shadow: none; }
+@container (min-width: 680px) { .lounge-home-widgets:has(.lounge-home-widget:nth-child(3)) { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (prefers-reduced-motion: reduce) {
   .neo-rail-button { transition: none; }
   .neo-rail-button:is(:hover, :focus-visible, :active) { transform: none; }

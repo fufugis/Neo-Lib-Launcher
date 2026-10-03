@@ -14,9 +14,11 @@ export default function LoungeControlHints({ controllerEnabled, zone = 'home' })
     <div id="lounge-control-guide" className={open ? 'lounge-hints-panel mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.88)] p-3' : 'hidden'}>
       <span className="inline-flex items-center gap-1.5"><Key>← ↑ ↓ →</Key> Move</span>
       <span className="inline-flex items-center gap-1.5"><Key>Enter</Key> Activate</span>
-      <span className="inline-flex items-center gap-1.5"><Key>Esc</Key> Exit</span>
+      <span className="inline-flex items-center gap-1.5"><Key>Esc</Key> {zone === 'emulator' ? 'Back to consoles' : 'Exit'}</span>
       {controllerEnabled && <><span className="inline-flex items-center gap-1.5"><Key>Stick / D-pad</Key> Move</span><span className="inline-flex items-center gap-1.5"><Key>South</Key> Open details</span><span className="inline-flex items-center gap-1.5"><Key>East</Key> Back</span><span className="inline-flex items-center gap-1.5"><Key>Shoulders</Key> Change {zone === 'emulator' ? 'console' : 'view'}</span></>}
       {zone === 'emulator' && <span className="inline-flex items-center gap-1.5"><Key>Page Up / Down</Key> Change console</span>}
+      {zone === 'emulator' && <span className="basis-full text-xs">Choose a console to open its game carousel above. Down or Back collapses the games and returns to the console row.</span>}
+      <span className="basis-full text-xs">Left / Right stays in the carousel. Up returns to the controls above; Down from browsing controls returns to the selected card. Confirm opens a console, not Up. On sliders, Left / Right adjusts the value and Up / Down moves to other controls.</span>
       <span className="basis-full text-xs">Focusing a cover shows its facts; activating it opens details here. Launch requires a direct mouse click or keyboard press.</span>
     </div>
   </div>;

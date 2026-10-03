@@ -1,5 +1,7 @@
 // Lightweight Lounge-only shapes; no extra texture downloads or theme edits.
 export const LOUNGE_EXTRA_PARTICLES = Object.freeze([
+  Object.freeze({ id: 'rust-flakes', label: 'Rust flakes', description: 'Jagged copper-brown fragments tumble and settle without luminous snow glow.', direction: 'fall', count: 22, sizePx: 11, durationSeconds: 19, speedVariation: 55, swayPx: 52, spinDegrees: 540, shape: 'rust', color: '#b96e3e' }),
+  Object.freeze({ id: 'blizzard', label: 'Blizzard', description: 'Fast wind-driven ice streaks sweep diagonally, unlike gentle falling snow.', direction: 'drift', count: 44, sizePx: 18, durationSeconds: 4, speedVariation: 40, swayPx: 70, rotation: -24, shape: 'blizzard', color: '#d5efff' }),
   Object.freeze({ id: 'fireflies', label: 'Fireflies', description: 'Warm drifting points with a soft glow.', direction: 'drift', count: 18, sizePx: 7, durationSeconds: 17, speedVariation: 40, swayPx: 32, shape: 'firefly', color: '#ffe49b' }),
   Object.freeze({ id: 'snowfall', label: 'Snowfall', description: 'Gentle flakes with varied falling speeds.', direction: 'fall', count: 24, sizePx: 8, durationSeconds: 13, speedVariation: 45, swayPx: 28, shape: 'snow', color: '#e9f6ff' }),
   Object.freeze({ id: 'comet-trails', label: 'Comet trails', description: 'Luminous twin-tone streaks with a longer, softer tail.', direction: 'drift', count: 12, sizePx: 38, durationSeconds: 10, speedVariation: 35, swayPx: 20, shape: 'comet', color: '#b9ddff' }),

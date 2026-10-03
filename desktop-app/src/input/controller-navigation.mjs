@@ -88,6 +88,7 @@ export function advanceControllerNavigation(previous, gamepad, context = {}, now
 export function isControllerNavigationTarget(element) {
   if (!element || typeof element !== 'object') return false;
   if (element.disabled || element.getAttribute?.('aria-disabled') === 'true') return false;
+  if (element.matches?.('input[type="range"]')) return true;
   if (element.matches?.('input, textarea, select, [contenteditable="true"]')) return false;
   return Boolean(element.matches?.('button, a[href], [role="button"], [role="tab"], [data-controller-target]'));
 }

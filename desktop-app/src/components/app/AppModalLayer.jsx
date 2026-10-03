@@ -23,7 +23,6 @@ import FetchSourcePicker from '../FetchSourcePicker';
 import TidyUpModal from '../TidyUpModal';
 import PostPlayRatingModal from '../PostPlayRatingModal';
 import Confetti from '../Confetti';
-import StartupIntro from '../StartupIntro';
 import FeedbackModal from '../FeedbackModal';
 import PlaytimeImportModal from '../PlaytimeImportModal';
 import RefreshCandidatesModal from '../RefreshCandidatesModal';
@@ -125,8 +124,6 @@ export default function AppModalLayer({ context }) {
     ratingPromptGame,
     setRatingPromptGame,
     confetti,
-    introHiddenThisSession,
-    setIntroHiddenThisSession,
     feedbackOpen,
     feedbackInitialMode,
     setFeedbackOpen,
@@ -158,7 +155,6 @@ export default function AppModalLayer({ context }) {
     detectedLauncher,
     importDetectedLauncher,
     setDetectedLauncher,
-    bootDone,
     toast
   } = context;
 
@@ -176,6 +172,7 @@ export default function AppModalLayer({ context }) {
       />
       <WizardModal
         open={showWizard}
+        suspended={tidyOpen || Boolean(refreshReview)}
         onClose={() => { setShowWizard(false); setWizardPrefillRoot(''); setWizardAutoScan(false); }}
         onAccept={addToGames}
         onAddManual={() => setShowAdd(true)}
@@ -383,15 +380,14 @@ export default function AppModalLayer({ context }) {
       />
 
       <TidyUpModal
-        open={tidyOpen}
+        open={tidyOpen} suspended={Boolean(refreshReview)}
         games={library.games || []} reviewMode={tidyReviewMode}
         onDelete={(id) => removeGame(id)}
         onSelect={(id) => { setSelectedId(id); setMode('library'); setTidyOpen(false); }}
         onRepairMetadata={beginMetadataRepairQueue}
-        onFixArtwork={(game) => { setTidyOpen(false); setRefreshReview({ games: [game], index: 0, field: 'cover', options: { query: game.name, steamGridDbKey: settings.steamGridDbKey || '' } }); }} onRefreshMetadata={(game) => { setTidyOpen(false); setRefreshReview({ games: [game], index: 0, field: 'all-locked', options: { query: game.name } }); }}
+        onFixArtwork={(game) => { setRefreshReview({ games: [game], index: 0, field: 'cover', options: { query: game.name, steamGridDbKey: settings.steamGridDbKey || '' } }); }} onRefreshMetadata={(game) => { setRefreshReview({ games: [game], index: 0, field: 'all-locked', options: { query: game.name } }); }}
         onClose={() => setTidyOpen(false)}
       />
-
       <PostPlayRatingModal
         game={ratingPromptGame?.game || null}
         seconds={ratingPromptGame?.seconds || 0}
@@ -413,15 +409,6 @@ export default function AppModalLayer({ context }) {
       {/* Theme-aware confetti — bumps key when fired, auto-cleans */}
       <Confetti triggerKey={confetti.key} label={confetti.label} origin={confetti.origin} />
 
-      {/* v1.4.0 — 3-second synthwave intro on every boot (skippable) */}
-      {(introHiddenThisSession || settings.skipIntro) ? null : (
-        <StartupIntro
-          muted={settings.soundsEnabled === false}
-          onDone={() => {
-            setIntroHiddenThisSession(true);
-          }}
-        />
-      )}
 
       {/* v1.5.0 — Feedback / Bug / Suggestion modal (Discord webhook) */}
       <FeedbackModal
@@ -579,7 +566,6 @@ export default function AppModalLayer({ context }) {
         onClose={() => setDetectedLauncher(null)}
       />
 
-      {!bootDone && settings.crtBootEnabled !== false && <div className="crt-boot" />}
 
       <AnimatePresence>
         {toast && (

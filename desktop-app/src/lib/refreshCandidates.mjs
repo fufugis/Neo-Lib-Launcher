@@ -3,6 +3,14 @@ import { cleanDescriptionText } from './descriptionFormatting.mjs';
 import { appendArtworkRevision, artworkSnapshot, normalizeArtworkLocks } from './artwork-revision-model.mjs';
 
 const imageUrl = (value) => typeof value === 'string' && /^(https?:|file:|data:image\/)/i.test(value);
+const normalizedTitle = (value) => String(value || '').replace(/[™®©]/g, '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+export function matchesCoverTitle(query, candidate, game = {}) {
+  if (game.appid && candidate?.source === 'steam' && String(candidate.appid || candidate.id || '') === String(game.appid)) return true;
+  const expected = normalizedTitle(query);
+  return Boolean(expected && expected === normalizedTitle(candidate?.name));
+}
+
 export function fieldCandidates(record, field) {
   if (!record) return [];
   const base = { source: record.source || 'Metadata provider', name: record.name || 'Untitled', record };
@@ -71,14 +79,36 @@ export function selectedRefreshPatch(field, candidates, game = {}) {
   return patch;
 }
 
-export function createRefreshSearch(api, game, field, options = {}) {
-  const found = [], seen = new Set(), failures = [];
+export function createRefreshSearch(api, game, field, options = {}, verifyCover = async () => true) {
+  const found = [], seen = new Set(), checked = new Set(), failures = [];
   const query = options.query || game.metadataQuery || game.name;
   const native = [game.launcher, game.source].find(source => ['itch', 'itchio', 'gog', 'f95zone', 'vndb', 'dlsite', 'jast', 'gamejolt', 'ryuugames'].includes(source));
   const sources = [...new Set([native === 'itchio' ? 'itch' : native || 'steam', 'steam', 'gog', ...(options.steamGridDbKey ? ['steamgriddb'] : []), 'google'])];
   const pending = [];
   let initial = true;
-  const add = record => fieldCandidates(record, field).forEach(c => { if (!seen.has(c.key)) { seen.add(c.key); found.push(c); } });
+  const add = async (record, cancelled) => {
+    if (field === 'cover' && !matchesCoverTitle(query, record, game)) return;
+    for (const candidate of fieldCandidates(record, field)) {
+      if (cancelled() || seen.has(candidate.key) || checked.has(candidate.key)) continue;
+      checked.add(candidate.key);
+      if (field === 'cover') {
+        let verifiedUrl = '';
+        try {
+          const result = await verifyCover(candidate.value);
+          verifiedUrl = typeof result === 'string' ? result : result ? candidate.value : '';
+        } catch { /* Unavailable image is not a usable suggestion. */ }
+        if (!verifiedUrl) {
+          if (!failures.includes('Unavailable or non-portrait cover images were skipped.')) failures.push('Unavailable or non-portrait cover images were skipped.');
+          continue;
+        }
+        candidate.value = verifiedUrl;
+        candidate.key = verifiedUrl;
+        if (seen.has(candidate.key)) continue;
+      }
+      seen.add(candidate.key);
+      found.push(candidate);
+    }
+  };
   const bounded = async fn => {
     let timer;
     try { return await Promise.race([Promise.resolve().then(fn), new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Source timed out')), 15000); })]); }
@@ -89,22 +119,22 @@ export function createRefreshSearch(api, game, field, options = {}) {
     async next(limit = 5, cancelled = () => false) {
       if (initial) {
         initial = false;
-        add(await bounded(() => api.fetchMetadata({ query, launcher: game.launcher || '', launcherProductId: game.launcherProductId || '', lockedAppid: game.launcher === 'battlenet' || options.forceSearch ? null : game.appid || null, force: true, ...options })));
+        await add(await bounded(() => api.fetchMetadata({ query, launcher: game.launcher || '', launcherProductId: game.launcherProductId || '', lockedAppid: game.launcher === 'battlenet' || options.forceSearch ? null : game.appid || null, force: true, ...options })), cancelled);
       }
       // Each click does bounded work; no background crawl through the entire catalogue.
       let expansions = 0;
-      while (!cancelled() && found.length < limit && expansions < 5) {
+      while (!cancelled() && found.length < limit && expansions < (field === 'cover' ? 8 : 5)) {
         if (!pending.length) {
           if (!sources.length) break;
           const source = sources.shift();
           const result = await bounded(() => api.listCandidates({ source, query }));
           if (result?.error) failures.push(`${source}: ${result.error}`);
-          pending.push(...(result?.candidates || []));
+          pending.push(...(result?.candidates || []).filter(candidate => field !== 'cover' || matchesCoverTitle(query, candidate, game)));
           if (!pending.length) continue;
         }
         const candidate = pending.shift();
         expansions++;
-        add(await bounded(() => api.expandCandidate({ candidate })));
+        await add(await bounded(() => api.expandCandidate({ candidate })), cancelled);
       }
       return { candidates: [...found], more: pending.length > 0 || sources.length > 0, failures: [...failures] };
     },

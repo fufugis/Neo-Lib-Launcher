@@ -45,7 +45,7 @@ export default function LoungeBrowserStage({ game, index, total, preferences, up
   >
     <div className="lounge-scene-stage__content relative z-10 flex min-w-0 items-center gap-6 border border-white/30 p-5 text-white sm:p-7">
       {preferences.previewShowCover && <div className="lounge-scene-stage__cover hidden shrink-0 overflow-hidden rounded-2xl border-2 border-white/65 shadow-[0_20px_50px_rgb(0_0_0/0.45)] sm:block" aria-hidden="true"><div className="aspect-[2/3]"><LoungeCover game={game} /></div></div>}
-      <div key={String(game.id) + '-scene-copy'} className="lounge-stage-copy min-w-0 flex-1">
+      <div className="lounge-stage-copy min-w-0 flex-1">
         {preferences.previewShowIndex && <span className="absolute right-6 top-5 rounded-full border border-white/30 bg-black/30 px-3 py-1 text-xs font-black tracking-wider text-white/85">{String(index + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}</span>}
         <h2 className="lounge-stage-title mt-0 text-3xl font-black leading-tight sm:text-5xl">{game.name || 'Untitled game'}</h2>
         {!isMinimal && preferences.previewShowDescription && <p className={`mt-3 ${isDetailed ? 'line-clamp-3' : 'line-clamp-2'} max-w-3xl text-sm leading-relaxed text-white/90 sm:text-base`}>{description}</p>}
@@ -62,13 +62,13 @@ export default function LoungeBrowserStage({ game, index, total, preferences, up
     <div className="lounge-stage-sweep pointer-events-none absolute inset-0" aria-hidden="true" />
     {preferences.previewShowIndex && <div className="lounge-stage-count absolute left-7 top-6 z-10 flex items-center gap-2 rounded-full border border-white/30 bg-black/35 px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-white"><Sparkles size={13} /> {String(index + 1).padStart(2, '0')} <span className="opacity-50">/</span> {String(total).padStart(2, '0')}</div>}
     <div className="lounge-stage-edition absolute right-7 top-6 z-10 hidden items-center gap-2 rounded-full border border-white/20 bg-black/25 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.15em] text-white/80 sm:flex"><span className="lounge-stage-edition-dot" /> Your collection</div>
-    <div key={`${game.id}-copy`} className="lounge-stage-copy relative z-10 w-full max-w-4xl p-7 sm:p-10 lg:p-14">
+    <div className="lounge-stage-copy relative z-10 w-full max-w-4xl p-7 sm:p-10 lg:p-14">
       <h2 className="lounge-stage-title mt-0 max-w-3xl text-4xl font-black leading-[0.98] sm:text-6xl lg:text-7xl">{game.name || 'Untitled game'}</h2>
       {!isMinimal && preferences.previewShowDescription && <p className={`mt-4 ${isDetailed ? 'line-clamp-3' : 'line-clamp-2'} max-w-xl text-sm leading-relaxed text-white/88 sm:text-base`}>{description}</p>}
       {visibleFacts.length > 0 && <div className={`mt-5 flex flex-wrap gap-2 text-xs font-semibold text-white/90 ${isDetailed ? 'lounge-stage-facts--detailed' : ''}`}>{visibleFacts.map(fact => <span key={fact.key} className="lounge-stage-fact flex items-center gap-1.5">{preferences.previewShowFactIcons && fact.icon}{fact.text}</span>)}</div>}
       <button type="button" onClick={() => onOpenDetails(game.id)} className="lounge-stage-action mt-6 inline-flex items-center gap-3 rounded-2xl border border-white/60 bg-white/90 px-6 py-3 text-base font-black text-black shadow-[0_12px_35px_rgb(0_0_0/0.3)]"><span>Explore game</span><ArrowUpRight size={20} /></button>
     </div>
-    {preferences.previewShowCover && preferences.previewStyle !== 'clean' && <div key={`${game.id}-portrait`} className="lounge-stage-portrait pointer-events-none absolute bottom-10 right-[6%] w-[clamp(140px,15vw,240px)] rotate-[6deg] overflow-hidden rounded-2xl border-2 border-white/50 shadow-[0_25px_70px_rgb(0_0_0/0.52)]" aria-hidden="true"><div className="aspect-[2/3]"><LoungeCover game={game} /></div></div>}
+    {preferences.previewShowCover && preferences.previewStyle !== 'clean' && <div className="lounge-stage-portrait pointer-events-none absolute bottom-10 right-[6%] w-[clamp(140px,15vw,240px)] rotate-[6deg] overflow-hidden rounded-2xl border-2 border-white/50 shadow-[0_25px_70px_rgb(0_0_0/0.52)]" aria-hidden="true"><div className="aspect-[2/3]"><LoungeCover game={game} /></div></div>}
     {preferences.previewShowProgress && <div className="lounge-stage-progress pointer-events-none absolute inset-x-0 bottom-0 z-20 h-1 bg-white/15" aria-hidden="true"><span /></div>}
   </article>;
 }

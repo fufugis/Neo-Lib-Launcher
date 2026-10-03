@@ -5,8 +5,10 @@ import neon from '../../assets/lounge/scene-neon-gallery.jpg';
 import starlit from '../../assets/lounge/scene-starlit-road.jpg';
 import solar from '../../assets/lounge/scene-solar-grove.png';
 import rainlight from '../../assets/lounge/scene-rainlight-city.png';
+import steampunk from '../../assets/lounge/scene-steampunk.png';
+import animeWinter from '../../assets/lounge/scene-anime-winter.png';
 
-export const LOUNGE_SCENE_ART = Object.freeze({ alpine, orbit, coast, neon, starlit, solar, rainlight });
+export const LOUNGE_SCENE_ART = Object.freeze({ alpine, orbit, coast, neon, starlit, solar, rainlight, steampunk, 'anime-winter': animeWinter });
 
 export function loungeSceneArt(id) {
   return LOUNGE_SCENE_ART[id] || '';

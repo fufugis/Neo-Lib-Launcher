@@ -106,7 +106,7 @@ async function main() {
   const registrationSource = ipcSources.join('\n');
 const staticChannels = Array.from(registrationSource.matchAll(/registerIpc\(['"]([^'"]+)['"]/g), match => match[1]);
 const nativeChannels = staticChannels;
-assert.equal(nativeChannels.length, 111, 'known native command count changed; review the contract intentionally');
+assert.equal(nativeChannels.length, 112, 'known native command count changed; review the contract intentionally');
 assert.equal(new Set(nativeChannels).size, nativeChannels.length, 'source contains a duplicate channel');
 
 const rendererChannels = Array.from(new Set(Array.from(preload.matchAll(/ipcRenderer\.invoke\(['"]([^'"]+)['"]/g), match => match[1])));
@@ -191,7 +191,7 @@ assert.deepEqual(documentCalls, [
     } },
     getMainWindow: () => pickerWindow,
   });
-  assert.deepEqual(Object.keys(dialogHandlers), ['dialog:pickExe', 'dialog:pickDirectory', 'dialog:pickImage', 'dialog:importLoungeBackground', 'dialog:importLoungeAudio', 'dialog:pickThemeVideo', 'dialog:pickSaveFolder', 'dialog:pickWidgetManifest', 'dialog:pickThemeManifest']);
+  assert.deepEqual(Object.keys(dialogHandlers), ['dialog:pickExe', 'dialog:pickDirectory', 'dialog:pickImage', 'dialog:importLoungeBackground', 'dialog:loungeBackgroundProfile', 'dialog:importLoungeAudio', 'dialog:pickThemeVideo', 'dialog:pickSaveFolder', 'dialog:pickWidgetManifest', 'dialog:pickThemeManifest']);
   assert.equal(await dialogHandlers['dialog:pickExe'](), 'C:\\Games\\One.exe');
   pickerWindow = { id: 'replacement-window' };
   assert.equal(await dialogHandlers['dialog:pickDirectory'](), 'D:\\Games');

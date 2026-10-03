@@ -18,11 +18,16 @@ export function nextLoungeConsole(currentId, direction, consoles = LOUNGE_CONSOL
   return consoles[(Math.max(0, index) + (direction < 0 ? -1 : 1) + consoles.length) % consoles.length].id;
 }
 
-/** A compact, circular five-console window with the active system at its center. */
-export function visibleLoungeConsoles(currentId, consoles = LOUNGE_CONSOLES) {
+/** Odd-sized circular window keeps the active system at its center. */
+export function loungeConsoleVisibleCount(width = 1600, size = 100) {
+  const capacity = Math.floor(Math.max(0, width - 400) / (220 * size / 100));
+  return Math.max(3, Math.min(9, capacity % 2 ? capacity : capacity - 1));
+}
+
+export function visibleLoungeConsoles(currentId, consoles = LOUNGE_CONSOLES, visibleCount = 5) {
   if (!consoles.length) return [];
   const center = Math.max(0, consoles.findIndex(console => console.id === currentId));
-  const count = Math.min(5, consoles.length);
+  const count = Math.min(visibleCount, consoles.length);
   return Array.from({ length: count }, (_, index) => index - Math.floor(count / 2)).map(offset => ({
     ...consoles[(center + offset + consoles.length) % consoles.length],
     offset,

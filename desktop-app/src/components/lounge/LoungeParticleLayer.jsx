@@ -2,16 +2,18 @@ import React from 'react';
 import builtinParticles from '../../../electron/themes/builtin-particles.json';
 import { particleDuration, particleMotionStyle, particlePosition } from '../../themes/particle-placement.mjs';
 import { LOUNGE_EXTRA_PARTICLES, LOUNGE_PARTICLE_COLORS } from './lounge-particle-presets.mjs';
+import { loungeFxGain } from './lounge-effect-model.mjs';
 
 const jitter = (index, salt) => (((index * 47 + salt * 31) % 101) / 50) - 1;
 
-export default function LoungeParticleLayer({ styleId, level, motion, amount = 100, randomness = 50, color = 'original', opacity = 70, size = 100, trail = 45, glow = 65, speed = 100, preview = false }) {
+const LoungeParticleLayer = React.memo(function LoungeParticleLayer({ styleId, level, motion, amount = 100, randomness = 50, color = 'original', opacity = 70, size = 100, trail = 45, glow = 65, speed = 100, preview = false }) {
   const preset = builtinParticles.find(item => item.id === styleId) || LOUNGE_EXTRA_PARTICLES.find(item => item.id === styleId);
   const safeLevel = Math.max(0, Math.min(4, Math.round(Number(level) || 0)));
   const safeAmount = Math.max(0, Math.min(100, Number(amount) || 0));
+  const fxGain = loungeFxGain(safeLevel);
   const safeRandomness = Math.max(0, Math.min(100, Number(randomness) || 0)) / 100;
   if (!preset || safeLevel === 0 || safeAmount === 0 || motion === 'off') return null;
-  const count = Math.min(48, Math.ceil(preset.count * [0, 0.35, 0.6, 0.8, 1][safeLevel] * (motion === 'subtle' ? 0.65 : 1) * safeAmount / 100));
+  const count = Math.min(48, Math.ceil(preset.count * fxGain * (motion === 'subtle' ? 0.65 : 1) * safeAmount / 100));
   const source = preset.pngBase64 ? `data:image/png;base64,${preset.pngBase64}` : '';
   const tint = LOUNGE_PARTICLE_COLORS.find(item => item.id === color)?.css || '';
   return <div data-testid={preview ? 'lounge-particle-preview' : 'lounge-particle-layer'} data-particle-style={styleId} data-particle-color={color} aria-hidden="true" className={`custom-theme-particles absolute inset-0 pointer-events-none ${preview ? 'lounge-particle-preview z-[1]' : 'z-[2]'}`}>
@@ -21,9 +23,9 @@ export default function LoungeParticleLayer({ styleId, level, motion, amount = 1
       placement[axis] = `${Math.max(2, Math.min(98, parseFloat(placement[axis]) + jitter(index, 3) * safeRandomness * 16))}%`;
       const duration = particleDuration(preset, index, motion === 'subtle' ? 'calm' : 'normal') * (1 + jitter(index, 7) * safeRandomness * 0.23);
       const particleSize = Math.max(3, preset.sizePx * (Number(size) / 100) * (1 + jitter(index, 11) * safeRandomness * 0.28));
-      const trailScale = Math.max(0, Math.min(1, Number(trail) / 100));
-      const glowScale = Math.max(0, Math.min(1, Number(glow) / 100));
-      const fxOpacity = (Math.max(0, Math.min(100, Number(opacity) || 0)) / 100) * (motion === 'subtle' ? 0.6 : 1);
+      const trailScale = Math.max(0, Math.min(1, Number(trail) / 100)) * fxGain;
+      const glowScale = Math.max(0, Math.min(1, Number(glow) / 100)) * fxGain;
+      const fxOpacity = (Math.max(0, Math.min(100, Number(opacity) || 0)) / 100) * Math.sqrt(fxGain) * (motion === 'subtle' ? 0.6 : 1);
       const trailLength = trailScale * 140;
       const sway = (Number(preset.swayPx) || 0) + safeRandomness * (18 + (index % 5) * 5);
       const swayOffset = preset.direction === 'drift' ? { '--particle-ghost-x': `${-trailLength * 0.32}px`, '--particle-ghost-x-two': `${-trailLength * 0.68}px`, '--particle-ghost-y': '0px', '--particle-ghost-y-two': '0px' }
@@ -41,4 +43,6 @@ export default function LoungeParticleLayer({ styleId, level, motion, amount = 1
       </span>;
     })}
   </div>;
-}
+});
+
+export default LoungeParticleLayer;

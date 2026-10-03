@@ -4,7 +4,9 @@
  * - Provides IPC for file picker, exe icon extraction, drive scan,
  *   Steam Store metadata fetch, and game launching.
  */
-const { app, BrowserWindow, ipcMain, dialog, shell, nativeImage, Tray, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, nativeImage, Tray, Menu, protocol, net: electronNet } = require('electron');
+const { createLoungeBackgroundHandler } = require('./images/lounge-background-protocol.cjs');
+protocol.registerSchemesAsPrivileged([{ scheme: 'neolib-background', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }]);
 const path = require('path');
 const fs = require('fs');
 const fsp = require('fs/promises');
@@ -441,7 +443,7 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:5173').catch((error) => {
       recordLaunchSafety('renderer-load-rejected', { error: String(error?.message || error).slice(0, 1000) });
     });
-    // mainWindow.webContents.openDevTools({ mode: 'detach' });
+    if (process.env.NEOLIB_RENDER_TRACE === '1') mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
     mainWindow.loadFile(path.join(__dirname, '..', 'dist-renderer', 'index.html')).catch((error) => {
       recordLaunchSafety('renderer-load-rejected', { error: String(error?.message || error).slice(0, 1000) });
@@ -497,6 +499,7 @@ app.whenReady().then(async () => {
     return;
   }
   await ensureDirs();
+  protocol.handle('neolib-background', createLoungeBackgroundHandler(() => path.join(dataDir(), 'lounge-backgrounds'), (url, options) => electronNet.fetch(url, options)));
   recordLaunchSafety('app-ready', { pid: process.pid, version: app.getVersion() });
   createWindow();
   // Pre-build the tray icon if the user opted in — they expect it to be

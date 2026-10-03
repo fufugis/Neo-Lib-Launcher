@@ -34,6 +34,12 @@ try {
     channel: 'launcher:scan-epic', domain: 'launcher', kind: 'service-rejection',
     error: new Error('EPERM C:\\Users\\Private\\Library'),
   });
+  const diagnosticBytes = fs.statSync(recorder.file()).size;
+  for (let index = 0; index < 30; index += 1) {
+    recorder.record('renderer-console', { level: 3, message: 'ReferenceError: repeated warning', source: 'index-AbCd123.js', line: 42 });
+  }
+  const deduplicatedBytes = fs.statSync(recorder.file()).size;
+  assert.equal(deduplicatedBytes, diagnosticBytes, 'repeated renderer-console messages should not flood synchronous diagnostic writes');
   const initialReport = recorder.getReport();
   assert.match(initialReport.report, /REFERENCE_ERROR|PERMISSION_ERROR/);
   for (const privateText of ['Secret Game', 'Private', 'example.test', 'super-secret', 'private search', 'exePath', 'apiKey', 'query', '"message":']) {

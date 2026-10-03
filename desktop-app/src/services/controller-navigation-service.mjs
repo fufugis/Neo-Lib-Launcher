@@ -9,6 +9,7 @@ export function createControllerNavigator({
   windowRef = globalThis.window,
   now = () => Date.now(),
   onCommand = () => {},
+  onButtonPress = () => false,
   getContext = () => ({}),
   getPreferredFingerprint = () => '',
   strictPreferred = false,
@@ -18,6 +19,7 @@ export function createControllerNavigator({
   let navigationState = createControllerNavigationState();
   let selectedDevice = '';
   let waitForNeutral = true;
+  let buttonsWereDown = false;
 
   const frame = () => {
     if (!running) return;
@@ -33,17 +35,39 @@ export function createControllerNavigator({
       selectedDevice = device;
       waitForNeutral = true;
       navigationState = createControllerNavigationState(now());
+      buttonsWereDown = true;
     }
-    const currentContext = getContext() || {};
-    const context = { ...currentContext, textEntry: Boolean(currentContext.textEntry) };
-    if (waitForNeutral) {
-      if (selected && controllerCommands(selected).length === 0) waitForNeutral = false;
+    const buttonsDown = Boolean(selected?.buttons?.some(button => button?.pressed || button?.value > 0.5));
+    const freshButtonPress = buttonsDown && !buttonsWereDown;
+    buttonsWereDown = buttonsDown;
+    if (!waitForNeutral && freshButtonPress && onButtonPress() === true) {
+      waitForNeutral = true;
       frameId = windowRef?.requestAnimationFrame?.(frame) ?? null;
       return;
     }
+    if (waitForNeutral) {
+      if (selected && !buttonsDown && controllerCommands(selected).length === 0) waitForNeutral = false;
+      frameId = windowRef?.requestAnimationFrame?.(frame) ?? null;
+      return;
+    }
+    // Poll cheap gamepad state every frame, not the DOM. Reading modal geometry
+    // while the pad is neutral forces layout during unrelated mouse animation.
+    if (controllerCommands(selected).length === 0) {
+      navigationState = createControllerNavigationState(now());
+      frameId = windowRef?.requestAnimationFrame?.(frame) ?? null;
+      return;
+    }
+    const currentContext = getContext() || {};
+    const context = { ...currentContext, textEntry: Boolean(currentContext.textEntry) };
     const result = advanceControllerNavigation(navigationState, selected, context, now());
     navigationState = result.state;
-    for (const command of result.commands) onCommand(command, { controllerIndex: selectedIndex });
+    for (const command of result.commands) {
+      if (onCommand(command, { controllerIndex: selectedIndex }) === true) {
+        // A dismiss-only input must be released before touching the panel below.
+        waitForNeutral = true;
+        break;
+      }
+    }
     frameId = windowRef?.requestAnimationFrame?.(frame) ?? null;
   };
 

@@ -16,7 +16,7 @@ import { libraryArtworkAudit } from './home/library-artwork-audit.mjs';
  *
  * User is shown each cluster side-by-side and picks which one to keep.
  */
-export default function TidyUpModal({ open, games, reviewMode = 'issues', onDelete, onSelect, onRepairMetadata, onFixArtwork, onRefreshMetadata, onClose }) {
+export default function TidyUpModal({ open, suspended = false, games, reviewMode = 'issues', onDelete, onSelect, onRepairMetadata, onFixArtwork, onRefreshMetadata, onClose }) {
   const dragControls = useDragControls();
   const dragBoundsRef = React.useRef(null);
   const [clusters, setClusters] = React.useState([]);
@@ -61,7 +61,8 @@ export default function TidyUpModal({ open, games, reviewMode = 'issues', onDele
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[220] grid place-items-center bg-black/65 backdrop-blur-[2px]"
+        className={`fixed inset-0 z-[220] grid place-items-center bg-black/65 backdrop-blur-[2px] ${suspended ? 'invisible pointer-events-none' : ''}`}
+        aria-hidden={suspended}
         onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }}
         data-testid="tidy-overlay"
       >

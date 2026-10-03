@@ -1,6 +1,6 @@
 import { isControllerActivationTarget, isControllerNavigationTarget } from './controller-navigation.mjs';
 
-const TARGETS = 'button, a[href], [role="button"], [role="tab"], [data-controller-target]';
+const TARGETS = 'button, a[href], input[type="range"], [role="button"], [role="tab"], [data-controller-target]';
 const SURFACES = '[data-controller-surface], [role="dialog"][aria-modal="true"], .fixed.inset-0';
 
 export function visibleControllerElement(element) {

@@ -44,7 +44,17 @@ export function stockThemeAssetUrl(id, layerName) {
   const custom = customThemes.get(id);
   const asset = (custom?.manifest || manifests.get(id))?.layers?.[layerName]?.asset;
   if (custom) return asset ? custom.assetUrls?.[asset] || '' : '';
+  if (layerName === 'sidebar' && assets[`./stock/${id}/assets/sidebar.webp`]) return assets[`./stock/${id}/assets/sidebar.webp`];
   return asset ? assets[`./stock/${id}/${asset}`] || '' : '';
+}
+
+// Start the active artwork request while settings hydrate, before Sidebar mounts.
+export function preloadSidebarArtwork(id) {
+  const href = stockThemeAssetUrl(id || 'synthwave', 'sidebar');
+  if (!href || [...document.querySelectorAll('link[rel="preload"]')].some(link => link.href === new URL(href, document.baseURI).href)) return;
+  const link = document.createElement('link');
+  link.rel = 'preload'; link.as = 'image'; link.href = href;
+  document.head.appendChild(link);
 }
 
 const CSS_TOKEN_KEYS = {
