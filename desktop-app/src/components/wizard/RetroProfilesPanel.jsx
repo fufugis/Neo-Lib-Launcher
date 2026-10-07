@@ -1,4 +1,5 @@
 import React from 'react';
+import RetroSourcesPanel from './RetroSourcesPanel';
 import { CheckSquare, Gamepad2, Loader2, ScanSearch, Square } from 'lucide-react';
 import { RETRO_PLATFORMS, ROM_EXTENSION_GROUPS, detectRomPlatform, retroPlatform, romDisplayName, romExtensions, romLibraryEntry } from '../../lib/emulation-library-model.mjs';
 
@@ -21,7 +22,7 @@ export function normalizeRetroProfiles(profiles) {
   });
 }
 
-export default function RetroProfilesPanel({ profiles, onChange, onImportRoms, existingGames = [] }) {
+export default function RetroProfilesPanel({ profiles, onChange, onImportRoms, onApplyMetadata, existingGames = [], sourceVisibleGames = [] }) {
   const [drafts, setDrafts] = React.useState(() => normalizeRetroProfiles(profiles));
   const [scan, setScan] = React.useState({ profileId: '', rows: [], busy: false, message: '' });
   React.useEffect(() => setDrafts(normalizeRetroProfiles(profiles)), [profiles]);
@@ -89,6 +90,7 @@ export default function RetroProfilesPanel({ profiles, onChange, onImportRoms, e
       <div className="mt-3 flex justify-end gap-2"><button type="button" onClick={() => setScan({ profileId: '', rows: [], busy: false, message: '' })} className="rounded-md hairline px-3 py-2 text-[10px] text-muted hover:text-ink">Close review</button><button type="button" data-testid="retro-import-selected" disabled={!selectedCount} onClick={importRows} className="rounded-md bg-[rgb(var(--accent))] px-3 py-2 text-[10px] font-black text-[rgb(var(--surface))] disabled:opacity-40">Import {selectedCount} selected</button></div>
     </section>}
     <div className="flex flex-wrap gap-2"><button type="button" data-testid="retro-profile-add" onClick={add} className="rounded-md hairline px-3 py-2 text-xs text-muted hover:border-[rgb(var(--accent)/0.5)] hover:text-ink">Add profile</button><button type="button" data-testid="retro-profile-save" onClick={save} className="rounded-md bg-[rgb(var(--accent))] px-3 py-2 text-xs font-bold text-[rgb(var(--surface))] hover:brightness-110">Save Retro Profiles</button></div>
+    <RetroSourcesPanel profiles={normalizeRetroProfiles(profiles)} existingGames={sourceVisibleGames} onImportRoms={onImportRoms} onApplyMetadata={onApplyMetadata} />
   </div>;
 }
 

@@ -40,13 +40,19 @@ installed-app test.
 npm run build:win
 ```
 
-The NSIS installer is written to `desktop-app/dist` with a name such as:
+The NSIS installer is written to `desktop-app/dist` with this fixed name for every version:
 
 ```text
-NEO-LIB-Setup-1.7.9.exe
+NEO-LIB-Setup.exe
 ```
 
 ## Create the complete release artifact set
+
+The app retains its internal version and versioned release evidence. The public installer filename does not include a version. After a new published release includes this asset and becomes GitHub's latest release, the website can use this stable direct download:
+
+https://github.com/fufugis/Neo-Lib-Launcher/releases/latest/download/NEO-LIB-Setup.exe
+
+Existing published release assets are not renamed by this source change.
 
 ```powershell
 npm run build:release

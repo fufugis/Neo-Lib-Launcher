@@ -224,6 +224,7 @@ export default function GameDetail({
           onRevealFolder={onRevealFolder}
           onToggleCategory={onToggleCategory}
           onCustomize={onCustomize}
+          onUpdateGame={onUpdateGame}
           onOpenSaveManager={onOpenSaveManager}
           onLocateManagedTool={onLocateManagedTool}
           onInstallManagedTool={onInstallManagedTool}

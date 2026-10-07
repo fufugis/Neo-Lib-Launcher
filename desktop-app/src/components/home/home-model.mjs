@@ -40,7 +40,7 @@ export function getLibraryHealth(games) {
   const artworkRows = libraryArtworkAudit(inspectableGames);
   const missingArt = artworkRows.filter((row) => row.reasons.length > 0).length;
   const missingDetails = inspectableGames.filter((game) => ![game.description, game.about, game.shortDescription].some((value) => String(value || '').trim())).length;
-  const noLaunchTarget = inspectableGames.filter((game) => !(game.exePath || game.launchUrl)).length;
+  const noLaunchTarget = inspectableGames.filter((game) => !(game.hasLaunchTarget || game.exePath || game.launchUrl)).length;
   const missingGenres = inspectableGames.filter((game) => !(game.genreProfile?.core?.length || game.genreProfile?.rawTags?.length || game.genres?.length || game.genreTags?.length)).length;
   const missingCredits = inspectableGames.filter((game) => !(game.developers?.length || game.publishers?.length)).length;
   const missingReleaseDate = inspectableGames.filter((game) => !(game.releaseDate || game.year)).length;
@@ -60,7 +60,7 @@ export function getLibraryHealth(games) {
 
 export function getRecommendations(games, news, now = Date.now()) {
   const hasNews = (game) => news.find((item) => item.gameId === game.id || String(item.gameName || '').toLowerCase() === String(game.name || '').toLowerCase());
-  const installed = games.filter((game) => game.exePath || game.launchUrl);
+  const installed = games.filter((game) => game.hasLaunchTarget || game.exePath || game.launchUrl);
   const updated = installed.map((game) => ({ game, news: hasNews(game) })).filter((entry) => entry.news).sort((a, b) => Number(b.news.date || 0) - Number(a.news.date || 0))[0];
   const rediscover = installed.filter((game) => Number(game.lastPlayedAt || 0) && now - Number(game.lastPlayedAt) > 21 * 86400000).sort((a, b) => (Number(b.rating || 0) * 10000000000 + Number(b.playtime || 0)) - (Number(a.rating || 0) * 10000000000 + Number(a.playtime || 0)))[0];
   const fresh = installed.filter((game) => !Number(game.playtime || 0)).sort((a, b) => Number(b.addedAt || 0) - Number(a.addedAt || 0))[0];

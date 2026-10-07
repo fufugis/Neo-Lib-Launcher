@@ -19,7 +19,7 @@ import LoungeThemeGallery from './LoungeThemeGallery';
 import LoungeJumpPanel from './LoungeJumpPanel';
 import LoungeMascotNotice from './LoungeMascotNotice';
 import LoungeParticleLayer from './LoungeParticleLayer';
-import { emulatorZoneGames, emulatorZoneStatus, loungeConsoleVisibleCount, LOUNGE_CONSOLES, nextLoungeConsole, visibleLoungeConsoles } from './lounge-emulator-zone.mjs';
+import { emulatorZoneGames, emulatorZoneStatus, loungeConsoleVisibleCount, LOUNGE_CONSOLES, nextLoungeConsole, visibleLoungeConsoles, shownLoungeConsoles, reconcileLoungeConsole } from './lounge-emulator-zone.mjs';
 import { loungeControllerRoute } from './lounge-controller-route.mjs';
 import { loungeEffectPreferences } from './lounge-effect-model.mjs';
 import { advanceConsoleWheel } from './lounge-console-wheel.mjs';
@@ -130,9 +130,21 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
   const lastAction = React.useRef(0);
   const lastFocusedControl = React.useRef(null);
   const safeGames = Array.isArray(games) ? games : EMPTY_GAMES;
+  const shownConsoles = React.useMemo(() => shownLoungeConsoles(preferences.hiddenEmulators), [preferences.hiddenEmulators]);
+  const resolvedConsoleId = reconcileLoungeConsole(consoleId, shownConsoles);
+  const consoleStatuses = React.useMemo(() => new Map(LOUNGE_CONSOLES.map(console => [console.id, emulatorZoneStatus(retroProfiles, safeGames, console.id)])), [retroProfiles, safeGames]);
+  React.useEffect(() => {
+    if (resolvedConsoleId === consoleId) return;
+    setConsoleId(resolvedConsoleId);
+    setConsoleGamesOpen(false);
+    setDetailsId(null);
+    setSelectedId(null);
+    setLetter('');
+    focusAfterViewChange.current = true;
+  }, [resolvedConsoleId, consoleId]);
   const pcGames = React.useMemo(() => safeGames.filter(game => game?.source !== 'emulation'), [safeGames]);
   const viewGames = React.useMemo(() => {
-    const sourceGames = zone === 'emulator' ? emulatorZoneGames(safeGames, consoleId) : pcGames;
+    const sourceGames = zone === 'emulator' ? emulatorZoneGames(safeGames, resolvedConsoleId) : pcGames;
     return view === 'favorites' ? sortLoungeBrowseGames(applyWallFilter(sourceGames, 'favorites', favoriteIds), preferences.browseSort)
       : view === 'recent' ? applyWallFilter(sourceGames, 'recently-played')
         : view === 'most' ? applyWallFilter(sourceGames, 'most-played')
@@ -140,18 +152,18 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
             : view === 'added' ? recentlyAddedLoungeGames(sourceGames)
               : view === 'week' ? recentlyActiveLoungeGames(sourceGames)
                 : view === 'progress' ? inProgressLoungeGames(sourceGames) : sortLoungeBrowseGames(sourceGames, preferences.browseSort);
-  }, [safeGames, pcGames, favoriteIds, view, zone, consoleId, preferences.browseSort]);
+  }, [safeGames, pcGames, favoriteIds, view, zone, resolvedConsoleId, preferences.browseSort]);
   const shownGames = React.useMemo(() => filterLoungeLetter(viewGames, letter), [viewGames, letter]);
   const viewLabel = { all: 'All games', continue: 'Continue playing', favorites: 'Favorites', recent: 'Recently played', week: 'Played this week', progress: 'In progress', added: 'Recently added', most: 'Most played' }[view] || 'this view';
-  const activeConsole = LOUNGE_CONSOLES.find(console => console.id === consoleId) || LOUNGE_CONSOLES[0];
+  const activeConsole = shownConsoles.find(console => console.id === resolvedConsoleId) || { id: '', label: 'No visible consoles' };
   const [consoleViewportWidth, setConsoleViewportWidth] = React.useState(() => window.innerWidth);
   React.useEffect(() => {
     const resize = () => setConsoleViewportWidth(window.innerWidth);
     window.addEventListener('resize', resize);
     return () => window.removeEventListener('resize', resize);
   }, []);
-  const visibleConsoles = visibleLoungeConsoles(activeConsole.id, LOUNGE_CONSOLES, loungeConsoleVisibleCount(Math.min(preferences.emulatorCarouselWidth, consoleViewportWidth - 64), preferences.emulatorSize));
-  const consoleStatus = emulatorZoneStatus(retroProfiles, safeGames, activeConsole.id);
+  const visibleConsoles = visibleLoungeConsoles(activeConsole.id, shownConsoles, loungeConsoleVisibleCount(Math.min(preferences.emulatorCarouselWidth, consoleViewportWidth - 64), preferences.emulatorSize));
+  const consoleStatus = consoleStatuses.get(activeConsole.id) || { configured: false, emulatorConfigured: false, count: 0 };
   React.useEffect(() => {
     scrollLoungeStripToControl(surfaceRef.current?.querySelector('[data-lounge-filter][aria-pressed="true"]'));
   }, [view]);
@@ -168,9 +180,14 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
       if (value) { lastSavedResume.current = value; onResumeChangeRef.current?.(value); }
     }, 360);
   }, [zone, view, consoleId, selected?.id]);
-  React.useEffect(() => () => {
-    window.clearTimeout(resumeSaveTimer.current);
-    if (pendingResume.current) onResumeChangeRef.current?.(pendingResume.current);
+  React.useEffect(() => {
+    const flush = () => {
+      window.clearTimeout(resumeSaveTimer.current);
+      const value = pendingResume.current; pendingResume.current = null;
+      if (value) onResumeChangeRef.current?.(value);
+    };
+    window.addEventListener('neolib:lounge-flush', flush);
+    return () => { window.removeEventListener('neolib:lounge-flush', flush); flush(); };
   }, []);
   React.useEffect(() => { wheelNavigation.current.selectedId = selected?.id ?? null; }, [selected?.id]);
   React.useEffect(() => { wheelNavigation.current.remainder = 0; }, [view, letter, layout, zone, consoleId]);
@@ -349,6 +366,7 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
     '--lounge-emulator-width': `${preferences.emulatorCarouselWidth}px`,
     '--lounge-console-columns': visibleConsoles.map(console => Math.abs(console.offset) < 2 ? '1.2fr' : '1fr').join(' '),
     ...(preferences.specialTheme === 'theme' ? themePaletteStyle(effectiveTheme) : {}),
+    ...(stockThemeManifest(preferences.specialTheme) ? themePaletteStyle(preferences.specialTheme) : {}),
     ...loungeFramePaletteStyle(preferences.frameColor, preferences.frameCustomColor),
     '--lounge-glow': ambientFxEnabled ? (loungeStyle.focusGlow ?? 0.75) : 0.2,
     '--lounge-card-glow-gain': fxPreferences.coverGlowStrength / 100,
@@ -409,9 +427,19 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
     window.clearTimeout(preferencesSaveTimer.current);
     preferencesSaveTimer.current = window.setTimeout(flushPreferences, 280);
   };
-  React.useEffect(() => () => {
-    window.clearTimeout(preferencesSaveTimer.current);
-    if (pendingPreferences.current) onPreferencesChange?.(pendingPreferences.current);
+  const preferencesCallbackRef = React.useRef(onPreferencesChange);
+  const piePreferenceWriter = React.useRef(null);
+  piePreferenceWriter.current = playtimePieFilters => changePreferences({ ...preferences, playtimePieFilters });
+  const changePlaytimePieFilters = React.useCallback(filters => piePreferenceWriter.current?.(filters), []);
+  preferencesCallbackRef.current = onPreferencesChange;
+  React.useEffect(() => {
+    const flush = () => {
+      window.clearTimeout(preferencesSaveTimer.current);
+      const value = pendingPreferences.current; pendingPreferences.current = null;
+      if (value) preferencesCallbackRef.current?.(value);
+    };
+    window.addEventListener('neolib:lounge-flush', flush);
+    return () => { window.removeEventListener('neolib:lounge-flush', flush); flush(); };
   }, []);
   React.useEffect(() => {
     const syncVisibility = () => setPageVisible(document.visibilityState !== 'hidden');
@@ -516,6 +544,7 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
     focusAfterViewChange.current = true;
   };
   const chooseConsole = id => {
+    if (!shownConsoles.some(console => console.id === id)) return;
     if (id === consoleId) return;
     setConsoleGamesOpen(false);
     setDetailsId(null);
@@ -573,7 +602,7 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
     if (!result.handled) return;
     event.preventDefault(); event.stopPropagation();
     if (result.direction) {
-      const next = nextLoungeConsole(consoleWheel.current.consoleId || consoleId, result.direction);
+      const next = nextLoungeConsole(consoleWheel.current.consoleId || consoleId, result.direction, shownConsoles);
       consoleWheel.current.consoleId = next;
       chooseConsole(next);
     }
@@ -611,7 +640,7 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
     if (event.target?.matches?.('input, select, textarea, [role="slider"]')) return;
     if (zone === 'emulator' && !detailsId && !settingsOpen && !soundOpen && !visualOpen && !themesOpen && !guideOpen && (event.key === 'PageUp' || event.key === 'PageDown')) {
       event.preventDefault();
-      chooseConsole(nextLoungeConsole(consoleId, event.key === 'PageUp' ? -1 : 1));
+      chooseConsole(nextLoungeConsole(consoleId, event.key === 'PageUp' ? -1 : 1, shownConsoles));
       return;
     }
     const direction = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' }[event.key];
@@ -655,11 +684,12 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
       </div>
         {zone === 'emulator' && <div className="lounge-console-dock rounded-2xl border border-[rgb(var(--border)/0.78)]"><div className="lounge-console-picker min-w-0">
           {/* Hidden command targets retain controller wraparound without visible arrows or tab stops. */}
-          <button type="button" hidden tabIndex={-1} aria-hidden="true" data-lounge-console-step="left" onClick={() => chooseConsole(nextLoungeConsole(consoleId, -1))} />
+          <button type="button" hidden tabIndex={-1} aria-hidden="true" data-lounge-console-step="left" onClick={() => chooseConsole(nextLoungeConsole(consoleId, -1, shownConsoles))} />
           <nav data-testid="lounge-console-strip" aria-label="Emulator consoles" className="lounge-console-strip lounge-console-window">
-            {visibleConsoles.map(console => { const status = emulatorZoneStatus(retroProfiles, safeGames, console.id); return <button key={console.id} type="button" data-lounge-console data-offset={console.offset} aria-pressed={consoleId === console.id} onClick={() => openConsoleGames(console.id)} aria-label={`${console.label}, ${status.count} game${status.count === 1 ? '' : 's'}${status.configured ? '' : ', setup needed'}`} className="lounge-console-tab lounge-nav-button" style={{ '--lounge-icon-color': CONSOLE_ACCENTS[console.id] || '154 206 255' }}><ConsoleLogo id={console.id} label={console.label} shortLabel={console.shortLabel} /><span className="lounge-console-tab__label" aria-hidden="true">{console.label}</span></button>; })}
+            {visibleConsoles.map(console => { const status = consoleStatuses.get(console.id); return <button key={console.id} type="button" data-lounge-console data-emulator-configured={status.emulatorConfigured ? 'true' : 'false'} data-offset={console.offset} aria-pressed={resolvedConsoleId === console.id} onClick={() => openConsoleGames(console.id)} aria-label={`${console.label}, ${status.count} game${status.count === 1 ? '' : 's'}${status.configured ? '' : ', setup needed'}`} className="lounge-console-tab lounge-nav-button" style={{ '--lounge-icon-color': status.emulatorConfigured ? CONSOLE_ACCENTS[console.id] || '154 206 255' : '161 170 183' }}><ConsoleLogo id={console.id} label={console.label} shortLabel={console.shortLabel} /><span className="lounge-console-tab__label" aria-hidden="true">{console.label}</span></button>; })}
+            {!shownConsoles.length && <div className="col-span-full flex flex-col items-center gap-2 p-3 text-sm text-muted"><span>All consoles are hidden.</span><button type="button" onClick={openSettings} className="lounge-nav-button rounded-lg border border-[rgb(var(--border))] px-4 py-2 text-ink">Choose visible emulators</button></div>}
           </nav>
-          <button type="button" hidden tabIndex={-1} aria-hidden="true" data-lounge-console-step="right" onClick={() => chooseConsole(nextLoungeConsole(consoleId, 1))} />
+          <button type="button" hidden tabIndex={-1} aria-hidden="true" data-lounge-console-step="right" onClick={() => chooseConsole(nextLoungeConsole(consoleId, 1, shownConsoles))} />
         </div></div>}
       {zone === 'home' && preferences.specialTheme !== 'theme' && preferences.quickLinks.length > 0 && <nav aria-label="Lounge top shortcuts" className="lounge-scene-shortcuts relative z-10 mb-2 flex max-w-full shrink-0 items-center gap-2 overflow-x-auto py-2">{preferences.quickLinks.map(id => { const Icon = QUICK_LINK_ICONS[id]; return <button key={id} type="button" aria-label={LOUNGE_QUICK_LINKS[id]} aria-pressed={id === 'visual' ? visualOpen : view === id} onClick={() => id === 'visual' ? openVisual() : chooseView(id)} className="lounge-top-choice lounge-scene-shortcut lounge-nav-button" style={{ '--lounge-icon-color': FILTER_ACCENTS[id] || '141 203 255' }}><Icon size={25} aria-hidden="true" /><span className="lounge-top-choice__label" aria-hidden="true">{LOUNGE_QUICK_LINKS[id]}</span></button>; })}</nav>}
       <div className="lounge-toolbar mb-3 flex w-fit max-w-full self-start items-center gap-2 rounded-2xl border border-[rgb(var(--border)/0.78)] bg-[rgb(var(--panel)/0.6)] p-1.5">{zone === 'home' && <div className="flex shrink-0 items-center gap-1" role="group" aria-label="Lounge layout">
@@ -671,7 +701,7 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
       {(zone !== 'emulator' || consoleGamesOpen) && <div className="lounge-game-content">
       {shownGames.length ? layout === 'browser' ? <div ref={browserRef} className="lounge-browser relative flex min-h-0 gap-4 pb-5" data-shelf-position={zone === 'emulator' ? 'bottom' : preferences.shelfPosition} style={{ '--lounge-stage-height': `${preferences.stageHeight}px` }}>
         <div ref={shelfRef} className="lounge-browser-shelf relative z-10 flex min-h-0 shrink-0 overflow-auto" aria-label="Game shelf"><div className="lounge-browser-track flex shrink-0">{shownGames.map(coverButton)}</div></div>
-        {preferences.specialTheme !== 'theme' || preferences.widgetAreaEnabled || preferences.previewPosition.startsWith('bottom-') ? <LoungeWidgetArea game={selected} index={shownGames.findIndex(game => game.id === selected?.id)} total={shownGames.length} preferences={zone === 'emulator' ? { ...preferences, shelfPosition: 'bottom' } : preferences} updateLedger={updateLedger} onOpenDetails={openDetails} games={safeGames} resting={resting} /> : <LoungeBrowserStage game={selected} index={shownGames.findIndex(game => game.id === selected?.id)} total={shownGames.length} preferences={preferences} updateLedger={updateLedger} onOpenDetails={openDetails} />}
+        {preferences.specialTheme !== 'theme' || preferences.widgetAreaEnabled || preferences.previewPosition.startsWith('bottom-') ? <LoungeWidgetArea favoriteIds={favoriteIds} onPlaytimePieFiltersChange={changePlaytimePieFilters} game={selected} index={shownGames.findIndex(game => game.id === selected?.id)} total={shownGames.length} preferences={zone === 'emulator' ? { ...preferences, shelfPosition: 'bottom' } : preferences} updateLedger={updateLedger} onOpenDetails={openDetails} games={safeGames} resting={resting} /> : <LoungeBrowserStage game={selected} index={shownGames.findIndex(game => game.id === selected?.id)} total={shownGames.length} preferences={preferences} updateLedger={updateLedger} onOpenDetails={openDetails} />}
       </div> : <div className="lounge-wall-grid grid px-2 pb-5 pt-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, var(--lounge-wall-cover-size)), 1fr))' }}>{shownGames.map(coverButton)}</div> : zone === 'emulator' ? <section data-lounge-empty data-testid="lounge-emulator-empty" aria-live="polite" className="lounge-empty-state relative isolate flex min-h-72 flex-col items-start justify-center overflow-hidden rounded-3xl border border-[rgb(var(--accent)/0.4)] px-7 py-9 sm:px-12"><div aria-hidden="true" className="lounge-empty-orb pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full" /><span className="relative grid h-16 w-16 place-items-center rounded-2xl border border-[rgb(var(--accent)/0.5)] bg-[rgb(var(--accent)/0.2)] text-[rgb(var(--accent-2))]"><Gamepad2 size={32} /></span><p className="relative mt-5 text-xs font-black uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">{activeConsole.label}</p><h2 className="relative mt-1 text-2xl font-black sm:text-3xl">{consoleStatus.configured ? 'No imported games yet' : 'This console needs setup'}</h2><p className="relative mt-2 max-w-xl text-sm leading-relaxed text-muted">{consoleStatus.configured ? 'Return to the launcher and open Wizard → Retro Library → Manage profiles to scan and review games for this console.' : 'Return to the launcher and open Wizard → Retro Library → Manage profiles. Choose your installed emulator and ROM folder, then scan and review your own games.'} NEO-LIB does not supply emulators, BIOS files or ROMs.</p><div className="relative mt-6 flex flex-wrap gap-2"><button type="button" onClick={requestExit} className="lounge-nav-button inline-flex min-h-12 items-center gap-2 rounded-xl border border-[rgb(var(--accent)/0.65)] bg-[rgb(var(--accent)/0.2)] px-5 text-sm font-black"><ArrowLeft size={18} /> Return to launcher</button><button type="button" onClick={() => chooseZone('home')} className="lounge-nav-button inline-flex min-h-12 items-center gap-2 rounded-xl border border-[rgb(var(--border))] px-5 text-sm font-bold"><House size={18} /> Lounge Home</button></div></section> : <section data-lounge-empty aria-live="polite" className="lounge-empty-state relative isolate flex min-h-72 flex-col items-start justify-center overflow-hidden rounded-3xl border border-[rgb(var(--accent)/0.4)] px-7 py-9 sm:px-12"><div aria-hidden="true" className="lounge-empty-orb pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full" /><span className="relative grid h-16 w-16 place-items-center rounded-2xl border border-[rgb(var(--accent)/0.5)] bg-[rgb(var(--accent)/0.2)] text-[rgb(var(--accent-2))]"><Gamepad2 size={32} /></span><p className="relative mt-5 text-xs font-black uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">NEO Lounge</p><h2 className="relative mt-1 text-2xl font-black sm:text-3xl">{!safeGames.length ? 'Your Lounge is waiting' : letter ? `No ${letter} games here` : `No ${viewLabel.toLowerCase()} games yet`}</h2><p className="relative mt-2 max-w-xl text-sm leading-relaxed text-muted">{!safeGames.length ? 'Add games in your desktop Library, then come back to browse them from the couch.' : letter ? `This letter has no games in ${viewLabel}. Clear the letter to see the full view.` : `${viewLabel} has no matches in your unlocked library. Your other games are still here.`}</p><button type="button" data-controller-close={!safeGames.length ? true : undefined} onClick={!safeGames.length ? requestExit : letter ? () => { focusAfterViewChange.current = true; setLetter(''); } : () => chooseView('all')} className="lounge-nav-button relative mt-6 inline-flex min-h-12 items-center gap-2 rounded-xl border border-[rgb(var(--accent)/0.65)] bg-[rgb(var(--accent)/0.2)] px-5 text-sm font-black text-ink focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-[rgb(var(--accent))]">{!safeGames.length ? <ArrowLeft size={19} /> : letter ? <ListFilter size={19} /> : <Grid2X2 size={19} />}{!safeGames.length ? 'Exit Lounge' : letter ? 'Clear letter' : 'Show all games'}</button></section>}
       </div>}
     </div>
@@ -679,7 +709,7 @@ export default function NeoLounge({ games, retroProfiles = [], favoriteIds = EMP
     {selected && layout === 'wall' && <LoungeDetails game={selected} updateLedger={updateLedger} view={view} mascotId={mascotId} mascotEnabled={mascotEnabled} busy={transitionBusy} onOpenDetails={openDetails} />}
     {mascotEnabled && selected && dismissedNoticeId !== selected.id && !detailsId && !settingsOpen && !soundOpen && !guideOpen && !visualOpen && !themesOpen && !jumpOpen && <LoungeMascotNotice game={selected} updateLedger={updateLedger} mascotId={mascotId} onDismiss={() => setDismissedNoticeId(selected.id)} />}
     {detailsGame && <LoungeGamePanel game={detailsGame} position={Math.max(1, detailsIndex + 1)} total={detailsIndex < 0 ? 1 : shownGames.length} updateLedger={updateLedger} onPrevious={() => stepDetails(-1)} onNext={() => stepDetails(1)} onClose={closeDetails} onLaunch={onLaunch} />}
-    {settingsOpen && <LoungeSettingsPanel preferences={preferences} panelShelfPosition={zone === 'emulator' ? 'bottom' : preferences.shelfPosition} layout={layout} game={selected} privateGameCount={privateGameCount} privateGamesUnlocked={privateGamesUnlocked} onRequestPrivateGames={onRequestPrivateGames} onLayoutChange={changeLayout} onChange={changePreferences} onClose={closeSettings} />}
+    {settingsOpen && <LoungeSettingsPanel preferences={preferences} retroProfiles={retroProfiles} panelShelfPosition={zone === 'emulator' ? 'bottom' : preferences.shelfPosition} layout={layout} game={selected} privateGameCount={privateGameCount} privateGamesUnlocked={privateGamesUnlocked} onRequestPrivateGames={onRequestPrivateGames} onLayoutChange={changeLayout} onChange={changePreferences} onClose={closeSettings} />}
     {soundOpen && <LoungeSoundPanel preferences={preferences} soundsEnabled={soundsEnabled && !resting && pageVisible && audioFocused} onChange={changePreferences} onPreviewSound={previewPickerSound} ambienceError={ambienceError} onRetryAmbience={retryAmbience} onClose={closeSound} />}
     {guideOpen && <LoungeGuidePanel games={pcGames} favoriteIds={favoriteIds} preferences={preferences} onPreferencesChange={changePreferences} updateLedger={updateLedger} onOpenGame={openGameFromGuide} onBrowse={browseFromGuide} onCustomize={openVisualFromGuide} onClose={closeGuide} />}
     {themesOpen && <LoungeThemeGallery preferences={preferences} layout={layout} savedPresets={savedPresets} onSavedPresetsChange={onSavedPresetsChange} onLayoutChange={changeLayout} desktopTheme={theme} onChange={changePreferences} onTuneVisuals={tuneVisualsFromThemes} onClose={closeThemes} />}

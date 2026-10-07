@@ -4,6 +4,8 @@ import { THEMES } from '../../lib/utils.js';
 import { HOME_WIDGET_BY_ID } from '../home/home-widget-registry.mjs';
 import { resolveLoungePanelPositions } from './lounge-widget-layout.mjs';
 import { LOUNGE_EFFECTS, normalizeLoungeEffects } from './lounge-effect-model.mjs';
+import { normalizeHiddenLoungeConsoles } from './lounge-emulator-zone.mjs';
+import { normalizePlaytimePieFilters } from '../home/playtime-pie-model.mjs';
 
 export const LOUNGE_SURFACE_OPACITY_RANGE = Object.freeze({ min: 0, max: 100 });
 
@@ -15,6 +17,8 @@ export const LOUNGE_PRESETS = Object.freeze({
 });
 export const LOUNGE_HOME_TILE_IDS = Object.freeze(['all', 'continue', 'favorites', 'recent', 'added', 'most', 'visual']);
 export const LOUNGE_SCENES = Object.freeze({
+  'moonlit-arcana': Object.freeze({ label: 'Moonlit Arcana', note: '5504 × 3072 original: moonlit mage, luminous castles and enchanted mountain valley.' }),
+  'cosmic-citadel': Object.freeze({ label: 'Cosmic Citadel', note: '5504 × 3072 original: crystal citadels, luminous planet and sweeping galaxies.' }),
   theme: Object.freeze({ label: 'Follow desktop theme', note: 'Use your current NEO-LIB theme in Lounge.' }),
   alpine: Object.freeze({ label: 'Alpine Horizon', note: 'Blue-hour mountains, luminous lake and warm sunset.' }),
   orbit: Object.freeze({ label: 'Blue Orbit', note: 'A deep-space planet with clean electric-blue highlights.' }),
@@ -85,6 +89,7 @@ export const DEFAULT_LOUNGE_PREFERENCES = Object.freeze({
   wallCoverSize: 220,
   emulatorSize: 100,
   emulatorCarouselWidth: 1600,
+  hiddenEmulators: [],
   coverAspect: 'portrait',
   controlSize: 'comfortable',
   browseSort: 'library',
@@ -125,6 +130,7 @@ export const DEFAULT_LOUNGE_PREFERENCES = Object.freeze({
   widgetAreaEnabled: false,
   widgetPosition: 'right',
   widgetIds: ['best-games', 'recent'],
+  playtimePieFilters: normalizePlaytimePieFilters(),
   widgetWidth: 36,
   widgetHeight: 420,
   widgetZoom: 100,
@@ -267,6 +273,7 @@ export function normalizeLoungePreferences(value) {
     wallCoverSize: bounded(input.wallCoverSize, defaults.wallCoverSize, 170, 320),
     emulatorSize: bounded(input.emulatorSize, defaults.emulatorSize, 70, 150),
     emulatorCarouselWidth: bounded(input.emulatorCarouselWidth, defaults.emulatorCarouselWidth, 800, 2400),
+    hiddenEmulators: normalizeHiddenLoungeConsoles(input.hiddenEmulators),
     coverAspect: input.coverAspect === 'square' ? 'portrait' : coverAspects.has(input.coverAspect) ? input.coverAspect : defaults.coverAspect,
     controlSize: controlSizes.has(input.controlSize) ? input.controlSize : defaults.controlSize,
     browseSort: browseSorts.has(input.browseSort) ? input.browseSort : defaults.browseSort,
@@ -305,6 +312,7 @@ export function normalizeLoungePreferences(value) {
     ...resolvedPanels,
     widgetAreaEnabled: input.widgetAreaEnabled === true,
     widgetIds: Array.isArray(input.widgetIds) ? [...new Set(input.widgetIds.filter(id => Object.hasOwn(HOME_WIDGET_BY_ID, id)))].slice(0, 4) : [...defaults.widgetIds],
+    playtimePieFilters: normalizePlaytimePieFilters(input.playtimePieFilters),
     widgetWidth: bounded(input.widgetWidth, defaults.widgetWidth, 20, 100),
     widgetHeight: bounded(input.widgetHeight, defaults.widgetHeight, 160, 8640),
     widgetZoom: bounded(input.widgetZoom, defaults.widgetZoom, 75, 200),

@@ -122,14 +122,16 @@ const railGroups = {
   lounge: ['sidebar-rail-lounge-btn'],
   browse: ['tab-home', 'tab-library', 'tab-cover-wall'],
   tools: ['tab-tools', 'sidebar-rail-wizard-btn', 'sidebar-rail-rest-toggle'],
-  personalise: ['sidebar-rail-themes-btn', 'sidebar-rail-visuals-btn', 'sidebar-rail-sidebar-toggle', 'sidebar-rail-controllers-btn', 'sidebar-rail-mascot-btn'],
-  app: ['sidebar-rail-settings-btn', 'sidebar-rail-changelog-btn', 'sidebar-rail-updates-btn', 'sidebar-rail-feedback-btn'],
+  personalise: ['sidebar-rail-sidebar-toggle'],
+  app: ['sidebar-rail-changelog-btn'],
   exit: ['sidebar-rail-quit-btn'],
 };
 for (const [group, testids] of Object.entries(railGroups)) {
   assert.match(sidebarSource, new RegExp(`<RailSectionHeader label="[^"]+" tone=\\{RAIL_GROUP_TONES\\.${group}\\}`), `${group} has a visible rail section heading`);
   for (const testid of testids) assert.match(sidebarSource, new RegExp(`<RailNavigationButton[^\\n]+tone=\\{RAIL_GROUP_TONES\\.${group}\\}[^\\n]+testid="${testid}"`), `${testid} uses its section accent`);
 }
+assert.match(sidebarSource, /<RailActionFlyout[^\n]+label="Visuals"[^\n]+tone=\{RAIL_GROUP_TONES.personalise\}/, 'Visuals groups the two presentation actions');
+assert.match(sidebarSource, /<RailActionFlyout[^\n]+label="Settings"[^\n]+tone=\{RAIL_GROUP_TONES.app\}/, 'Settings groups app configuration/help actions');
 assert.match(sidebarSource, /className="neo-rail-section"/, 'section headings retain a labelled rule in the expanded rail');
 assert.match(sidebarSource, /manualResting \? 'Wake up' : 'Rest Zzz'/, 'Rest and Wake remain distinguishable by text and active state');
 for (const hint of ['Your dashboard', 'Browse games', 'Cover view', 'Utilities', 'Couch mode', 'Add games', 'Pause background', 'Resume activity']) {

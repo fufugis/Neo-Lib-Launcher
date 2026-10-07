@@ -1,7 +1,7 @@
 // Single registration point for every renderer-to-main command.
 // Contract-aware handlers remain unchanged; the registry only gives them the
 // channel context needed for useful, privacy-safe diagnostics.
-function createIpcRegistry({ ipcMain, onFailure = () => {} }) {
+function createIpcRegistry({ ipcMain, onFailure = () => {}, authorizeRequest }) {
   if (!ipcMain?.handle) throw new TypeError('createIpcRegistry requires Electron ipcMain.');
   const registrations = new Map();
 
@@ -16,7 +16,8 @@ function createIpcRegistry({ ipcMain, onFailure = () => {} }) {
     if (typeof handler.setFailureReporter === 'function') {
       handler.setFailureReporter(failure => onFailure({ ...record, ...failure }));
     }
-    ipcMain.handle(channel, handler);
+    ipcMain.handle(channel, authorizeRequest ? (event, ...args) => authorizeRequest(channel, event)
+      ? handler(event, ...args) : { ok: false, code: 'CAPABILITY_DENIED', error: 'This window cannot use that capability.' } : handler);
     return handler;
   }
 

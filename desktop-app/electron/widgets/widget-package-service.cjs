@@ -47,7 +47,7 @@ function compareVersions(left, right) {
   return 0;
 }
 
-function createWidgetPackageService({ fsp, path, widgetsDir, now = () => Date.now() }) {
+function createWidgetPackageService({ fsp, path, widgetsDir, now = () => Date.now(), manifestName = 'widget.json', manifestNormalizer = normalizeManifest }) {
   if (!fsp?.readFile || !fsp?.readdir || !fsp?.mkdir || !fsp?.copyFile || !fsp?.access || !fsp?.rm || !fsp?.rename || !path?.join || typeof widgetsDir !== 'function') {
     throw new TypeError('createWidgetPackageService requires filesystem, path and widgetsDir.');
   }
@@ -55,20 +55,21 @@ function createWidgetPackageService({ fsp, path, widgetsDir, now = () => Date.no
   async function readManifest(manifestPath) {
     try {
       const info = await fsp.stat(manifestPath);
-      if (!info.isFile() || info.size > MAX_MANIFEST_BYTES || path.basename(manifestPath).toLowerCase() !== 'widget.json') return null;
-      return normalizeManifest(JSON.parse(await fsp.readFile(manifestPath, 'utf8')));
+      if (!info.isFile() || info.size > MAX_MANIFEST_BYTES || path.basename(manifestPath).toLowerCase() !== manifestName) return null;
+      return manifestNormalizer(JSON.parse(await fsp.readFile(manifestPath, 'utf8')));
     } catch { return null; }
   }
 
   async function copyPackage(sourceRoot, destination) {
     let files = 0; let bytes = 0;
-    async function copyFolder(from, to) {
+    async function copyFolder(from, to, depth = 0) {
+      if (depth > 32) throw new Error('Package folders are nested too deeply.');
       await fsp.mkdir(to, { recursive: true });
       const entries = await fsp.readdir(from, { withFileTypes: true });
       for (const entry of entries) {
         if (entry.isSymbolicLink()) throw new Error('Widget packages cannot contain symbolic links.');
         const source = path.join(from, entry.name); const target = path.join(to, entry.name);
-        if (entry.isDirectory()) await copyFolder(source, target);
+        if (entry.isDirectory()) await copyFolder(source, target, depth + 1);
         else if (entry.isFile()) {
           if (BLOCKED_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) throw new Error(`Widget packages cannot contain ${path.extname(entry.name)} files.`);
           const info = await fsp.stat(source); files += 1; bytes += info.size;
@@ -84,7 +85,7 @@ function createWidgetPackageService({ fsp, path, widgetsDir, now = () => Date.no
 
   async function inspectSource(manifestPath) {
     const manifest = await readManifest(manifestPath);
-    if (!manifest) return { error: 'Choose a valid widget.json package manifest.' };
+    if (!manifest) return { error: `Choose a valid ${manifestName} package manifest.` };
     if (manifest.apiVersion !== WIDGET_API_VERSION) return { error: `This widget needs API v${manifest.apiVersion}; NEO-LIB supports v${WIDGET_API_VERSION}.` };
     const sourceRoot = path.dirname(manifestPath); const entryPath = path.join(sourceRoot, manifest.entry);
     try {
@@ -100,7 +101,11 @@ function createWidgetPackageService({ fsp, path, widgetsDir, now = () => Date.no
     const { manifest, sourceRoot } = inspected;
     try {
       const root = widgetsDir(); const target = path.join(root, manifest.id); let existing = null;
-      try { existing = await readManifest(path.join(target, 'widget.json')); } catch { /* absent */ }
+      const sourceCanonical = await fsp.realpath(sourceRoot);
+      await fsp.mkdir(root, { recursive: true });
+      const rootCanonical = await fsp.realpath(root);
+      if (rootCanonical === sourceCanonical || rootCanonical.startsWith(sourceCanonical + path.sep)) return { ok: false, error: 'Package source cannot contain the installation folder.' };
+      try { existing = await readManifest(path.join(target, manifestName)); } catch { /* absent */ }
       if (existing && !replace) {
         const newer = compareVersions(manifest.version, existing.version) > 0;
         return { ok: false, code: newer ? 'UPDATE_REVIEW_REQUIRED' : 'ALREADY_INSTALLED', error: newer ? `Review ${existing.version} → ${manifest.version} before updating.` : 'This widget version is already installed.', widget: decorate(manifest, now()), currentVersion: existing.version };
@@ -130,7 +135,7 @@ function createWidgetPackageService({ fsp, path, widgetsDir, now = () => Date.no
         if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
         const removed = entry.name.startsWith('.removed-');
         if (entry.name.startsWith('.') && !removed) continue;
-        const manifest = await readManifest(path.join(widgetsDir(), entry.name, 'widget.json'));
+        const manifest = await readManifest(path.join(widgetsDir(), entry.name, manifestName));
         if (!manifest || (!removed && manifest.id !== entry.name)) continue;
         const info = await fsp.stat(path.join(widgetsDir(), entry.name));
         (removed ? recoverable : widgets).push(decorate(manifest, Number(info.birthtimeMs || info.mtimeMs || 0)));
@@ -141,17 +146,21 @@ function createWidgetPackageService({ fsp, path, widgetsDir, now = () => Date.no
 
   async function runtime(id) {
     if (!PACKAGE_ID.test(String(id || ''))) return { ok: false, error: 'Invalid widget identity.' };
-    const manifest = await readManifest(path.join(widgetsDir(), id, 'widget.json'));
+    const manifest = await readManifest(path.join(widgetsDir(), id, manifestName));
     if (!manifest || manifest.id !== id || manifest.apiVersion !== WIDGET_API_VERSION) return { ok: false, error: 'This widget is missing or incompatible.' };
     try {
       const entry = path.join(widgetsDir(), id, manifest.entry); const info = await fsp.stat(entry);
       if (!info.isFile() || info.size > MAX_ENTRY_BYTES) throw new Error();
       const root = path.join(widgetsDir(), id);
+      if ((await fsp.lstat(root)).isSymbolicLink()) throw new Error();
+      const canonicalRoot = await fsp.realpath(root);
+      if (!(await fsp.realpath(entry)).startsWith(canonicalRoot + path.sep)) throw new Error();
       let html = await fsp.readFile(entry, 'utf8');
       const asset = async (relative, encoding) => {
         if (!safeRelativePath(relative)) return null;
         const assetPath = path.resolve(root, relative);
         if (!assetPath.startsWith(root + path.sep)) return null;
+        if (!(await fsp.realpath(assetPath)).startsWith(canonicalRoot + path.sep)) return null;
         const assetInfo = await fsp.lstat(assetPath);
         if (!assetInfo.isFile() || assetInfo.isSymbolicLink() || assetInfo.size > MAX_ENTRY_BYTES) return null;
         return fsp.readFile(assetPath, encoding);
@@ -187,7 +196,7 @@ function createWidgetPackageService({ fsp, path, widgetsDir, now = () => Date.no
 
   async function remove(id) {
     if (!PACKAGE_ID.test(String(id || ''))) return { ok: false, error: 'Invalid widget identity.' };
-    const source = path.join(widgetsDir(), id); const manifest = await readManifest(path.join(source, 'widget.json'));
+    const source = path.join(widgetsDir(), id); const manifest = await readManifest(path.join(source, manifestName));
     if (!manifest || manifest.id !== id) return { ok: false, error: 'Widget is not installed.' };
     const destination = path.join(widgetsDir(), `.removed-${id}-${now()}`);
     try { await fsp.rename(source, destination); return { ok: true, id, recoverable: true }; } catch { return { ok: false, error: 'Widget could not be removed safely.' }; }

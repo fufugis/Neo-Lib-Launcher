@@ -1,0 +1,12 @@
+{
+  "formatVersion": 1,
+  "kind": "window",
+  "apiVersion": 1,
+  "id": "example.module-shelf",
+  "name": "Module Library Shelf",
+  "description": "Editable example of an independently hosted graphical game shelf.",
+  "author": { "name": "NEO-LIB example" },
+  "version": "1.0.0",
+  "entry": "index.html",
+  "permissions": ["library.read", "storage", "network"]
+}

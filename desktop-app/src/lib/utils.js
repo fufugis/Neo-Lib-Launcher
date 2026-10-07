@@ -18,6 +18,10 @@ export const guessNameFromPath = (filePath) => {
 export const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 
 export const THEMES = [
+  { id: 'moonlit-arcana', label: 'Moonlit Arcana', swatch: '#69e0ff', tone: 'special',
+    gradient: 'linear-gradient(135deg, #081026 0%, #69e0ff 50%, #b597ff 100%)' },
+  { id: 'cosmic-citadel', label: 'Cosmic Citadel', swatch: '#70def7', tone: 'special',
+    gradient: 'linear-gradient(135deg, #09091a 0%, #70def7 50%, #f5aadd 100%)' },
   // Special themes — extra eye-candy (sparkles, shooting stars, textured surfaces)
   { id: 'colorful',      label: 'Magical',        swatch: '#ff5abe', tone: 'special',
     gradient: 'linear-gradient(135deg, #0c0a16 0%, #ff5abe 45%, #5aa0ff 100%)' },

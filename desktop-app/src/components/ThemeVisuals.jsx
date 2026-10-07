@@ -4,6 +4,7 @@ import { stockThemeAssetUrl, customThemeManifest, customThemeAssetUrl } from '..
 import CustomThemeParticles from './CustomThemeParticles';
 import ThemeGifMedia from './ThemeGifMedia';
 import ThemeVideoMedia from './ThemeVideoMedia';
+import { softenDesktopArtwork } from '../themes/artwork-presentation.mjs';
 
 export function BgAmbience({ theme, settings = {}, game = null, resting = false, eventPulse = null, particlesEnabled = true, loungeMode = false }) {
   // `synthGridEnabled` and `particlesEnabled` were retired legacy switches.
@@ -180,7 +181,7 @@ export function BgAmbience({ theme, settings = {}, game = null, resting = false,
       {extraLayersEl}
       <div aria-hidden data-visual-cadence={cadence} className="fx-cadence-layer pointer-events-none fixed inset-0 z-0 overflow-hidden" style={{ opacity: intensity }}>
         {ambClass && <div className={ambClass} />}
-        {level > 0 && <ThemeArtwork theme={theme} level={level} cadence={cadence} />}
+        {level > 0 && <ThemeArtwork theme={theme} level={level} cadence={cadence} loungeMode={loungeMode} />}
         {(isSpecial || theme.startsWith('custom:')) && level > 0 && specialDecorationOpacity > 0 && <SpecialThemeDecoration theme={theme} opacity={specialDecorationOpacity} />}
         {theme !== 'anime' && level > 0 && <ThemeIllustration theme={theme} level={level} />}
         {theme === 'anime' && sakuraCount > 0 && <Sakura count={sakuraCount} />}
@@ -236,12 +237,13 @@ function ThemeCanvasAnimation({ theme, level, cadence }) {
  * beneath every UI surface, never animate at Rest, and fade with the existing
  * FX level so readability remains the priority.
  */
-function ThemeArtwork({ theme, level = 2, cadence = 'full' }) {
+function ThemeArtwork({ theme, level = 2, cadence = 'full', loungeMode = false }) {
   const artwork = stockThemeAssetUrl(theme, 'atmosphere');
   if (!artwork) return null;
   const mediaLayer = customThemeManifest(theme)?.layers?.atmosphere;
   const isGif = mediaLayer?.type === 'gif';
   const isVideo = mediaLayer?.type === 'video';
+  const softened = softenDesktopArtwork(theme, loungeMode);
   const motionClass = cadence === 'calm' || isGif || isVideo ? '' : 'theme-artwork-drift';
   // The earlier treatment was too dim to read as actual art beneath glass
   // panels. This stays below every interaction layer, but is now deliberately
@@ -251,9 +253,10 @@ function ThemeArtwork({ theme, level = 2, cadence = 'full' }) {
   return (
     <div
       aria-hidden
+      data-desktop-art-softened={softened || undefined}
       className={`theme-artwork theme-artwork-${theme} ${motionClass}`}
       style={{
-        opacity,
+        opacity: opacity * (softened ? 0.82 : 1),
         backgroundImage: isGif || isVideo ? undefined : `url("${artwork}")`,
       }}
     >{isGif && <ThemeGifMedia key={`${theme}-${mediaLayer.loop}`} animatedUrl={artwork} stillUrl={customThemeAssetUrl(theme, mediaLayer.reducedMotionAsset)} loop={mediaLayer.loop} playbackMs={mediaLayer.playbackMs} forceStill={cadence === 'calm'} className="absolute inset-0 h-full w-full object-cover" />}

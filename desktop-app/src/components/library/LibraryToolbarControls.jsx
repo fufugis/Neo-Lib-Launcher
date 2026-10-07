@@ -20,9 +20,15 @@ export const SideBtn = React.forwardRef(function SideBtn({ icon, label, labelSty
   );
 });
 
-export function TabPill({ label, icon, active, onClick, testid, big = false, badge = null, showLabel = true, labelStyle, decorationTheme, decorationOpacity }) {
+export function TabPill({ label, icon, active, onClick, testid, big = false, badge = null, showLabel = true, labelStyle, decorationTheme, decorationOpacity, buttonRef, menuId, menuExpanded, onKeyDown }) {
   return (
     <button
+      type="button"
+      ref={buttonRef}
+      aria-haspopup={menuId ? 'menu' : undefined}
+      aria-expanded={menuExpanded}
+      aria-controls={menuExpanded ? menuId : undefined}
+      onKeyDown={onKeyDown}
       data-testid={testid}
       onClick={onClick}
       title={label}

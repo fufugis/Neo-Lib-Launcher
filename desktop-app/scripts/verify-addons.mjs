@@ -1,0 +1,86 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+import vm from 'node:vm';
+import { ADDON_CHANNEL, addonDocument, addonLibrary, addonStorage, enabledAddons } from '../src/components/addons/addon-model.mjs';
+import { visibleUnlockedGames } from '../src/state/privacy-state.mjs';
+import { hydrateSettings } from '../src/state/settings-state.mjs';
+const require = createRequire(import.meta.url);
+const { createAddonPackageService, registerAddonsIpc, guardAddonNavigation } = require('../electron/ipc/addons-ipc.cjs');
+const root = await fs.mkdtemp(path.join(os.tmpdir(), 'neolib-addons-'));
+try {
+  const source = path.join(root, 'source'), installed = path.join(root, 'addons');
+  await fs.mkdir(source);
+  const manifest = { formatVersion: 1, kind: 'page', apiVersion: 1, id: 'example.shelf', name: 'Shelf', description: 'Test', author: 'Author', version: '1.0.0', entry: 'index.html', permissions: ['library.read', 'storage'] };
+  const manifestPath = path.join(source, 'addon.json');
+  const write = raw => fs.writeFile(manifestPath, JSON.stringify(raw));
+  await write(manifest); await fs.writeFile(path.join(source, 'index.html'), '<h1>Custom page</h1><script src="page.js"></script>'); await fs.writeFile(path.join(source, 'page.js'), 'window.example = true;');
+  let clock = 100;
+  const service = createAddonPackageService({ fsp: fs, path, addonsDir: () => installed, now: () => ++clock });
+  assert.equal((await service.install(manifestPath)).ok, true);
+  const addon = (await service.list()).widgets[0];
+  assert.equal(addon.status, 'ready-disabled'); assert.equal(addon.id, manifest.id);
+  assert((await service.runtime(addon.id)).html.includes('window.example = true'));
+  for (const raw of [{ ...manifest, kind: 'native' }, { ...manifest, id: '../escape' }, { ...manifest, entry: '../secret.html' }, { ...manifest, permissions: ['filesystem'] }, { ...manifest, apiVersion: 2 }]) {
+    await write(raw); assert.equal((await service.install(manifestPath)).ok, false);
+  }
+  await write({ ...manifest, version: '1.1.0', permissions: ['network'] });
+  assert.equal((await service.install(manifestPath)).code, 'UPDATE_REVIEW_REQUIRED');
+  assert.equal((await service.update(manifestPath)).widget.version, '1.1.0');
+  assert.equal((await service.update(manifestPath)).ok, false);
+  assert.equal((await service.remove(addon.id)).recoverable, true);
+  assert.equal((await service.list()).widgets.length, 0);
+  assert.equal((await service.restore(addon.id)).ok, true);
+  await fs.writeFile(path.join(source, 'bad.exe'), 'not allowed'); await write({ ...manifest, id: 'example.bad' });
+  assert.match((await service.install(manifestPath)).error, /cannot contain/);
+  assert.equal((await service.runtime('../escape')).ok, false);
+
+  const handlers = {};
+  registerAddonsIpc({ registerIpc: (channel, fn) => { assert(!handlers[channel]); handlers[channel] = fn; }, addons: service });
+  assert.equal(Object.keys(handlers).length, 6);
+  for (const action of ['runtime', 'remove', 'restore']) assert.equal((await handlers[`addons:${action}`]({}, '../escape')).code, 'INVALID_REQUEST');
+  assert.equal((await handlers['addons:import']({}, {})).code, 'INVALID_REQUEST');
+  assert.equal((await handlers['addons:list']({})).ok, true);
+  let prevented = 0;
+  guardAddonNavigation({ frame: { url: 'about:srcdoc' }, url: 'https://example.test', preventDefault: () => prevented++ });
+  guardAddonNavigation({ frame: { url: 'about:srcdoc', name: 'changed-by-author' }, url: 'file:///secret', preventDefault: () => prevented++ });
+  guardAddonNavigation({ initiator: { url: 'about:srcdoc' }, frame: { url: 'app' }, url: 'https://example.test', preventDefault: () => prevented++ });
+  guardAddonNavigation({ frame: { url: 'app' }, url: 'app', preventDefault: () => prevented++ });
+  assert.equal(prevented, 3);
+
+  assert.equal(hydrateSettings().addonsEnabled, false);
+  assert.equal(hydrateSettings({ addonsEnabled: 'true' }).addonsEnabled, false);
+  const configuration = { addonsEnabled: true, addonConfig: { [addon.id]: { enabled: true, version: addon.version } } };
+  assert.equal(enabledAddons([addon], configuration).length, 1);
+  assert.equal(enabledAddons([addon], { ...configuration, addonsEnabled: false }).length, 0);
+  assert.equal(enabledAddons([{ ...addon, version: '2.0.0' }], configuration).length, 0);
+  const games = [{ id: 'public', name: '<script>safe</script>', categoryIds: [], portraitImage: 'https://example.test/art.jpg', exePath: 'secret', geminiKey: 'secret' }, { id: 'private', name: 'Secret', categoryIds: ['locked'] }];
+  const exported = addonLibrary(visibleUnlockedGames(games, [{ id: 'locked', private: true }], []));
+  assert.equal(exported.length, 1); assert(!JSON.stringify(exported).includes('secret')); assert.equal(exported[0].cover, games[0].portraitImage);
+  assert.equal(addonLibrary([{ id: 'a', name: 'A', coverUrl: 'file:///private.png' }])[0].cover, '');
+  const storage = addonStorage(JSON.parse('{"__proto__":{"bad":true},"constructor":7,"ok":42}'));
+  assert.equal(storage.ok, 42); assert.equal(Object.hasOwn(storage, '__proto__'), false);
+  assert.equal(Object.keys(addonStorage({ tooLarge: 'a'.repeat(8193) })).length, 0);
+  assert.equal(Object.keys(addonStorage(Object.fromEntries(Array.from({ length: 100 }, (_, i) => [String(i), 'a'.repeat(8000)])))).length, 8);
+
+  const document = addonDocument('<script>custom()</script>', false);
+  assert(document.indexOf('Content-Security-Policy') < document.indexOf('custom()'));
+  assert(document.includes("connect-src 'none'")); assert(!document.includes('allow-same-origin'));
+  const sdk = document.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const callbacks = {}, sent = [];
+  const parent = { postMessage: message => sent.push(message) };
+  const context = { window: {}, parent, Promise, CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init.detail; } }, addEventListener: (type, fn) => { callbacks[type] = fn; }, dispatchEvent: () => {} };
+  vm.runInNewContext(sdk, context);
+  callbacks.DOMContentLoaded(); assert.equal(sent[0].channel, ADDON_CHANNEL);
+  context.window.neoLibAddon.storage.set('sort', 'name'); assert.equal(sent[1].type, 'storage:set');
+  callbacks.message({ source: {}, data: { channel: ADDON_CHANNEL, type: 'init', addonId: 'wrong' } });
+  callbacks.message({ source: parent, data: { channel: ADDON_CHANNEL, type: 'init', addonId: addon.id } });
+  assert.equal((await context.window.neoLibAddon.ready).addonId, addon.id);
+  const host = await fs.readFile(new URL('../src/components/addons/AddonPage.jsx', import.meta.url), 'utf8');
+  assert(host.includes('sandbox="allow-scripts"')); assert(host.includes('event.source !== frame.current?.contentWindow')); assert(!host.includes('allow-same-origin'));
+  const example = await fs.readFile(new URL('../examples/addons/library-shelf/index.html', import.meta.url), 'utf8');
+  assert(example.includes('title.textContent=game.name')); assert(!example.includes('innerHTML'));
+  console.log('PASS: Addons package lifecycle, explicit activation/version approval, IPC guards, private library projection, bounded storage, CSP/SDK ordering and frame-source checks. Runtime visual acceptance still required.');
+} finally { await fs.rm(root, { recursive: true, force: true }); }

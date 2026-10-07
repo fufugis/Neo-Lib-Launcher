@@ -1,0 +1,111 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { EventEmitter } from 'node:events';
+import { createRequire } from 'node:module';
+import { projectLoungeGames, moduleSnapshot } from '../src/components/modules/module-model.mjs';
+import { addonDocument } from '../src/components/addons/addon-model.mjs';
+import { getLibraryHealth, getRecommendations } from '../src/components/home/home-model.mjs';
+const require = createRequire(import.meta.url);
+const { LOUNGE_ID, OFFICIAL_LOUNGE, createModulePackages, createModuleWindowService } = require('../electron/ipc/modules-ipc.cjs');
+const { createIpcRegistry } = require('../electron/ipc/registry.cjs');
+const root = await fs.mkdtemp(path.join(os.tmpdir(), 'neolib-modules-'));
+try {
+  const source = path.join(root, 'source'); await fs.mkdir(source);
+  const manifest = { formatVersion: 1, kind: 'window', apiVersion: 1, id: 'example.module', name: 'Shelf', description: 'Test module', author: 'NEO-LIB', version: '1.0.0', entry: 'index.html', permissions: ['library.read','storage'] };
+  const file = path.join(source, 'module.json');
+  await fs.writeFile(file, JSON.stringify(manifest)); await fs.writeFile(path.join(source, 'index.html'), '<h1>Module</h1>');
+  const packages = createModulePackages({ fsp: fs, path, modulesDir: () => path.join(root, 'installed') });
+  assert.equal((await packages.install(file)).ok, true);
+  assert.equal((await packages.runtime(manifest.id)).ok, true);
+  await fs.writeFile(file, JSON.stringify({ ...manifest, id: LOUNGE_ID, official: true }));
+  assert.equal((await packages.install(file)).ok, false, 'import cannot occupy official namespace');
+  assert.equal((await packages.remove(LOUNGE_ID)).ok, false);
+  assert.equal(OFFICIAL_LOUNGE.owner, 'NEO-LIB'); assert.equal(OFFICIAL_LOUNGE.removable, false);
+  const exampleFile = new URL('../examples/modules/library-shelf/module.json', import.meta.url);
+  const { fileURLToPath } = await import('node:url');
+  assert.equal((await packages.install(fileURLToPath(exampleFile))).ok, true, 'editable module example is importable');
+  const exampleRuntime = await packages.runtime('example.module-shelf');
+  assert.equal(exampleRuntime.ok, true); assert(exampleRuntime.html.includes('neoLibModule.ready'));
+  assert.equal((await packages.remove('example.module-shelf')).ok, true);
+  assert.equal((await packages.runtime('example.module-shelf')).ok, false);
+  assert.equal((await packages.restore('example.module-shelf')).ok, true, 'module removal is recoverable');
+  assert.equal((await packages.runtime('example.module-shelf')).ok, true);
+
+  let id = 100; const created = []; const coreMessages = []; const timers = new Set();
+  class FakeWindow extends EventEmitter {
+    constructor() { super(); this.dead = false; this.messages = []; this.webContents = new EventEmitter(); this.webContents.id = ++id; this.webContents.mainFrame = {}; this.webContents.isDestroyed = () => this.dead; this.webContents.send = (channel, value) => this.messages.push({ channel, value }); }
+    show() {} focus() {} setFullScreen() {} isDestroyed() { return this.dead; }
+    close() { let prevented = false; this.emit('close', { preventDefault: () => { prevented = true; } }); if (!prevented) this.destroy(); } destroy() { if (!this.dead) { this.dead = true; this.emit('closed'); } }
+  }
+  const core = new FakeWindow(); core.webContents.send = (channel, value) => coreMessages.push({ channel, value });
+  const event = window => ({ sender: window.webContents, senderFrame: window.webContents.mainFrame });
+  const service = createModuleWindowService({ packages, getCoreWindow: () => core, createWindow: options => { const window = new FakeWindow(); created.push({ options, window }); return window; },
+    armCoreLaunch: value => ({ ok: true, token: `core-${value.sender.id}` }), setTimer: callback => { timers.add(callback); return callback; }, clearTimer: callback => timers.delete(callback) });
+  const snapshot = { lounge: { games: [{ id: 'game1', name: 'One' }], theme: 'synthwave' }, custom: { enabled: true, config: { [manifest.id]: { enabled: true, version: manifest.version, grants: ['library.read','storage'], storage: {} } }, games: [{ id: 'public', name: 'Public' }], theme: 'synthwave' } };
+  assert.equal((await service.open()).ok, false, 'cannot open before data is ready');
+  assert.equal(service.publish(event(core), snapshot).ok, true);
+  assert.equal((await service.open(LOUNGE_ID)).ok, true);
+  const lounge = created[0].window;
+  assert.equal(created[0].options.official, true);
+  assert.equal((await service.open(LOUNGE_ID)).ok, true); assert.equal(created.length, 1, 'one Lounge window reused');
+  assert.equal(service.read(event(lounge)).official.owner, 'NEO-LIB');
+  assert.equal(service.authorize('library:load', event(lounge)), false);
+  assert.equal(service.authorize('dialog:importLoungeBackground', event(lounge)), true);
+  assert.equal(service.authorize('modules:snapshot', { sender: lounge.webContents, senderFrame: {} }), false, 'subframes never inherit module privileges');
+  assert.equal(service.publish(event(lounge), snapshot).ok, false);
+  assert.equal(service.arm(event(lounge)).token, `core-${core.webContents.id}`, 'trusted module launch is bound to core-owned launch flow');
+  service.publish(event(core), { lounge: { initialResume: { gameId: 'game1' } }, custom: {} });
+  service.publish(event(core), { lounge: { initialResume: { gameId: 'game2' } }, custom: {} });
+  const update = lounge.messages.at(-1).value;
+  assert.equal(update.patch, true); assert.deepEqual(Object.keys(update.lounge), ['initialResume'], 'resume updates do not resend scenery or library');
+  assert.equal(service.read(event(lounge)).lounge.games.length, 1);
+  assert.equal((await service.request(event(lounge), { type: 'launch', gameId: 'private', token: 'bad' })).ok, false);
+  const launch = service.request(event(lounge), { type: 'launch', gameId: 'game1', token: 'test-token' });
+  const request = coreMessages.findLast(message => message.channel === 'modules:request').value;
+  assert.equal(service.complete(event(lounge), { requestId: request.requestId, ok: true }).ok, false);
+  assert.equal(service.complete(event(core), { requestId: request.requestId, ok: true }).ok, true); assert.equal((await launch).ok, true);
+  assert.equal((await service.open(manifest.id)).ok, true);
+  const custom = created[1].window;
+  const context = service.read(event(custom)); assert.equal(context.official, false, 'author string does not confer official ownership');
+  assert.equal(context.games[0].id, 'public'); assert(!context.lounge);
+  assert.equal(service.authorize('modules:armLaunch', event(custom)), false);
+  assert.equal(service.authorize('dialog:importLoungeBackground', event(custom)), false);
+  assert.equal(service.arm(event(custom)).ok, false);
+  assert.equal((await service.request(event(custom), { type: 'launch', gameId: 'game1', token: 'bad' })).ok, false);
+  assert.equal((await service.runtime(event(custom), LOUNGE_ID)).ok, false); assert.equal((await service.runtime(event(custom), manifest.id)).ok, true);
+  service.publish(event(core), { lounge: {}, custom: { enabled: false } }); assert.equal(custom.dead, true, 'global disable destroys imported module');
+  const pending = service.request(event(lounge), { type: 'preferences', value: {} }); lounge.webContents.emit('render-process-gone');
+  assert.equal((await pending).ok, false); assert.equal(timers.size, 0, 'crash removes pending timers');
+  assert.equal(coreMessages.at(-2).value.count, 0);
+  await service.open(LOUNGE_ID);
+  const closingLounge = created.at(-1).window;
+  closingLounge.close();
+  assert.equal(closingLounge.dead, false, 'normal OS close waits for settings flush');
+  assert.equal(closingLounge.messages.at(-1).channel, 'modules:prepareClose');
+  assert.equal(timers.size, 1);
+  service.close(event(closingLounge));
+  assert.equal(closingLounge.dead, true); assert.equal(timers.size, 0, 'acknowledged close clears fallback timer');
+  await service.open(LOUNGE_ID);
+  const stalledLounge = created.at(-1).window;
+  stalledLounge.close(); [...timers][0]();
+  assert.equal(stalledLounge.dead, true, 'a stalled renderer cannot trap OS close'); assert.equal(timers.size, 0);
+
+  const calls = []; const registry = createIpcRegistry({ ipcMain: { handle: (channel, fn) => calls.push(fn) }, authorizeRequest: (channel, request) => service.authorize(channel, request) });
+  registry.handle('library:load', () => 'private-core-data');
+  assert.equal(calls[0]({ sender: { id: 900, mainFrame: {} }, senderFrame: {} }).code, 'CAPABILITY_DENIED');
+  assert.equal(calls[0](event(core)), 'private-core-data');
+  const projected = projectLoungeGames([{ id: 'a', name: 'A', exePath: 'secret', shortDescription: 'Story', developers: ['Author'] }]);
+  assert.equal(projected[0].exePath, undefined); assert.equal(projected[0].shortDescription, 'Story');
+  assert.equal(projected[0].hasLaunchTarget, true); assert.equal(getLibraryHealth(projected).noLaunchTarget, 0);
+  assert.equal(getRecommendations(projected, []).length, 1, 'Home recommendations preserve configured launch status without paths');
+  const data = moduleSnapshot({ loungeGames: [{ id: 'a', name: 'A' }], publicGames: [], settings: { geminiKey: 'secret', steamGridDbKey: 'secret', modulesEnabled: false }, installedCustomThemes: [], resting: false });
+  assert(!JSON.stringify(data).includes('secret')); assert.equal(data.custom.enabled, false);
+  assert(addonDocument('<h1>Module</h1>', false, 'module').includes('window.neoLibModule=window.neoLibAddon'));
+  const app = await fs.readFile(new URL('../src/App.jsx', import.meta.url), 'utf8');
+  assert(!app.includes('<NeoLounge')); assert(app.includes('useModuleCoreBridge'));
+  const preload = await fs.readFile(new URL('../electron/module-preload.cjs', import.meta.url), 'utf8');
+  assert(!preload.includes('loadLibrary:')); assert(!preload.includes('saveSettings:')); assert(!preload.includes('openPath:'));
+  console.log('PASS: official ownership/reserved identity, module import/runtime/removal, distinct window lifecycle, sender/subframe capability guards, core-bound launch requests, privacy projection, delta-only updates and crash cleanup. Live desktop acceptance still required.');
+} finally { await fs.rm(root, { recursive: true, force: true }); }

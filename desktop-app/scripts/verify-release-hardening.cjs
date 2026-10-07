@@ -6,9 +6,14 @@ const { builtinModules } = require('module');
 const appRoot = path.resolve(__dirname, '..');
 const repoRoot = path.resolve(appRoot, '..');
 const read = relative => fs.readFileSync(path.join(appRoot, relative), 'utf8');
+const packageJson = JSON.parse(read('package.json'));
+const releaseNotesName = `RELEASE_NOTES_v${packageJson.version}.md`;
+const acceptanceName = `WINDOWS_ACCEPTANCE_V${packageJson.version}.md`;
+const changelogId = packageJson.version.replace(/\./g, '');
+const changelogSymbol = `V${changelogId}_CHANGELOG`;
 const windowsWorkflow = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'build-windows.yml'), 'utf8');
-const releaseNotes = fs.readFileSync(path.join(repoRoot, 'RELEASE_NOTES_v1.8.4.md'), 'utf8');
-const windowsAcceptance = fs.readFileSync(path.join(repoRoot, 'WINDOWS_ACCEPTANCE_V1.8.4.md'), 'utf8');
+const releaseNotes = fs.readFileSync(path.join(repoRoot, releaseNotesName), 'utf8');
+const windowsAcceptance = fs.readFileSync(path.join(repoRoot, acceptanceName), 'utf8');
 const releaseHardening = fs.readFileSync(path.join(repoRoot, 'RELEASE_HARDENING.md'), 'utf8');
 const releaseConfigBuilder = read('scripts/prepare-release-config.cjs');
 const localReleaseBuilder = read('scripts/build-release.ps1');
@@ -83,7 +88,6 @@ for (const file of runtimeFiles) {
 assert.deepEqual(duplicateFailures, [], `duplicate top-level declarations:\n${duplicateFailures.join('\n')}`);
 assert.deepEqual(importFailures, [], `unresolved relative modules:\n${importFailures.join('\n')}`);
 
-const packageJson = JSON.parse(read('package.json'));
 const productionDependencies = new Set(Object.keys(packageJson.dependencies || {}));
 const allowedNativeModules = new Set(['electron', ...builtinModules, ...builtinModules.map(name => `node:${name}`)]);
 const undeclaredNativeImports = [];
@@ -116,12 +120,14 @@ assert(
 );
 assert(localReleaseBuilder.includes("@('run', 'package:portable')"), 'local release command must use the shared portable packager');
 assert(localReleaseBuilder.includes("@('run', 'inspect:release')"), 'local release command must finish with candidate inspection');
-assert(windowsWorkflow.includes('body_path: RELEASE_NOTES_v1.8.4.md'), 'GitHub release must use the reviewed v1.8.4 release notes');
+assert(windowsWorkflow.includes(`body_path: ${releaseNotesName}`), 'GitHub release must use the current version release notes');
+assert(releaseNotes.includes(`NEO-LIB v${packageJson.version}`), 'release notes title must identify the current candidate');
+assert(windowsAcceptance.includes(`NEO-LIB v${packageJson.version}`), 'acceptance record must identify the current candidate');
 for (const heading of ['Windows installer rebuild', 'Carried-forward features', 'Release status']) {
-  assert(releaseNotes.includes(heading), `v1.8.4 release notes are missing ${heading}`);
+  assert(releaseNotes.includes(heading), `v${packageJson.version} release notes are missing ${heading}`);
 }
 for (const requiredAcceptanceStep of [
-  '108 native commands have one registration and request/response contracts.',
+  'native commands have one registration and request/response contracts.',
   'Control Center gear opens on the first click',
   'Delayed hover text remains entirely inside every screen edge',
   'known fully updated installed Steam game',
@@ -151,13 +157,14 @@ for (const required of ['electron/**/*', 'dist-renderer/**/*', 'package.json']) 
 
 const appSource = read('src/App.jsx');
 const changelogSource = read('src/components/changelog/changelog-content.mjs');
-const currentChangelogSource = read('src/components/changelog/v184-changelog.mjs');
+const currentChangelogSource = read(`src/components/changelog/v${changelogId}-changelog.mjs`);
 const appVersion = appSource.match(/const APP_VERSION = ['"]([^'"]+)['"]/i)?.[1];
 const changelogVersion = currentChangelogSource.match(/version:\s*['"]([^'"]+)['"]/i)?.[1];
 assert.equal(appVersion, packageJson.version, 'renderer and package versions must match');
 assert.equal(changelogVersion, packageJson.version, 'newest changelog and package versions must match');
-assert(changelogSource.includes("import { V184_CHANGELOG } from './v184-changelog.mjs'"), 'displayed changelog must use the curated current release entry');
-assert(changelogSource.includes('V184_CHANGELOG,'), 'displayed changelog must include the current release');
+assert(changelogSource.includes(`import { ${changelogSymbol} } from './v${changelogId}-changelog.mjs'`), 'displayed changelog must use the curated current release entry');
+assert(changelogSource.includes(`export const CHANGELOG = [\n  ${changelogSymbol},`), 'displayed changelog must put the current release first');
+assert(changelogSource.includes('V184_CHANGELOG,'), 'previous v1.8.4 notes must remain accessible');
 assert(changelogSource.includes('V181_CHANGELOG,'), 'unreleased v1.8.1 notes must remain accessible');
 assert(changelogSource.includes('V179_CHANGELOG,'), 'unreleased v1.7.9 notes must remain accessible');
 

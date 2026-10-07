@@ -1,3 +1,4 @@
+import { V185_CHANGELOG } from './v185-changelog.mjs';
 import { V184_CHANGELOG } from './v184-changelog.mjs';
 import { V183_CHANGELOG } from './v183-changelog.mjs';
 import { V182_CHANGELOG } from './v182-changelog.mjs';
@@ -1112,6 +1113,7 @@ const ARCHIVE_CHANGELOG = [
 // Keep the exhaustive development ledger above for traceability, while the
 // player-facing modal uses concise curated release entries.
 export const CHANGELOG = [
+  V185_CHANGELOG,
   V184_CHANGELOG,
   V183_CHANGELOG,
   V182_CHANGELOG,

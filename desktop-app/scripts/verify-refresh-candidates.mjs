@@ -130,8 +130,28 @@ const audit = fs.readFileSync(new URL('../src/components/TidyUpModal.jsx', impor
 assert.match(audit, /className=\{`fixed inset-0 z-\[220\][^`]*\$\{suspended \? 'invisible pointer-events-none'/, 'audit is hidden, not unmounted, during a focused repair');
 const picker = fs.readFileSync(new URL('../src/components/RefreshCandidatesModal.jsx', import.meta.url), 'utf8');
 assert.match(picker, /createRefreshSearch\(window\.api, game, field, options, verifySuggestedPortrait\)/, 'picker verifies each cover image before listing it');
-assert.match(picker, /store_item_assets\/steam\/apps\/\$\{legacySteam\[1\]\}\/library_600x900\.jpg/, 'Steam portraits try the newer asset path when the legacy path is absent');
+assert.match(picker, /recoverPortraitImage\(url, record, verifyPortraitImage\)/, 'Steam cover alternatives retain dimension verification');
 assert.match(picker, /onError=\{\(\) => setFailedImages\(old => new Set\(\[\.\.\.old, item\.key\]\)\)\}/, 'late image failures cannot be applied');
 assert.match(picker, /const valid = await verifyPortraitImage\(manualCover\.value\)/, 'pasted artwork is checked before it can be selected');
 assert.match(picker, /setSelected\(\[manualCover\.key\]\)/, 'only a verified pasted cover becomes selectable');
-console.log('PASS: field patches, safe identity, exact-title verified portrait suggestions, SteamGridDB route, paging, source exhaustion, Blizzard ID, cancellation, source errors, JSX parsing, scrollable bulk review and repeatable Wizard artwork repair routing. No network or real library writes.');
+const { coverImageRecoveryUrls, recoverPortraitImage } = await import('../src/lib/cover-image-recovery.mjs');
+const oldSteamCover = 'https://cdn.cloudflare.steamstatic.com/steam/apps/3596700/library_600x900.jpg';
+const pngCover = 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3596700/library_600x900.png';
+assert(coverImageRecoveryUrls(oldSteamCover).includes(pngCover));
+assert.equal(await recoverPortraitImage(oldSteamCover, {}, async url => url === pngCover), pngCover, 'working PNG survives unavailable JPEG URLs');
+assert.equal(await recoverPortraitImage(oldSteamCover, {}, async () => false), '', 'unverified alternatives are never offered');
+assert.deepEqual(coverImageRecoveryUrls('https://example.test/image.jpg'), ['https://example.test/image.jpg'], 'unrelated URLs do not generate Steam guesses');
+assert.equal(await recoverPortraitImage(oldSteamCover, { capsuleImage: image(88) }, async url => url === image(88)), image(88), 'a genuinely portrait-shaped provider capsule can recover a failed preferred URL');
+let gridKeyReceived = false;
+const gridSearch = createRefreshSearch({
+  fetchMetadata: async () => null,
+  listCandidates: async ({source, steamGridDbKey}) => {
+    if (source !== 'steamgriddb') return {candidates: []};
+    assert.equal(steamGridDbKey, 'fixture-key'); gridKeyReceived = true;
+    return {candidates: [{source: 'steamgriddb', name: 'TerraTech Legion', id: 'grid', portraitImage: image(90)}]};
+  },
+  expandCandidate: async ({candidate}) => candidate,
+}, {name: 'TerraTech Legion'}, 'cover', {steamGridDbKey: 'fixture-key'}, async () => true);
+assert.equal((await gridSearch.next(5)).candidates.length, 1);
+assert(gridKeyReceived, 'configured artwork key reaches its source only');
+console.log('PASS: reviewed cover selection, matching titles, PNG/CDN/capsule recovery, SteamGridDB key forwarding, paging, source errors and repeatable Wizard repair. No network or real library writes.');

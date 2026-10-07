@@ -135,8 +135,10 @@ export function projectArtworkPoint(point, artworkRatio, viewportRatio, fit = 'c
     ? value * visibleFraction + (1 - visibleFraction) * position
     : (value - (1 - visibleFraction) * position) / visibleFraction;
   const scale = Math.max(0.5, Math.min(2, (Number(zoom) || 100) / 100));
-  const projectedX = 50 + (project(x / 100, widthFraction, posX) * 100 - 50) * scale;
-  const projectedY = 50 + (project(y / 100, heightFraction, posY) * 100 - 50) * scale;
+  // Match the artwork's position-aware CSS transform origin. At 100% an
+  // uncropped axis cannot pan; zoom creates travel without exposing an edge.
+  const projectedX = posX * 100 + (project(x / 100, widthFraction, posX) * 100 - posX * 100) * scale;
+  const projectedY = posY * 100 + (project(y / 100, heightFraction, posY) * 100 - posY * 100) * scale;
   const visible = projectedX >= 0 && projectedX <= 100 && projectedY >= 0 && projectedY <= 100;
   return {
     x: Math.max(0, Math.min(100, projectedX)),

@@ -61,7 +61,7 @@ assert.match(lounge, /if \(shelf\.style\.padding !== padding\) shelf\.style\.pad
 assert.match(styles, /\.lounge-browser\[data-shelf-position='bottom'\] \.lounge-browser-card \{ transform-origin: center bottom; \}/, 'the enlarged cover remains bottom-anchored');
 assert.match(styles, /\.lounge-browser\[data-shelf-position='bottom'\] \.lounge-browser-shelf \{ scrollbar-width: none; -ms-overflow-style: none; \}/, 'the horizontal carousel scrollbar does not reserve a visible gutter');
 assert.match(styles, /\.lounge-browser\[data-shelf-position='bottom'\] \.lounge-browser-shelf::\-webkit-scrollbar[^\n]*display: none; width: 0; height: 0/, 'the horizontal carousel scrollbar track is fully hidden in Chromium');
-assert.match(lounge, /visibleLoungeConsoles\(activeConsole\.id, LOUNGE_CONSOLES, loungeConsoleVisibleCount/, 'the adjustable console picker centers the selected system without scrolling the window');
+assert.match(lounge, /visibleLoungeConsoles\(activeConsole\.id, shownConsoles, loungeConsoleVisibleCount/, 'the adjustable console picker centers the selected visible system without scrolling the window');
 assert.match(styles, /width: calc\(100% \+ var\(--lounge-content-gutter\) \* 2\); margin-inline: calc\(-1 \* var\(--lounge-content-gutter\)\)/, 'horizontal carousel clipping reaches the screen edges rather than the page gutters');
 assert.match(styles, /lounge-main-content:has\(\.lounge-browser:is\(\[data-shelf-position='top'\], \[data-shelf-position='bottom'\]\)\) \{ overflow: visible; \}/, 'page overflow cannot reclip the full-width carousel');
 assert.doesNotMatch(lounge, /querySelector\('\[data-lounge-console\][^\n]+scrollIntoView/);

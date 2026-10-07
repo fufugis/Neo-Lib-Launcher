@@ -1,6 +1,6 @@
 // IPC surface for the custom title-bar controls. The window is resolved at
 // invocation time so recreated windows do not leave handlers with stale state.
-function registerWindowIpc({ registerIpc, getMainWindow }) {
+function registerWindowIpc({ registerIpc, getMainWindow, loungeWindows }) {
   if (typeof registerIpc !== 'function' || typeof getMainWindow !== 'function') {
     throw new TypeError('registerWindowIpc requires registerIpc and getMainWindow.');
   }
@@ -14,12 +14,14 @@ function registerWindowIpc({ registerIpc, getMainWindow }) {
     return window.isMaximized();
   }, value => typeof value === 'boolean', false));
   registerIpc('window:enterLounge', guardResult(() => {
+    if (loungeWindows) return loungeWindows.open('neolib.lounge').then(result => result.ok === true);
     const window = getMainWindow();
     if (!window) return false;
     window.setFullScreen(true);
     return window.isFullScreen();
   }, value => typeof value === 'boolean', false));
   registerIpc('window:exitLounge', guardResult(() => {
+    if (loungeWindows) return loungeWindows.closeLounge();
     const window = getMainWindow();
     if (!window) return false;
     window.setFullScreen(false);

@@ -4,13 +4,13 @@ const { importLoungeBackground } = require('../images/lounge-background-import.c
 const { backgroundProfile, validProfile } = require('../images/lounge-background-profile.cjs');
 const { importLoungeAudio } = require('../audio/lounge-audio-import.cjs');
 
-function registerDialogIpc({ registerIpc, dialog, getMainWindow, loungeBackgroundRoot, loungeAudioRoot }) {
+function registerDialogIpc({ registerIpc, dialog, getMainWindow, getSenderWindow, loungeBackgroundRoot, loungeAudioRoot }) {
   if (typeof registerIpc !== 'function' || typeof dialog?.showOpenDialog !== 'function' || typeof getMainWindow !== 'function') {
     throw new TypeError('registerDialogIpc requires registerIpc, dialog and getMainWindow.');
   }
 
-  async function pickFirst(options) {
-    const result = await dialog.showOpenDialog(getMainWindow(), options);
+  async function pickFirst(options, event) {
+    const result = await dialog.showOpenDialog(getSenderWindow?.(event) || getMainWindow(), options);
     if (result.canceled || result.filePaths.length === 0) return null;
     return result.filePaths[0];
   }
@@ -27,7 +27,7 @@ function registerDialogIpc({ registerIpc, dialog, getMainWindow, loungeBackgroun
   }), value => value === null || isPath(value), null));
 
   // Used by Edit metadata. The file URL shape is retained for renderer images.
-  registerIpc('dialog:pickImage', guardResult(async () => {
+  registerIpc('dialog:pickImage', guardResult(async (event) => {
     const selected = await pickFirst({
       title: 'Pick artwork or a hero video',
       properties: ['openFile'],
@@ -36,13 +36,13 @@ function registerDialogIpc({ registerIpc, dialog, getMainWindow, loungeBackgroun
         { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'ico'] },
         { name: 'Video', extensions: ['mp4', 'm4v', 'webm', 'mov', 'ogv'] },
       ],
-    });
+    }, event);
     if (!selected) return null;
     return { path: selected, url: 'file://' + selected.replace(/\\/g, '/') };
   }, value => value === null || (isPlainObject(value) && isPath(value.path)
     && isBoundedString(value.url, { required: true, max: 32767 }) && value.url.startsWith('file://')), null));
 
-  registerIpc('dialog:importLoungeBackground', guardResult(async () => {
+  registerIpc('dialog:importLoungeBackground', guardResult(async (event) => {
     const selected = await pickFirst({
       title: 'Import Lounge background artwork or video',
       properties: ['openFile'],
@@ -51,7 +51,7 @@ function registerDialogIpc({ registerIpc, dialog, getMainWindow, loungeBackgroun
         { name: 'Animated and still images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'apng'] },
         { name: 'Video', extensions: ['mp4', 'm4v', 'webm', 'mov', 'ogv'] },
       ],
-    });
+    }, event);
     if (!selected) return null;
     if (typeof loungeBackgroundRoot !== 'function') return null;
     return importLoungeBackground(selected, loungeBackgroundRoot());
@@ -65,12 +65,12 @@ function registerDialogIpc({ registerIpc, dialog, getMainWindow, loungeBackgroun
     return backgroundProfile(loungeBackgroundRoot(), url, profile);
   }, value => value === null || validProfile(value), null));
 
-  registerIpc('dialog:importLoungeAudio', guardResult(async () => {
+  registerIpc('dialog:importLoungeAudio', guardResult(async (event) => {
     const selected = await pickFirst({
       title: 'Import Lounge ambience or music',
       properties: ['openFile'],
       filters: [{ name: 'MP3 audio', extensions: ['mp3'] }],
-    });
+    }, event);
     if (!selected) return null;
     if (typeof loungeAudioRoot !== 'function') return null;
     return importLoungeAudio(selected, loungeAudioRoot());
@@ -100,6 +100,15 @@ function registerDialogIpc({ registerIpc, dialog, getMainWindow, loungeBackgroun
     title: 'Import NEO-LIB widget',
     properties: ['openFile'],
     filters: [{ name: 'NEO-LIB widget manifest', extensions: ['json'] }],
+  }), value => value === null || isPath(value), null));
+
+  registerIpc('dialog:pickAddonManifest', guardResult(() => pickFirst({
+    title: 'Import NEO-LIB add-on (addon.json)', properties: ['openFile'],
+    filters: [{ name: 'NEO-LIB add-on manifest', extensions: ['json'] }],
+  }), value => value === null || isPath(value), null));
+  registerIpc('dialog:pickModuleManifest', guardResult(() => pickFirst({
+    title: 'Import NEO-LIB module (module.json)', properties: ['openFile'],
+    filters: [{ name: 'NEO-LIB module manifest', extensions: ['json'] }],
   }), value => value === null || isPath(value), null));
 
   registerIpc('dialog:pickThemeManifest', guardResult(() => pickFirst({

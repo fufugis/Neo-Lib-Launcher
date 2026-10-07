@@ -22,6 +22,7 @@ function registerGeminiIpc({ registerIpc, services }) {
       && validApiKey(payload.apiKey)
       && isBoundedString(payload.message, { max: 1800 })
       && validModel(payload.model)
+      && (payload.mascotId == null || ['fifi', 'fungist'].includes(payload.mascotId))
       && validHistory(payload.history)
       && isBoundedString(payload.libraryContext, { max: 24000 }),
     invalidRequest('The Fungist AI request was malformed.'),

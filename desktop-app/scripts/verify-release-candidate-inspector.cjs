@@ -8,6 +8,10 @@ const { checksumManifest, inspectReleaseCandidate } = require('./release-candida
 
 const workflow = fs.readFileSync(path.resolve(__dirname, '..', '..', '.github', 'workflows', 'build-windows.yml'), 'utf8');
 const releaseVersion = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8')).version;
+const buildConfig = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8')).build;
+assert.equal(buildConfig.win.artifactName, 'NEO-LIB-Setup.exe', 'all future Windows installers need the same direct-download filename, independent of version');
+assert.equal((workflow.match(/desktop-app\/dist\/NEO-LIB-Setup\.exe/g) || []).length, 2, 'Actions and Release must upload the exact stable installer');
+assert(!workflow.includes('desktop-app/dist/*.exe'), 'stale versioned installers must not be accidentally published');
 assert(workflow.includes('yarn inspect:release'), 'GitHub Windows build must inspect the packaged candidate');
 assert(workflow.includes('yarn package:portable'), 'GitHub and local builds must share the portable packaging owner');
 assert(workflow.includes('release-candidate-v*.json'), 'GitHub artifacts must retain candidate evidence');
@@ -59,7 +63,7 @@ const asar = builderRequire('@electron/asar');
     await asar.createPackage(input, path.join(sandbox, 'dist/win-unpacked/resources/app.asar'));
     const fixtureEntries = asar.listPackage(path.join(sandbox, 'dist/win-unpacked/resources/app.asar'));
     assert(fixtureEntries.some(entry => /app\.js$/i.test(entry)), `fixture archive must contain renderer script: ${fixtureEntries.join(', ')}`);
-    fs.writeFileSync(path.join(sandbox, `dist/NEO-LIB-Setup-${releaseVersion}.exe`), 'fixture-installer');
+    fs.writeFileSync(path.join(sandbox, 'dist/NEO-LIB-Setup.exe'), 'fixture-installer');
     fs.writeFileSync(path.join(sandbox, 'dist/NEO-LIB-windows-portable.zip'), 'fixture-portable');
 
     const accepted = inspectReleaseCandidate({
@@ -77,12 +81,15 @@ const asar = builderRequire('@electron/asar');
     assert.equal(accepted.mascotAssets, 2);
     assert.equal(accepted.feedbackRelayConfigured, true);
     assert.equal(accepted.discordRichPresenceConfigured, true);
-    assert.equal(accepted.installer.path, `dist/NEO-LIB-Setup-${releaseVersion}.exe`);
+    assert.equal(accepted.installer.path, 'dist/NEO-LIB-Setup.exe');
     assert.equal(accepted.portable.path, 'dist/NEO-LIB-windows-portable.zip');
     assert.equal(accepted.archive.path, 'dist/win-unpacked/resources/app.asar');
     assert(!JSON.stringify(accepted).includes(sandbox), 'candidate evidence must not expose the local build path');
     const checksumText = checksumManifest(accepted);
-    assert(checksumText.includes(`NEO-LIB-Setup-${releaseVersion}.exe`));
+    assert(checksumText.includes('NEO-LIB-Setup.exe'));
+    fs.renameSync(path.join(sandbox, 'dist/NEO-LIB-Setup.exe'), path.join(sandbox, `dist/NEO-LIB-Setup-${releaseVersion}.exe`));
+    assert.throws(() => inspectReleaseCandidate({ appRoot: sandbox, minimumInstallerBytes: 1, minimumArchiveBytes: 1, minimumPortableBytes: 1 }), /missing .*installer/, 'a versioned installer alone cannot satisfy the stable download contract');
+    fs.renameSync(path.join(sandbox, `dist/NEO-LIB-Setup-${releaseVersion}.exe`), path.join(sandbox, 'dist/NEO-LIB-Setup.exe'));
     assert(checksumText.includes('NEO-LIB-windows-portable.zip'));
     assert(!checksumText.includes('app.asar'), 'public checksums should list only released download artifacts');
     assert.throws(

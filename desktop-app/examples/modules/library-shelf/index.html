@@ -1,0 +1,16 @@
+<style>
+body{padding:24px;background:linear-gradient(130deg,#17283e,#181527);color:#edf6ff;font-family:system-ui}
+header{display:flex;gap:16px;align-items:center;flex-wrap:wrap}input,select{padding:10px;background:#26364d;color:inherit;border:1px solid #577494;border-radius:8px}
+#shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:24px;margin-top:24px}
+article{min-width:0;border-bottom:8px solid #765639;padding:10px;background:#ffffff0b;border-radius:10px;box-shadow:0 12px 16px #0004}img,.placeholder{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:6px;background:#344056}.placeholder{display:grid;place-items:center;font-size:40px}h2{font-size:16px}small{color:#aec3d9}
+</style>
+<header><h1>Module Library Shelf</h1><input id="search" aria-label="Search games" placeholder="Search games"><select id="sort" aria-label="Sort"><option value="name">Name</option><option value="time">Most played</option></select></header>
+<p id="notice">Waiting for NEO-LIB…</p><main id="shelf"></main>
+<script>
+let library=[];let images=false;
+const search=document.getElementById('search'),sort=document.getElementById('sort'),shelf=document.getElementById('shelf');
+function render(){shelf.replaceChildren();const matches=library.filter(g=>g.name.toLowerCase().includes(search.value.toLowerCase())).sort((a,b)=>sort.value==='time'?b.playtimeMinutes-a.playtimeMinutes:a.name.localeCompare(b.name));for(const game of matches){const card=document.createElement('article');const art=document.createElement(images&&game.cover?'img':'div');if(art.tagName==='IMG'){art.src=game.cover;art.alt=game.name;art.loading='lazy';art.onerror=()=>{const missing=document.createElement('div');missing.className='placeholder';missing.textContent='🎮';art.replaceWith(missing);};}else{art.className='placeholder';art.textContent='🎮';}const title=document.createElement('h2');title.textContent=game.name;const details=document.createElement('small');details.textContent=`${game.source} · ${Math.round(game.playtimeMinutes/60)}h`;card.append(art,title,details);shelf.append(card);}}
+function receive(context){library=context.library;images=context.grants.includes('network');document.getElementById('notice').textContent=context.grants.includes('library.read')?`${library.length} public games`:'Grant library.read in Modules, then enable this module again.';render();}
+neoLibModule.ready.then(context=>{sort.value=context.storage.sort==='time'?'time':'name';receive(context);});
+window.addEventListener('neolib:change',event=>receive(event.detail));search.addEventListener('input',render);sort.addEventListener('change',()=>{render();neoLibModule.storage.set('sort',sort.value);});
+</script>

@@ -5,6 +5,7 @@ import useDraggablePanel from './use-draggable-panel';
 import { BUILTIN_HOME_WIDGETS } from '../home/home-widget-registry.mjs';
 import { loungePanelPositions, loungePanelRects, loungeWidgetHeightBounds, loungePanelClearance } from './lounge-widget-layout.mjs';
 import LoungePanelPreview from './LoungePanelPreview';
+import LoungeEmulatorChecklist from './LoungeEmulatorChecklist';
 
 const POSITIONS = [['bottom', 'Bottom'], ['top', 'Top'], ['left', 'Left'], ['right', 'Right']];
 const BROWSE_SORTS = [['library', 'Library order'], ['name', 'Name A–Z'], ['last-played', 'Last played'], ['recently-added', 'Recently added']];
@@ -68,7 +69,7 @@ function LoungeLayoutPreview({ layout, preferences, game }) {
   </div>;
 }
 
-export default function LoungeSettingsPanel({ preferences, panelShelfPosition = preferences.shelfPosition, layout, game, privateGameCount = 0, privateGamesUnlocked = false, onRequestPrivateGames, onLayoutChange, onChange, onClose }) {
+export default function LoungeSettingsPanel({ preferences, retroProfiles = [], panelShelfPosition = preferences.shelfPosition, layout, game, privateGameCount = 0, privateGamesUnlocked = false, onRequestPrivateGames, onLayoutChange, onChange, onClose }) {
   const [sceneSize, setSceneSize] = React.useState({ width: window.innerWidth, height: window.innerHeight });
   React.useLayoutEffect(() => {
     const host = document.querySelector('[data-testid="lounge-widget-composition"]');
@@ -94,7 +95,14 @@ export default function LoungeSettingsPanel({ preferences, panelShelfPosition = 
       <header {...draggable.dragHandleProps} className="lounge-settings-heading relative overflow-hidden border-b border-[rgb(var(--border))] px-6 pb-5 pt-6"><div className="lounge-settings-aura pointer-events-none absolute inset-0" aria-hidden="true" /><div className="relative flex items-start justify-between gap-4"><div><p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.25em] text-[rgb(var(--accent-2))]"><SlidersHorizontal size={15} /> Lounge settings</p><h2 className="mt-2 text-3xl font-black">Make it yours</h2><p className="mt-2 max-w-lg text-sm text-muted">Layout, browsing and top shortcuts live here. Sound &amp; Music has its own icon above.</p></div><button ref={closeRef} type="button" data-controller-close onClick={onClose} aria-label="Close Lounge settings" className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.8)] p-2 text-ink"><X size={20} /></button></div></header>
       <LoungeLayoutPreview layout={layout} preferences={preferences} game={game} />
       <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-8">
-        <nav aria-label="Lounge settings sections" className="sticky top-0 z-20 -mx-6 flex gap-2 overflow-x-auto border-b border-[rgb(var(--border)/0.6)] bg-[rgb(var(--surface)/0.96)] px-6 py-3">{[['layout', 'Layout'], ['browse', 'Browse'], ['widgets', 'Widgets'], ['shortcuts', 'Shortcuts']].map(([id, label]) => <button key={id} type="button" onClick={() => document.getElementById(`lounge-settings-${id}`)?.scrollIntoView({ block: 'start', behavior: 'auto' })} className="lounge-setting-choice shrink-0 rounded-lg border border-[rgb(var(--border))] px-3 py-1.5 text-xs font-bold">{label}</button>)}</nav>
+        <nav aria-label="Lounge settings sections" className="sticky top-0 z-20 -mx-6 flex gap-2 overflow-x-auto border-b border-[rgb(var(--border)/0.6)] bg-[rgb(var(--surface)/0.96)] px-6 py-3">{[['emulators', 'Emulators'], ['layout', 'Layout'], ['browse', 'Browse'], ['widgets', 'Widgets'], ['shortcuts', 'Shortcuts']].map(([id, label]) => <button key={id} type="button" onClick={() => document.getElementById(`lounge-settings-${id}`)?.scrollIntoView({ block: 'start', behavior: 'auto' })} className="lounge-setting-choice shrink-0 rounded-lg border border-[rgb(var(--border))] px-3 py-1.5 text-xs font-bold">{label}</button>)}</nav>
+        <section id="lounge-settings-emulators" aria-label="Emulator carousel settings" className="mt-6 scroll-mt-16">
+          <h3 className="text-lg font-black">Emulator carousel</h3>
+          <Range label="Emulators Size" value={preferences.emulatorSize} min={70} max={150} step={5} unit="%" onChange={emulatorSize => set({ emulatorSize })} />
+          <Range label="Emulator carousel width" value={preferences.emulatorCarouselWidth} min={800} max={2400} step={50} onChange={emulatorCarouselWidth => set({ emulatorCarouselWidth })} />
+          <p className="mt-1 text-xs text-muted">Wider rows fit more consoles; larger consoles fit fewer. The selected console stays centered.</p>
+          <LoungeEmulatorChecklist hidden={preferences.hiddenEmulators} profiles={retroProfiles} onChange={hiddenEmulators => set({ hiddenEmulators })} />
+        </section>
         <section id="lounge-settings-layout" aria-label="Lounge layouts" className="mt-6 scroll-mt-16">
           <h3 className="text-lg font-black">Layout and navigation</h3>
           <ChoiceRow label="When I enter Lounge" value={preferences.entryScreen} choices={[["games", "Resume last view"], ["home", "Show Lounge Home"]]} onChange={entryScreen => onChange(normalizeLoungePreferences({ ...preferences, entryScreen }))} />
@@ -107,9 +115,6 @@ export default function LoungeSettingsPanel({ preferences, panelShelfPosition = 
             <Range label="Game cover size" value={preferences.coverSize} min={84} max={184} onChange={coverSize => set({ coverSize })} />
             <ChoiceRow label="Carousel game titles" value={preferences.carouselShowTitles} choices={[[true, 'Show titles'], [false, 'Artwork only']]} onChange={carouselShowTitles => set({ carouselShowTitles })} />
             <p className="mt-1 text-xs text-muted">The bottom edge stays anchored. Showing titles lifts the artwork to make room below it.</p>
-            <Range label="Emulators Size" value={preferences.emulatorSize} min={70} max={150} step={5} unit="%" onChange={emulatorSize => set({ emulatorSize })} />
-            <Range label="Emulator carousel width" value={preferences.emulatorCarouselWidth} min={800} max={2400} step={50} onChange={emulatorCarouselWidth => set({ emulatorCarouselWidth })} />
-            <p className="mt-1 text-xs text-muted">Only changes the console row in Emulator Zone. Wider rows fit more consoles; larger consoles fit fewer. The selected console stays centered.</p>
             <Range label="Selected game size" value={preferences.selectedGameScale} min={100} max={200} step={5} unit="%" onChange={selectedGameScale => set({ selectedGameScale })} />
             <p className="mt-1 text-xs text-muted">Scales the selected carousel cover relative to the others.</p>
             <ChoiceRow label="Carousel card shape" value={preferences.coverAspect} choices={[["portrait", "Portrait cover"], ["tall", "Extra tall"]]} onChange={coverAspect => set({ coverAspect })} />

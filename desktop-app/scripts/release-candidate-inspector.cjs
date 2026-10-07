@@ -64,7 +64,7 @@ function inspectReleaseCandidate({
   const expectedTag = `v${version}`;
   assert(/^v\d+\.\d+\.\d+$/.test(expectedTag), `release version must produce a clean legacy-compatible tag: ${expectedTag}`);
 
-  const installer = path.join(distDir, `NEO-LIB-Setup-${version}.exe`);
+  const installer = path.join(distDir, 'NEO-LIB-Setup.exe');
   const portable = path.join(distDir, 'NEO-LIB-windows-portable.zip');
   const archive = path.join(distDir, 'win-unpacked', 'resources', 'app.asar');
   assert(fs.existsSync(installer), `missing v${version} installer: ${installer}`);

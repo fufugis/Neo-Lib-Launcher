@@ -140,7 +140,7 @@ export default function LoungeVisualBuilder({ preferences, panelShelfPosition = 
           <Stepper label="Artwork horizontal position" value={preferences.backgroundPositionX} min={0} max={100} onChange={backgroundPositionX => set({ backgroundPositionX })} />
           <Stepper label="Artwork vertical position" value={preferences.backgroundPositionY} min={0} max={100} onChange={backgroundPositionY => set({ backgroundPositionY })} />
           <Stepper label="Artwork zoom" value={preferences.backgroundZoom} min={50} max={200} onChange={backgroundZoom => set({ backgroundZoom })} />
-          <p className="mt-2 text-xs text-muted">Below 100% reveals more canvas; above 100% enlarges the image. Zoom cannot add detail beyond the source artwork.</p>
+          <p className="mt-2 text-xs text-muted">Below 100% reveals more canvas; above 100% enlarges the image. Position adjusts the crop and zoom anchor. If an axis already fits exactly at 100%, increase zoom to move it without exposing an empty edge. Zoom cannot add detail beyond the source artwork.</p>
           {preferences.backdropMode === 'image' && imageFailed && <p role="status" className="mt-2 text-xs text-rose-300">That file could not be played. It is preserved; choose another file to replace it.</p>}
         </>}
           </div><div className="min-w-0"><div className="border-b border-[rgb(var(--border)/0.7)] pb-3"><h4 className="font-black">Colour & film finish</h4><p className="mt-1 text-xs text-muted">Grade the scenery behind the interface; game covers and text keep their original colour.</p></div>

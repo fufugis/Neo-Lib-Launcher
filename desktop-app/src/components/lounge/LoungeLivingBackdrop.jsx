@@ -158,14 +158,15 @@ return <div ref={backdropRef} className="lounge-living-backdrop pointer-events-n
     {artTemperature !== 0 && <div className="lounge-living-backdrop__color-grade absolute inset-0" />}
     {/* Shade grades scenery only, not the atmosphere painted above it. */}
     <div className="lounge-living-backdrop__shade absolute inset-0" />
-    {lightSource && <div className="lounge-living-backdrop__specular absolute" />}
       <div className="lounge-living-backdrop__fx absolute inset-0">
+      {lightSource && <div className="lounge-living-backdrop__specular absolute" />}
       <LoungeAtmosphereLayer preferences={preferences} animated={animated} sun={renderedBrightestArea} project={point => projectArtworkPoint(point, artRatio, screenRatio, artworkFit, preferences?.backgroundPositionX ?? 50, preferences?.backgroundPositionY ?? 50, preferences?.backgroundZoom ?? 100)} />
       <div className="lounge-living-backdrop__waves absolute" />
       {ribbonIntensity > 0 && <div className="lounge-living-backdrop__ribbons absolute inset-0" />}
       {preferences.ambientLight > 0 && <div className="lounge-living-backdrop__light absolute inset-0" style={{ opacity: ambientLightOpacity }} />}
       <div className="lounge-living-backdrop__bloom absolute inset-0" />
-      {(sceneArt || mode === 'game' || mode === 'image') && <><div className="lounge-living-backdrop__rays absolute inset-0" data-lounge-scene-art={sceneArt ? preferences?.specialTheme : 'dynamic'} /><div className="lounge-living-backdrop__highlight absolute inset-0" /></>}
+      {(sceneArt || mode === 'game' || mode === 'image') && <div className="lounge-living-backdrop__rays absolute inset-0" data-lounge-scene-art={sceneArt ? preferences?.specialTheme : 'dynamic'} />}
+      {lightSource && <div className="lounge-living-backdrop__highlight absolute inset-0" />}
     </div>
     {filmGrain > 0 && <div className="lounge-living-backdrop__grain absolute inset-0" />}
     {edgeGlow > 0 && <div className="lounge-living-backdrop__edge absolute inset-0" />}

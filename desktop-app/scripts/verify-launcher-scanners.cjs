@@ -189,6 +189,7 @@ function fixture(mode) {
     require(name) {
       if (Object.hasOwn(mockedModules, name)) return mockedModules[name];
       if (name === './images/lounge-background-protocol.cjs') return nativeRequire(name);
+      if (['./emulation/retro-credential-store.cjs', './emulation/retro-http-client.cjs', './emulation/retro-source-service.cjs'].includes(name)) return nativeRequire(name);
       const knownService = ['./controller/windows-controller-scan.cjs', './themes/custom-theme-service.cjs', './launchers/scanners.cjs', './storage/app-storage.cjs', './storage/document-store.cjs', './storage/storage-scan-service.cjs', './library/library-backup-service.cjs', './ipc/registry.cjs', './ipc/failure-log.cjs', './diagnostics/diagnostic-recorder.cjs', './system/system-health-service.cjs', './playtime/playtime-history-service.cjs', './images/image-cache-service.cjs', './app/app-os-service.cjs', './app/app-lifecycle-service.cjs', './doctor/launch-doctor-service.cjs', './saves/save-service.cjs', './optimize/junk-service.cjs', './optimize/process-inspection-service.cjs', './game/external-game-watch-service.cjs', './game/game-launch-service.cjs', './emulation/rom-scan-service.cjs', './providers/store-provider-service.cjs', './providers/steam-achievement-service.cjs', './providers/steamgriddb-artwork-service.cjs', './providers/public-web-provider-service.cjs', './providers/specialist-metadata-provider-service.cjs', './providers/metadata-candidate-service.cjs', './providers/gemini-provider-service.cjs', './providers/news-normalization-service.cjs', './providers/public-news-provider-service.cjs', './providers/weekly-release-provider-service.cjs', './providers/steam-news-provider-service.cjs', './providers/owned-news-provider-service.cjs', './providers/update-history-provider-service.cjs', './providers/deals-provider-service.cjs', './providers/update-scan-coordinator-service.cjs', './providers/update-source-discovery-service.cjs', './providers/installed-version-evidence-service.cjs', './providers/update-page-version-service.cjs', './providers/independent-update-assessment-service.cjs', './widgets/widget-package-service.cjs'].includes(name);
       const domainContract = /^\.\/ipc\/[a-z-]+-ipc\.cjs$/.test(name);
       assert(knownService || domainContract, `unexpected local module ${name}`);
@@ -197,7 +198,7 @@ function fixture(mode) {
     process: { ...startup.dependencies.process, platform: 'win32', arch: 'x64', on() {} }, __dirname: path.join(root, 'electron'),
     console, Buffer, URL, setTimeout: deny('timer'), setInterval: deny('interval'),
   }, { filename: 'isolated-main.js', timeout: 5000 });
-  assert.equal(Object.keys(nativeHandlers).length, 112, 'all current native IPC endpoints still registered');
+  assert.equal(Object.keys(nativeHandlers).length, 144, 'all current native IPC endpoints still registered');
   for (const channel of channels) {
     startup.trace.length = 0;
     const result = await nativeHandlers[channel]();
@@ -205,5 +206,5 @@ function fixture(mode) {
   }
   const pkg = require('../package.json');
   assert(pkg.build.files.includes('electron/**/*'), 'new native module included in packaged app');
-  console.log('PASS: 40 scanner fixture runs plus 10 full-main integration scans match pre-refactor results and I/O traces; unchanged handler bodies/shared helpers, all 112 IPC registrations and packaging inclusion verified. UI readiness withheld. No real disk scans, registry calls, library writes or game launches.');
+  console.log('PASS: 40 scanner fixture runs plus 10 full-main integration scans match pre-refactor results and I/O traces; unchanged handler bodies/shared helpers, all 144 IPC registrations and packaging inclusion verified. UI readiness withheld. No real disk scans, registry calls, library writes or game launches.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

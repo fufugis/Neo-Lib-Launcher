@@ -55,6 +55,7 @@ window.addEventListener('unhandledrejection', (event) => {
 // Inject Skimlinks once at startup (if an ID is configured at build time).
 // Auto-affiliates any rendered anchor-tag clicks once the publisher account is approved.
 (() => {
+  if (new URLSearchParams(window.location.search).has('module')) return;
   const src = getSkimlinksScriptSrc();
   if (!src || document.querySelector(`script[src="${src}"]`)) return;
   const s = document.createElement('script');
@@ -66,9 +67,11 @@ window.addEventListener('unhandledrejection', (event) => {
 
 root.render(<div style={{ minHeight: '100vh', background: '#111018' }} />);
 
-import('./App.jsx')
-  .then(({ default: App }) => {
-    root.render(<StartupBoundary><App /></StartupBoundary>);
+const moduleWindow = new URLSearchParams(window.location.search).has('module');
+const entry = moduleWindow ? import('./components/modules/ModuleWindowApp.jsx') : import('./App.jsx');
+entry
+  .then(({ default: Entry }) => {
+    root.render(<StartupBoundary><Entry /></StartupBoundary>);
   })
   .catch((error) => {
     console.error('[NEO-LIB module startup]', readableFailure(error));

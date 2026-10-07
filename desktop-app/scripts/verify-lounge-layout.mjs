@@ -125,7 +125,7 @@ assert.equal(showLoungeBrowseFilter('recent', ['recent'], true), true, 'a hidden
 assert.equal(normalizeLoungePreferences({ specialTheme: 'untrusted' }).specialTheme, 'theme');
 assert.deepEqual(normalizeLoungePreferences({ quickLinks: ['most', 'most', 'bad', 'recent'] }).quickLinks, ['most', 'recent']);
 assert.deepEqual(normalizeLoungePreferences({ quickLinks: [] }).quickLinks, []);
-for (const id of ['alpine', 'orbit', 'coast', 'neon', 'starlit', 'solar', 'rainlight']) {
+for (const id of ['alpine', 'orbit', 'coast', 'neon', 'starlit', 'solar', 'rainlight', 'moonlit-arcana', 'cosmic-citadel']) {
   assert.ok(LOUNGE_SCENES[id]);
   const scene = applyLoungeScene(defaults, id);
   assert.equal(scene.specialTheme, id);

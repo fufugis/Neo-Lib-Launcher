@@ -7,8 +7,10 @@ import { DONATE_PAYPAL_URL } from './DonateModal';
 import qrUrl from '../assets/donate-qr.png';
 import { SettingsSection as Section, SettingsToggle as Toggle } from './settings/SettingsControls';
 import { hashPin } from '../lib/utils';
+import AddonSettings from './addons/AddonSettings';
+import RetroConnectionsPanel from './wizard/RetroConnectionsPanel';
 
-export default function SettingsModal({ open, onClose, settings, setSettings, onShowChangelog, currentVersion = '1.8.4', library, onExportLibrary, onImportLibrary, onResetLibrary, onConfirmCategoryRemoval, onRemoveCategories }) {
+export default function SettingsModal({ open, onClose, settings, setSettings, onShowChangelog, currentVersion = '1.8.5', library, onExportLibrary, onImportLibrary, onResetLibrary, onConfirmCategoryRemoval, onRemoveCategories, onOpenModules }) {
   const setKey = (patch) => setSettings({ ...settings, ...patch });
   const [showKey, setShowKey] = React.useState(false);
   const [showArtworkKey, setShowArtworkKey] = React.useState(false);
@@ -144,6 +146,9 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
           </div>
         </Section>
 
+        <Section title="Addons — coded pages"><AddonSettings settings={settings} onChange={setKey} /></Section>
+        <Section title="Retro sources"><RetroConnectionsPanel /></Section>
+        <Section title="Modules"><p className="mb-3 text-xs text-muted">Lounge is our official NEO-LIB module. Manage built-in modules and import your own isolated module windows.</p><button type="button" className="rounded border border-[rgb(var(--border))] px-3 py-2" onClick={onOpenModules}>Open Modules</button></Section>
         {/* Tutorial */}
         <Section title="Onboarding">
           <div className="space-y-3">

@@ -1,4 +1,5 @@
 import React from 'react';
+import PreviewJourneyControl from './PreviewJourneyControl';
 import { motion } from 'framer-motion';
 import { ArchiveRestore, ChevronDown, Download, FileText, FolderOpen, Play, RefreshCw, Tag, Wand2, Wrench, Youtube } from 'lucide-react';
 import { cn, colorFromId } from '../../lib/utils';
@@ -16,7 +17,7 @@ function openSearch(query, engine = 'google') {
 }
 
 /* ---------- Action bar ---------- */
-export default function PreviewActionBar({ game, categories, onLaunch, onLaunchError, onRefetch, onRevealFolder, onToggleCategory, onCustomize, onOpenSaveManager, onLocateManagedTool, onInstallManagedTool, managedToolInstalling, fetching, settings = {} }) {
+export default function PreviewActionBar({ game, categories, onLaunch, onLaunchError, onRefetch, onRevealFolder, onToggleCategory, onCustomize, onUpdateGame, onOpenSaveManager, onLocateManagedTool, onInstallManagedTool, managedToolInstalling, fetching, settings = {} }) {
   const [catOpen, setCatOpen] = React.useState(false);
   const [routeOpen, setRouteOpen] = React.useState(false);
   const [routeAnchor, setRouteAnchor] = React.useState(null);
@@ -110,6 +111,7 @@ export default function PreviewActionBar({ game, categories, onLaunch, onLaunchE
         Mods
       </button>
 
+      <PreviewJourneyControl game={game} onUpdateGame={onUpdateGame} />
       <button
         data-testid="detail-customize-btn"
         onClick={() => onCustomize?.(game)}

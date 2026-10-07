@@ -2,14 +2,29 @@ import { RETRO_PLATFORMS } from '../../lib/emulation-library-model.mjs';
 
 export const LOUNGE_CONSOLES = Object.freeze(Object.entries(RETRO_PLATFORMS).map(([id, platform]) => Object.freeze({ id, label: platform.label, shortLabel: platform.shortLabel })));
 
+export function normalizeHiddenLoungeConsoles(value) {
+  const requested = new Set(Array.isArray(value) ? value : []);
+  return LOUNGE_CONSOLES.filter(console => requested.has(console.id)).map(console => console.id);
+}
+
+export function shownLoungeConsoles(hidden) {
+  const excluded = new Set(normalizeHiddenLoungeConsoles(hidden));
+  return LOUNGE_CONSOLES.filter(console => !excluded.has(console.id));
+}
+
+export function reconcileLoungeConsole(currentId, consoles) {
+  return consoles.some(console => console.id === currentId) ? currentId : consoles[0]?.id || '';
+}
+
 export function emulatorZoneGames(games, consoleId) {
   return (Array.isArray(games) ? games : []).filter(game => game?.source === 'emulation' && game.retroPlatform === consoleId);
 }
 
 export function emulatorZoneStatus(profiles, games, consoleId) {
   const profile = (Array.isArray(profiles) ? profiles : []).find(item => item?.platform === consoleId && item.emulatorPath && item.romFolder);
+  const emulatorConfigured = (Array.isArray(profiles) ? profiles : []).some(item => item?.platform === consoleId && Boolean(item.emulatorPath));
   const count = emulatorZoneGames(games, consoleId).length;
-  return { configured: Boolean(profile), count, profileName: profile?.name || '' };
+  return { configured: Boolean(profile), emulatorConfigured, count, profileName: profile?.name || '' };
 }
 
 export function nextLoungeConsole(currentId, direction, consoles = LOUNGE_CONSOLES) {

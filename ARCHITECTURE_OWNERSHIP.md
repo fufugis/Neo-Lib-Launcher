@@ -6,6 +6,10 @@ home for new behavior.
 
 ## Windows side
 
+Retro metadata/export/download policy belongs to `desktop-app/electron/emulation/retro-source-service.cjs`, with separate encrypted credential storage, bounded HTTP transport and restricted gamelist reader. `desktop-app/electron/ipc/retro-sources-ipc.cjs` owns eleven core-only contracts, exposed only by the core preload. Settings/Wizard/Workshop compose the review UI; `src/lib/retro-source-model.mjs` limits patches and preserves artwork locks/history, launch routes and progress. Imported modules/addons receive no source credentials, ROM paths, download or filesystem capability. Normal App/document-store ownership remains unchanged. See `desktop-app/RETRO_SOURCES.md` for operational limits and live acceptance gates.
+
+Official module window lifecycle, sender-role capability policy, core-to-module field snapshots and reserved Lounge ownership belong to `desktop-app/electron/ipc/modules-ipc.cjs`. `desktop-app/electron/module-preload.cjs` is the dedicated restricted module bridge, never the library preload. Package code uses the bounded shared installer with a separate module.json/private modules root. Imported modules cannot obtain official Lounge privileges.
+
 | Area | Owner | Responsibility |
 | --- | --- | --- |
 | Startup and composition | `desktop-app/electron/main.js` | Creates the window, composes tested services and registers domain adapters. |
@@ -22,6 +26,8 @@ home for new behavior.
 | Release identity and artifacts | `desktop-app/scripts/prepare-release-config.cjs`, `build-release.ps1`, `build-provenance.cjs`, `package-portable.ps1`, `release-candidate-inspector.cjs` | Validates integration input, always removes temporary renderer credentials, fingerprints exact runtime source, packages the portable tree, rejects stale/incomplete artifacts and emits path-safe hashes. |
 
 ## Interface side
+
+`desktop-app/src/components/modules/` owns the Modules manager, separate renderer host and core mediation hook. `desktop-app/src/main.jsx` routes module windows without mounting the library App. Lounge retains its existing `components/lounge/` feature tree and top navigation entry; core remains the privacy/persistence/game-launch owner. Modules and embedded Addons have distinct package roots and lifecycle, despite sharing the isolated page SDK for imported code. See `desktop-app/MODULES.md`.
 
 | Area | Owner | Responsibility |
 | --- | --- | --- |

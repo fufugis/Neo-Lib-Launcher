@@ -2,6 +2,8 @@ import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import TitleBar from './components/TitleBar';
 import Sidebar, { SideNavigationRail } from './components/Sidebar';
+import AddonPage from './components/addons/AddonPage';
+import { enabledAddons } from './components/addons/addon-model.mjs';
 import GlobalVisualsPanel from './components/library/GlobalVisualsPanel';
 import GameDetail from './components/GameDetail';
 import DealsBar from './components/DealsBar';
@@ -28,7 +30,8 @@ import { mergeUpdateStatusLedger } from './state/update-ledger-state.mjs';
 import { appendMascotNotice } from './components/mascot/fungist-model.mjs';
 import AppModalLayer from './components/app/AppModalLayer';
 import ControllerNavigationBridge from './components/controller/ControllerNavigationBridge';
-import NeoLounge from './components/lounge/NeoLounge';
+import ModuleManagerModal from './components/modules/ModuleManagerModal';
+import { useModuleCoreBridge } from './components/modules/useModuleCoreBridge.mjs';
 import { useExternalFileDrop } from './components/library/useExternalFileDrop';
 import { useNeoLounge } from './components/lounge/useNeoLounge';
 import { createDemoLibrary } from './state/demo-library.mjs';
@@ -43,7 +46,7 @@ import { journeyStatusAfterFirstLaunch } from './lib/game-journey-model.mjs';
 import { externalRootForGame, normalizeExternalLibraryRoots } from './lib/externalLibraryRoots.mjs';
 import { applyStockThemePalette, stockThemeAssetUrl, customThemeCanvas, preloadSidebarArtwork } from './themes/stock-theme-registry.mjs';
 import { useCustomThemes } from './themes/use-custom-themes';
-const APP_VERSION = '1.8.4';
+const APP_VERSION = '1.8.5';
 import { uid, guessNameFromPath, hashPin, formatPlaytime } from './lib/utils';
 import { normalizeGenreProfile, GENRE_TAXONOMY_VERSION } from './lib/genreTaxonomy';
 import { setSoundPack } from './lib/sound';
@@ -72,6 +75,9 @@ export default function App() {
   // reasons separate from game tracking so waking NEO-LIB never mutates a
   // play session or pretends a game is running.
   const [manualRestActive, setManualRestActive] = React.useState(false);
+  const [moduleWindowCount, setModuleWindowCount] = React.useState(0);
+  const [moduleManagerOpen, setModuleManagerOpen] = React.useState(false);
+  React.useEffect(() => nativeApi?.onModuleWindowsChange?.(value => setModuleWindowCount(Math.max(0, Number(value?.count) || 0))), []);
   const [trayRestActive, setTrayRestActive] = React.useState(false);
   const [wakeTransitionActive, setWakeTransitionActive] = React.useState(false);
   const wakeTransitionTimer = React.useRef(null);
@@ -92,7 +98,8 @@ export default function App() {
   // Everything that is non-essential already observes this one flag: effects,
   // sounds, mascot activity, launcher discovery, news, deals and health
   // polling all sleep together.
-  const gameRestActive = automaticGameRestActive || manualRestActive || trayRestActive;
+  const moduleRestActive = automaticGameRestActive || manualRestActive || trayRestActive;
+  const gameRestActive = moduleRestActive || moduleWindowCount > 0;
   const lounge = useNeoLounge(nativeApi, Boolean(runningGame));
   const restReason = trayRestActive
     ? 'NEO-LIB is resting in the background until you reopen it.'
@@ -768,8 +775,8 @@ export default function App() {
   }, [externalRunningGame]);
   const askFungist = React.useCallback(async (message, history = [], visibleLibraryGames = []) => {
     if (!nativeApi?.askFungist) return { ok: false, error: 'Fungist chat is available in the NEO-LIB desktop app.' };
-    return nativeApi.askFungist({ apiKey: settings.geminiKey || '', message, history, libraryContext: mascotLibraryContext(visibleLibraryGames), model: settings.aiModel || 'gemini-2.5-flash' });
-  }, [settings.aiModel, settings.geminiKey]);
+    return nativeApi.askFungist({ mascotId: settings.mascotId || 'fungist', apiKey: settings.geminiKey || '', message, history, libraryContext: mascotLibraryContext(visibleLibraryGames), model: settings.aiModel || 'gemini-2.5-flash' });
+  }, [settings.aiModel, settings.geminiKey, settings.mascotId]);
   const recordFungistNotice = React.useCallback((entry) => {
     if (!entry?.key) return;
     updateSetting({ fungistInbox: appendMascotNotice(settings.fungistInbox, entry, Date.now()) });
@@ -866,8 +873,9 @@ export default function App() {
     setShowWizard(false);
     setWizardPrefillRoot('');
     setWizardAutoScan(false);
-    setRefreshReview({ games: result.imported, index: 0, field: 'all-locked' });
-    notify(`Imported ${result.imported.length} retro game${result.imported.length === 1 ? '' : 's'}. Review suggested metadata one game at a time; Skip or Stop leaves your ROMs intact.`);
+    const unreviewed = result.imported.filter(game => !game.retroMetadataReviewed);
+    if (unreviewed.length) setRefreshReview({ games: unreviewed, index: 0, field: 'all-locked' });
+    notify(`Imported ${result.imported.length} retro game${result.imported.length === 1 ? '' : 's'}.${unreviewed.length ? ' Review suggested metadata one game at a time; Skip or Stop leaves your ROMs intact.' : ' Your reviewed metadata was kept.'}`);
     return result.imported.length;
   };
   const addTool = (data) => {
@@ -1330,6 +1338,26 @@ export default function App() {
   // and online lookup key) with one category-aware protected placeholder.
   const lockedHomeCategoryByGameId = React.useMemo(() => gameLockedCategoryMap(library.games || [], library.categories || [], unlockedCategories), [library.categories, library.games, unlockedCategories]);
   const homeGames = React.useMemo(() => redactLockedHomeGames(library.games || [], library.categories || [], unlockedCategories), [library.games, library.categories, unlockedCategories]);
+  const [addonPackages, setAddonPackages] = React.useState([]);
+  const [activeAddonId, setActiveAddonId] = React.useState('');
+  React.useEffect(() => {
+    let live = true;
+    const refresh = () => {
+      if (settings.addonsEnabled !== true) { setAddonPackages([]); return; }
+      Promise.resolve(nativeApi?.listAddons?.()).then(result => { if (live) setAddonPackages(result?.widgets || []); }).catch(() => { if (live) setAddonPackages([]); });
+    };
+    refresh(); window.addEventListener('neolib:addons-changed', refresh);
+    return () => { live = false; window.removeEventListener('neolib:addons-changed', refresh); };
+  }, [settings.addonsEnabled]);
+  const availableAddons = enabledAddons(addonPackages, settings);
+  const activeAddon = settings.mode === 'addon' ? availableAddons.find(addon => addon.id === activeAddonId) : null;
+  const addonGames = React.useMemo(() => visibleUnlockedGames(library.games || [], library.categories || [], []), [library.games, library.categories]);
+  const openAddon = id => { setActiveAddonId(id); updateSetting({ mode: 'addon' }); };
+  const saveAddonStorage = React.useCallback(storage => {
+    const config = settings.addonConfig || {};
+    updateSetting({ addonConfig: { ...config, [activeAddonId]: { ...config[activeAddonId], storage } } });
+  }, [activeAddonId, settings.addonConfig, updateSetting]);
+  React.useEffect(() => { if (settings.mode === 'addon' && !activeAddon) updateSetting({ mode: 'library' }); }, [activeAddon, settings.mode, updateSetting]);
   const lockedWallCategories = React.useMemo(
     () => currentCats.filter((category) => category.private && !unlockedCategories.includes(category.id)),
     [currentCats, unlockedCategories],
@@ -1337,7 +1365,9 @@ export default function App() {
   const loungePrivateCategories = React.useMemo(() => (library.categories || []).filter(category => category.private), [library.categories]);
   const loungeLockedPrivateCategories = React.useMemo(() => loungePrivateCategories.filter(category => !unlockedCategories.includes(category.id)), [loungePrivateCategories, unlockedCategories]);
   const loungePrivateGamesUnlocked = loungePrivateCategories.length > 0 && loungeLockedPrivateCategories.length === 0;
-  const loungeGames = loungeVisibleGames(library.games || [], library.categories || [], unlockedCategories, settings.loungePreferences?.showPrivateGamesInLounge === true);
+  const loungeGames = React.useMemo(() => loungeVisibleGames(library.games || [], library.categories || [], unlockedCategories, settings.loungePreferences?.showPrivateGamesInLounge === true), [library.games, library.categories, unlockedCategories, settings.loungePreferences?.showPrivateGamesInLounge]);
+  const { openLoungeModule } = useModuleCoreBridge({ nativeApi, settings, lounge, updateSetting, launchGame, loungeGames, publicGames: addonGames, restReason, resting: moduleRestActive, privateGameCount: loungePrivateCategories.length, privateGamesUnlocked: loungePrivateGamesUnlocked, installedCustomThemes,
+    onUnlock: () => { const category = loungeLockedPrivateCategories[0]; if (category) requestUnlock(category); } });
   const favouriteUpdate = React.useMemo(() => {
     const ledger = settings.updateStatusLedger || {};
     const pinned = new Set(settings.pinnedGameIds || []);
@@ -1367,7 +1397,7 @@ export default function App() {
       '--special-magical-button-frame': `url("${stockThemeAssetUrl('colorful', 'controlFrame')}")`,
     }}>
       <HoverTips />
-      <ControllerNavigationBridge enabled={settings.controllerNavigationEnabled === true} preferredFingerprint={settings.preferredControllerFingerprint || ''} resting={gameRestActive && !lounge.active} privacyEpoch={unlockedCategories.join('|')} onBlockedLaunch={() => notify('Controller launch needs its own safety confirmation. Use mouse or keyboard for now.')} />
+      <ControllerNavigationBridge enabled={settings.controllerNavigationEnabled === true} preferredFingerprint={settings.preferredControllerFingerprint || ''} resting={gameRestActive} privacyEpoch={unlockedCategories.join('|')} onBlockedLaunch={() => notify('Controller launch needs its own safety confirmation. Use mouse or keyboard for now.')} />
       {/* Window edge glow — soft inner halo around the frameless window (Riot/Discord style) */}
       <div className="window-edge-glow" aria-hidden="true" />
       {!lounge.active && <BgAmbience theme={settings.theme} settings={settings} game={selected} resting={gameRestActive} eventPulse={fungistLaunchCelebration?.key > confetti.key ? { kind: 'launch', key: fungistLaunchCelebration.key } : { kind: 'celebrate', key: confetti.key }} />}
@@ -1388,6 +1418,8 @@ export default function App() {
 
       <div className="neolib-ui-foreground relative z-20 flex min-h-0 flex-1" inert={lounge.active ? '' : undefined}>
         {settings.navigationLayout === 'sidebar' && <SideNavigationRail
+          onOpenModules={() => setModuleManagerOpen(true)}
+          addonsEnabled={settings.addonsEnabled === true} addons={availableAddons} activeAddonId={activeAddon?.id} onOpenAddon={openAddon} onManageAddons={() => setShowSettings(true)}
           mode={settings.mode || 'library'}
           libraryViewMode={libraryViewMode}
           onOpenHome={() => { setSelectedId(null); setMode('home'); }}
@@ -1400,7 +1432,7 @@ export default function App() {
           onOpenControllers={() => setControllerCenterOpen(true)}
           onOpenSettings={() => setShowSettings(true)}
           onOpenChangelog={() => setChangelogOpen(true)}
-          onEnterLounge={() => void lounge.enter().then((ok) => { if (!ok) notify('Fullscreen is unavailable right now.'); })}
+          onEnterLounge={() => void openLoungeModule().then((ok) => { if (!ok) notify('Fullscreen is unavailable right now.'); })}
           onCheckForUpdates={checkForAppUpdateNow}
           onOpenFeedback={() => openFeedback('feedback')}
           onQuit={() => nativeApi?.quit?.()}
@@ -1409,6 +1441,8 @@ export default function App() {
           onToggleMinimalistic={(enabled) => updateSetting({ interfaceMode: enabled ? 'minimalistic' : 'default' })}
         />}
         {!wallActive && <Sidebar
+          onOpenModules={() => setModuleManagerOpen(true)}
+          addonsEnabled={settings.addonsEnabled === true} addons={availableAddons} onOpenAddon={openAddon} onManageAddons={() => setShowSettings(true)}
           games={visibleGames}
           categories={currentCats}
           gameOrderByCategory={currentOrder}
@@ -1525,7 +1559,7 @@ export default function App() {
           onOpenMascot={() => setMascotCenterOpen(true)}
           onOpenControllerCenter={() => setControllerCenterOpen(true)}
           onOpenChangelog={() => setChangelogOpen(true)}
-          onEnterLounge={() => void lounge.enter().then((ok) => { if (!ok) notify('Fullscreen is unavailable right now.'); })}
+          onEnterLounge={() => void openLoungeModule().then((ok) => { if (!ok) notify('Fullscreen is unavailable right now.'); })}
           onCheckForUpdates={checkForAppUpdateNow}
           onQuit={() => nativeApi?.quit?.()}
           onSystemHealthChange={onMascotHealthChange}
@@ -1533,8 +1567,8 @@ export default function App() {
         />}
         <main className="relative flex min-w-0 flex-1 flex-col">
           <div className="flex-1 min-h-0 overflow-hidden">
-            {!isTools && settings.mode === 'home' ? (
-              <HomeHub games={homeGames} lockedGameCategories={lockedHomeCategoryByGameId} hasPrivateCategories={(library.categories || []).some((category) => category.private)} hasLockedPrivateCategories={(library.categories || []).some((category) => category.private && !unlockedCategories.includes(category.id))} onPanicLock={panicLockPrivateLibrary} resting={gameRestActive} minimalistic={settings.interfaceMode === 'minimalistic'} homeLayout={settings.homeLayout || {}} onUpdateHomeLayout={(homeLayout) => updateSetting({ homeLayout })} onUpdateUpdatesCache={(homeGameUpdatesCache) => updateSetting({ homeGameUpdatesCache })} onSelect={(id) => { if (lockedHomeCategoryByGameId[id]) { notify(`Unlock ${lockedHomeCategoryByGameId[id]} in Library to reveal this game.`); return; } setSelectedId(id); updateSetting({ mode: 'library', libraryViewMode: 'preview' }); }} onOpenPlaytimeImport={() => openPlaytimeImport({ force: true })} onOpenTidyUp={() => { setTidyReviewMode('issues'); setTidyOpen(true); }} />
+            {activeAddon ? <AddonPage key={`${activeAddon.id}:${activeAddon.version}`} addon={activeAddon} config={settings.addonConfig[activeAddon.id]} games={addonGames} theme={settings.theme} onStorageChange={saveAddonStorage} onClose={openLibraryDefault} /> : !isTools && settings.mode === 'home' ? (
+              <HomeHub favoriteIds={settings.pinnedGameIds || []} games={homeGames} lockedGameCategories={lockedHomeCategoryByGameId} hasPrivateCategories={(library.categories || []).some((category) => category.private)} hasLockedPrivateCategories={(library.categories || []).some((category) => category.private && !unlockedCategories.includes(category.id))} onPanicLock={panicLockPrivateLibrary} resting={gameRestActive} minimalistic={settings.interfaceMode === 'minimalistic'} homeLayout={settings.homeLayout || {}} onUpdateHomeLayout={(homeLayout) => updateSetting({ homeLayout })} onUpdateUpdatesCache={(homeGameUpdatesCache) => updateSetting({ homeGameUpdatesCache })} onSelect={(id) => { if (lockedHomeCategoryByGameId[id]) { notify(`Unlock ${lockedHomeCategoryByGameId[id]} in Library to reveal this game.`); return; } setSelectedId(id); updateSetting({ mode: 'library', libraryViewMode: 'preview' }); }} onOpenPlaytimeImport={() => openPlaytimeImport({ force: true })} onOpenTidyUp={() => { setTidyReviewMode('issues'); setTidyOpen(true); }} />
             ) : !isTools && wallActive ? (
               <CoverWall
                 games={coverWallGames}
@@ -1685,6 +1719,7 @@ export default function App() {
           wizardAutoScan,
           settings,
           showSettings,
+          onOpenModules: () => { setShowSettings(false); setModuleManagerOpen(true); },
           setShowSettings,
           exportLibraryBackup,
           importLibraryBackup,
@@ -1770,6 +1805,7 @@ export default function App() {
           autoSortOpen,
           setAutoSortOpen,
           visibleGames,
+          retroVisibleGames: visibleUnlockedGames(library.games || [], library.categories || [], unlockedCategories),
           currentCats,
           handleAutoSortApply,
           undoAutoSort,
@@ -1784,7 +1820,7 @@ export default function App() {
           appVersion: APP_VERSION,
         }}
       />
-      {lounge.active && <NeoLounge games={loungeGames} retroProfiles={settings.retroProfiles || []} privateGameCount={loungePrivateCategories.length} privateGamesUnlocked={loungePrivateGamesUnlocked} onRequestPrivateGames={() => { const nextCategory = loungeLockedPrivateCategories[0]; if (nextCategory) requestUnlock(nextCategory); }} favoriteIds={settings.pinnedGameIds || []} updateLedger={settings.updateStatusLedger || {}} initialGameId={settings.lastGameId} initialLayout={settings.loungeLayout || 'browser'} initialPreferences={settings.loungePreferences} initialResume={settings.loungeResume} onResumeChange={(loungeResume) => updateSetting({ loungeResume })} savedPresets={settings.loungeSavedPresets || []} onSavedPresetsChange={(loungeSavedPresets) => updateSetting({ loungeSavedPresets })} onLayoutChange={(loungeLayout) => updateSetting({ loungeLayout })} onPreferencesChange={(loungePreferences) => updateSetting({ loungePreferences })} theme={settings.theme || 'synthwave'} themeSettings={settings} resting={gameRestActive} restReason={restReason} soundsEnabled={settings.soundsEnabled !== false && (settings.soundPack || 'synthwave') !== 'none'} mascotId={settings.mascotId || 'fungist'} mascotEnabled={settings.fungistEnabled !== false} controllerEnabled={settings.controllerNavigationEnabled === true} onExit={lounge.exit} onLaunch={async (game, token) => { lounge.preserveGameLaunch(); try { const launched = await launchGame(game, token); if (!launched) lounge.cancelGameLaunch(); return launched; } catch (error) { lounge.cancelGameLaunch(); throw error; } }} />}
+      <ModuleManagerModal open={moduleManagerOpen} onClose={() => setModuleManagerOpen(false)} settings={settings} onChange={updateSetting} onOpenLounge={openLoungeModule} />
     </div>
   );
 }

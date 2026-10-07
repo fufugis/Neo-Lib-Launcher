@@ -30,6 +30,7 @@ export function stockThemeFileUrl(id, asset) {
   return assets[`./stock/${id}/${asset}`] || '';
 }
 export function customThemeList() { return [...customThemes.values()].map(item => item.manifest); }
+export function customThemePackages() { return [...customThemes.values()].map(item => ({ manifest: item.manifest, assetUrls: item.assetUrls })); }
 export function customThemeCanvas(id) {
   const manifest = customThemeManifest(id);
   const layer = manifest?.layers?.canvas;

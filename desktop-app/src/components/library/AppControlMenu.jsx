@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ChevronRight, Gamepad2, Lightbulb, Palette, PanelLeft, Power, RefreshCw, Settings2, SlidersHorizontal, Sparkles, Tv2, UserRound } from 'lucide-react';
+import { Boxes, ChevronRight, Gamepad2, Lightbulb, Palette, PanelLeft, Power, RefreshCw, Settings2, SlidersHorizontal, Sparkles, Tv2, UserRound } from 'lucide-react';
 import { renderForegroundPortal } from '../ui/VisualBoundary';
 
 function MenuItem({ icon, label, detail, onClick, disabled = false, testid, danger = false }) {
@@ -34,7 +34,7 @@ function MenuToggle({ icon, label, detail, checked, onChange, testid }) {
  * One home for presentation, devices and app-level actions. It is portalled so
  * game rows, preview panes and theme FX can never cover it.
  */
-export default function AppControlMenu({ onOpenThemes, onOpenVisuals, onOpenControllers, onOpenMascot, onOpenSettings, onOpenChangelog, onCheckForUpdates, onOpenFeedback, onQuit, onEnterLounge, sidebarMode = false, sidebarExpanded = false, sidebarEnabled = false, onToggleSidebar, minimalisticEnabled = false, onToggleMinimalistic }) {
+export default function AppControlMenu({ onOpenThemes, onOpenVisuals, onOpenControllers, onOpenMascot, onOpenSettings, onOpenModules, onOpenChangelog, onCheckForUpdates, onOpenFeedback, onQuit, onEnterLounge, sidebarMode = false, sidebarExpanded = false, sidebarEnabled = false, onToggleSidebar, minimalisticEnabled = false, onToggleMinimalistic }) {
   const [open, setOpen] = React.useState(false);
   const buttonRef = React.useRef(null);
   const panelRef = React.useRef(null);
@@ -86,8 +86,8 @@ export default function AppControlMenu({ onOpenThemes, onOpenVisuals, onOpenCont
         <motion.div
           ref={panelRef}
           initial={{ opacity: 0, y: -6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.98 }} transition={{ duration: 0.14 }}
-          style={{ position: 'fixed', top: position.top, left: position.left, background: 'rgb(var(--surface))' }}
-          className="z-[10000] w-[min(338px,calc(100vw-24px))] overflow-hidden rounded-xl border border-[rgb(var(--border)/0.92)] shadow-2xl"
+          style={{ position: 'fixed', top: position.top, left: position.left, maxHeight: `calc(100vh - ${position.top + 12}px)`, background: 'rgb(var(--surface))' }}
+          className="z-[10000] w-[min(338px,calc(100vw-24px))] overflow-y-auto rounded-xl border border-[rgb(var(--border)/0.92)] shadow-2xl"
           data-testid="app-control-menu"
           data-controller-surface="popover"
           onPointerDown={(event) => event.stopPropagation()}
@@ -98,6 +98,7 @@ export default function AppControlMenu({ onOpenThemes, onOpenVisuals, onOpenCont
           </div>
           <MenuSection label="Modes">
             <MenuItem icon={<Tv2 size={15} />} label="NEO Lounge" detail="Opt-in fullscreen browsing · Exit or Esc to return" onClick={() => choose(onEnterLounge)} testid="app-menu-tv-mode" />
+            {onOpenModules && <MenuItem icon={<Boxes size={15} />} label="Modules" detail="Built-in and imported module windows" onClick={() => choose(onOpenModules)} testid="app-menu-modules" />}
           </MenuSection>
           <div className="mx-3 h-px bg-[rgb(var(--border)/0.55)]" />
           <MenuSection label="Personalise">

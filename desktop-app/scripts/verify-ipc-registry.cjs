@@ -92,7 +92,7 @@ async function main() {
 
   const root = path.resolve(__dirname, '..');
   const mainSource = fs.readFileSync(path.join(root, 'electron/main.js'), 'utf8');
-  const preload = fs.readFileSync(path.join(root, 'electron/preload.js'), 'utf8');
+  const preload = fs.readFileSync(path.join(root, 'electron/preload.js'), 'utf8') + '\n' + fs.readFileSync(path.join(root, 'electron/module-preload.cjs'), 'utf8');
   const ipcDir = path.join(root, 'electron/ipc');
   const ipcSources = fs.readdirSync(ipcDir)
     .filter(name => name.endsWith('-ipc.cjs'))
@@ -106,7 +106,7 @@ async function main() {
   const registrationSource = ipcSources.join('\n');
 const staticChannels = Array.from(registrationSource.matchAll(/registerIpc\(['"]([^'"]+)['"]/g), match => match[1]);
 const nativeChannels = staticChannels;
-assert.equal(nativeChannels.length, 112, 'known native command count changed; review the contract intentionally');
+assert.equal(nativeChannels.length, 144, 'known native command count changed; review the contract intentionally');
 assert.equal(new Set(nativeChannels).size, nativeChannels.length, 'source contains a duplicate channel');
 
 const rendererChannels = Array.from(new Set(Array.from(preload.matchAll(/ipcRenderer\.invoke\(['"]([^'"]+)['"]/g), match => match[1])));
@@ -116,7 +116,7 @@ const nativeOnly = nativeChannels.filter(channel => !rendererChannels.includes(c
 assert.deepEqual(nativeOnly, ['gemini:metadata'], 'review internal-only/dead native commands intentionally');
 
 const groups = Object.groupBy(nativeChannels, channel => channel.split(':', 1)[0]);
-assert.equal(Object.keys(groups).length, 32, 'domain inventory changed; document the new boundary');
+assert.equal(Object.keys(groups).length, 35, 'domain inventory changed; document the new boundary');
 
 const persistenceHandlers = {};
 const documentCalls = [];
@@ -181,6 +181,8 @@ assert.deepEqual(documentCalls, [
     'Pick a theme atmosphere video': 'C:\\Art\\motion.webm',
     "Select this game's save folder": 'C:\\Saves\\One',
     'Import NEO-LIB widget': 'C:\\Widgets\\example\\widget.json',
+    'Import NEO-LIB add-on (addon.json)': 'C:\\Addons\\example\\addon.json',
+    'Import NEO-LIB module (module.json)': 'C:\\Modules\\example\\module.json',
     'Import NEO-LIB theme': 'C:\\Themes\\example\\theme.json',
   };
   registerDialogIpc({
@@ -191,7 +193,7 @@ assert.deepEqual(documentCalls, [
     } },
     getMainWindow: () => pickerWindow,
   });
-  assert.deepEqual(Object.keys(dialogHandlers), ['dialog:pickExe', 'dialog:pickDirectory', 'dialog:pickImage', 'dialog:importLoungeBackground', 'dialog:loungeBackgroundProfile', 'dialog:importLoungeAudio', 'dialog:pickThemeVideo', 'dialog:pickSaveFolder', 'dialog:pickWidgetManifest', 'dialog:pickThemeManifest']);
+  assert.deepEqual(Object.keys(dialogHandlers), ['dialog:pickExe', 'dialog:pickDirectory', 'dialog:pickImage', 'dialog:importLoungeBackground', 'dialog:loungeBackgroundProfile', 'dialog:importLoungeAudio', 'dialog:pickThemeVideo', 'dialog:pickSaveFolder', 'dialog:pickWidgetManifest', 'dialog:pickAddonManifest', 'dialog:pickModuleManifest', 'dialog:pickThemeManifest']);
   assert.equal(await dialogHandlers['dialog:pickExe'](), 'C:\\Games\\One.exe');
   pickerWindow = { id: 'replacement-window' };
   assert.equal(await dialogHandlers['dialog:pickDirectory'](), 'D:\\Games');
@@ -201,10 +203,12 @@ assert.deepEqual(documentCalls, [
   assert.deepEqual(await dialogHandlers['dialog:pickThemeVideo'](), { path: 'C:\\Art\\motion.webm', url: 'file://C:/Art/motion.webm' });
   assert.equal(await dialogHandlers['dialog:pickSaveFolder'](), 'C:\\Saves\\One');
   assert.equal(await dialogHandlers['dialog:pickWidgetManifest'](), 'C:\\Widgets\\example\\widget.json');
+  assert.equal(await dialogHandlers['dialog:pickAddonManifest'](), 'C:\\Addons\\example\\addon.json');
+  assert.equal(await dialogHandlers['dialog:pickModuleManifest'](), 'C:\\Modules\\example\\module.json');
   assert.equal(await dialogHandlers['dialog:pickThemeManifest'](), 'C:\\Themes\\example\\theme.json');
   assert.equal(dialogCalls[0].parent, firstWindow);
   assert.equal(dialogCalls[1].parent, pickerWindow, 'picker must resolve the current window for every call');
-  assert.deepEqual(dialogCalls.map(call => call.options.properties), [['openFile'], ['openDirectory'], ['openFile'], ['openFile'], ['openFile'], ['openFile'], ['openDirectory'], ['openFile'], ['openFile']]);
+  assert.deepEqual(dialogCalls.map(call => call.options.properties), [['openFile'], ['openDirectory'], ['openFile'], ['openFile'], ['openFile'], ['openFile'], ['openDirectory'], ['openFile'], ['openFile'], ['openFile'], ['openFile']]);
   assert.deepEqual(dialogCalls[0].options.filters[0].extensions, ['exe', 'lnk', 'bat', 'cmd']);
   assert.deepEqual(dialogCalls[2].options.filters[0].extensions, ['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'm4v', 'webm', 'mov', 'ogv']);
   assert.deepEqual(dialogCalls[3].options.filters[0].extensions, ['png', 'jpg', 'jpeg', 'webp', 'gif', 'apng', 'mp4', 'm4v', 'webm', 'mov', 'ogv']);

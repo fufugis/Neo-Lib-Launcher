@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
+import { softenDesktopArtwork } from '../src/themes/artwork-presentation.mjs';
 import { fileURLToPath } from 'node:url';
 import { THEMES } from '../src/lib/utils.js';
 import { THEME_LAYER_NAMES, validateThemeManifest } from '../src/themes/theme-manifest.mjs';
@@ -18,6 +20,30 @@ function cssTokens(id) {
 const baseTokens = cssTokens('synthwave');
 const folders = fs.readdirSync(stockRoot, { withFileTypes: true }).filter(item => item.isDirectory()).map(item => item.name).sort();
 assert.deepEqual(folders, THEMES.map(theme => theme.id).sort(), 'Every selectable stock theme needs exactly one folder.');
+
+// Preserve the actual user originals, not a downsampled chat attachment.
+const originalScenes = {
+  'moonlit-arcana': '36f4b1eafa340195a8aef969a9d9747601ea2e0ad8541a9a5600399da4693827',
+  'cosmic-citadel': '5f21910e219efe7b0637f8ce248c2d7cc643e25bb467973b77dddfb43d2e3bf0',
+};
+const sceneRegistry = fs.readFileSync(path.join(appRoot, 'src/components/lounge/lounge-scene-art.mjs'), 'utf8');
+const sceneModel = fs.readFileSync(path.join(appRoot, 'src/components/lounge/lounge-layout-model.mjs'), 'utf8');
+for (const [id, expectedHash] of Object.entries(originalScenes)) {
+  const bytes = fs.readFileSync(path.join(stockRoot, id, 'assets/scene.jpg'));
+  assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'), expectedHash, `${id} keeps the original JPEG byte-for-byte`);
+  assert.equal(bytes.readUInt16BE(0), 0xffd8);
+  let dimensions;
+  for (let offset = 2; offset < bytes.length - 10;) {
+    if (bytes[offset] !== 0xff) break;
+    const marker = bytes[offset + 1];
+    if (marker === 0xc0 || marker === 0xc2) { dimensions = [bytes.readUInt16BE(offset + 7), bytes.readUInt16BE(offset + 5)]; break; }
+    offset += 2 + bytes.readUInt16BE(offset + 2);
+  }
+  assert.deepEqual(dimensions, [5504, 3072]);
+  assert(sceneRegistry.includes(`themes/stock/${id}/assets/scene.jpg`), 'Lounge shares the original stock asset rather than a reduced duplicate');
+  assert(sceneModel.includes(`'${id}': Object.freeze`), 'New scene is selectable and persists through normalization');
+  assert(css.includes(`[data-lounge-scene-art='${id}']`), 'New scene supports regular atmosphere light rays');
+}
 
 for (const folder of folders) {
   const theme = JSON.parse(fs.readFileSync(path.join(stockRoot, folder, 'theme.json'), 'utf8'));
@@ -50,6 +76,15 @@ assert.equal(validateThemeManifest({ ...sample, lounge: { focusGlow: 0.75, flowO
 assert.equal(validateThemeManifest({ ...sample, lounge: { fxBoost: 99 } }).ok, false, 'Lounge FX boost must stay bounded');
 assert.equal(validateThemeManifest({ ...sample, lounge: { flowOpacity: 'full' } }).ok, false, 'Lounge values cannot contain CSS');
 const ambientSource = fs.readFileSync(path.join(appRoot, 'src/components/ThemeVisuals.jsx'), 'utf8');
+for (const id of ['moonlit-arcana', 'cosmic-citadel']) {
+  assert.equal(softenDesktopArtwork(id), true);
+  assert.equal(softenDesktopArtwork(id, true), false, 'Lounge must keep the sharp presentation');
+}
+for (const id of ['anime', 'midnight', 'custom:example', undefined]) assert.equal(softenDesktopArtwork(id), false);
+assert(ambientSource.includes('cadence={cadence} loungeMode={loungeMode}'), 'Lounge context must reach the artwork layer');
+assert(ambientSource.includes('opacity: opacity * (softened ? 0.82 : 1)'), 'Only softened desktop themes have reduced art prominence');
+assert(css.includes(".theme-artwork[data-desktop-art-softened='true']"), 'Softening must be scoped to the opted-in artwork layer');
+assert(css.includes('filter: blur(2px) saturate(0.82) contrast(0.88) brightness(0.86);'), 'Desktop treatment stays subtle and static');
 const particleSource = fs.readFileSync(path.join(appRoot, 'src/components/CustomThemeParticles.jsx'), 'utf8');
 const particleCss = fs.readFileSync(path.join(appRoot, 'src/styles.css'), 'utf8');
 assert(ambientSource.includes('<CustomThemeParticles theme={theme} level={level} cadence={cadence}'), 'custom themes must use their declared emitter renderer');

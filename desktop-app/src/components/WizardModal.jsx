@@ -45,7 +45,7 @@ function operationFailureMessage(operation, label) {
   return operation?.message || `${label} failed.`;
 }
 
-export default function WizardModal({ open, suspended = false, onClose, onImport, onAccept, onAddManual, onRefreshLibrary, onTidyLibrary, onRetroProfilesChange, onImportRoms, retroProfiles = [], onExternalLibraryRootsChange, externalLibraryRoots = [], geminiKey, aiModel = 'gemini-2.5-flash', existingExePaths = [], existingGames = [], prefilledRoot = '', autoScan = false }) {
+export default function WizardModal({ open, suspended = false, onClose, onImport, onAccept, onAddManual, onRefreshLibrary, onTidyLibrary, onRetroProfilesChange, onImportRoms, onRetroMetadataApply, retroVisibleGames = [], retroProfiles = [], onExternalLibraryRootsChange, externalLibraryRoots = [], geminiKey, aiModel = 'gemini-2.5-flash', existingExePaths = [], existingGames = [], prefilledRoot = '', autoScan = false }) {
   const [step, setStep] = React.useState(1);
   const [root, setRoot] = React.useState('');
   const [candidates, setCandidates] = React.useState([]);
@@ -503,7 +503,7 @@ export default function WizardModal({ open, suspended = false, onClose, onImport
               <div className="flex min-w-0 items-center gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[rgb(var(--accent-2)/0.15)] text-[rgb(var(--accent-2))]"><Gamepad2 size={24} /></span><div><div className="text-sm font-black text-ink">Retro Library</div><p className="mt-0.5 text-xs text-muted">Choose an emulator and ROM folder for each platform.</p></div></div>
               <button type="button" data-testid="wizard-retro-profiles-toggle" onClick={() => setRetroProfilesOpen((value) => !value)} className="inline-flex shrink-0 items-center gap-2 rounded-full hairline px-4 py-2 text-xs font-semibold text-ink hover:border-[rgb(var(--accent)/0.6)] hover:bg-[rgb(var(--accent)/0.10)]"><Gamepad2 size={13} className="text-[rgb(var(--accent))]" />{retroProfilesOpen ? 'Close profiles' : 'Manage profiles'}</button>
             </div>
-            {retroProfilesOpen && <RetroProfilesPanel profiles={retroProfiles} onChange={onRetroProfilesChange} onImportRoms={onImportRoms} existingGames={existingGames} />}
+            {retroProfilesOpen && <RetroProfilesPanel profiles={retroProfiles} onChange={onRetroProfilesChange} onImportRoms={onImportRoms} onApplyMetadata={onRetroMetadataApply} existingGames={existingGames} sourceVisibleGames={retroVisibleGames} />}
           </div>
 
           <div id="wizard-external-section" className="rounded-xl hairline bg-surface/50 p-4" data-testid="wizard-external-roots-section">

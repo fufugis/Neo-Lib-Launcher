@@ -3,11 +3,12 @@ const { createGeminiProviderService } = require('../electron/providers/gemini-pr
 
 (async () => {
   const requests = [];
+  let partsOverride, finishReason = 'STOP';
   let reply = JSON.stringify({ name: 'Portal 2', shortDescription: 'Puzzle', about: 'Science', genres: Array(15).fill('Puzzle'), developers: ['Valve'], publishers: ['Valve'], releaseDate: '2011', website: 'https://example.test', metacritic: 95 });
   const service = createGeminiProviderService({
     cleanSearchTerm: value => String(value || '').replace(/[_-]+/g, ' ').trim(),
-    models: [{ id: 'gemini-safe', provider: 'gemini' }], defaultModel: 'gemini-safe',
-    async httpPostJson(url, body) { requests.push({ url, body }); return { candidates: [{ content: { parts: [{ text: reply }] }, groundingMetadata: { webSearchQueries: ['Portal 2 game'], groundingChunks: [{ web: { uri: 'https://store.steampowered.com/app/620/', title: 'Portal 2' } }], searchEntryPoint: { renderedContent: '<div>Google Search</div>' } } }] }; },
+    models: [{ id: 'gemini-safe', provider: 'gemini' }, {id: 'gemini-2.5-flash', provider: 'gemini'}], defaultModel: 'gemini-safe',
+    async httpPostJson(url, body) { requests.push({ url, body }); return { candidates: [{ finishReason, content: { parts: partsOverride || [{ text: reply }] }, groundingMetadata: { webSearchQueries: ['Portal 2 game'], groundingChunks: [{ web: { uri: 'https://store.steampowered.com/app/620/', title: 'Portal 2' } }], searchEntryPoint: { renderedContent: '<div>Google Search</div>' } } }] }; },
   });
   assert.equal(service.resolveModel('unknown'), 'gemini-safe');
   const metadata = await service.requestGameMetadata('secret key', 'Portal_2', 'unknown');
@@ -38,7 +39,16 @@ const { createGeminiProviderService } = require('../electron/providers/gemini-pr
   assert.equal(chatBody.contents.at(-1).parts[0].text, 'Help me');
   assert.ok(chatBody.systemInstruction.parts[0].text.length < 27000);
   assert.ok(!chatBody.systemInstruction.parts[0].text.includes('\u0000'));
-  assert.equal(chatBody.generationConfig.maxOutputTokens, 260);
+  assert.equal(chatBody.generationConfig.maxOutputTokens, 2048);
+  assert.equal(chatBody.generationConfig.thinkingConfig, undefined, 'thinking controls only applied to compatible Flash models');
+  partsOverride = [{text: 'private thought', thought: true}, {text: 'Your most-played game is'}, {text: 'Example, with 12 hours tracked.'}];
+  const completeChat = await service.requestAssistant('key', 'What did I play most?', 'gemini-2.5-flash', [], 'Example — 12h played', 'fifi');
+  assert.equal(completeChat, 'Your most-played game is\nExample, with 12 hours tracked.');
+  assert.match(requests.at(-1).body.systemInstruction.parts[0].text, /You are FiFi,/);
+  assert.equal(requests.at(-1).body.generationConfig.thinkingConfig.thinkingBudget, 0);
+  finishReason = 'MAX_TOKENS';
+  await assert.rejects(() => service.requestAssistant('key', 'Hi'), /cut short/);
+  finishReason = 'STOP'; partsOverride = undefined;
   await assert.rejects(() => service.requestAssistant('', 'Hi'), /Add a Gemini API key/);
   await assert.rejects(() => service.requestAssistant('key', ''), /Write a question/);
   assert.throws(() => createGeminiProviderService({}), /explicit model allow-list/);

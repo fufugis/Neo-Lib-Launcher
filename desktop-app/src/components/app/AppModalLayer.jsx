@@ -59,6 +59,7 @@ export default function AppModalLayer({ context }) {
     wizardAutoScan,
     settings,
     showSettings,
+    onOpenModules,
     setShowSettings,
     exportLibraryBackup,
     importLibraryBackup,
@@ -145,6 +146,7 @@ export default function AppModalLayer({ context }) {
     autoSortOpen,
     setAutoSortOpen,
     visibleGames,
+    retroVisibleGames,
     currentCats,
     handleAutoSortApply,
     undoAutoSort,
@@ -182,16 +184,18 @@ export default function AppModalLayer({ context }) {
         onExternalLibraryRootsChange={onExternalLibraryRootsChange}
         externalLibraryRoots={settings.externalLibraryRoots || []}
         onImportRoms={importRetroGames}
+        onRetroMetadataApply={updateGame}
         retroProfiles={settings.retroProfiles || []}
         existingExePaths={(library.games || []).map((g) => g.exePath).filter(Boolean)}
         existingGames={library.games || []}
+        retroVisibleGames={retroVisibleGames || []}
         prefilledRoot={wizardPrefillRoot}
         autoScan={wizardAutoScan}
         geminiKey={settings.geminiKey || ''}
         aiModel={settings.aiModel || 'gemini-2.5-flash'}
       />
       <SettingsRecoveryBoundary open={showSettings} onClose={() => setShowSettings(false)} onReportBug={() => openFeedback('bug')}>
-        <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} settings={settings} setSettings={persistSettings} onShowChangelog={() => setChangelogOpen(true)} currentVersion={appVersion} library={library} onExportLibrary={exportLibraryBackup} onImportLibrary={importLibraryBackup} onResetLibrary={resetLibraryGames} onConfirmCategoryRemoval={confirmCategoryRemoval} onRemoveCategories={removeCategoriesById} />
+        <SettingsModal onOpenModules={onOpenModules} open={showSettings} onClose={() => setShowSettings(false)} settings={settings} setSettings={persistSettings} onShowChangelog={() => setChangelogOpen(true)} currentVersion={appVersion} library={library} onExportLibrary={exportLibraryBackup} onImportLibrary={importLibraryBackup} onResetLibrary={resetLibraryGames} onConfirmCategoryRemoval={confirmCategoryRemoval} onRemoveCategories={removeCategoriesById} />
       </SettingsRecoveryBoundary>
       <ThemeStudioModal open={themeStudioOpen} onClose={() => setThemeStudioOpen(false)} settings={settings} setSettings={persistSettings} installedCustomThemes={installedCustomThemes} refreshCustomThemes={refreshCustomThemes} />
       <MascotCenterModal open={mascotCenterOpen} onClose={() => setMascotCenterOpen(false)} settings={settings} setSettings={persistSettings} />

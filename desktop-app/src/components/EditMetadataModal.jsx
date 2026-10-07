@@ -1,4 +1,5 @@
 import React from 'react';
+import WorkshopArtworkGallery from './WorkshopArtworkGallery';
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { Check, Globe2, GripVertical, History, Image as ImageIcon, Loader2, Lock, LockOpen, Plus, RefreshCw, RotateCcw, Save, Search, Trash2, Upload, X } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -286,7 +287,7 @@ function Artwork({ form, set, game, onPick, steamGridDbKey }) {
         onReset={() => set({ heroArtworkOverride: '', heroArtworkOverrideSource: '', heroFocalPoint: { x: 50, y: 42 } })}
       />
     </Section>
-    {catalogue.open && <SteamGridDbGallery state={catalogue} setState={setCatalogue} apiKey={steamGridDbKey} onUse={(asset) => { const field = artworkFieldForSlot(catalogue.slot); updateArtwork(catalogue.slot, field, asset.url, `SteamGridDB · ${asset.author}${asset.width && asset.height ? ` · ${asset.width}×${asset.height}` : ''}`); setCatalogue((current) => ({ ...current, open: false })); }} />}
+    {catalogue.open && <WorkshopArtworkGallery key={catalogue.slot} state={catalogue} setState={setCatalogue} apiKey={steamGridDbKey} game={{...game, ...form, screenshots: splitLines(form.screenshots)}} onUse={(asset) => { const field = artworkFieldForSlot(catalogue.slot); updateArtwork(catalogue.slot, field, asset.url, `${asset.author}${asset.width && asset.height ? ` · ${asset.width}×${asset.height}` : ''}`); setCatalogue((current) => ({ ...current, open: false })); }} />}
     <ArtworkHistory revisions={form.artworkRevisions} onRestore={restore} />
     <Section title="Screenshots" description="One public image URL per line.">
       <Field label="Screenshot URLs"><textarea value={form.screenshots} onChange={(event) => set('screenshots', event.target.value)} rows={5} placeholder={'https://…/shot1.png\nhttps://…/shot2.png'} className={cn(inputCls, 'h-auto resize-y py-2 font-mono text-[11px]')} /></Field>
@@ -454,28 +455,6 @@ function ImageSlot({ label, value, onChange, onPick, onBrowse, protected: isProt
   </div>;
 }
 
-function SteamGridDbGallery({ state, setState, apiKey, onUse }) {
-  const update = (patch) => setState((current) => ({ ...current, ...patch }));
-  const search = async () => {
-    if (!apiKey) { update({ error: 'Add your SteamGridDB API key in Settings first.' }); return; }
-    update({ busy: true, error: '', games: [], assets: [], selectedGame: null });
-    const result = await window.api?.steamGridDbArtwork?.({ apiKey, action: 'search', query: state.query });
-    update(result?.ok ? { busy: false, games: result.games || [] } : { busy: false, error: result?.error || 'SteamGridDB search failed.' });
-  };
-  const chooseGame = async (game) => {
-    update({ busy: true, error: '', selectedGame: game, assets: [] });
-    const result = await window.api?.steamGridDbArtwork?.({ apiKey, action: 'assets', gameId: game.id, kind: state.slot });
-    update(result?.ok ? { busy: false, assets: result.assets || [] } : { busy: false, error: result?.error || 'Artwork could not be loaded.' });
-  };
-  return <Section title={`SteamGridDB ${state.slot} gallery`} description={state.slot === 'cover' ? 'Only portrait-shaped covers are shown. Check the exact game, author and resolution; choose an image, then Save game. You can also choose your own cover file.' : 'Player-key search only. Check the exact title, author and resolution; nothing is saved until you choose an image and then Save game.'}>
-    <div className="flex gap-2"><input value={state.query} onChange={(event) => update({ query: event.target.value })} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); search(); } }} className={cn(inputCls, 'flex-1')} placeholder="Search exact game title" /><button onClick={search} disabled={state.busy || !state.query.trim()} className="inline-flex items-center gap-1.5 rounded-md bg-[rgb(var(--accent))] px-3 text-[10px] font-bold text-[rgb(var(--surface))] disabled:opacity-40">{state.busy ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />} Search</button><button onClick={() => update({ open: false })} className="rounded-md hairline px-3 text-[10px] text-muted hover:text-ink">Close</button></div>
-    {state.error && <p role="alert" className="mt-3 text-xs text-amber-300">{state.error}</p>}
-    {!state.selectedGame && state.games.length > 0 && <div className="mt-3 grid gap-2 sm:grid-cols-2">{state.games.map((game) => <button key={game.id} onClick={() => chooseGame(game)} className="rounded-lg hairline p-2.5 text-left hover:border-[rgb(var(--accent)/0.55)]"><b className="block truncate text-xs text-ink">{game.name}</b><span className="text-[9px] text-muted">{game.verified ? 'Verified title' : 'Community title'}{game.types.length ? ` · ${game.types.join(', ')}` : ''}</span></button>)}</div>}
-    {state.selectedGame && <div className="mt-3 flex items-center justify-between gap-2"><p className="text-xs text-muted">Showing {state.slot} art for <b className="text-ink">{state.selectedGame.name}</b></p><button onClick={() => update({ selectedGame: null, assets: [] })} className="text-[10px] font-bold text-[rgb(var(--accent-2))] hover:underline">Choose another title</button></div>}
-    {!state.busy && state.selectedGame && !state.assets.length && !state.error && <p className="mt-3 text-xs text-muted">{state.slot === 'cover' ? 'No verified portrait cover was found for this game. Try another title match or add your own cover file.' : 'No matching static artwork was found for this slot.'}</p>}
-    {state.assets.length > 0 && <div className="mt-3 grid max-h-96 grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3">{state.assets.map((asset) => <article key={asset.id} className="overflow-hidden rounded-lg hairline bg-panel/35"><div className={state.slot === 'cover' ? 'aspect-[2/3]' : state.slot === 'icon' ? 'aspect-square' : 'aspect-video'}><img src={asset.thumb} alt="SteamGridDB candidate" className="h-full w-full object-contain bg-black/20" /></div><div className="space-y-1 p-2"><p className="truncate text-[9px] text-muted" title={asset.author}>{asset.author}{asset.width && asset.height ? ` · ${asset.width}×${asset.height}` : ''}</p><p className="text-[8px] uppercase tracking-wide text-muted">{asset.style || 'Artwork'}{asset.nsfw ? ' · NSFW' : ''}{asset.humor ? ' · Humor' : ''}</p><button onClick={() => onUse(asset)} className="w-full rounded-md bg-[rgb(var(--accent)/0.16)] px-2 py-1.5 text-[10px] font-bold text-ink hover:bg-[rgb(var(--accent)/0.28)]">Use this</button></div></article>)}</div>}
-  </Section>;
-}
 
 const inputCls = 'w-full rounded-md bg-panel/60 hairline px-3 py-2 text-xs text-ink placeholder:text-muted/70 focus:border-[rgb(var(--accent)/0.6)] focus:outline-none';
 

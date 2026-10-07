@@ -56,6 +56,19 @@ try {
     assert(!/rgb\(255 (255|244|233)/.test(painted), 'highlight no longer adds a fixed white/warm source');
   }
   assert.equal(projectArtworkPoint(first.area, 16 / 9, 16 / 9).x, profile.area.x);
+  const source = { x: 50, y: 50, strength: 0.8, color: [80, 160, 255] };
+  assert.equal(projectArtworkPoint(source, 1, 1, 'cover', 0, 50, 150).x, 75);
+  assert.equal(projectArtworkPoint(source, 1, 1, 'cover', 100, 50, 150).x, 25);
+  assert.equal(projectArtworkPoint(source, 1, 1, 'cover', 50, 0, 150).y, 75);
+  assert.equal(projectArtworkPoint(source, 1, 1, 'cover', 50, 100, 150).y, 25);
+  assert.equal(projectArtworkPoint(source, 1, 1, 'cover', 0, 0, 100).x, 50, 'no artificial pan on an exactly fitted axis');
+  assert.equal(projectArtworkPoint({ ...source, x: 0 }, 1, 1, 'cover', 100, 50, 200).strength, 0, 'cropped-away lights stay ineffective');
+  assert(styles.includes('transform-origin: var(--lounge-backdrop-position-x, 50%) var(--lounge-backdrop-position-y, 50%);'));
+  const breathe = styles.match(/@keyframes lounge-highlight-breathe \{([^\n]+)/)?.[1] || '';
+  assert.equal((breathe.match(/--lounge-bright-strength/g) || []).length, 2, 'both pulse endpoints respect source visibility and strength');
+  const backdrop = await fs.readFile('src/components/lounge/LoungeLivingBackdrop.jsx', 'utf8');
+  assert(backdrop.includes('lightSource && <div className="lounge-living-backdrop__highlight'), 'ordinary theme artwork receives its own highlight');
+  assert(backdrop.indexOf('className="lounge-living-backdrop__fx') < backdrop.indexOf('className="lounge-living-backdrop__specular'), 'master atmosphere opacity also controls localized pulse');
   await fs.appendFile(file, 'changed');
   assert.equal(await backgroundProfile(root, url), null, 'modified artwork invalidates its sidecar');
   await fs.writeFile(file + '.lighting.json', '{broken');

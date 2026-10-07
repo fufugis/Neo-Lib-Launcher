@@ -15,6 +15,8 @@ import { LibraryGameRow, LibrarySection, PinnedStrip, TwoColumnSections } from '
 import { LauncherDropdown, SideBtn, TabPill } from './library/LibraryToolbarControls';
 import CollectionActions from './library/CollectionActions';
 import SidebarResizeHandle from './library/SidebarResizeHandle';
+import AddonMenu from './addons/AddonMenu';
+import RailActionFlyout from './library/RailActionFlyout';
 
 /* v1.6.4 — Background texture styles applied INSIDE the sidebar so the
    texture never covers hero banners / preview images in the main pane. */
@@ -152,6 +154,8 @@ export default function Sidebar({
   onQuit,
   onSystemHealthChange,
   systemHealthOpenRequest = 0,
+  addonsEnabled = false, addons = [], onOpenAddon, onManageAddons,
+  onOpenModules,
 }) {
   // size based on rowSize slider (in px).
   // v1.2.9 — text size can now be overridden explicitly via nameTextSize
@@ -177,6 +181,7 @@ export default function Sidebar({
   // Never squeeze words into tiny, half-visible text. Compact states keep the
   // actions discoverable through their icons, titles and accessible names.
   const labelsVisible = !libraryIconMode && sidebarWidth >= 300;
+  const navLabelsVisible = !libraryIconMode && sidebarWidth >= (addonsEnabled ? 560 : 460);
   const compactFilters = libraryIconMode || sidebarWidth < 390;
   const pinnedIdsSet = React.useMemo(() => new Set(pinnedIds || []), [pinnedIds]);
   const selectGame = React.useCallback((id) => {
@@ -331,6 +336,7 @@ export default function Sidebar({
           WebkitBackdropFilter: 'blur(12px) saturate(140%)',
         }}
         data-testid="top-toolbar"
+        data-has-addons={addonsEnabled ? 'true' : 'false'}
       >
         <AppControlMenu
           onOpenThemes={onOpenThemes}
@@ -338,6 +344,7 @@ export default function Sidebar({
           onOpenVisuals={onOpenVisuals}
           onOpenControllers={onOpenControllerCenter}
           onOpenSettings={onOpenSettings}
+          onOpenModules={onOpenModules}
           onOpenChangelog={onOpenChangelog}
           onEnterLounge={onEnterLounge}
           onCheckForUpdates={onCheckForUpdates}
@@ -347,19 +354,20 @@ export default function Sidebar({
           onToggleSidebar={(enabled) => onChangeNavigationLayout?.(enabled ? 'sidebar' : 'top')}
           minimalisticEnabled={interfaceMode === 'minimalistic'} onToggleMinimalistic={(enabled) => onChangeInterfaceMode?.(enabled ? 'minimalistic' : 'default')}
         />
-        <TabPill decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} label="Home" icon={<Home size={15} />} showLabel={labelsVisible} active={mode === 'home'} onClick={() => { onSelect?.(null); onSetMode('home'); }} testid="tab-home" />
-        <TabPill decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} label="Library" icon={<LibIcon size={15} />} showLabel={labelsVisible} active={mode === 'library' && libraryViewMode !== 'wall'} onClick={() => { onChangeLibraryViewMode?.('preview'); onSetMode('library'); onSetLauncherFilter?.('all'); }} testid="tab-library" />
-        <TabPill decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} label="Wall" icon={<Columns size={15} />} showLabel={labelsVisible} active={mode === 'library' && libraryViewMode === 'wall'} onClick={() => { onChangeLibraryViewMode?.('wall'); onSelect?.(null); }} testid="tab-cover-wall" />
+        <TabPill decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} label="Home" icon={<Home size={15} />} showLabel={navLabelsVisible} active={mode === 'home'} onClick={() => { onSelect?.(null); onSetMode('home'); }} testid="tab-home" />
+        <TabPill decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} label="Library" icon={<LibIcon size={15} />} showLabel={navLabelsVisible} active={mode === 'library' && libraryViewMode !== 'wall'} onClick={() => { onChangeLibraryViewMode?.('preview'); onSetMode('library'); onSetLauncherFilter?.('all'); }} testid="tab-library" />
+        <TabPill decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} label="Wall" icon={<Columns size={15} />} showLabel={navLabelsVisible} active={mode === 'library' && libraryViewMode === 'wall'} onClick={() => { onChangeLibraryViewMode?.('wall'); onSelect?.(null); }} testid="tab-cover-wall" />
         <TabPill
           decorationTheme={currentTheme}
           decorationOpacity={gameResting ? 0 : navDecorationOpacity}
           label="Tools"
           icon={<Boxes size={15} />}
-          showLabel={labelsVisible}
+          showLabel={navLabelsVisible}
           active={mode === 'tools'}
           onClick={() => onSetMode('tools')}
           testid="tab-tools"
         />
+        {addonsEnabled && <AddonMenu addons={addons} onOpen={onOpenAddon} onManage={onManageAddons} showLabel={navLabelsVisible} decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} />}
         {/* Bottom accent line separating the toolbar from what's underneath */}
         <span
           aria-hidden
@@ -702,15 +710,17 @@ const RAIL_GROUP_TONES = Object.freeze({
   exit: '238 145 159',
 });
 
-export function SideNavigationRail({ mode, libraryViewMode, onOpenHome, onOpenLibrary, onOpenWall, onOpenTools, onOpenWizard, manualResting, onToggleManualRest, onOpenThemes, onOpenMascot, onOpenVisuals, onOpenControllers, onOpenSettings, onOpenChangelog, onEnterLounge, onCheckForUpdates, onOpenFeedback, onQuit, onDisableSidebar, minimalisticEnabled, onToggleMinimalistic }) {
+export function SideNavigationRail({ mode, libraryViewMode, onOpenHome, onOpenLibrary, onOpenWall, onOpenTools, onOpenWizard, manualResting, onToggleManualRest, onOpenThemes, onOpenMascot, onOpenVisuals, onOpenControllers, onOpenSettings, onOpenChangelog, onEnterLounge, onCheckForUpdates, onOpenFeedback, onQuit, onDisableSidebar, minimalisticEnabled, onToggleMinimalistic, addonsEnabled = false, addons = [], activeAddonId, onOpenAddon, onManageAddons, onOpenModules }) {
   const [expanded, setExpanded] = React.useState(false);
+  const [openMenu, setOpenMenu] = React.useState(null);
+  const closeMenu = React.useCallback(() => setOpenMenu(null), []);
   return <div className="relative z-50 h-full w-12 shrink-0" data-testid="side-navigation-slot"><nav
     data-testid="side-navigation-rail"
     aria-label="Primary navigation"
     onMouseEnter={() => setExpanded(true)}
-    onMouseLeave={() => setExpanded(false)}
+    onMouseLeave={() => { if (!openMenu) setExpanded(false); }}
     onFocusCapture={() => setExpanded(true)}
-    onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setExpanded(false); }}
+    onBlurCapture={(event) => { if (!openMenu && !event.currentTarget.contains(event.relatedTarget)) setExpanded(false); }}
     onKeyDown={(event) => { if (event.key === 'Escape') setExpanded(false); }}
     className="absolute inset-y-0 left-0 z-50 flex flex-col overflow-x-hidden overflow-y-auto border-r border-[rgb(var(--border)/0.8)] bg-[rgb(var(--surface)/0.97)] px-1 py-2 shadow-[8px_0_24px_-20px_rgba(0,0,0,.95)] backdrop-blur-xl transition-[width,box-shadow] duration-200 ease-out motion-reduce:transition-none"
     style={{ width: expanded ? 148 : 48 }}
@@ -721,21 +731,31 @@ export function SideNavigationRail({ mode, libraryViewMode, onOpenHome, onOpenLi
     <RailNavigationButton icon={<Home size={21} />} label="Home" hint="Your dashboard" tone={RAIL_GROUP_TONES.browse} expanded={expanded} active={mode === 'home'} onClick={onOpenHome} testid="tab-home" />
     <RailNavigationButton icon={<LibIcon size={21} />} label="Library" hint="Browse games" tone={RAIL_GROUP_TONES.browse} expanded={expanded} active={mode === 'library' && libraryViewMode !== 'wall'} onClick={onOpenLibrary} testid="tab-library" />
     <RailNavigationButton icon={<Columns size={21} />} label="Wall" hint="Cover view" tone={RAIL_GROUP_TONES.browse} expanded={expanded} active={mode === 'library' && libraryViewMode === 'wall'} onClick={onOpenWall} testid="tab-cover-wall" />
+    {addonsEnabled && addons.length > 0 && <>
+      <RailSectionHeader label="Addons" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} testid="side-navigation-addons-header" />
+      {addons.map(addon => <RailNavigationButton key={addon.id} icon={<Boxes size={21} />} label={addon.name} hint="Custom page" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} active={activeAddonId === addon.id} onClick={() => onOpenAddon(addon.id)} testid={`addon-${addon.id}`} />)}
+    </>}
     <RailSectionHeader label="Actions" tone={RAIL_GROUP_TONES.tools} expanded={expanded} testid="side-navigation-primary-divider" />
     <RailNavigationButton icon={<Boxes size={21} />} label="Tools" hint="Utilities" tone={RAIL_GROUP_TONES.tools} expanded={expanded} active={mode === 'tools'} onClick={onOpenTools} testid="tab-tools" />
     <RailNavigationButton icon={<Wand2 size={21} />} label="Wizard" hint="Add games" tone={RAIL_GROUP_TONES.tools} expanded={expanded} onClick={onOpenWizard} testid="sidebar-rail-wizard-btn" />
     <RailNavigationButton icon={manualResting ? <Sun size={21} /> : <Moon size={21} />} label={manualResting ? 'Wake up' : 'Rest Zzz'} hint={manualResting ? 'Resume activity' : 'Pause background'} tone={RAIL_GROUP_TONES.tools} expanded={expanded} active={manualResting} onClick={onToggleManualRest} testid="sidebar-rail-rest-toggle" />
     <RailSectionHeader label="Personalise" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} testid="side-navigation-personalise-divider" />
-    <RailNavigationButton icon={<Palette size={21} />} label="Theme" hint="Colour and atmosphere" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} onClick={onOpenThemes} testid="sidebar-rail-themes-btn" />
-    <RailNavigationButton icon={<SlidersHorizontal size={21} />} label="Visual tweaks" hint="Layout, motion and FX" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} onClick={onOpenVisuals} testid="sidebar-rail-visuals-btn" />
+    <RailNavigationButton icon={<Boxes size={21} />} label="Modules" hint="Built-in and imported" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} onClick={onOpenModules} testid="sidebar-rail-modules-btn" />
+    <RailActionFlyout icon={<Palette size={21} />} label="Visuals" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} testid="sidebar-rail-visuals-menu-btn" open={openMenu === 'visuals'} onToggle={() => setOpenMenu(value => value === 'visuals' ? null : 'visuals')} onClose={closeMenu} items={[
+      { label: 'Theme', icon: <Palette size={16} />, action: onOpenThemes, testid: 'sidebar-rail-themes-btn' },
+      { label: 'Visual tweaks', icon: <SlidersHorizontal size={16} />, action: onOpenVisuals, testid: 'sidebar-rail-visuals-btn' },
+    ]} />
     <RailNavigationButton icon={<PanelLeft size={21} />} label="Sidebar" hint="On · click to turn off" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} active onClick={onDisableSidebar} testid="sidebar-rail-sidebar-toggle" />
-    <RailNavigationButton icon={<Gamepad2 size={21} />} label="Controllers" hint="Pads and input" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} onClick={onOpenControllers} testid="sidebar-rail-controllers-btn" />
-    <RailNavigationButton icon={<UserRound size={21} />} label="Mascot" hint="Companion and chat" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} onClick={onOpenMascot} testid="sidebar-rail-mascot-btn" />
     <RailSectionHeader label="NEO-LIB" tone={RAIL_GROUP_TONES.app} expanded={expanded} testid="side-navigation-app-divider" />
-    <RailNavigationButton icon={<Settings2 size={21} />} label="Settings" hint="Startup, sound and data" tone={RAIL_GROUP_TONES.app} expanded={expanded} onClick={onOpenSettings} testid="sidebar-rail-settings-btn" />
+    <RailActionFlyout icon={<Settings2 size={21} />} label="Settings" tone={RAIL_GROUP_TONES.app} expanded={expanded} testid="sidebar-rail-settings-menu-btn" open={openMenu === 'settings'} onToggle={() => setOpenMenu(value => value === 'settings' ? null : 'settings')} onClose={closeMenu} items={[
+      { label: 'Settings', icon: <Settings2 size={16} />, action: onOpenSettings, testid: 'sidebar-rail-settings-btn' },
+      { label: 'Manage Addons', icon: <Boxes size={16} />, action: onManageAddons, testid: 'sidebar-rail-manage-addons-btn' },
+      { label: 'Help', icon: <Lightbulb size={16} />, action: onOpenFeedback, testid: 'sidebar-rail-feedback-btn' },
+      { label: 'Updates', icon: <RefreshCw size={16} />, action: onCheckForUpdates, testid: 'sidebar-rail-updates-btn' },
+      { label: 'Mascot', icon: <UserRound size={16} />, action: onOpenMascot, testid: 'sidebar-rail-mascot-btn' },
+      { label: 'Controllers', icon: <Gamepad2 size={16} />, action: onOpenControllers, testid: 'sidebar-rail-controllers-btn' },
+    ]} />
     <RailNavigationButton icon={<Sparkles size={21} />} label="Patch notes" hint="What changed" tone={RAIL_GROUP_TONES.app} expanded={expanded} onClick={onOpenChangelog} testid="sidebar-rail-changelog-btn" />
-    <RailNavigationButton icon={<RefreshCw size={21} />} label="Updates" hint="Check for a new version" tone={RAIL_GROUP_TONES.app} expanded={expanded} onClick={onCheckForUpdates} testid="sidebar-rail-updates-btn" />
-    <RailNavigationButton icon={<Lightbulb size={21} />} label="Help" hint="Feedback and ideas" tone={RAIL_GROUP_TONES.app} expanded={expanded} onClick={onOpenFeedback} testid="sidebar-rail-feedback-btn" />
     <RailSectionHeader label="Exit" tone={RAIL_GROUP_TONES.exit} expanded={expanded} testid="side-navigation-exit-divider" />
     <RailNavigationButton icon={<Power size={21} />} label="Quit" hint="Close NEO-LIB" tone={RAIL_GROUP_TONES.exit} expanded={expanded} onClick={onQuit} testid="sidebar-rail-quit-btn" />
   </nav></div>;

@@ -8,6 +8,52 @@ The release source is prepared for a fresh Windows installer and portable ZIP re
 
 ## Carried-forward features
 
+### Customize the Lounge emulator carousel
+
+Lounge Settings → Emulators groups console size, carousel width and a compact checked list of visible systems. Show all or keep only systems with an emulator set. Unconfigured consoles are grey; configured ones retain colour. Hidden consoles are skipped by mouse, keyboard and controller navigation without deleting profiles or games. Choices persist, hiding the selected system safely returns to a visible console, and an all-hidden carousel offers a settings recovery button. Source/regression checks pass; live colour/controller acceptance remains open.
+
+### Moonlit Arcana and Cosmic Citadel — original 5504×3072 artwork
+
+Windows installers now use the stable filename `NEO-LIB-Setup.exe` for future releases, allowing a version-independent website download link. The installed app and release evidence retain their version. Existing published assets are unchanged; the link requires a newly published latest release containing the stable-named installer.
+
+New Playtime pie widget for Home and Lounge: filter recorded lifetime playtime by game title, minimum/maximum hours, launcher, Journey status, favourites and recent game activity. Choose 5/10/15 named slices; Other retains the remaining total. Accessible selectable legend, empty-state guidance and independent saved filters; locked games excluded. No fabricated period-hour estimates or new background polling. Live acceptance pending.
+
+Lounge artwork positioning now adjusts the zoom anchor as well as crop, with matching light-source coordinates. The Visuals hint explains why an exactly fitted axis needs zoom to travel. Highlight pulse also works on ordinary theme artwork, respects cropped-away light sources throughout animation, and shares the master atmosphere opacity. Live acceptance remains pending.
+
+Normal desktop mode now gives these two scenes a quieter, gently softened presentation with slightly reduced colours, contrast, brightness and artwork opacity. Lounge keeps the sharp presentation; the bundled original JPEGs are untouched. Live appearance acceptance remains open.
+
+Two supplied fantasy backgrounds join the main theme picker and Lounge scenes: a moonlit anime mage/castle valley and a cosmic crystal-citadel galaxy. Both retain their full original JPEG detail without downsampling or recompression, with matching cyan/violet palettes and readable surfaces. Desktop and Lounge share each bundled original; existing background framing, source-light analysis and atmosphere controls remain available. Integrity/theme/source checks pass; live display and packaging acceptance remains open.
+
+### Simpler sidebar navigation
+
+Manage Addons is now in the sidebar Settings popout rather than occupying a separate rail button. Enabled addon pages keep their own buttons; an empty Addons heading is hidden. Management and permissions remain unchanged.
+
+Normal top navigation also keeps labels complete or switches cleanly to icons when the library column is narrow. Addons uses the same themed button layout and opens a button-based menu outside clipped panes. Modules is available through the left Menu button instead of consuming top-row space; sidebar access remains. Keyboard and controller dismissal stay available.
+
+Visuals opens Theme and Visual tweaks beside the rail instead of opening a page directly. Settings opens Settings, Help, Updates, Mascot and Controllers. All original destinations remain, with no settings-page redesign. Menus escape sidebar clipping, stay within the viewport and support keyboard focus/escape and controller Back. Patch notes and other ungrouped actions remain direct. Source checks pass; live desktop/controller acceptance remains open.
+
+### Retro sources: Skraper exports, ScreenScraper and RomM
+
+Reviewed Skraper/EmulationStation exports can import local ROM collections and privately copied scene/box artwork and logos. Optional ScreenScraper offers title/platform lookup, consent-based ROM checksum identification, localized metadata and artwork. A user-hosted RomM connection adds paginated browsing, reviewed artwork/metadata and explicit cancellable single-ROM downloads through a saved emulator profile. Settings manages encrypted native credentials; Game Workshop adds both source galleries. Existing games, launch routes, progress and protected artwork remain intact. No automatic scraping, launch, destructive sync or bundled third-party credentials/code. Source fixtures pass; real credentials/server, desktop/controller acceptance and production packaging remain pending. Setup and limits are documented in `desktop-app/RETRO_SOURCES.md`.
+
+### Official Lounge and custom Modules
+
+Lounge remains in its prominent top navigation position, not under Addons. The new Modules manager identifies it as owned and maintained by NEO-LIB. Its separate window/renderer uses a dedicated restricted bridge: core retains privacy, persistence and launch ownership, background library work pauses, and changed-field updates avoid resending scenery during carousel resume saves. Custom `module.json` packages open in their own isolated windows, with explicit activation/permissions, reviewed version updates and recoverable uninstall/restore. Imported packages cannot replace Lounge or claim official privileges. `desktop-app/MODULES.md` and an editable module shelf example document the author contract. Source implementation is not a live performance or packaged acceptance claim.
+
+### Opt-in Addons pages
+
+Enable Addons in Settings to install independent HTML/CSS/JavaScript page packages. Each approved package gets an entry under Addons in the sidebar, or in a dropdown beside Tools with top navigation. Authors can build library shelves and dashboards without patching NEO-LIB. Public library reading, per-add-on storage and HTTPS access are separately granted; private games, launch paths and native commands are not exposed. Version updates require renewed activation and permissions; uninstall keeps a recoverable copy. `desktop-app/ADDONS.md` and an editable shelf example document API v1. Source checks pass; installed runtime acceptance is pending. This is isolated web-page extensibility, not unrestricted native plugins.
+
+Mascot chat uses the selected FiFi/Fungist identity consistently in its labels and AI instructions. Responses collect all visible text parts with more output headroom; interrupted or oversized output produces a clear error rather than a misleading half-answer. Chat history is preserved.
+
+Game pages always show Journey status and a Journey action. Games still marked Not started prompt you to click Journey to set game progress; the menu offers all established statuses without opening Edit game. Choosing progress changes only that game’s Journey status.
+
+Edit game → Artwork now offers a multi-source gallery instead of only keyed SteamGridDB lookup. Search Steam or GOG without a key, look up web title matches, browse SteamGridDB community artwork, reuse existing images/screenshots for appropriate roles, or open Google/Bing Images. Confirm the title and preview before using an image; covers require portrait dimensions, and all choices remain unsaved until Save game.
+
+Steam cover retrieval now reads the official per-game portrait asset path rather than relying solely on guessed legacy filenames. This supports hash-based library artwork without a SteamGridDB key, prefers full-size portraits and retains legacy fallback. Live retrieval returned valid 600×900 covers for Forza Horizon 6 and TerraTech Legion; installed popup acceptance remains pending.
+
+Cover review correctly forwards your configured SteamGridDB key to its search source. Steam artwork recovery checks additional current/legacy portrait asset formats and provider alternatives rather than giving up after two JPEG links. Every offered image must still load with portrait dimensions and match the reviewed game; nothing saves until you apply it. Live recovery for the reported game remains pending.
+
 The launcher no longer plays a startup logo intro or CRT boot flash. Saved settings and the library load together before the configured layout is displayed. Dedicated compressed sidebar artwork starts loading early while preserving the original artwork and framing. Live startup and interaction measurements remain pending; this is not a claimed FPS or Core Web Vitals result.
 
 Wave drift keeps its moving surface beyond the visible screen with soft feathered edges and bounded travel. Strong combined motion settings no longer move the layer's hard rectangular edge across the scenery; waves and their intensity controls remain available.

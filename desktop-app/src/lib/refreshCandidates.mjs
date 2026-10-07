@@ -94,7 +94,7 @@ export function createRefreshSearch(api, game, field, options = {}, verifyCover 
       if (field === 'cover') {
         let verifiedUrl = '';
         try {
-          const result = await verifyCover(candidate.value);
+          const result = await verifyCover(candidate.value, record);
           verifiedUrl = typeof result === 'string' ? result : result ? candidate.value : '';
         } catch { /* Unavailable image is not a usable suggestion. */ }
         if (!verifiedUrl) {
@@ -127,7 +127,7 @@ export function createRefreshSearch(api, game, field, options = {}, verifyCover 
         if (!pending.length) {
           if (!sources.length) break;
           const source = sources.shift();
-          const result = await bounded(() => api.listCandidates({ source, query }));
+          const result = await bounded(() => api.listCandidates({ source, query, ...(source === 'steamgriddb' ? { steamGridDbKey: options.steamGridDbKey } : {}) }));
           if (result?.error) failures.push(`${source}: ${result.error}`);
           pending.push(...(result?.candidates || []).filter(candidate => field !== 'cover' || matchesCoverTitle(query, candidate, game)));
           if (!pending.length) continue;

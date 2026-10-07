@@ -38,10 +38,10 @@ export function libraryArtworkAudit(games = []) {
       ['Developer / publisher', game.developers?.length || game.publishers?.length],
       ['Release date', game.releaseDate || game.year],
       ['Metacritic', Number.isFinite(Number(game.metacritic)) && game.metacritic != null],
-      ['Launch target', game.exePath || game.launchUrl],
+      ['Launch target', game.hasLaunchTarget || game.exePath || game.launchUrl],
     ].map(([label, value]) => ({ label, present: typeof value === 'number' ? value > 0 : Boolean(String(value || '').trim()) }));
     const exePath = String(game.exePath || game.launchUrl || '');
-    const exeName = exePath.split(/[\\/]/).filter(Boolean).at(-1) || 'No launch target';
+    const exeName = exePath.split(/[\\/]/).filter(Boolean).at(-1) || (game.hasLaunchTarget ? 'Configured in NEO-LIB' : 'No launch target');
     return { game, cover, dimensions, reasons, metadata, exeName, needsReview: reasons.length > 0 || metadata.some((item) => !item.present) };
   });
   return rows;

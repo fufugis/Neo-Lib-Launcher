@@ -9,6 +9,7 @@ import { HOME_WIDGET_BY_ID, HOME_WIDGET_GRID, homeWidget, normaliseWidgetSize, w
 import { WIDGET_RESIZE_DIRECTIONS, resizeFreeWidget, resizeGridWidget } from './home/home-widget-resize.mjs';
 import WidgetManagerModal from './home/WidgetManagerModal';
 import CommunityWidgetHost from './home/CommunityWidgetHost';
+import PlaytimePieWidget from './home/PlaytimePieWidget';
 import { renderForegroundPortal } from './ui/VisualBoundary';
 
 const RANGES = { today: { label: 'Today', days: 1 }, week: { label: 'This week', days: 7 }, month: { label: 'This month', days: 31 } };
@@ -29,6 +30,7 @@ const RESIZE_GRIP_POSITION = Object.freeze({
   nw: { top: 4, left: 4 },
 });
 const HOME_WIDGET_ICONS = {
+  'playtime-pie': Clock3,
   'top-played': Trophy, news: Newspaper, 'play-next': Sparkles, recent: Clock3,
   'best-games': Star, chronicle: Archive, updates: Download,
   'released-week': CalendarDays, health: ShieldCheck, storage: HardDrive,
@@ -36,6 +38,7 @@ const HOME_WIDGET_ICONS = {
 // A small, muted dashboard palette: related widgets share a hue family, so
 // sections are easier to scan without turning Home into a rainbow.
 const HOME_WIDGET_ACCENTS = {
+  'playtime-pie': ['96 165 250', '147 197 253'],
   'top-played': ['96 165 250', '147 197 253'], news: ['167 139 250', '196 181 253'],
   'play-next': ['167 139 250', '196 181 253'], recent: ['56 189 248', '125 211 252'],
   'best-games': ['129 140 248', '165 180 252'], chronicle: ['56 189 248', '125 211 252'],
@@ -52,7 +55,7 @@ function operationFailure(operation, label) {
   return operation?.message || `${label} unavailable.`;
 }
 
-export default function HomeHub({ games = [], lockedGameCategories = {}, hasPrivateCategories = false, hasLockedPrivateCategories = false, onPanicLock, onSelect, onOpenPlaytimeImport, onOpenTidyUp, resting = false, minimalistic = false, homeLayout = {}, onUpdateHomeLayout, onUpdateUpdatesCache, embeddedWidgetIds = null }) {
+export default function HomeHub({ games = [], favoriteIds = [], lockedGameCategories = {}, hasPrivateCategories = false, hasLockedPrivateCategories = false, onPanicLock, onSelect, onOpenPlaytimeImport, onOpenTidyUp, resting = false, minimalistic = false, homeLayout = {}, onUpdateHomeLayout, onUpdateUpdatesCache, embeddedWidgetIds = null }) {
   const embedded = Array.isArray(embeddedWidgetIds);
   const needsNews = !embedded || embeddedWidgetIds.includes('news') || embeddedWidgetIds.includes('chronicle') || embeddedWidgetIds.includes('play-next');
   const needsReleases = !embedded || embeddedWidgetIds.includes('released-week');
@@ -392,6 +395,7 @@ export default function HomeHub({ games = [], lockedGameCategories = {}, hasPriv
     setStorage(next);
   };
   const paneContent = {
+    'playtime-pie': <PlaytimePieWidget games={visibleTrackableGames} favoriteIds={favoriteIds} filters={homeLayout.playtimePieFilters} onFiltersChange={playtimePieFilters => updateLayout({ playtimePieFilters })} onSelect={onSelect} />,
     'top-played': <TopPlayed games={topFive} scope={rankingScope} onScope={setRankingScope} rangeLabel={rangeMeta.label} summary={{ totalMinutes, gamesTouched: played.length, today: games.filter((game) => Number(game.lastPlayedAt || 0) >= Date.now() - 86400000).length, library: games.length }} onSelect={onSelect} />,
     news: <PinnedNews news={visibleNews} railRef={railRef} onScroll={scrollNews} onOpen={setNewsDetail} rangeLabel={rangeMeta.label} />,
     'play-next': <PlayNext recommendations={recommendations} onSelect={onSelect} />,

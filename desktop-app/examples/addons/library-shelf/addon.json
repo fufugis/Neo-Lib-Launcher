@@ -1,0 +1,12 @@
+{
+  "formatVersion": 1,
+  "kind": "page",
+  "apiVersion": 1,
+  "id": "example.library-shelf",
+  "name": "Library Shelf",
+  "description": "Editable example: search and sort your public games on a graphical shelf.",
+  "author": { "name": "NEO-LIB example" },
+  "version": "1.0.0",
+  "entry": "index.html",
+  "permissions": ["library.read", "storage", "network"]
+}

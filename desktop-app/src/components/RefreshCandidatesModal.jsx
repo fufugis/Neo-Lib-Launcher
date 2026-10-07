@@ -2,6 +2,7 @@ import React from 'react';
 import Modal from './Modal';
 import { createRefreshSearch, selectedRefreshPatch } from '../lib/refreshCandidates.mjs';
 import { hasPortraitDimensions } from '../lib/game-artwork-model.mjs';
+import { recoverPortraitImage } from '../lib/cover-image-recovery.mjs';
 
 function verifyPortraitImage(url) {
   return new Promise((resolve) => {
@@ -22,18 +23,8 @@ function verifyPortraitImage(url) {
   });
 }
 
-function verifySuggestedPortrait(url) {
-  const legacySteam = String(url || '').match(/^https:\/\/cdn\.(?:cloudflare|akamai)\.steamstatic\.com\/steam\/apps\/(\d+)\/library_600x900\.jpg(?:\?.*)?$/i);
-  const variants = legacySteam
-    ? [`https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${legacySteam[1]}/library_600x900.jpg`, url]
-    : [url];
-  return new Promise((resolve) => {
-    let remaining = variants.length;
-    for (const candidate of variants) verifyPortraitImage(candidate).then((valid) => {
-      if (valid) resolve(candidate);
-      else if (--remaining === 0) resolve('');
-    });
-  });
+function verifySuggestedPortrait(url, record) {
+  return recoverPortraitImage(url, record, verifyPortraitImage);
 }
 
 export default function RefreshCandidatesModal({ game, field, options, progress, onClose, onSkip, onApply }) {

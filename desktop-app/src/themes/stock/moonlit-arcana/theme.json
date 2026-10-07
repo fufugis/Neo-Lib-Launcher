@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "moonlit-arcana",
+  "name": "Moonlit Arcana",
+  "tone": "special",
+  "palette": {
+    "ink": [232, 243, 255], "muted": [166, 191, 224],
+    "accent": [105, 224, 255], "accent2": [181, 151, 255],
+    "accentSoft": [28, 58, 92], "hairlineGlow": [105, 224, 255],
+    "grad1": [8, 16, 38], "grad2": [24, 35, 77],
+    "accentText": [105, 224, 255], "accent2Text": [181, 151, 255]
+  },
+  "panels": { "surface": [13, 24, 48], "panel": [23, 39, 68], "border": [73, 111, 154] },
+  "layers": {
+    "canvas": { "type": "gradient", "from": "grad1", "to": "grad2", "opacity": 1 },
+    "atmosphere": { "type": "image", "asset": "assets/scene.jpg", "opacity": 1 },
+    "sidebar": { "type": "image", "asset": "assets/scene.jpg", "opacity": 0.22 },
+    "decoration": { "type": "none" },
+    "navigationFrame": { "type": "none" },
+    "navigationFlourish": { "type": "none" },
+    "controlFrame": { "type": "none" }
+  },
+  "motion": { "cadence": "calm", "reducedMotion": "still" },
+  "license": { "name": "User-supplied artwork for NEO-LIB", "attribution": "Artwork supplied by Fungist; original JPEG preserved without resampling." }
+}

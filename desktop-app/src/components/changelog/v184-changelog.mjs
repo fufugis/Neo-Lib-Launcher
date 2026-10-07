@@ -3,6 +3,70 @@ export const V184_CHANGELOG = {
   title: 'Lounge, Library and Home expanded',
   major: [
     {
+      title: 'One installer filename for future releases',
+      body: 'Windows installers use NEO-LIB-Setup.exe without a version in the filename, enabling a stable latest-release download link. App versions and release checksums remain available; existing published downloads are unchanged.',
+    },
+    {
+      title: 'Playtime pie for Home and Lounge',
+      body: 'See recorded playtime as a pie chart. Filter by title, hours, launcher, Journey, favourites or recently played games, with 5/10/15 named slices and an Other group. Home and Lounge save their filters separately. Activity filters select games; displayed hours remain lifetime recorded totals.',
+    },
+    {
+      title: 'Lounge artwork positioning and highlight pulse',
+      body: 'Artwork position now adjusts the zoom anchor, with matching detected-light placement. Exactly fitted axes need extra zoom to move without exposing edges. Highlight pulse extends to ordinary theme artwork, keeps cropped-away sources hidden and follows master atmosphere opacity.',
+    },
+    {
+      title: 'Quieter fantasy artwork in desktop mode',
+      body: 'Moonlit Arcana and Cosmic Citadel stay available in normal mode with gently softened detail and quieter colour, contrast and brightness behind the interface. Lounge keeps its sharp presentation, using the unchanged full-resolution originals.',
+    },
+    {
+      title: 'Choose which emulators appear in Lounge',
+      body: 'Lounge Settings → Emulators brings size and width controls together with a compact checked list of systems. Show all or only configured consoles. Unconfigured emulators appear grey, while configured ones keep their colours. Hiding affects Lounge only, never profiles or games; scrolling skips hidden systems and an all-hidden carousel offers a settings recovery button.',
+    },
+    {
+      title: 'Moonlit Arcana and Cosmic Citadel in full original detail',
+      body: 'Two supplied fantasy scenes join desktop themes and Lounge: a moonlit anime mage overlooking luminous castles, and crystal citadels beneath a sweeping galaxy. Both use the unchanged original 5504×3072 JPEG artwork, matching palettes and existing atmosphere/framing controls. No reduced-resolution replacement or recompression.',
+    },
+    {
+      title: 'Top navigation stays tidy with Addons enabled',
+      body: 'Navigation labels now switch together to clean icons before they get squeezed into fragments. Addons shares the themed navigation button design and opens button choices outside clipped panes. Modules moves into the left Menu button in normal layout; sidebar access remains. Original pages and module/addon permissions are unchanged.',
+    },
+    {
+      title: 'Simpler sidebar: Visuals and Settings groups',
+      body: 'Visuals opens Theme and Visual tweaks beside the sidebar. Settings opens Settings, Manage Addons, Help, Updates, Mascot and Controllers without changing those pages. Enabled addon pages keep their own sidebar buttons; empty Addons headings are hidden. All actions remain available; side menus stay inside the screen, escape sidebar clipping and support keyboard navigation and controller Back. Patch notes and other direct actions stay in place.',
+    },
+    {
+      title: 'Retro sources: Skraper, ScreenScraper and RomM',
+      body: 'Review exported gamelist.xml collections with private artwork copies, identify local ROMs through optional ScreenScraper title/platform/checksum lookup, or browse your own RomM server and download a selected permitted ROM. Credentials are encrypted in the native core. Existing games, launch settings, progress and protected art remain; downloads can be cancelled and never launch automatically. Both online sources join Game Workshop. Live account/server and installed acceptance remain pending.',
+    },
+    {
+      title: 'Official Lounge module and custom module windows',
+      body: 'Lounge keeps its top navigation position and is identified as owned and maintained by NEO-LIB. It now has a separate window/renderer with core-owned privacy, settings and launch handling. Modules management adds custom coded window packages, explicit permissions, version review and recoverable uninstall. Imported modules cannot replace Lounge or obtain its official capabilities. Includes an author guide and editable shelf example; live desktop acceptance is still pending.',
+    },
+    {
+      title: 'Opt-in Addons for custom coded pages',
+      body: 'Enable Addons in Settings, import a coded page package and approve its permissions. Add-ons get their own navigation entries in the sidebar or dropdown beside Tools. Public-library access, private storage and HTTPS access are optional; private games and native commands stay outside the page API. Updates require fresh approval and uninstall keeps a recoverable package. Includes an author guide and editable shelf example.',
+    },
+    {
+      title: 'Mascot chat identity and complete replies',
+      body: 'FiFi and Fungist now keep their selected identity throughout chat. AI replies collect all visible text parts, have more headroom and show clear errors when output is cut short instead of displaying an unfinished answer. Existing history stays intact.',
+    },
+    {
+      title: 'Journey status and progress button stay visible',
+      body: 'The game page shows your Journey status beside its facts, with a direct Journey button among the main actions. Not started games prompt you to click Journey and set progress. Choose a status without opening Game Workshop.',
+    },
+    {
+      title: 'More ways to find artwork in Game Workshop',
+      body: 'Artwork galleries now offer Steam, GOG, web title matches, SteamGridDB and existing game images, plus Google/Bing image-search shortcuts. Preview and confirm the exact title, use a loaded image, then Save game. Cover shape checks, local files, direct URLs and artwork protection remain available.',
+    },
+    {
+      title: 'Steam covers use their actual official asset paths',
+      body: 'Steam metadata and cover review now discover the game’s official hash-based portrait artwork instead of relying only on guessed old links. Full-size portraits are preferred, legacy fallback stays available, and you still review before applying.',
+    },
+    {
+      title: 'Cover searches recover more artwork sources',
+      body: 'Cover review now sends your configured SteamGridDB key to its search source and checks more Steam portrait formats and provider alternatives. Images still need to load as portraits and match the reviewed title; nothing changes until you apply it.',
+    },
+    {
       title: 'Direct startup and lighter sidebar artwork',
       body: 'The startup logo and CRT flash are gone. Saved layout preferences load alongside your library before the launcher appears. Dedicated compressed sidebar artwork loads early, with original pictures and framing retained.',
     },

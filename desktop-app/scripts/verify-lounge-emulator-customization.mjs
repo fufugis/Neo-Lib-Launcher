@@ -1,0 +1,61 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { LOUNGE_CONSOLES, normalizeHiddenLoungeConsoles, shownLoungeConsoles, reconcileLoungeConsole, emulatorZoneStatus, nextLoungeConsole, visibleLoungeConsoles } from '../src/components/lounge/lounge-emulator-zone.mjs';
+import { normalizeLoungePreferences } from '../src/components/lounge/lounge-layout-model.mjs';
+import { hydrateSettings } from '../src/state/settings-state.mjs';
+
+assert.deepEqual(normalizeHiddenLoungeConsoles(['snes', 'snes', '../bad', {}, 'ps1']), ['snes', 'ps1']);
+assert.deepEqual(normalizeHiddenLoungeConsoles('snes'), []);
+assert.deepEqual(normalizeLoungePreferences({}).hiddenEmulators, []);
+const hidden = LOUNGE_CONSOLES.filter(console => !['snes', 'ps1', 'gba'].includes(console.id)).map(console => console.id);
+const shown = shownLoungeConsoles(hidden);
+assert.deepEqual(shown.map(console => console.id), ['snes', 'gba', 'ps1']);
+assert.equal(reconcileLoungeConsole('snes', shown), 'snes');
+assert.equal(reconcileLoungeConsole('nes', shown), 'snes');
+for (const direction of [-1, 1]) {
+  let current = shown[0].id;
+  const visited = new Set();
+  for (let index = 0; index < 30; index++) {
+    current = nextLoungeConsole(current, direction, shown);
+    assert(shown.some(console => console.id === current));
+    visited.add(current);
+    const window = visibleLoungeConsoles(current, shown, 9);
+    assert.equal(new Set(window.map(console => console.id)).size, shown.length);
+    assert.equal(window.find(console => console.offset === 0).id, current);
+  }
+  assert.equal(visited.size, shown.length);
+}
+const none = shownLoungeConsoles(LOUNGE_CONSOLES.map(console => console.id));
+assert.deepEqual(none, []);
+assert.equal(reconcileLoungeConsole('snes', none), '');
+assert.equal(nextLoungeConsole('', 1, none), '');
+assert.deepEqual(visibleLoungeConsoles('', none), []);
+const restored = shownLoungeConsoles([]);
+assert.equal(restored.length, LOUNGE_CONSOLES.length);
+assert.equal(reconcileLoungeConsole('', restored), restored[0].id);
+const saved = hydrateSettings(JSON.parse(JSON.stringify({ loungePreferences: { hiddenEmulators: hidden } })));
+assert.deepEqual(saved.loungePreferences.hiddenEmulators, normalizeHiddenLoungeConsoles(hidden));
+const game = { id: 'rom', source: 'emulation', retroPlatform: 'snes' };
+assert.equal(emulatorZoneStatus([], [game], 'snes').emulatorConfigured, false, 'Games alone must not colour an unconfigured emulator');
+assert.equal(emulatorZoneStatus([{ platform: 'snes', emulatorPath: true, romFolder: false }], [], 'snes').emulatorConfigured, true, 'Module-safe boolean flags preserve emulator availability');
+assert.equal(emulatorZoneStatus([{ platform: 'snes', emulatorPath: true, romFolder: false }], [], 'snes').configured, false, 'Full ROM setup status remains independent');
+assert.equal(emulatorZoneStatus([{ platform: 'snes', emulatorPath: '', romFolder: 'roms' }], [game], 'snes').emulatorConfigured, false);
+const read = file => fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+const lounge = read('src/components/lounge/NeoLounge.jsx');
+const picker = read('src/components/lounge/LoungeEmulatorChecklist.jsx');
+const settings = read('src/components/lounge/LoungeSettingsPanel.jsx');
+const css = read('src/styles.css');
+assert.match(lounge, /data-emulator-configured=\{status.emulatorConfigured/);
+assert.match(css, /data-emulator-configured='false'[^\n]+grayscale\(1\)/);
+for (const call of lounge.matchAll(/nextLoungeConsole\(([^\n;]+)\)/g)) assert(call[1].includes('shownConsoles'), 'Every wheel/keyboard/controller step uses the filtered carousel');
+assert.match(lounge, /if \(!shownConsoles.some\(console => console.id === id\)\) return/);
+assert.match(lounge, /All consoles are hidden/);
+assert.match(lounge, /Choose visible emulators/);
+assert.match(settings, /id="lounge-settings-emulators"/);
+assert.equal((settings.match(/label="Emulators Size"/g) || []).length, 1);
+assert.equal((settings.match(/label="Emulator carousel width"/g) || []).length, 1);
+assert.match(picker, /role="checkbox" aria-checked=\{checked\}/);
+assert.match(picker, /Show all consoles/);
+assert.match(picker, /Only configured/);
+assert.doesNotMatch(picker, /window\.api|deleteGame|removeProfile|onLaunch/);
+console.log('PASS: emulator availability, saved visibility, filtered wraparound, hidden-selection fallback, all-hidden recovery and controller-focusable checklist. Live acceptance remains required.');

@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { formatPlaytime } from '../src/lib/utils.js';
+import { JOURNEY_STATUSES, journeyStatusDefinition } from '../src/lib/game-journey-model.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
@@ -24,4 +25,20 @@ assert.match(detail, /installSizeBytes: next\.bytes/, 'Measured bytes must persi
 assert.match(detail, /installSizeMeasuredAt: Date\.now\(\)/, 'Measurement time must persist on the game entry.');
 assert.match(detail, /installSizePartial: next\.truncated/, 'Partial scan status must persist on the game entry.');
 
-console.log('Preview playtime and install-size facts verified.');
+assert.match(hero, /data-testid="preview-journey-status"/, 'Journey facts are always rendered');
+assert.match(hero, /\{journey.label\}/);
+assert.match(hero, /journey.id === 'not-started'[\s\S]*Click Journey to set game progress/);
+assert.equal(journeyStatusDefinition(undefined).label, 'Not started');
+for (const status of JOURNEY_STATUSES) assert.equal(journeyStatusDefinition(status.id).label, status.label);
+const actions = read('src/components/preview/PreviewActionBar.jsx');
+const journey = read('src/components/preview/PreviewJourneyControl.jsx');
+assert.match(actions, /<PreviewJourneyControl game=\{game\} onUpdateGame=\{onUpdateGame\}/);
+assert.match(journey, /data-testid="detail-journey-btn"/);
+assert.match(journey, /JOURNEY_STATUSES.map/);
+assert.match(journey, /onUpdateGame\?\.\(game.id, \{journeyStatus: choice.id\}\)/, 'Only journey status is patched');
+assert.match(journey, /renderForegroundPortal/, 'Menu escapes clipped hero/action panels');
+assert.match(journey, /ArrowDown.*ArrowUp.*Home.*End/);
+assert.match(journey, /event.key === 'Escape'/);
+assert.match(journey, /trigger.current\?\.focus\(\)/);
+assert.match(detail, /onUpdateGame=\{onUpdateGame\}/);
+console.log('Preview playtime/install-size/Journey facts, always-visible progress button, bounded menu and status-only updates verified.');

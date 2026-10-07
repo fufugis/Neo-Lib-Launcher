@@ -39,5 +39,30 @@ const { createStoreProviderService } = require('../electron/providers/store-prov
   assert.deepEqual(await service.searchSteam('Portal'), []);
   assert.equal(await service.getSteamDetails('620'), null);
   assert.deepEqual(await service.searchGog('Game'), []);
-  console.log('PASS: extracted Steam/GOG provider preserves query URLs, result mapping, source-declared capabilities, achievement availability, taxonomy enrichment, HTML cleanup, media limits and empty/offline fallbacks. Injected HTTP only; no network request ran.');
+  let assetCalls = 0, assetMode = 'valid';
+  const assetsService = createStoreProviderService({
+    cleanSearchTerm: String, stripHtml: String, steamGenreEvidence: async () => [],
+    httpGetJson: async url => {
+      assetCalls++;
+      const input = JSON.parse(new URL(url).searchParams.get('input_json'));
+      assert.equal(input.ids[0].appid, 2483190);
+      if (assetMode === 'offline') throw Error('offline');
+      return {response: {store_items: [{appid: assetMode === 'other-game' ? 3596700 : 2483190, success: 1, item_type: 0, assets: {
+        asset_url_format: 'steam/apps/2483190/${FILENAME}?t=123',
+        library_capsule: `${'a'.repeat(40)}/library_capsule.jpg`,
+        library_capsule_2x: assetMode === 'traversal' ? '../private.png' : `${'a'.repeat(40)}/library_600x900_2x.jpg`,
+      }}]}};
+    },
+  });
+  assetMode = 'other-game'; assert.deepEqual(await assetsService.getSteamPortraitImages(2483190), []);
+  assetMode = 'offline'; assert.deepEqual(await assetsService.getSteamPortraitImages(2483190), []);
+  assetMode = 'traversal';
+  const recoveredAssets = await assetsService.getSteamPortraitImages(2483190);
+  assert.equal(recoveredAssets.length, 1, 'traversal rejected; legitimate portrait retained');
+  assert.match(recoveredAssets[0], /\/2483190\/a{40}\/library_capsule\.jpg\?t=123$/);
+  const beforeCache = assetCalls;
+  assert.deepEqual(await assetsService.getSteamPortraitImages(2483190), recoveredAssets);
+  assert.equal(assetCalls, beforeCache, 'positive cache avoids repeated metadata requests');
+  assert.deepEqual(await assetsService.getSteamPortraitImages('../private'), []);
+  console.log('PASS: Steam/GOG metadata and identity-bound hashed portrait discovery, offline retry, safe asset paths and positive cache. Injected HTTP only; no network request ran.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

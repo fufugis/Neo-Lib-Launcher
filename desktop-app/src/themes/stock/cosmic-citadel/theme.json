@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "cosmic-citadel",
+  "name": "Cosmic Citadel",
+  "tone": "special",
+  "palette": {
+    "ink": [239, 240, 255], "muted": [183, 181, 215],
+    "accent": [112, 222, 247], "accent2": [245, 170, 221],
+    "accentSoft": [51, 34, 80], "hairlineGlow": [112, 222, 247],
+    "grad1": [9, 9, 26], "grad2": [39, 22, 59],
+    "accentText": [112, 222, 247], "accent2Text": [245, 170, 221]
+  },
+  "panels": { "surface": [20, 19, 40], "panel": [35, 30, 59], "border": [99, 80, 134] },
+  "layers": {
+    "canvas": { "type": "gradient", "from": "grad1", "to": "grad2", "opacity": 1 },
+    "atmosphere": { "type": "image", "asset": "assets/scene.jpg", "opacity": 1 },
+    "sidebar": { "type": "image", "asset": "assets/scene.jpg", "opacity": 0.22 },
+    "decoration": { "type": "none" },
+    "navigationFrame": { "type": "none" },
+    "navigationFlourish": { "type": "none" },
+    "controlFrame": { "type": "none" }
+  },
+  "motion": { "cadence": "calm", "reducedMotion": "still" },
+  "license": { "name": "User-supplied artwork for NEO-LIB", "attribution": "Artwork supplied by Fungist; original JPEG preserved without resampling." }
+}

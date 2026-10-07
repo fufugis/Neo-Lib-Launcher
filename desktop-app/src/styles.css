@@ -15,6 +15,21 @@
 
 /* ========== Themes ========== */
 
+[data-theme='moonlit-arcana'] {
+  --ink: 232 243 255; --muted: 166 191 224;
+  --surface: 13 24 48; --panel: 23 39 68; --border: 73 111 154;
+  --accent: 105 224 255; --accent-2: 181 151 255;
+  --accent-soft: 28 58 92; --hairline-glow: 105 224 255;
+  --grad-1: 8 16 38; --grad-2: 24 35 77;
+}
+[data-theme='cosmic-citadel'] {
+  --ink: 239 240 255; --muted: 183 181 215;
+  --surface: 20 19 40; --panel: 35 30 59; --border: 99 80 134;
+  --accent: 112 222 247; --accent-2: 245 170 221;
+  --accent-soft: 51 34 80; --hairline-glow: 112 222 247;
+  --grad-1: 9 9 26; --grad-2: 39 22 59;
+}
+
 /* Normal ink stays clean and unoutlined. Readability treatment belongs only
    on small coloured status/accent copy that can disappear over bright art. */
 
@@ -324,6 +339,11 @@
   will-change: transform;
 }
 .theme-artwork-home { filter: saturate(0.92) contrast(0.95) brightness(1); }
+/* Quieter desktop presentation only; Lounge and original assets stay sharp.
+   Static filtering avoids any per-frame image processing or filter animation. */
+.theme-artwork[data-desktop-art-softened='true'] {
+  filter: blur(2px) saturate(0.82) contrast(0.88) brightness(0.86);
+}
 .theme-artwork-synthwave { filter: saturate(0.86) contrast(0.92) brightness(0.84); }
 .theme-artwork-synthwave-day { filter: saturate(0.72) contrast(0.84) brightness(0.86); mix-blend-mode: multiply; }
 .theme-artwork-midnight { filter: saturate(0.82) contrast(0.92) brightness(0.82); }
@@ -502,6 +522,13 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
   background: rgb(var(--panel) / 0.96);
 }
 .library-sidebar-container { container-type: inline-size; }
+/* Hide labels together before extra navigation buttons squeeze their text. */
+@container (max-width: 559px) {
+  [data-testid='top-toolbar'][data-has-addons='true'] .library-nav-label { display: none !important; }
+}
+@container (max-width: 459px) {
+  [data-testid='top-toolbar'] .library-nav-label { display: none !important; }
+}
 /* Direct width feedback during a Library-divider drag, before settings save. */
 @container (max-width: 389px) {
   .library-filter-control { width: 28px !important; padding-inline: 0 !important; }
@@ -2147,7 +2174,11 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 .lounge-living-backdrop__game { opacity: var(--lounge-game-art-opacity); object-position: var(--lounge-backdrop-position-x, 50%) var(--lounge-backdrop-position-y, 50%); transform: scale(var(--lounge-art-zoom, 1)); filter: saturate(var(--lounge-art-saturation, 1)) contrast(var(--lounge-art-contrast, 1)) var(--lounge-chromatic-filter, brightness(1)); transition: opacity 350ms ease, transform 400ms ease; }
 .lounge-living-backdrop__user-image { opacity: var(--lounge-backdrop-art-opacity); transform: scale(var(--lounge-art-zoom, 1)); filter: saturate(var(--lounge-art-saturation, 1)) contrast(var(--lounge-art-contrast, 1)) var(--lounge-chromatic-filter, brightness(1)); transition: opacity 350ms ease, transform 400ms ease; }
 .lounge-living-backdrop__color-grade { background: var(--lounge-temperature-color, transparent); mix-blend-mode: soft-light; }
-.lounge-living-backdrop__user-image { transform-origin: center; }
+.lounge-living-backdrop__art,
+.lounge-living-backdrop__game,
+.lounge-living-backdrop__user-image {
+  transform-origin: var(--lounge-backdrop-position-x, 50%) var(--lounge-backdrop-position-y, 50%);
+}
 [data-lounge-user-motion='true'] .lounge-living-backdrop__user-image { animation: lounge-user-art-living var(--lounge-user-duration, 38s) ease-in-out var(--lounge-user-delay, 0s) infinite; }
 @keyframes lounge-user-art-living {
   0%, 100% { transform: scale(var(--lounge-user-zoom-near, 1.01)); }
@@ -2177,7 +2208,7 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 .lounge-living-backdrop__highlight { opacity: calc(var(--lounge-highlight-pulse) * var(--lounge-bright-strength, 0.35)); background: radial-gradient(ellipse 24% 18% at var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%), rgb(var(--lounge-highlight-color, 255 255 255) / 0.78), rgb(var(--lounge-highlight-color, 255 255 255) / 0.34) 35%, transparent 100%), radial-gradient(ellipse 30% 34% at var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%), rgb(var(--lounge-highlight-color, 255 255 255) / 0.28), transparent 82%); mix-blend-mode: screen; filter: blur(4.5px); transform-origin: var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%); animation: lounge-highlight-breathe var(--lounge-shimmer-duration, calc(var(--lounge-backdrop-duration) * 0.28)) ease-in-out infinite alternate; }
 @keyframes lounge-dynamic-rays { from { opacity: calc(var(--lounge-light-rays) * 0.72); transform: translate3d(-3%, 1.5%, 0) rotate(-5deg); } to { opacity: var(--lounge-light-rays); transform: translate3d(3%, -1.5%, 0) rotate(5deg); } }
 @keyframes lounge-bloom-drift { from { opacity: min(1, calc(var(--lounge-light-bloom, 0) * 0.75)); transform: scale(1.04) translate3d(-2%, 1.4%, 0); } to { opacity: min(1, calc(var(--lounge-light-bloom, 0) * 0.92)); transform: scale(1.16) translate3d(2%, -1.4%, 0); } }
-@keyframes lounge-highlight-breathe { from { opacity: calc(var(--lounge-highlight-pulse) * 0.78); transform: scale(0.98); } to { opacity: var(--lounge-highlight-pulse); transform: scale(1.02); } }
+@keyframes lounge-highlight-breathe { from { opacity: calc(var(--lounge-highlight-pulse) * 0.78 * var(--lounge-bright-strength, 0)); transform: scale(0.98); } to { opacity: calc(var(--lounge-highlight-pulse) * var(--lounge-bright-strength, 0)); transform: scale(1.02); } }
 /* A source-coloured fan belongs to Highlight Pulse, independently of regular
    Light Rays. Its gradients/mask are static; only opacity/transform animate. */
 .lounge-living-backdrop__highlight::before {
@@ -2203,6 +2234,15 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 .lounge-living-backdrop__rays[data-lounge-scene-art='starlit'] { opacity: calc(var(--lounge-light-rays) * var(--lounge-bright-strength, 0.35)); background: conic-gradient(from 198deg at var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%), transparent 0deg 9deg, rgb(225 235 255 / 0.3) 13deg 16deg, transparent 21deg 35deg, rgb(var(--accent) / 0.2) 40deg 44deg, transparent 50deg 360deg), radial-gradient(circle at var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%), rgb(225 235 255 / 0.54), rgb(var(--accent) / 0.18) 10%, transparent 35%); mix-blend-mode: screen; transform-origin: var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%); animation: lounge-orbit-rays var(--lounge-shimmer-duration, calc(var(--lounge-backdrop-duration) * 0.65)) ease-in-out infinite alternate; }
 .lounge-living-backdrop__rays[data-lounge-scene-art='anime-winter'],
 .lounge-living-backdrop__rays:is([data-lounge-scene-art='orbit'], [data-lounge-scene-art='neon'], [data-lounge-scene-art='rainlight'], [data-lounge-scene-art='starlit']) { filter: brightness(1.8) blur(var(--lounge-ray-blur, 1px)); }
+.lounge-living-backdrop__rays:is([data-lounge-scene-art='moonlit-arcana'], [data-lounge-scene-art='cosmic-citadel']) {
+  opacity: calc(var(--lounge-light-rays) * var(--lounge-bright-strength, 0.35));
+  background: conic-gradient(from 198deg at var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%), transparent 0deg 9deg, rgb(var(--accent) / 0.3) 13deg 16deg, transparent 21deg 35deg, rgb(var(--accent-2) / 0.2) 40deg 44deg, transparent 50deg 360deg);
+  mix-blend-mode: screen;
+  transform-origin: var(--lounge-bright-x, 72%) var(--lounge-bright-y, 18%);
+  filter: blur(var(--lounge-ray-blur, 1px));
+  animation: lounge-orbit-rays var(--lounge-shimmer-duration, 12s) ease-in-out infinite alternate;
+}
+[data-testid='neo-lounge']:is([data-lounge-scene='moonlit-arcana'], [data-lounge-scene='cosmic-citadel']) .lounge-living-backdrop__shade { background: linear-gradient(180deg, rgb(4 8 24 / 0.06), transparent 48%, rgb(4 8 24 / 0.16)); }
 [data-testid='neo-lounge'][data-lounge-scene='starlit'] .lounge-living-backdrop__light { background: radial-gradient(ellipse 47% 24% at 52% 67%, rgb(var(--accent-2) / 0.1), transparent 78%); }
 [data-testid='neo-lounge'][data-lounge-scene='starlit'] .lounge-living-backdrop__shade { background: linear-gradient(180deg, rgb(4 10 34 / 0.08), transparent 48%, rgb(3 9 31 / 0.17)); }
 [data-testid='neo-lounge'][data-lounge-scene='neon'] .lounge-living-backdrop__shade { background: linear-gradient(180deg, rgb(3 2 16 / 0.05), transparent 48%, rgb(3 2 16 / 0.2)); }
@@ -2613,6 +2653,8 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 [data-lounge-zone='emulator'] .lounge-console-window .lounge-console-tab[data-offset='0'] { opacity: 1; filter: none; }
 [data-lounge-zone='emulator'] .lounge-console-window .lounge-console-tab:is([data-offset='-1'], [data-offset='1']) { opacity: 1; filter: none; transform: scale(.98); }
 [data-lounge-zone='emulator'] .lounge-console-window .lounge-console-tab:is([data-offset='-2'], [data-offset='2']) { opacity: .5; filter: blur(1px); transform: scale(.9); }
+[data-lounge-zone='emulator'] .lounge-console-window .lounge-console-tab[data-emulator-configured='false'] { filter: grayscale(1) blur(1px); }
+[data-lounge-zone='emulator'] .lounge-console-window .lounge-console-tab[data-emulator-configured='false']:is([data-offset='-1'], [data-offset='0'], [data-offset='1']) { filter: grayscale(1); }
 @media (max-width: 760px) {
   [data-lounge-zone='emulator'] .lounge-console-dock { width: calc(100% - 24px); padding: 8px; }
   [data-lounge-zone='emulator'] .lounge-console-window { grid-template-columns: 1fr 1.15fr 1fr; gap: 6px; }

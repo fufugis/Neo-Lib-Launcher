@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { workshopArtworkAssets, searchWorkshopTitles, loadWorkshopAssets } from '../src/lib/workshop-artwork.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { appendArtworkRevision, artworkSnapshot, normalizeArtworkLocks } from '../src/lib/artwork-revision-model.mjs';
@@ -92,7 +93,8 @@ assert.equal(retroImport.library.categories[0].id, 'retro-snes');
 const appSource = fs.readFileSync(path.join(import.meta.dirname, '../src/App.jsx'), 'utf8');
 const retroImportFlow = appSource.slice(appSource.indexOf('const importRetroGames ='), appSource.indexOf('const addTool =', appSource.indexOf('const importRetroGames =')));
 assert.match(retroImportFlow, /setShowWizard\(false\)/, 'Retro import closes Wizard before metadata review');
-assert.match(retroImportFlow, /setRefreshReview\(\{ games: result\.imported, index: 0, field: 'all-locked' \}\)/, 'Only newly imported ROMs enter one-by-one metadata review');
+assert.match(retroImportFlow, /result\.imported\.filter\(game => !game\.retroMetadataReviewed\)/, 'Already reviewed source imports retain their approved metadata');
+assert.match(retroImportFlow, /if \(unreviewed\.length\) setRefreshReview\(\{ games: unreviewed, index: 0, field: 'all-locked' \}\)/, 'Only newly imported unreviewed ROMs enter one-by-one metadata review');
 
 const snapshot = artworkSnapshot({ icon: 'icon.png', portraitImage: 'cover.jpg', logo: 'logo.png', artworkSources: { cover: 'Player' } }, { at: 5, reason: 'before-repair' });
 assert.equal(snapshot.cover, 'cover.jpg');
@@ -115,9 +117,31 @@ assert.match(workshop, /heroMotion/);
 assert.match(workshop, /artworkLocks/);
 assert.match(workshop, /artworkRevisions/);
 assert.match(workshop, /Restore previous artwork/);
-assert.match(workshop, /SteamGridDbGallery/);
-assert.match(workshop, /steamGridDbArtwork/);
-assert.match(workshop, /Use this/);
+assert.match(workshop, /WorkshopArtworkGallery/);
+const artworkGallery = fs.readFileSync(path.join(import.meta.dirname, '../src/components/WorkshopArtworkGallery.jsx'), 'utf8');
+assert.match(artworkGallery, /Use this/);
+assert.match(artworkGallery, /hasPortraitDimensions/);
+assert.match(artworkGallery, /disabled=\{!loaded\.get\(asset.id\)\?\.valid\}/);
+assert.match(artworkGallery, /run === request.current/);
+assert.match(artworkGallery, /Bing Images/);
+assert.match(artworkGallery, /Google Images/);
+assert.doesNotMatch(artworkGallery, /onSave|updateGame\(/, 'gallery cannot save directly');
+const artworkRecord = {source: 'steam', portraitImage: 'https://art.test/portrait.jpg', headerImage: 'https://art.test/header.jpg', screenshots: ['https://art.test/shot.jpg'], logo: 'https://art.test/logo.png'};
+assert.equal(workshopArtworkAssets(artworkRecord, 'cover').length, 1);
+assert.equal(workshopArtworkAssets(artworkRecord, 'cover')[0].url, artworkRecord.portraitImage);
+assert.equal(workshopArtworkAssets(artworkRecord, 'hero').length, 2);
+assert.equal(workshopArtworkAssets(artworkRecord, 'background')[0].url, artworkRecord.screenshots[0]);
+assert.equal(workshopArtworkAssets(artworkRecord, 'logo')[0].url, artworkRecord.logo);
+assert.deepEqual(workshopArtworkAssets({logo: 'javascript:alert(1)'}, 'logo'), []);
+const workshopApi = {
+  listCandidates: async payload => { assert.equal(payload.source, 'steam'); assert.equal(payload.query, 'Corsair Cove'); return {candidates: [{source: 'steam', id: '1', name: 'Corsair Cove'}]}; },
+  expandCandidate: async () => artworkRecord,
+  steamGridDbArtwork: async payload => {assert.equal(payload.apiKey, 'fixture-key'); return {ok: true, games: [{id: '2', name: 'Corsair Cove'}], assets: [{id: 'cover', url: artworkRecord.portraitImage}]};},
+};
+const workshopTitles = await searchWorkshopTitles(workshopApi, 'steam', 'Corsair Cove', '');
+assert.equal((await loadWorkshopAssets(workshopApi, 'steam', workshopTitles[0], 'cover', ''))[0].url, artworkRecord.portraitImage);
+await assert.rejects(() => searchWorkshopTitles(workshopApi, 'steamgriddb', 'Corsair Cove', ''), /needs your key/);
+assert.equal((await searchWorkshopTitles(workshopApi, 'steamgriddb', 'Corsair Cove', 'fixture-key')).length, 1);
 assert.match(workshop, /asset\.width && asset\.height/);
 const gameDetail = fs.readFileSync(path.join(import.meta.dirname, '../src/components/GameDetail.jsx'), 'utf8');
 assert.doesNotMatch(gameDetail, /LibraryArtworkInspector/);

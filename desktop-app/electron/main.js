@@ -4,7 +4,7 @@
  * - Provides IPC for file picker, exe icon extraction, drive scan,
  *   Steam Store metadata fetch, and game launching.
  */
-const { app, BrowserWindow, ipcMain, dialog, shell, nativeImage, Tray, Menu, protocol, net: electronNet } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, nativeImage, Tray, Menu, protocol, screen, safeStorage, net: electronNet } = require('electron');
 const { createLoungeBackgroundHandler } = require('./images/lounge-background-protocol.cjs');
 protocol.registerSchemesAsPrivileged([{ scheme: 'neolib-background', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }]);
 const path = require('path');
@@ -53,6 +53,8 @@ const { registerToolsIpc } = require('./ipc/tools-ipc.cjs');
 const { registerUpdatesIpc } = require('./ipc/updates-ipc.cjs');
 const { registerWebIpc } = require('./ipc/web-ipc.cjs');
 const { registerWidgetsIpc } = require('./ipc/widgets-ipc.cjs');
+const { createAddonPackageService, registerAddonsIpc, guardAddonNavigation } = require('./ipc/addons-ipc.cjs');
+const { createModulePackages, createModuleWindowService, registerModulesIpc } = require('./ipc/modules-ipc.cjs');
 const { registerThemesIpc } = require('./ipc/themes-ipc.cjs');
 const { createCustomThemeService } = require('./themes/custom-theme-service.cjs');
 const { createWindowsControllerScan } = require('./controller/windows-controller-scan.cjs');
@@ -88,6 +90,10 @@ const { createUpdatePageVersionService } = require('./providers/update-page-vers
 const { createIndependentUpdateAssessmentService } = require('./providers/independent-update-assessment-service.cjs');
 const { createWidgetPackageService } = require('./widgets/widget-package-service.cjs');
 const { createRomScanService } = require('./emulation/rom-scan-service.cjs');
+const { createRetroCredentialStore } = require('./emulation/retro-credential-store.cjs');
+const { createRetroHttpClient } = require('./emulation/retro-http-client.cjs');
+const { createRetroSourceService } = require('./emulation/retro-source-service.cjs');
+const { registerRetroSourcesIpc } = require('./ipc/retro-sources-ipc.cjs');
 
 // ---- Optional Discord Rich Presence (native IPC, no third-party deps) ----
 // Talks to the local Discord client over a named pipe (Windows) or Unix
@@ -113,7 +119,7 @@ if (process.env.NEOLIB_DISCORD_APP_ID) DISCORD_APP_ID = process.env.NEOLIB_DISCO
 
 const isDev = process.env.NODE_ENV === 'development';
 let reportIpcFailure = () => {};
-const { handle: registerIpc } = createIpcRegistry({ ipcMain, onFailure: failure => reportIpcFailure(failure) });
+const { handle: registerIpc } = createIpcRegistry({ ipcMain, onFailure: failure => reportIpcFailure(failure), authorizeRequest: (channel, event) => moduleWindows.authorize(channel, event) });
 const remainingIpcServices = Object.create(null);
 const steamAchievements = createSteamAchievementService();
 remainingIpcServices['steam:achievements'] = (_event, request) => steamAchievements.sync(request);
@@ -162,6 +168,28 @@ const systemHealth = createSystemHealthService({ os });
 const playtimeHistory = createPlaytimeHistoryService({ documents });
 const imageCache = createImageCacheService({ path, coversDir, download: httpDownload });
 const widgetPackages = createWidgetPackageService({ fsp, path, widgetsDir: () => path.join(dataDir(), 'widgets') });
+const addonPackages = createAddonPackageService({ fsp, path, addonsDir: () => path.join(dataDir(), 'addons') });
+const modulePackages = createModulePackages({ fsp, path, modulesDir: () => path.join(dataDir(), 'modules') });
+const moduleWindows = createModuleWindowService({ packages: modulePackages, getCoreWindow: () => mainWindow,
+  armCoreLaunch: event => gameLaunchService.arm(event),
+  createWindow: ({ id, official }) => {
+    const display = mainWindow?.getBounds && screen?.getDisplayMatching(mainWindow.getBounds());
+    const width = Math.min(1440, display?.workArea.width || 1440);
+    const height = Math.min(900, display?.workArea.height || 900);
+    const position = display ? { x: display.workArea.x + Math.round((display.workArea.width - width) / 2), y: display.workArea.y + Math.round((display.workArea.height - height) / 2) } : {};
+    const window = new BrowserWindow({ width, height, ...position, show: false, autoHideMenuBar: true,
+      title: official ? 'Lounge · Official NEO-LIB module' : 'NEO-LIB · Imported module',
+      backgroundColor: '#0a0a0c', icon: runtimeIconPath(),
+      webPreferences: { preload: path.join(__dirname, 'module-preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
+    window.webContents.on('will-frame-navigate', guardAddonNavigation);
+    window.webContents.on('will-navigate', event => event.preventDefault());
+    window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    const loading = isDev ? window.loadURL(`http://localhost:5173/?module=${encodeURIComponent(id)}`)
+      : window.loadFile(path.join(__dirname, '..', 'dist-renderer', 'index.html'), { query: { module: id } });
+    loading.catch(() => { if (!window.isDestroyed()) window.destroy(); });
+    return window;
+  },
+});
 const customThemes = createCustomThemeService({
   root: () => path.join(dataDir(), 'themes'),
   stockRoot: () => path.join(app.getAppPath(), 'src', 'themes', 'stock'),
@@ -171,6 +199,14 @@ const customThemes = createCustomThemeService({
   reservedIds: ['anime', 'blank-starter', 'colorful', 'crimson', 'daybreak', 'gaming', 'generic-blue', 'generic-gray', 'home', 'midnight', 'mint', 'modern', 'monochrome', 'ocean', 'pro', 'synthwave', 'synthwave-day'],
 });
 const romScanner = createRomScanService({ fsp, path });
+const retroRoot = () => path.join(dataDir(), 'retro-sources');
+const retroSources = createRetroSourceService({ fs, fsp, path, crypto, documents, dialog,
+  vault: createRetroCredentialStore({ fsp, path, root: retroRoot, safeStorage }),
+  client: createRetroHttpClient({ http, https, fs, fsp }), root: retroRoot,
+  artworkRoot: () => path.join(dataDir(), 'lounge-backgrounds'),
+  getWindow: event => BrowserWindow.fromWebContents(event.sender) || mainWindow,
+  openPath: file => shell.openPath(file),
+});
 const appOs = createAppOsService({ app, shell, fsp, path, execPath: process.execPath, recordLaunchSafety });
 const appLifecycle = createAppLifecycleService({
   buildTray,
@@ -411,6 +447,7 @@ function createWindow() {
 
   // A renderer failure must leave privacy-safe evidence behind. The recorder
   // classifies the message but never stores its text, paths, URLs or app data.
+  mainWindow.webContents.on('will-frame-navigate', guardAddonNavigation);
   mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
     if (Number(level) < 2) return;
     const source = path.basename(String(sourceId || '')).slice(0, 120);
@@ -458,6 +495,7 @@ function createWindow() {
   // no-background-work Rest Mode. This covers close-to-tray, the tray icon,
   // and Windows restore without treating a hidden window as a game launch.
   mainWindow.on('hide', () => mainWindow.webContents.send('window:visibility', { visible: false }));
+  mainWindow.on('closed', () => moduleWindows.closeAll());
   mainWindow.on('show', () => mainWindow.webContents.send('window:visibility', { visible: true }));
 
   // Persist window bounds (debounced) whenever the user resizes or moves the
@@ -491,7 +529,7 @@ function createWindow() {
   });
 }
 
-app.on('before-quit', () => { isQuitting = true; });
+app.on('before-quit', () => { isQuitting = true; moduleWindows.closeAll(); });
 
 app.whenReady().then(async () => {
   if (!hasSingleInstanceLock) {
@@ -536,14 +574,14 @@ registerAppLifecycleIpc({ registerIpc, appLifecycle });
 registerDiagnosticsIpc({ registerIpc, diagnostics, shell });
 
 // ---------------- IPC: Window controls ---------------- //
-registerWindowIpc({ registerIpc, getMainWindow: () => mainWindow });
+registerWindowIpc({ registerIpc, getMainWindow: () => mainWindow, loungeWindows: moduleWindows });
 
 // ---------------- IPC: Library / Settings ---------------- //
 registerPersistenceIpc({ registerIpc, documents });
 registerLibraryBackupIpc({ registerIpc, service: libraryBackup });
 
 // ---------------- IPC: Dialog ---------------- //
-registerDialogIpc({ registerIpc, dialog, getMainWindow: () => mainWindow, loungeBackgroundRoot: () => path.join(dataDir(), 'lounge-backgrounds'), loungeAudioRoot: () => path.join(dataDir(), 'lounge-audio') });
+registerDialogIpc({ registerIpc, dialog, getMainWindow: () => mainWindow, getSenderWindow: event => event?.sender ? BrowserWindow.fromWebContents?.(event.sender) : null, loungeBackgroundRoot: () => path.join(dataDir(), 'lounge-backgrounds'), loungeAudioRoot: () => path.join(dataDir(), 'lounge-audio') });
 
 // Resolve Windows shortcuts used by drag/drop imports.
 registerShellIpc({ registerIpc, shell });
@@ -1556,8 +1594,8 @@ remainingIpcServices["gemini:test"] = async (_e, { apiKey, model } = {}) => {
   } catch (error) { return { ok: false, error: error?.message || 'Gemini test failed.' }; }
 };
 
-remainingIpcServices["gemini:assistant"] = async (_e, { apiKey, message, model, history, libraryContext } = {}) => {
-  try { return { ok: true, model: resolveAiModel(model), text: await geminiProvider.requestAssistant(apiKey, message, model, history, libraryContext) }; }
+remainingIpcServices["gemini:assistant"] = async (_e, { apiKey, message, model, history, libraryContext, mascotId } = {}) => {
+  try { return { ok: true, model: resolveAiModel(model), text: await geminiProvider.requestAssistant(apiKey, message, model, history, libraryContext, mascotId) }; }
   catch (error) { return { ok: false, error: error?.message || 'Fungist could not reach the AI service.' }; }
 };
 
@@ -1960,7 +1998,7 @@ async function expandSteam(c) {
     about: stripHtml(d.about_the_game || '').slice(0, 1400),
     headerImage: d.header_image,
     capsuleImage: d.capsule_imagev5 || d.capsule_image,
-    portraitImage: `https://cdn.cloudflare.steamstatic.com/steam/apps/${c.id}/library_600x900.jpg`,
+    portraitImage: (await storeProviders.getSteamPortraitImages(c.id))[0] || `https://cdn.cloudflare.steamstatic.com/steam/apps/${c.id}/library_600x900.jpg`,
     background: d.background_raw || d.background,
     screenshots: (d.screenshots || []).slice(0, 6).map((s) => s.path_full),
     genres: (d.genres || []).map((g) => g.description),
@@ -2319,7 +2357,7 @@ remainingIpcServices["metadata:auto"] = async (_e, { query, skipSources = [], ge
           about: stripHtml(d.about_the_game || '').slice(0, 1400),
           headerImage: d.header_image,
           capsuleImage: d.capsule_imagev5 || d.capsule_image,
-          portraitImage: `https://cdn.cloudflare.steamstatic.com/steam/apps/${lockedAppid}/library_600x900.jpg`,
+          portraitImage: (await storeProviders.getSteamPortraitImages(lockedAppid))[0] || `https://cdn.cloudflare.steamstatic.com/steam/apps/${lockedAppid}/library_600x900.jpg`,
           background: d.background_raw || d.background,
           screenshots: (d.screenshots || []).slice(0, 6).map((s) => s.path_full),
           genres: (d.genres || []).map((g) => g.description),
@@ -2384,7 +2422,7 @@ remainingIpcServices["metadata:auto"] = async (_e, { query, skipSources = [], ge
             about: stripHtml(d.about_the_game || '').slice(0, 1400),
             headerImage: d.header_image,
             capsuleImage: d.capsule_imagev5 || d.capsule_image,
-            portraitImage: `https://cdn.cloudflare.steamstatic.com/steam/apps/${top.id}/library_600x900.jpg`,
+            portraitImage: (await storeProviders.getSteamPortraitImages(top.id))[0] || `https://cdn.cloudflare.steamstatic.com/steam/apps/${top.id}/library_600x900.jpg`,
             background: d.background_raw || d.background,
             screenshots: (d.screenshots || []).slice(0, 6).map((s) => s.path_full),
             genres: (d.genres || []).map((g) => g.description),
@@ -3421,4 +3459,7 @@ registerToolsIpc({ registerIpc, services: remainingIpcServices });
 registerUpdatesIpc({ registerIpc, services: remainingIpcServices });
 registerWebIpc({ registerIpc, services: remainingIpcServices });
 registerWidgetsIpc({ registerIpc, widgets: widgetPackages });
+registerAddonsIpc({ registerIpc, addons: addonPackages });
+registerModulesIpc({ registerIpc, packages: modulePackages, windows: moduleWindows });
 registerThemesIpc({ registerIpc, themes: customThemes });
+registerRetroSourcesIpc({ registerIpc, retro: retroSources });

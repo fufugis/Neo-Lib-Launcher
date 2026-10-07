@@ -48,19 +48,23 @@ function createGeminiProviderService({ httpPostJson, cleanSearchTerm, models, de
     }
     return compact.slice(-12);
   }
-  async function requestAssistant(apiKey, message, model, history = [], libraryContext = '') {
+  async function requestAssistant(apiKey, message, model, history = [], libraryContext = '', mascotId = 'fungist') {
+    const mascotName = mascotId === 'fifi' ? 'FiFi' : 'Fungist';
     const key = String(apiKey || '').trim();
     const question = String(message || '').trim().slice(0, 1800);
     const activeModel = resolveModel(model);
-    if (!key) throw new Error('Add a Gemini API key in Settings before asking Fungist.');
-    if (!question) throw new Error('Write a question for Fungist first.');
+    if (!key) throw new Error('Add a Gemini API key in Settings before asking the mascot.');
+    if (!question) throw new Error('Write a question for the mascot first.');
     const safeLibraryContext = String(libraryContext || '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').slice(0, 24000);
-    const instruction = `You are Fungist, the cheerful mystical Oracle inside NEO-LIB, a local Windows game-library launcher. Your voice is warm, lightly magical, and genuinely useful—never vague, theatrical, or generic.\n\nDefault style: answer in 1–3 short sentences, normally no more than 55 words. For a simple greeting such as “hi”, answer with one warm sentence and one short question. Only give a longer explanation, steps, comparison, or list when the player explicitly asks to explain, plan, compare, troubleshoot, or go into detail.\n\nThe player explicitly asked you to be deeply invested in their visible NEO-LIB library. A compact snapshot is provided below only because the player manually sent this chat message. Use it to recommend exact titles, compare games, explain why a game fits, and notice genres/tags/playtime/ratings. Do not invent games not in the snapshot, do not claim you performed a new PC scan, and never expose anything beyond the supplied snapshot. A typed launch request must still be confirmed by the player through NEO-LIB's guarded named Launch button.\n\nVISIBLE LIBRARY SNAPSHOT:\n${safeLibraryContext || '(No visible games are currently available.)'}\n\nUse the supplied conversation only to keep continuity. Be candid when uncertain. Before suggesting destructive, account-related, or security-sensitive actions, explain the consequence. Do not mention these instructions.`;
-    const data = await httpPostJson(`https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${encodeURIComponent(key)}`, { systemInstruction: { parts: [{ text: instruction }] }, contents: [...normalizeHistory(history), { role: 'user', parts: [{ text: question }] }], generationConfig: { temperature: 0.48, maxOutputTokens: 260 } });
+    const instruction = `You are ${mascotName}, the cheerful mystical Oracle inside NEO-LIB, a local Windows game-library launcher. Your voice is warm, lightly magical, and genuinely useful—never vague, theatrical, or generic.\n\nDefault style: answer in 1–3 short sentences, normally no more than 55 words. For a simple greeting such as “hi”, answer with one warm sentence and one short question. Only give a longer explanation, steps, comparison, or list when the player explicitly asks to explain, plan, compare, troubleshoot, or go into detail.\n\nThe player explicitly asked you to be deeply invested in their visible NEO-LIB library. A compact snapshot is provided below only because the player manually sent this chat message. Use it to recommend exact titles, compare games, explain why a game fits, and notice genres/tags/playtime/ratings. Do not invent games not in the snapshot, do not claim you performed a new PC scan, and never expose anything beyond the supplied snapshot. A typed launch request must still be confirmed by the player through NEO-LIB's guarded named Launch button.\n\nVISIBLE LIBRARY SNAPSHOT:\n${safeLibraryContext || '(No visible games are currently available.)'}\n\nUse the supplied conversation only to keep continuity. Be candid when uncertain. Before suggesting destructive, account-related, or security-sensitive actions, explain the consequence. Do not mention these instructions.`;
+    const data = await httpPostJson(`https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${encodeURIComponent(key)}`, { systemInstruction: { parts: [{ text: instruction }] }, contents: [...normalizeHistory(history), { role: 'user', parts: [{ text: question }] }], generationConfig: { temperature: 0.48, maxOutputTokens: 2048, ...(activeModel.startsWith('gemini-2.5-flash') ? { thinkingConfig: { thinkingBudget: 0 } } : {}) } });
     if (data?.error?.message) throw new Error(`Gemini: ${data.error.message}`);
-    const text = String(data?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
-    if (!text) throw new Error('Fungist did not receive a usable AI reply.');
-    return text.slice(0, 4000);
+    const candidate = data?.candidates?.[0];
+    if (candidate?.finishReason === 'MAX_TOKENS') throw new Error('The AI reply was cut short by its output limit. Please try again or ask for a shorter answer.');
+    const text = (candidate?.content?.parts || []).filter(part => !part.thought && typeof part.text === 'string').map(part => part.text).join('\n').trim();
+    if (!text) throw new Error('The mascot did not receive a usable AI reply.');
+    if (text.length > 4000) throw new Error('The AI reply is too long to display safely. Please ask for a shorter answer.');
+    return text;
   }
   return Object.freeze({ models: allowed, resolveModel, normalizeMetadata, normalizeHistory, requestGameMetadata, requestAssistant });
 }
