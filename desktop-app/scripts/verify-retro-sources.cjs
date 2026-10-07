@@ -23,7 +23,17 @@ async function main() {
     assert.throws(() => parseGamelist('<!DOCTYPE a [<!ENTITY x SYSTEM "file:///secret">]><gameList></gameList>'));
     assert.throws(() => parseGamelist('<gameList>' + '<game><path>a.nes</path></game>'.repeat(2001) + '</gameList>'));
     const inspected = await inspectGamelist({ fsp, path, file: exportPath, root: romRoot, extensions: ['.nes'] });
-    assert.equal(inspected.items.length, 1); assert.equal(inspected.skipped, 2); assert.equal(inspected.items[0].media.image, path.join(romRoot, 'art.png'));
+    // Windows CI may spell TEMP using RUNNER~1 while realpath returns
+    // runneradmin. Assert canonical file identity, not the input spelling.
+    const expectedArt = await fsp.realpath(path.join(romRoot, 'art.png'));
+    const expectedRom = await fsp.realpath(romPath);
+    assert.equal(inspected.items.length, 1); assert.equal(inspected.skipped, 2);
+    assert.equal(inspected.items[0].media.image, expectedArt);
+    assert.equal(inspected.items[0].romPath, expectedRom);
+    const aliasRoot = path.join(temporary, 'roms-alias');
+    await fsp.symlink(romRoot, aliasRoot, process.platform === 'win32' ? 'junction' : 'dir');
+    const aliasInspection = await inspectGamelist({ fsp, path, file: path.join(aliasRoot, 'gamelist.xml'), root: aliasRoot, extensions: ['.nes'] });
+    assert.deepEqual(aliasInspection, inspected, 'aliased ROM roots preserve canonical files and reject the same outside/remote paths');
     await assert.rejects(inspectGamelist({ fsp, path, file: exportPath, root: root(), extensions: ['.nes'] }));
     // Encryption fixture tests storage boundaries, not Windows DPAPI implementation.
     const key = crypto.randomBytes(32);

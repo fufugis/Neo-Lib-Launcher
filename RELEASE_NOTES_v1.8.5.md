@@ -23,6 +23,8 @@ Existing published assets are unchanged. Release preparation does not publish a 
 
 ## Release status
 
+The first tagged GitHub build (commit 9b3fa99, run 37703125539) stopped before compilation in a retro-import fixture because Windows TEMP used its short path alias while the service returned the canonical path. The local correction compares canonical file identity and adds aliased-root coverage; release-order checks also tolerate Windows CRLF. Runtime path confinement and stable installer naming are unchanged. The failed tag still refers to the original source; a corrected commit must be built before claiming CI success.
+
 Source target: **v1.8.5**. The complete prebuild source suite passes, including current-version identity, update discovery and candidate fixtures. Production renderer compilation also passes (2358 modules; 16.42s) after the approved outside-sandbox retry; the initial sandbox attempt could not spawn esbuild. Vite still reports a large-chunk warning. This compile is not a credential-configured release package. Installer/portable generation, inspection of actual packages and installed Windows/controller acceptance remain pending. No tag, commit, push or publication is performed by this preparation.
 
 See [WINDOWS_ACCEPTANCE_V1.8.5.md](WINDOWS_ACCEPTANCE_V1.8.5.md). Existing source checks are not evidence of measured FPS, smooth animation, live provider success or packaged Windows behaviour.

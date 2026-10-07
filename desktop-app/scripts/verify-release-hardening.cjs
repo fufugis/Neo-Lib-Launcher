@@ -163,7 +163,12 @@ const changelogVersion = currentChangelogSource.match(/version:\s*['"]([^'"]+)['
 assert.equal(appVersion, packageJson.version, 'renderer and package versions must match');
 assert.equal(changelogVersion, packageJson.version, 'newest changelog and package versions must match');
 assert(changelogSource.includes(`import { ${changelogSymbol} } from './v${changelogId}-changelog.mjs'`), 'displayed changelog must use the curated current release entry');
-assert(changelogSource.includes(`export const CHANGELOG = [\n  ${changelogSymbol},`), 'displayed changelog must put the current release first');
+const currentEntryFirst = new RegExp(`export\\s+const\\s+CHANGELOG\\s*=\\s*\\[\\s*${changelogSymbol},`);
+assert(currentEntryFirst.test(changelogSource), 'displayed changelog must put the current release first');
+for (const newline of ['\n', '\r\n']) {
+  assert(currentEntryFirst.test(`export const CHANGELOG = [${newline}  ${changelogSymbol},`), 'release ordering accepts LF and Windows checkout CRLF');
+  assert(!currentEntryFirst.test(`export const CHANGELOG = [${newline}  OLD_CHANGELOG, ${changelogSymbol},`), 'newline tolerance must not weaken release ordering');
+}
 assert(changelogSource.includes('V184_CHANGELOG,'), 'previous v1.8.4 notes must remain accessible');
 assert(changelogSource.includes('V181_CHANGELOG,'), 'unreleased v1.8.1 notes must remain accessible');
 assert(changelogSource.includes('V179_CHANGELOG,'), 'unreleased v1.7.9 notes must remain accessible');
