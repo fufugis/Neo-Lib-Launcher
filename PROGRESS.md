@@ -1,6 +1,6 @@
 # NEO-LIB progress
 
-- **Authorized v1.8.6 release recovery (2026-10-08)** — confirmed latest retry still uses old 9b3fa99. Preserve published empty v1.8.5 history and ship corrected Windows path/line-ending checks in v1.8.6. Full source gate, remote build/publication and asset verification in progress; live interaction acceptance remains separate.
+- **Authorized v1.8.6 release recovery COMPLETE (2026-10-08)** — committed/pushed c39279b and v1.8.6; preserved published v1.8.5 history. Windows CI 37705196585 passed complete source gate, configured renderer, NSIS/portable packaging and actual-package inspection. All four assets published; GitHub binary digests match candidate/manifest, Build ID CDA15C793402. Latest installer link HTTP 200, 245718884 bytes. Live interaction acceptance remains separate and pending. Release: https://github.com/fufugis/Neo-Lib-Launcher/releases/tag/v1.8.6.
 
 - **v1.8.5 CI diagnosis and fixture correction (2026-10-08)** — GitHub run 37703125539 confirms failed retro fixture, not installer naming: expected short TEMP spelling versus service canonical artwork path. Compare canonical ROM/media identity; aliased-root regression keeps outside/remote paths rejected. Release-order test now handles Windows CRLF and LF, still requires current entry first. Targeted checks and complete prebuild source rerun pass; fresh updated-commit GitHub run pending. No runtime/security relaxation or external writes.
 
