@@ -1,13 +1,13 @@
 /**
- * Update checker — pings GitHub Releases API on app launch.
+ * Update checker — used on app launch and hourly while awake or in soft idle.
  *
  * Returns { available: boolean, latestVersion, currentVersion, releaseUrl }.
  *
- * Caches the result in localStorage for 6 hours so we don't hammer the GitHub API
+ * Caches the result in localStorage for 1 hour so we don't hammer the GitHub API
  * (60 req/hour unauthenticated — would be impolite to spend that here).
  */
 const CACHE_KEY = 'neolib:updateCheck';
-const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 import { isNewerVersion, normalizeVersion } from './update-version.mjs';
 

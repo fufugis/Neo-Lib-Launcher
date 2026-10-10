@@ -23,6 +23,7 @@ import { EMPTY_REFRESH_QUEUE } from './state/metadata-refresh-state.mjs';
 import { sessionResult, applyPlaytimeImport } from './state/playtime-state.mjs';
 import { getRendererApi } from './services/renderer-api.mjs';
 import { useRendererStore } from './state/use-renderer-store.mjs';
+import { useIdlePowerSaver } from './state/use-idle-power-saver.mjs';
 import { withGpuSetupTools, withRecommendedGraphicsTools } from './state/tool-bootstrap-state.mjs';
 import { mascotLibraryContext } from './services/mascot-library-context.mjs';
 import { LAUNCHER_LABELS, assignLauncherCategory, ensureLauncherCategory } from './state/launcher-category-state.mjs';
@@ -100,6 +101,10 @@ export default function App() {
   // polling all sleep together.
   const moduleRestActive = automaticGameRestActive || manualRestActive || trayRestActive;
   const gameRestActive = moduleRestActive || moduleWindowCount > 0;
+  const idlePowerSaving = useIdlePowerSaver({ nativeApi, enabled: settings.idlePowerSavingEnabled !== false,
+    gameRunning: Boolean(runningGame || externalRunningGame), blocked: gameRestActive });
+  // Soft idle pauses expensive visuals/work, NOT notifications, voice or input.
+  const visualRestActive = gameRestActive || idlePowerSaving;
   const lounge = useNeoLounge(nativeApi, Boolean(runningGame));
   const restReason = trayRestActive
     ? 'NEO-LIB is resting in the background until you reopen it.'
@@ -292,7 +297,7 @@ export default function App() {
   }, [library.tools, settings.mode]);
   React.useEffect(() => {
     if (!isElectron || !nativeApi?.detectLaunchers) return undefined;
-    if (settings.launcherDetectEnabled === false || gameRestActive) return undefined;
+    if (settings.launcherDetectEnabled === false || visualRestActive) return undefined;
     let cancelled = false;
     const dismissed = settings.launcherDetectDismissed || {};
     const askLater = settings.launcherAskLater || {};
@@ -313,7 +318,7 @@ export default function App() {
     tick();
     const t = setInterval(tick, 5 * 60 * 1000); // every 5 minutes
     return () => { cancelled = true; clearInterval(t); };
-  }, [gameRestActive, settings.launcherDetectEnabled, settings.launcherDetectDismissed, settings.launcherAskLater]);
+  }, [visualRestActive, settings.launcherDetectEnabled, settings.launcherDetectDismissed, settings.launcherAskLater]);
 
   const importDetectedLauncher = () => {
     const key = detectedLauncher;
@@ -495,13 +500,22 @@ export default function App() {
 
   /* ----- Auto-update checker (GitHub releases API) ----- */
   React.useEffect(() => {
+    if (gameRestActive) return undefined;
     let cancelled = false;
-    (async () => {
-      const info = await checkForUpdates(APP_VERSION);
-      if (!cancelled) setUpdateInfo(info);
-    })();
-    return () => { cancelled = true; };
-  }, []);
+    let busy = false;
+    const check = async () => {
+      if (busy) return;
+      busy = true;
+      try {
+        const info = await checkForUpdates(APP_VERSION);
+        if (!cancelled && !info.error) setUpdateInfo(info);
+      } catch { /* Keep the last known release during a temporary failure. */ }
+      finally { busy = false; }
+    };
+    void check();
+    const timer = window.setInterval(check, 60 * 60 * 1000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [gameRestActive]);
   const openReleasesPage = () => {
     const url = updateInfo?.releaseUrl || 'https://github.com/fufugis/Neo-Lib-Launcher/releases/latest';
     if (nativeApi?.openExternal) nativeApi.openExternal(url);
@@ -1373,7 +1387,7 @@ export default function App() {
     const pinned = new Set(settings.pinnedGameIds || []);
     return (library.games || []).find((game) => pinned.has(game.id) && ['available', 'pending'].includes(ledger[game.id]?.status));
   }, [library.games, settings.pinnedGameIds, settings.updateStatusLedger]);
-  const activeVisuals = visualState(settings, gameRestActive);
+  const activeVisuals = visualState(settings, visualRestActive);
   const specialUiTheme = activeVisuals.specialTheme;
   const activeEffectsLevel = activeVisuals.effectsLevel;
   const specialUiOpacity = activeVisuals.decorationOpacity;
@@ -1384,7 +1398,7 @@ export default function App() {
 
   if (!startupReady) return <main role="status" className="flex h-screen items-center justify-center bg-[#111018] text-white"><p>{startupError || 'Loading your library…'}</p></main>;
   return (
-    <div className="neolib-app-shell relative flex h-screen w-screen flex-col bg-surface text-ink" data-neolib-resting={gameRestActive ? 'true' : 'false'} data-interface-mode={settings.interfaceMode === 'minimalistic' ? 'minimalistic' : 'default'} data-special-theme={specialUiTheme || undefined} style={{
+    <div className="neolib-app-shell relative flex h-screen w-screen flex-col bg-surface text-ink" data-neolib-idle={idlePowerSaving ? 'true' : undefined} data-neolib-resting={gameRestActive ? 'true' : 'false'} data-interface-mode={settings.interfaceMode === 'minimalistic' ? 'minimalistic' : 'default'} data-special-theme={specialUiTheme || undefined} style={{
       backgroundImage: customThemeCanvas(settings.theme),
       backgroundSize: settings.theme?.startsWith('custom:') ? 'cover' : undefined, backgroundPosition: settings.theme?.startsWith('custom:') ? 'center' : undefined,
       '--special-ui-decoration-opacity': specialUiOpacity,
@@ -1400,11 +1414,14 @@ export default function App() {
       <ControllerNavigationBridge enabled={settings.controllerNavigationEnabled === true} preferredFingerprint={settings.preferredControllerFingerprint || ''} resting={gameRestActive} privacyEpoch={unlockedCategories.join('|')} onBlockedLaunch={() => notify('Controller launch needs its own safety confirmation. Use mouse or keyboard for now.')} />
       {/* Window edge glow — soft inner halo around the frameless window (Riot/Discord style) */}
       <div className="window-edge-glow" aria-hidden="true" />
-      {!lounge.active && <BgAmbience theme={settings.theme} settings={settings} game={selected} resting={gameRestActive} eventPulse={fungistLaunchCelebration?.key > confetti.key ? { kind: 'launch', key: fungistLaunchCelebration.key } : { kind: 'celebrate', key: confetti.key }} />}
+      {idlePowerSaving && <span role="status" className="pointer-events-none fixed bottom-3 left-3 z-[90] rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.92)] px-3 py-2 text-[11px] text-muted">Idle power saver · mascot and announcements stay on</span>}
+      {!lounge.active && <BgAmbience theme={settings.theme} settings={settings} game={selected} resting={visualRestActive} eventPulse={fungistLaunchCelebration?.key > confetti.key ? { kind: 'launch', key: fungistLaunchCelebration.key } : { kind: 'celebrate', key: confetti.key }} />}
       {/* v1.6.4 — BgTexture no longer renders as full-viewport overlay.
           Sidebar renders the texture inside its own body via bgTextureStyle. */}
       <div className="neolib-ui-foreground relative z-20" inert={lounge.active ? '' : undefined}>
         <TitleBar
+          newsPaused={gameRestActive || lounge.active}
+          newsSettings={settings}
           search={search}
           setSearch={setSearch}
           currentVersion={APP_VERSION}
@@ -1550,8 +1567,8 @@ export default function App() {
           onReorderCategory={reorderCategory}
           onToggleCollapsed={toggleCollapsed}
           onUnlockCategory={requestUnlock}
-          gameResting={gameRestActive}
-          restReason={restReason}
+          gameResting={visualRestActive}
+          restReason={idlePowerSaving ? 'Idle power saver · mascot and announcements stay available.' : restReason}
           runningGameName={runningGame?.name || ''}
           allGames={library.games || []}
           onOpenSettings={() => setShowSettings(true)}
@@ -1568,7 +1585,7 @@ export default function App() {
         <main className="relative flex min-w-0 flex-1 flex-col">
           <div className="flex-1 min-h-0 overflow-hidden">
             {activeAddon ? <AddonPage key={`${activeAddon.id}:${activeAddon.version}`} addon={activeAddon} config={settings.addonConfig[activeAddon.id]} games={addonGames} theme={settings.theme} onStorageChange={saveAddonStorage} onClose={openLibraryDefault} /> : !isTools && settings.mode === 'home' ? (
-              <HomeHub favoriteIds={settings.pinnedGameIds || []} games={homeGames} lockedGameCategories={lockedHomeCategoryByGameId} hasPrivateCategories={(library.categories || []).some((category) => category.private)} hasLockedPrivateCategories={(library.categories || []).some((category) => category.private && !unlockedCategories.includes(category.id))} onPanicLock={panicLockPrivateLibrary} resting={gameRestActive} minimalistic={settings.interfaceMode === 'minimalistic'} homeLayout={settings.homeLayout || {}} onUpdateHomeLayout={(homeLayout) => updateSetting({ homeLayout })} onUpdateUpdatesCache={(homeGameUpdatesCache) => updateSetting({ homeGameUpdatesCache })} onSelect={(id) => { if (lockedHomeCategoryByGameId[id]) { notify(`Unlock ${lockedHomeCategoryByGameId[id]} in Library to reveal this game.`); return; } setSelectedId(id); updateSetting({ mode: 'library', libraryViewMode: 'preview' }); }} onOpenPlaytimeImport={() => openPlaytimeImport({ force: true })} onOpenTidyUp={() => { setTidyReviewMode('issues'); setTidyOpen(true); }} />
+              <HomeHub favoriteIds={settings.pinnedGameIds || []} games={homeGames} lockedGameCategories={lockedHomeCategoryByGameId} hasPrivateCategories={(library.categories || []).some((category) => category.private)} hasLockedPrivateCategories={(library.categories || []).some((category) => category.private && !unlockedCategories.includes(category.id))} onPanicLock={panicLockPrivateLibrary} resting={visualRestActive} minimalistic={settings.interfaceMode === 'minimalistic'} homeLayout={settings.homeLayout || {}} onUpdateHomeLayout={(homeLayout) => updateSetting({ homeLayout })} onUpdateUpdatesCache={(homeGameUpdatesCache) => updateSetting({ homeGameUpdatesCache })} onSelect={(id) => { if (lockedHomeCategoryByGameId[id]) { notify(`Unlock ${lockedHomeCategoryByGameId[id]} in Library to reveal this game.`); return; } setSelectedId(id); updateSetting({ mode: 'library', libraryViewMode: 'preview' }); }} onOpenPlaytimeImport={() => openPlaytimeImport({ force: true })} onOpenTidyUp={() => { setTidyReviewMode('issues'); setTidyOpen(true); }} />
             ) : !isTools && wallActive ? (
               <CoverWall
                 games={coverWallGames}
@@ -1609,7 +1626,7 @@ export default function App() {
       <div className="neolib-ui-foreground relative z-20">
         <DealsBar
           settings={settings}
-          resting={gameRestActive}
+          resting={visualRestActive}
           launcherClientPaths={settings.launcherClientPaths || settings.friendsClientPaths || {}}
           onUpdateLauncherClientPaths={(launcherClientPaths) => updateSetting({ launcherClientPaths })}
         />

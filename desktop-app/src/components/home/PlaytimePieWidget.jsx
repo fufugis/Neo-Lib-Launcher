@@ -2,6 +2,7 @@ import React from 'react';
 import { hours, platformOf, PLATFORM } from './home-model.mjs';
 import { JOURNEY_STATUSES } from '../../lib/game-journey-model.mjs';
 import { normalizePlaytimePieFilters, playtimePie } from './playtime-pie-model.mjs';
+import PlaytimePieChart from './PlaytimePieChart';
 
 export default React.memo(function PlaytimePieWidget({ games, favoriteIds, filters: savedFilters, onFiltersChange, onSelect }) {
   const filters = React.useMemo(() => normalizePlaytimePieFilters(savedFilters), [savedFilters]);
@@ -25,7 +26,7 @@ export default React.memo(function PlaytimePieWidget({ games, favoriteIds, filte
       <p className="text-xs text-muted">Activity filters choose games, not hours within that period. Imported lifetime totals are not session history.</p>
     </div>}
     {chart.total > 0 ? <div className="flex flex-wrap items-center gap-4">
-      <div role="img" aria-label={`Playtime distribution: ${chart.slices.map(slice => `${slice.label} ${slice.percent.toFixed(1)}%`).join(', ')}`} className="aspect-square w-40 max-w-full shrink-0 rounded-full border border-[rgb(var(--border))]" style={{ backgroundImage: chart.gradient }} />
+      <PlaytimePieChart chart={chart} />
       <ul className="min-w-0 flex-1 space-y-1">{chart.slices.map((slice, index) => <li key={slice.id ?? `other-${index}`}>
         <button type="button" disabled={slice.id === null} onClick={() => onSelect?.(slice.id)} className="flex w-full items-center gap-2 rounded-md px-1 py-1.5 text-left text-xs hover:bg-[rgb(var(--accent)/0.1)] disabled:cursor-default"><span aria-hidden className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: slice.color }} /><span className="min-w-0 flex-1 break-words">{slice.label}</span><span className="shrink-0 tabular-nums">{hours(slice.minutes)} · {slice.percent.toFixed(1)}%</span></button>
       </li>)}</ul>

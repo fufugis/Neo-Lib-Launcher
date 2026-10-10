@@ -2,6 +2,31 @@ import { platformOf } from './home-model.mjs';
 import { JOURNEY_STATUSES, normalizeJourneyStatus } from '../../lib/game-journey-model.mjs';
 
 export const PIE_COLORS = Object.freeze(['#60a5fa', '#a78bfa', '#34d399', '#fbbf24', '#f472b6', '#22d3ee', '#fb923c', '#818cf8', '#a3e635', '#e879f9', '#2dd4bf', '#f87171', '#38bdf8', '#c084fc', '#facc15', '#94a3b8']);
+
+// Match CSS conic-gradient: zero at twelve o'clock, clockwise. Client-space
+// bounds include Lounge zoom, so hit testing never assumes a 160px chart.
+export function playtimePieSliceAtPoint(chart, rect, x, y) {
+  if (!chart?.slices?.length || !(rect?.width > 0) || !(rect?.height > 0) || !Number.isFinite(x) || !Number.isFinite(y)) return null;
+  const dx = (x - rect.left - rect.width / 2) / (rect.width / 2);
+  const dy = (y - rect.top - rect.height / 2) / (rect.height / 2);
+  if (dx * dx + dy * dy > 1 || dx * dx + dy * dy < 1e-12) return null;
+  const percent = ((Math.atan2(dx, -dy) / (2 * Math.PI) + 1) % 1) * 100;
+  let end = 0;
+  for (const slice of chart.slices) {
+    end += slice.percent;
+    if (percent < end) return slice;
+  }
+  return chart.slices.at(-1);
+}
+
+export function pieTooltipPosition(x, y, width, height, viewportWidth, viewportHeight) {
+  const edge = 12;
+  const gap = 14;
+  return {
+    left: Math.max(edge, Math.min(viewportWidth - width - edge, x + gap + width <= viewportWidth - edge ? x + gap : x - width - gap)),
+    top: Math.max(edge, Math.min(viewportHeight - height - edge, y + gap + height <= viewportHeight - edge ? y + gap : y - height - gap)),
+  };
+}
 export function normalizePlaytimePieFilters(input = {}) {
   input = input && typeof input === 'object' ? input : {};
   const hours = value => Number.isFinite(Number(value)) ? Math.max(0, Math.min(1000000, Number(value))) : 0;

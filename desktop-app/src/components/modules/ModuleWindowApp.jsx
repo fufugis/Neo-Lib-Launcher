@@ -4,6 +4,7 @@ import AddonPage from '../addons/AddonPage';
 import { applyStockThemePalette, setCustomThemes } from '../../themes/stock-theme-registry.mjs';
 import { setSoundPack } from '../../lib/sound';
 import ControllerNavigationBridge from '../controller/ControllerNavigationBridge';
+import { useIdlePowerSaver } from '../../state/use-idle-power-saver.mjs';
 
 export default function ModuleWindowApp() {
   const [context, setContext] = React.useState(null);
@@ -42,6 +43,7 @@ export default function ModuleWindowApp() {
   }, []);
   React.useEffect(() => window.api?.onModuleCloseRequest?.(() => { void close(); }), [close]);
   const value = context?.lounge;
+  const idlePowerSaving = useIdlePowerSaver({ nativeApi: window.api, enabled: context?.official?.official === true && value?.themeSettings?.idlePowerSavingEnabled !== false, blocked: !value || value.resting === true });
   const theme = value?.theme || context?.theme || 'synthwave';
   React.useEffect(() => {
     setCustomThemes(value?.installedCustomThemes || []);
@@ -54,11 +56,12 @@ export default function ModuleWindowApp() {
   }, [theme, value?.installedCustomThemes, value?.resting, value?.soundsEnabled, value?.themeSettings]);
   const saveStorage = React.useCallback(storage => { void request({ type: 'storage', value: storage }); }, [request]);
   if (!context) return <main className="flex h-screen flex-col items-center justify-center gap-4 bg-surface text-ink"><p>{error || 'Starting module…'}</p><button type="button" onClick={close}>Back to NEO-LIB</button></main>;
-  return <main className="h-screen w-screen bg-surface text-ink" data-testid="module-window">
+  return <main className="h-screen w-screen bg-surface text-ink" data-testid="module-window" data-neolib-idle={idlePowerSaving ? 'true' : undefined}>
     {context.official?.official === true && value ? <>
       <ControllerNavigationBridge enabled={value.controllerEnabled} preferredFingerprint={value.themeSettings?.preferredControllerFingerprint || ''} resting={false} privacyEpoch={value.games.map(game => game.id).join('|')} onBlockedLaunch={() => setError('Use the visible Launch button with mouse or keyboard.')} />
-      <NeoLounge {...value} onExit={close} onPreferencesChange={preferences => { void request({ type: 'preferences', value: preferences }); }} onResumeChange={resume => { void request({ type: 'resume', value: resume }); }} onSavedPresetsChange={presets => { void request({ type: 'presets', value: presets }); }} onLayoutChange={layout => { void request({ type: 'layout', value: layout }); }} onRequestPrivateGames={() => { void request({ type: 'unlock' }); }} onLaunch={(game, token) => request({ type: 'launch', gameId: game.id, token })} />
+      <NeoLounge {...value} idlePowerSaving={idlePowerSaving} onExit={close} onPreferencesChange={preferences => { void request({ type: 'preferences', value: preferences }); }} onResumeChange={resume => { void request({ type: 'resume', value: resume }); }} onSavedPresetsChange={presets => { void request({ type: 'presets', value: presets }); }} onLayoutChange={layout => { void request({ type: 'layout', value: layout }); }} onRequestPrivateGames={() => { void request({ type: 'unlock' }); }} onLaunch={(game, token) => request({ type: 'launch', gameId: game.id, token })} />
       <span className="pointer-events-none fixed bottom-1 right-2 z-[9900] rounded bg-black/40 px-2 py-1 text-[9px] text-white/75" data-testid="official-module-owner">Official Lounge module · NEO-LIB</span>
+      {idlePowerSaving && <span role="status" className="pointer-events-none fixed bottom-3 left-3 z-[9900] rounded bg-black/70 px-3 py-2 text-xs text-white/80">Idle power saver · move or press a button to wake</span>}
     </> : <AddonPage namespace="module" key={context.module.id} addon={context.module} config={context.config} games={context.games} theme={context.theme} onStorageChange={saveStorage} onClose={close} />}
     {error && <div role="alert" className="fixed right-4 top-4 z-[10000] max-w-sm rounded border border-red-300/50 bg-black/90 p-3 text-sm text-red-100"><p>{error}</p><button type="button" onClick={() => setError('')}>Dismiss</button><button type="button" className="ml-4" onClick={close}>Back to NEO-LIB</button></div>}
   </main>;

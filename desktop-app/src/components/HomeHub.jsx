@@ -10,6 +10,8 @@ import { WIDGET_RESIZE_DIRECTIONS, resizeFreeWidget, resizeGridWidget } from './
 import WidgetManagerModal from './home/WidgetManagerModal';
 import CommunityWidgetHost from './home/CommunityWidgetHost';
 import PlaytimePieWidget from './home/PlaytimePieWidget';
+import HomeLayoutEditor from './home/HomeLayoutEditor';
+import { createHomeEditorDraft, homeEditorSavePatch } from './home/home-layout-editor-model.mjs';
 import { renderForegroundPortal } from './ui/VisualBoundary';
 
 const RANGES = { today: { label: 'Today', days: 1 }, week: { label: 'This week', days: 7 }, month: { label: 'This month', days: 31 } };
@@ -81,6 +83,7 @@ export default function HomeHub({ games = [], favoriteIds = [], lockedGameCatego
   const [recoverableWidgets, setRecoverableWidgets] = React.useState([]);
   const [widgetImportNotice, setWidgetImportNotice] = React.useState('');
   const [layoutUnlocked, setLayoutUnlocked] = React.useState(false);
+  const [layoutEditor, setLayoutEditor] = React.useState(null);
   const [customizeOpen, setCustomizeOpen] = React.useState(false);
   const [gridColumns, setGridColumns] = React.useState(HOME_WIDGET_GRID.desktop);
   const railRef = React.useRef(null);
@@ -292,10 +295,22 @@ export default function HomeHub({ games = [], favoriteIds = [], lockedGameCatego
       updateLayout({ snapToGrid: false, freePositions: captured });
     } else updateLayout({ snapToGrid: true });
   };
-  const paneProps = { paneOrder: activeWidgetOrder, hiddenPanes, draggedPane, dragInsertion, startPaneDrag, togglePane, layoutUnlocked, setLayoutUnlocked, gridColumns, snapToGrid, sizeForWidget: widgetSize, onResize: resizeWidget, onResetSize: resetWidgetSize, onFreePosition: updateFreePosition, onBringFront: bringWidgetToFront, onToggleSnap: toggleSnapping };
+  const openLayoutEditor = () => {
+    finishPaneDrag(null, false); setLayoutUnlocked(false);
+    const host = homeGridHostRef.current;
+    if (!host || embedded) return;
+    const origin = host.getBoundingClientRect();
+    const captured = {};
+    host.querySelectorAll('[data-home-pane-id]').forEach(element => {
+      const rect = element.getBoundingClientRect();
+      captured[element.dataset.homePaneId] = { x: rect.left - origin.left, y: rect.top - origin.top, width: rect.width, height: rect.height };
+    });
+    const widgets = widgetOrder.filter(id => !hiddenPanes.includes(id)).map(id => ({ id, label: widgetDefinitions[id]?.label || id }));
+    setLayoutEditor({ widgets, draft: createHomeEditorDraft(widgets, captured, homeLayout, { width: host.scrollWidth, height: host.scrollHeight }) });
+  };
+  const paneProps = { paneOrder: activeWidgetOrder, hiddenPanes, draggedPane, dragInsertion, startPaneDrag, togglePane, layoutUnlocked, setLayoutUnlocked: value => value === true ? openLayoutEditor() : setLayoutUnlocked(value), gridColumns, snapToGrid, sizeForWidget: widgetSize, onResize: resizeWidget, onResetSize: resetWidgetSize, onFreePosition: updateFreePosition, onBringFront: bringWidgetToFront, onToggleSnap: toggleSnapping };
   const toggleLayoutLock = () => {
-    if (layoutUnlocked) finishPaneDrag();
-    setLayoutUnlocked((value) => !value);
+    openLayoutEditor();
   };
 
   React.useEffect(() => {
@@ -434,7 +449,7 @@ export default function HomeHub({ games = [], favoriteIds = [], lockedGameCatego
         {hasPrivateCategories && <button type="button" onClick={onPanicLock} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-400/60 bg-red-400/[0.09] px-3 text-xs font-bold text-red-200 shadow-[0_0_16px_-7px_rgba(248,113,113,.95)] transition hover:bg-red-400/[0.18] hover:text-red-100" title="Lock every private category and return to a safe Library view" aria-label="Lock private categories"><ShieldCheck size={15} />Lock private</button>}
         {minimalistic && <button type="button" data-testid="home-minimalistic-customize" aria-expanded={customizeOpen || layoutUnlocked} onClick={() => setCustomizeOpen((value) => !value)} className="inline-flex h-9 items-center rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.55)] px-3 text-xs font-bold text-ink">Customize Home</button>}
         {(!minimalistic || customizeOpen || layoutUnlocked) && <>
-        <button type="button" onClick={toggleLayoutLock} data-testid="home-layout-lock-toggle" aria-pressed={layoutUnlocked} className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition ${layoutUnlocked ? 'border-[rgb(var(--accent)/0.82)] bg-[rgb(var(--accent)/0.22)] text-ink shadow-[0_0_18px_-6px_rgb(var(--accent))]' : 'border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] text-ink hover:border-[rgb(var(--accent)/0.65)] hover:bg-[rgb(var(--accent)/0.10)]'}`} title={layoutUnlocked ? 'Save the widget arrangement and lock Home' : 'Unlock Home widgets for moving and resizing'}>{layoutUnlocked ? <Check size={14} /> : <Unlock size={14} />}{layoutUnlocked ? 'Done' : 'Unlock widgets'}</button>
+        <button type="button" onClick={toggleLayoutLock} data-testid="home-layout-lock-toggle" aria-haspopup="dialog" className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] px-3 text-xs font-bold text-ink hover:border-[rgb(var(--accent)/0.65)]" title="Open the zoomed-out widget arrangement editor"><Move size={14} />Rearrange widgets</button>
         <button type="button" onClick={toggleSnapping} data-testid="home-layout-snap-toggle" aria-pressed={snapToGrid} className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition ${snapToGrid ? 'border-[rgb(var(--accent)/0.48)] bg-[rgb(var(--accent)/0.10)] text-ink' : 'border-[rgb(var(--accent-2)/0.55)] bg-[rgb(var(--accent-2)/0.10)] text-[rgb(var(--accent-2))]'}`} title={snapToGrid ? 'Turn snapping off for free placement and overlapping' : 'Turn snapping on for automatic alignment'}><Grip size={14} />{snapToGrid ? 'Snap on' : 'Free move'}</button>
         <button type="button" onClick={() => setWidgetManagerOpen(true)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] px-3 text-xs font-bold text-ink transition hover:border-[rgb(var(--accent)/0.65)] hover:bg-[rgb(var(--accent)/0.10)]" title="Inspect and manage Home widgets"><Puzzle size={14} />Widgets</button>
         <button type="button" onClick={startWidgetImport} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.62)] bg-[rgb(var(--accent)/0.10)] px-3 text-xs font-bold text-ink transition hover:bg-[rgb(var(--accent)/0.18)]" title="Choose a widget.json package to import"><FileUp size={14} />Import widget</button>
@@ -455,6 +470,8 @@ export default function HomeHub({ games = [], favoriteIds = [], lockedGameCatego
     {dragGhost && renderForegroundPortal(<div ref={dragGhostRef} className="pointer-events-none fixed z-[300] select-none overflow-hidden rounded-xl border-2 border-[rgb(var(--accent))] bg-[rgb(var(--panel)/0.94)] text-ink shadow-[0_0_0_4px_rgb(var(--accent)/0.22),0_24px_55px_rgb(0_0_0/0.5),0_0_32px_rgb(var(--accent)/0.5)] backdrop-blur-xl" style={{ left: dragGhost.left, top: dragGhost.top, width: dragGhost.width, height: dragGhost.height }} aria-hidden="true" data-testid="home-widget-drag-ghost"><div className="flex h-9 items-center gap-2 border-b border-[rgb(var(--accent)/0.5)] bg-[rgb(var(--accent)/0.18)] px-3"><GripVertical size={15} className="text-[rgb(var(--accent-2))]" /><span className="min-w-0 flex-1 truncate text-xs font-black uppercase tracking-wide">{dragGhost.label}</span><span className="rounded bg-[rgb(var(--accent)/0.22)] px-1.5 py-0.5 font-mono text-[10px]">{dragGhost.size?.cols}×{dragGhost.size?.rows}</span></div><div className="grid h-[calc(100%-36px)] place-items-center text-xs font-bold text-muted"><span className="inline-flex items-center gap-2"><Move size={18} className="text-[rgb(var(--accent))]" />Moving widget · release to place</span></div></div>)}
     {newsDetail && <NewsDetail item={newsDetail} onClose={() => setNewsDetail(null)} />}
     <WidgetManagerModal open={widgetManagerOpen} onClose={() => setWidgetManagerOpen(false)} communityWidgets={communityWidgets} recoverableWidgets={recoverableWidgets} communityConfig={communityConfig} hiddenIds={hiddenPanes} onToggleBuiltin={togglePane} onImport={importWidget} onCommunityConfig={updateCommunityConfig} onRemove={removeCommunityWidget} onRestore={restoreCommunityWidget} externalNotice={widgetImportNotice} />
+    {layoutEditor && <HomeLayoutEditor initialDraft={layoutEditor.draft} widgets={layoutEditor.widgets}
+      onCancel={() => setLayoutEditor(null)} onSave={draft => { updateLayout(homeEditorSavePatch(homeLayout, draft, activePaneIds)); setLayoutEditor(null); }} />}
   </section>;
 }
 function RailButton({ children, onClick }) { return <button onClick={onClick} className="grid h-7 w-7 place-items-center rounded-md border border-[rgb(var(--border))] text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink">{children}</button>; }

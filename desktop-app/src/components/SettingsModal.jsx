@@ -172,6 +172,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
         {/* App behaviour */}
         <Section title="App behaviour">
           <div className="space-y-3">
+            <Toggle label="Automatic idle power saver" hint="After 15 quiet minutes without a tracked game, pauses expensive visuals and non-essential work. Mascot, game news and NEO-LIB update announcements remain available. Mouse, keyboard or controller activity wakes it." value={settings.idlePowerSavingEnabled !== false} onChange={(v) => setKey({ idlePowerSavingEnabled: v })} testid="opt-idle-power-saver" />
             <Toggle
               label="Rest NEO-LIB while a game is running"
               hint="On by default. Pauses visual effects, animations, sounds, health polling, launcher scans, news checks, deal rotation, and social checks while a game launched through NEO-LIB is open."

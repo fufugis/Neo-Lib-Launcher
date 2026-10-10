@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Check, X } from 'lucide-react';
 import { sendChangelogReaction } from './FeedbackModal';
 import { CHANGELOG, getChangesSince } from './changelog/changelog-content.mjs';
+import { UPCOMING_CHANGELOG } from './changelog/upcoming-changelog.mjs';
 export { CHANGELOG } from './changelog/changelog-content.mjs';
 
 /**
@@ -69,11 +70,11 @@ export default function ChangelogModal({ open, currentVersion, lastSeenVersion, 
             </div>
 
             <div className="max-h-[60vh] space-y-5 overflow-y-auto px-5 py-4">
-              {entries.map((entry) => (
+              {[UPCOMING_CHANGELOG, ...entries].map((entry) => (
                 <section key={entry.version} data-testid={`changelog-entry-${entry.version}`}>
                   <div className="mb-2 flex items-center gap-2">
                     <span className="font-display text-base font-bold text-ink">
-                      v{entry.version}
+                      {entry.unreleased ? 'Upcoming' : `v${entry.version}`}
                     </span>
                     <span className="text-[11px] text-muted">{entry.title}</span>
                   </div>

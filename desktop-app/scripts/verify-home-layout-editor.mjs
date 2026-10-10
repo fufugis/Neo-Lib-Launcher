@@ -1,0 +1,64 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { normalizeEditorBox, createHomeEditorDraft, adjustEditorBox, homeEditorSavePatch, homeEditorFitZoom } from '../src/components/home/home-layout-editor-model.mjs';
+
+const saved = { snapToGrid: true, widgetOrder: ['hidden', 'a', 'b'], hiddenPanes: ['hidden'],
+  freePositions: { a: { x: 900, y: 900, width: 200, height: 100 }, hidden: { x: 20, y: 20, width: 200, height: 100 } },
+  communityWidgetSettings: { custom: { untouched: true } }, widgetSizes: { a: { cols: 3, rows: 2 } } };
+const original = structuredClone(saved);
+const captured = { a: { x: 10, y: 20, width: 300, height: 240 }, b: { x: 340, y: 20, width: 400, height: 480 } };
+const draft = createHomeEditorDraft([{ id: 'a' }, { id: 'b' }], captured, saved, { width: 1200, height: 900 });
+assert.deepEqual(draft.positions, captured, 'capture current rendered grid, not stale free coordinates');
+assert.notEqual(draft.positions.a, captured.a, 'draft boxes cannot mutate captured or saved data');
+assert.deepEqual(normalizeEditorBox(null), { x: 0, y: 0, width: 300, height: 240 });
+assert.deepEqual(normalizeEditorBox({ x: -20, y: NaN, width: 0, height: 0 }), { x: 0, y: 0, width: 160, height: 80 });
+assert.equal(createHomeEditorDraft([{ id: 'a' }], {}, saved).positions.a.x, 900);
+assert.equal(createHomeEditorDraft([{ id: 'new' }], {}, {}).positions.new.width, 480);
+assert.deepEqual(adjustEditorBox(draft.positions.a, 13, 17, draft, false), { x: 23, y: 37, width: 300, height: 240 });
+assert.deepEqual(adjustEditorBox(draft.positions.a, 13, 17, draft, true), { x: 24, y: 48, width: 300, height: 240 });
+assert.equal(adjustEditorBox(draft.positions.a, 10000, 10000, draft, false).x, 900);
+assert.equal(adjustEditorBox(draft.positions.a, 10000, 10000, draft, false).y, 660);
+assert.equal(adjustEditorBox(draft.positions.a, -10000, -10000, draft, false).x, 0);
+assert.deepEqual(adjustEditorBox(draft.positions.a, -10000, -10000, draft, false, true), { x: 10, y: 20, width: 160, height: 80 });
+assert.equal(adjustEditorBox(draft.positions.a, 10000, 10000, draft, false, true).width, 1190);
+// A 30px screen movement at 50% editor zoom is a 60px Home movement.
+assert.equal(adjustEditorBox(draft.positions.a, 30 / .5, 0, draft, false).x, 70);
+const changed = { ...draft, snap: false, order: ['b', 'removed', 'a'], positions: { ...draft.positions, a: { ...draft.positions.a, x: 70 } } };
+const patch = homeEditorSavePatch(saved, changed, ['a', 'b', 'hidden']);
+assert.equal(patch.snapToGrid, false, 'saving snapped coordinates must not reflow them back into automatic grid');
+assert.equal(patch.editorSnapToGrid, false);
+assert.deepEqual(patch.widgetOrder, ['hidden', 'b', 'a']);
+assert.equal(patch.freePositions.a.x, 70);
+assert.deepEqual(patch.freePositions.hidden, saved.freePositions.hidden);
+assert.equal(patch.freePositions.removed, undefined);
+assert.deepEqual({ ...saved, ...patch }.communityWidgetSettings, original.communityWidgetSettings);
+assert.deepEqual(saved, original, 'draft edits, Cancel and Save patch construction must not mutate original layout');
+assert.equal(homeEditorFitZoom(draft, { width: 1248, height: 948 }), .75);
+assert.equal(homeEditorFitZoom(draft, { width: 648, height: 498 }), .5);
+assert.equal(homeEditorFitZoom(draft, { width: 1, height: 1 }), .1);
+
+const editor = readFileSync(new URL('../src/components/home/HomeLayoutEditor.jsx', import.meta.url), 'utf8');
+const home = readFileSync(new URL('../src/components/HomeHub.jsx', import.meta.url), 'utf8');
+const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
+const require = createRequire(import.meta.url);
+const babel = createRequire(require.resolve('@vitejs/plugin-react'))('@babel/core');
+babel.parseSync(editor, { configFile: false, babelrc: false, parserOpts: { plugins: ['jsx'] } });
+assert.match(home, /if \(!host \|\| embedded\) return/);
+assert.match(home, /createHomeEditorDraft\(widgets, captured, homeLayout/);
+assert.match(home, /updateLayout\(homeEditorSavePatch\(homeLayout, draft, activePaneIds\)\)/);
+assert.match(editor, /getBoundingClientRect\(\)\.width \/ element.offsetWidth/);
+assert.match(editor, /setPointerCapture\(event.pointerId\)/);
+assert.match(editor, /active.pointerId !== event.pointerId/);
+assert.match(editor, /onPointerCancel: event => endPointer\(event, false\)/);
+assert.match(editor, /addEventListener\('blur', cancelDrag\)/);
+assert.match(editor, /event.key === 'Escape'/);
+assert.match(editor, /setDraft\(initialDraft\)/);
+assert.equal((editor.match(/onSave\(latest.current\)/g) || []).length, 1);
+assert.doesNotMatch(editor, /onUpdateHomeLayout|updateLayout\(/, 'dragging and resizing only modify local draft');
+assert.match(css, /\.home-editor-canvas[^}]+transform-origin: top left/);
+assert.match(editor, /aria-modal="true"/);
+assert.match(editor, /event.key !== 'Tab'/);
+assert.match(editor, /aria-label="Choose widget to move"/);
+assert.match(editor, /querySelectorAll\('button:not\(:disabled\), input, select'\)/);
+console.log('PASS: Home editor capture, isolated drafts, snap/free motion, zoom scaling, bounds, resize, Save persistence, hidden/community preservation, focus/cancel wiring and JSX parsing. Live pointer/controller acceptance remains separate.');

@@ -8,7 +8,7 @@ the shared request guards in `contract-guards.cjs`.
 
 ## Current checkpoint
 
-- 95 native commands across 30 named domains are inventoried by
+- 145 native commands across 35 named domains are inventoried by
   `scripts/verify-ipc-registry.cjs`.
 - Every command invoked by `preload.js` resolves to exactly one native handler.
 - `gemini:metadata` is the one documented native-only command and should be
@@ -23,6 +23,8 @@ the shared request guards in `contract-guards.cjs`.
   executable icon extraction. Both retain their existing safe failure results.
 - `system-ipc.cjs` delegates the read-only CPU/RAM snapshot to a stateful,
   independently tested system-health service.
+  Its aggregate idle-seconds command uses Electron powerMonitor, with bounded
+  integer/null responses and no key, cursor, application or input history.
 - `playtime-ipc.cjs` delegates range deltas to a playtime-history service backed
   by the versioned document store.
 - `image-ipc.cjs` delegates sanitized local artwork caching to an image service.

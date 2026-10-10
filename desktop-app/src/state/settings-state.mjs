@@ -7,6 +7,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   fungistNotifications: {}, librarySize: 'medium', showcaseMode: 'recent_added', collapsed: {},
   interfaceMode: 'default', presentationMode: 'desktop', preferredControllerFingerprint: '', controllerNavigationEnabled: false,
   navigationLayout: 'top',
+  idlePowerSavingEnabled: true,
   addonsEnabled: false, addonConfig: {},
   modulesEnabled: false, moduleConfig: {},
   coverWallShape: 'portrait',
@@ -29,6 +30,7 @@ export function hydrateSettings(raw = {}, { resetRatings = false } = {}) {
   next.loungeResume = normalizeLoungeResume(next.loungeResume);
   next.loungeSavedPresets = normalizeLoungeSavedPresets(next.loungeSavedPresets);
   next.controllerNavigationEnabled = next.controllerNavigationEnabled === true;
+  next.idlePowerSavingEnabled = next.idlePowerSavingEnabled !== false;
   next.addonsEnabled = next.addonsEnabled === true;
   next.modulesEnabled = next.modulesEnabled === true;
   if (next.mode !== 'tools') next.mode = 'home';

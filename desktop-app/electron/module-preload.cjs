@@ -5,6 +5,7 @@ const markIntent = event => { if (event.isTrusted && event.target?.closest?.('[d
 document.addEventListener('pointerdown', markIntent, true); document.addEventListener('keydown', markIntent, true);
 const subscribe = (channel, callback) => { const listener = (_event, value) => callback(value); ipcRenderer.on(channel, listener); return () => ipcRenderer.removeListener(channel, listener); };
 contextBridge.exposeInMainWorld('api', {
+  readSystemIdleSeconds: () => ipcRenderer.invoke('system:idleSeconds'),
   moduleSnapshot: () => ipcRenderer.invoke('modules:snapshot'),
   onModuleContext: callback => subscribe('modules:context', callback),
   onModuleCloseRequest: callback => subscribe('modules:prepareClose', callback),

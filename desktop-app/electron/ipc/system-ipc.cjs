@@ -1,4 +1,4 @@
-function registerSystemIpc({ registerIpc, systemHealth }) {
+function registerSystemIpc({ registerIpc, systemHealth, readSystemIdleSeconds }) {
   if (typeof registerIpc !== 'function' || typeof systemHealth?.read !== 'function') {
     throw new TypeError('registerSystemIpc requires registerIpc and systemHealth.');
   }
@@ -9,6 +9,8 @@ function registerSystemIpc({ registerIpc, systemHealth }) {
     && isNumberBetween(result.memoryFreeGb, 0, Number.MAX_SAFE_INTEGER, { required: true })
     && isNumberBetween(result.memoryTotalGb, 0, Number.MAX_SAFE_INTEGER, { required: true }),
   { cpuPercent: null, ramPercent: null, memoryUsedGb: 0, memoryFreeGb: 0, memoryTotalGb: 0, code: 'INVALID_RESPONSE' }));
+  registerIpc('system:idleSeconds', guardResult(() => readSystemIdleSeconds?.() ?? null,
+    value => value === null || (Number.isInteger(value) && isNumberBetween(value, 0, Number.MAX_SAFE_INTEGER, { required: true })), null));
 }
 
 module.exports = { registerSystemIpc };

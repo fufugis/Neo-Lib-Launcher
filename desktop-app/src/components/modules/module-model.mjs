@@ -1,7 +1,7 @@
 import { addonLibrary, addonStorage } from '../addons/addon-model.mjs';
 export const OFFICIAL_LOUNGE = Object.freeze({ id: 'neolib.lounge', name: 'Lounge', owner: 'NEO-LIB', official: true, removable: false });
 const GAME_FIELDS = ['id','name','appid','launcher','source','steamOwned','retroPlatform','portraitImage','coverUrl','iconUrl','headerImage','capsuleImage','background','logoImage','screenshots','description','genres','tags','developer','publisher','releaseDate','metacritic','rating','myRating','playtime','lastPlayed','lastPlayedAt','journeyStatus','installSizeBytes','installedVersion','addedAt','website','features','capabilities'];
-const VISUAL_FIELDS = ['theme','effectsLevel','effectsLevelByTheme','gridIntensity','motionCadence','perGameBg','specialDecorationOpacity','cursorTheme','preferredControllerFingerprint','soundPack','soundsEnabled','fungistEnabled','mascotId'];
+const VISUAL_FIELDS = ['theme','effectsLevel','effectsLevelByTheme','gridIntensity','motionCadence','perGameBg','specialDecorationOpacity','cursorTheme','preferredControllerFingerprint','soundPack','soundsEnabled','fungistEnabled','mascotId','idlePowerSavingEnabled'];
 const MORE_GAME_FIELDS = ['shortDescription','about','developers','publishers','gogId','icon','cover','hero','logo','heroArtworkOverride','heroFocalPoint','heroMotion','genreTags','genreProfile','year','ratedAt','coverWidth','coverHeight','artworkDimensions','contentFlags','achievementSummary','installed','availability','installSizePartial','steamAppId','updateWatchUrl','launcherProductId'];
 const projectedGames = new WeakMap();
 export function projectLoungeGames(games = []) {

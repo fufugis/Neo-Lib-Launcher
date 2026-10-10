@@ -23,6 +23,7 @@ const armGameLaunch = () => {
 };
 
 contextBridge.exposeInMainWorld('api', {
+  readSystemIdleSeconds: () => ipcRenderer.invoke('system:idleSeconds'),
   // window
   minimize: () => ipcRenderer.invoke('window:minimize'),
   toggleMaximize: () => ipcRenderer.invoke('window:toggleMaximize'),

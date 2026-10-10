@@ -28,6 +28,7 @@ export default function ControllerNavigationBridge({ enabled, preferredFingerpri
     };
     const navigate = (command) => {
       if (document.visibilityState === 'hidden' || !document.hasFocus()) return;
+      window.dispatchEvent(new Event('neolib:controller-activity'));
       const pictureClose = document.querySelector('[data-testid="lounge-picture-viewer"] [data-controller-close]');
       if (pictureClose) { pictureClose.click(); return true; }
       const surface = controllerFocusSurface(document);
@@ -125,6 +126,7 @@ export default function ControllerNavigationBridge({ enabled, preferredFingerpri
       },
       onCommand: navigate,
       onButtonPress: () => {
+        window.dispatchEvent(new Event('neolib:controller-activity'));
         const close = document.querySelector('[data-testid="lounge-picture-viewer"] [data-controller-close]');
         if (!close) return false;
         close.click();

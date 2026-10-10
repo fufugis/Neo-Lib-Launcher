@@ -4,7 +4,7 @@
  * - Provides IPC for file picker, exe icon extraction, drive scan,
  *   Steam Store metadata fetch, and game launching.
  */
-const { app, BrowserWindow, ipcMain, dialog, shell, nativeImage, Tray, Menu, protocol, screen, safeStorage, net: electronNet } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, nativeImage, Tray, Menu, protocol, screen, safeStorage, powerMonitor, net: electronNet } = require('electron');
 const { createLoungeBackgroundHandler } = require('./images/lounge-background-protocol.cjs');
 protocol.registerSchemesAsPrivileged([{ scheme: 'neolib-background', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }]);
 const path = require('path');
@@ -1283,7 +1283,7 @@ remainingIpcServices["storage:scanGames"] = async (_e, { games = [], force = fal
 registerDoctorIpc({ registerIpc, launchDoctor });
 
 // Lightweight, local-only system readiness snapshot used by the Library footer.
-registerSystemIpc({ registerIpc, systemHealth });
+registerSystemIpc({ registerIpc, systemHealth, readSystemIdleSeconds: () => powerMonitor.getSystemIdleTime() });
 
 // ---------------- Optimize Center ---------------- //
 // These tools are deliberately on-demand. Performance uses the same aggregate
