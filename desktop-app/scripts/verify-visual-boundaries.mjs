@@ -298,7 +298,12 @@ assert.match(coverWallSource, /data-testid="wall-columns-menu"/, 'Wall detailed 
 assert.match(coverWallSource, /data-testid="wall-open-home"/, 'Wall must provide a direct Home return action.');
 assert.match(coverWallSource, /data-testid="wall-open-library"/, 'Wall must provide a direct Library return action.');
 assert.match(coverWallSource, /!sideNavigation && <div className="flex shrink-0 items-center gap-1\.5" aria-label="Wall navigation"/, 'Wall navigation belongs at the toolbar start and is omitted beside the rail');
-assert.match(appSource, /\n\s+sideNavigation\n/, 'Wall always receives vertical navigation');
+const permanentWallNavigation = /\r?\n\s+sideNavigation\r?\n/;
+for (const newline of ['\n', '\r\n']) {
+  assert.match(`<CoverWall${newline}  sideNavigation${newline}/>`, permanentWallNavigation, 'permanent Wall navigation check accepts LF and CRLF checkouts');
+  assert.doesNotMatch(`<CoverWall${newline}  sideNavigation={false}${newline}/>`, permanentWallNavigation, 'line-ending tolerance must not accept disabled Wall navigation');
+}
+assert.match(appSource, permanentWallNavigation, 'Wall always receives vertical navigation');
 assert.match(coverWallSource, /data-testid="wall-peek-backdrop"/, 'Wall selection must open a dismissible Peek backdrop instead of navigating away immediately.');
 assert.match(coverWallSource, /data-testid="wall-peek"/, 'Wall Peek needs a dedicated overlay surface.');
 assert.match(coverWallSource, /data-testid="wall-peek-close"/, 'Wall Peek needs an explicit close control.');

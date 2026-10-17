@@ -20,7 +20,12 @@ assert(tree.includes('React.memo(function LibraryGameRowContent'));
 assert(tree.includes('latest.current[name]?.(...args)'), 'memoized rows keep current event handlers');
 assert(tree.includes('React.useLayoutEffect(() => { latest.current = props; })'), 'callbacks change only after a committed render');
 assert(tree.includes('sectionGames: unusedSectionGames'), 'unused whole-shelf arrays do not defeat row memoization');
-assert(tree.includes('      layout\n'), 'row reorder animation is retained');
+const rowLayoutAnimation = /\r?\n[ \t]+layout\r?\n/;
+for (const newline of ['\n', '\r\n']) {
+  assert(rowLayoutAnimation.test(`<motion.div${newline}      layout${newline}/>`), 'row animation check accepts LF and CRLF checkouts');
+  assert(!rowLayoutAnimation.test(`<motion.div${newline}      layout={false}${newline}/>`), 'line-ending tolerance must not accept disabled row animation');
+}
+assert(rowLayoutAnimation.test(tree), 'row reorder animation is retained');
 const sidebar = read('../src/components/Sidebar.jsx');
 assert(sidebar.includes('}, [games, categories, gameOrderByCategory, unlockedCategories, search, isTools, librarySortMode, pinnedIdsSet])'));
 assert(read('../src/components/ThemeVisuals.jsx').includes('export const BgAmbience = React.memo'));
