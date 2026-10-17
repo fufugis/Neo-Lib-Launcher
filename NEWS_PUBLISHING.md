@@ -1,8 +1,8 @@
 # Publishing NEO-LIB News
 
-After users install an app version containing the News reader, edit the root `announcements.json` on the **main branch** and push/commit it. No new installer or Cloudflare service is needed for each message. The current published v1.8.6 installer predates this feature.
+After users install an app version containing the News reader (v1.8.7 or newer), edit the root `announcements.json` on the **main branch** and push/commit it. No new installer or Cloudflare service is needed for each message. Older v1.8.6 clients do not have this reader.
 
-The feed starts empty, so this implementation broadcasts nothing. An example to publish intentionally:
+Messages in the public feed broadcast to all clients with the News reader on their next eligible check. The feed may be empty between announcements. An example to publish intentionally:
 
 ```json
 {
@@ -31,4 +31,12 @@ The feed starts empty, so this implementation broadcasts nothing. An example to 
 
 ## Test before publishing
 
-Run `npm.cmd run test:news` from desktop-app. Preview with a locally mocked feed: multiple arrivals, popup collapse, unread/read, deletion/restart, sidebar on/off, small windows, keyboard/controller Back, dialogs/Rest Mode and reduced motion. Do not publish test messages to all users.
+Run `npm.cmd run test:news` from desktop-app. Preview with a locally mocked feed: multiple arrivals, popup collapse, unread/read, deletion/restart, small windows, keyboard/controller Back, dialogs/Rest Mode and reduced motion. Use mocked feeds for routine development. Publish a clearly labeled live test only when the operator explicitly requests it: it reaches all eligible clients, not a private test audience.
+
+## First operator-requested live test
+
+On 2026-10-17 the operator explicitly requested a test popup/mailbox message.
+ID: `test-2026-10-17-mailbox-01`; title: NEO-LIB news test; body:
+“Test message to see if the mailbox and popup works.”
+New deliveries expire after 24 hours; received messages remain local until deleted.
+No receipt or popup confirmation is sent back to the operator.

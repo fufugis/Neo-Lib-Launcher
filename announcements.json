@@ -1,4 +1,12 @@
 {
   "schemaVersion": 1,
-  "messages": []
+  "messages": [
+    {
+      "id": "test-2026-10-17-mailbox-01",
+      "title": "NEO-LIB news test",
+      "body": "Test message to see if the mailbox and popup works.",
+      "publishedAt": "2026-10-17T11:39:56Z",
+      "expiresAt": "2026-10-18T11:39:56Z"
+    }
+  ]
 }
