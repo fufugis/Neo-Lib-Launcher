@@ -1,5 +1,9 @@
 # NEO-LIB controller and experience milestones
 
+> Historical planning snapshot, retained for context and unfinished ideas—not the
+> current roadmap. See the [active queue](../../../WORK_QUEUE.md),
+> [progress](../../../PROGRESS.md) and [archive guide](../README.md).
+
 This is a product track, not a rewrite of the desktop launcher. The current
 Default desktop experience remains the safe baseline throughout the work.
 

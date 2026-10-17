@@ -1,79 +1,25 @@
 # NEO-LIB desktop application
 
-This directory contains the active NEO-LIB Windows application: an Electron host,
-a React/Vite renderer, local services, build resources, release scripts, and focused
-verification checks.
+This is the active Windows application: an Electron host, React/Vite interface,
+local services, build resources and verification checks.
 
-For the player-facing product overview, downloads, supported sources, privacy model,
-and roadmap, see the [main README](../README.md).
+- [Product overview, downloads and current version](../README.md)
+- [Local startup, dependencies and Windows build instructions](INSTALL.md)
+- [Documentation index](../docs/README.md)
+- [Modules](MODULES.md), [addons](ADDONS.md) and [community widgets](../docs/HOME_WIDGETS.md)
+- [Retro metadata sources](RETRO_SOURCES.md) and [custom themes](docs/THEME_FORMAT.md)
+- [Current Windows acceptance record](../WINDOWS_ACCEPTANCE_V1.8.7.md)
 
-## Local development
+## Directory guide
 
-Requirements:
+- `electron/` — native host, IPC, local services and launcher adapters
+- `src/` — interface, renderer state and stock themes
+- `scripts/` — verification and packaging tools
+- `public/` — intentionally shipped renderer assets and privacy notices
+- `build/` — installer resources
+- `dist-renderer/` and `dist/` — generated output; do not edit by hand or commit
 
-- Windows 10 or 11, x64
-- a supported Node.js release
-- npm
+Focused checks are listed as `test:*` scripts in [package.json](package.json).
+Browser-only previews cannot validate native Electron or installed Windows behavior.
 
-```powershell
-npm ci
-npm run dev
-```
-
-Development mode starts Vite and opens the Electron application. Browser-only Vite
-preview is useful for some visual work, but it cannot prove Electron IPC, native file
-pickers, launcher imports, process watching, or packaged-app behavior.
-
-## Verification
-
-Run the complete renderer source gate before packaging:
-
-```powershell
-npm run prebuild:renderer
-```
-
-Focused checks are also available through the `test:*` scripts in
-[`package.json`](package.json). They avoid launching games, changing launcher data,
-or scanning unspecified drives.
-
-## Build a Windows candidate
-
-```powershell
-npm run build:win
-```
-
-Electron Builder writes the installer to `dist`. The GitHub Actions workflow also
-produces the installer, portable ZIP, release-candidate report, and checksums when run
-manually or from an exact version tag.
-
-See [INSTALL.md](INSTALL.md) for the complete build and artifact guide. A passing
-source gate is not a replacement for the installed-app checklist in
-[`../WINDOWS_ACCEPTANCE_V1.7.9.md`](../WINDOWS_ACCEPTANCE_V1.7.9.md).
-
-## Important directories
-
-- `electron/` — native host, IPC registry, local services, and launcher adapters
-- `src/` — React interface and renderer-owned state
-- `scripts/` — verification, packaging, and release-candidate tools
-- `public/` — renderer assets that are intentionally shipped
-- `build/` — installer icons and NSIS customization
-- `dist-renderer/` — generated renderer build; do not edit by hand
-- `dist/` — generated Windows artifacts; do not commit
-
-## Release identity
-
-Keep these aligned for a release candidate:
-
-- `package.json` version
-- in-app About and changelog version
-- update discovery version
-- workflow tag and release-note path
-- root release notes and Windows acceptance checklist
-
-The release-hardening checks fail when those identities drift or a stale renderer is
-about to be packaged.
-
-## License
-
-See [LICENSE](LICENSE). The repository being readable does not automatically grant
-permission to redistribute NEO-LIB or modified builds.
+See [LICENSE](LICENSE) for use and redistribution restrictions.

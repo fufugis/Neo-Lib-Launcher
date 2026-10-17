@@ -1,8 +1,12 @@
 # NEO-LIB future milestones
 
+> Historical planning snapshot, retained for context and unfinished ideas—not the
+> current roadmap. See the [active queue](../../../WORK_QUEUE.md),
+> [progress](../../../PROGRESS.md) and [archive guide](../README.md).
+
 This is the compact product sequence after the architecture source restructure.
-Detailed item status remains in [`WORK_QUEUE.md`](WORK_QUEUE.md); the Windows
-acceptance procedure remains in [`RELEASE_HARDENING.md`](RELEASE_HARDENING.md).
+Detailed item status remains in [`WORK_QUEUE.md`](../../../WORK_QUEUE.md); the Windows
+acceptance procedure remains in [`RELEASE_HARDENING.md`](../../../RELEASE_HARDENING.md).
 
 ## M0 — accept and close the current architecture
 

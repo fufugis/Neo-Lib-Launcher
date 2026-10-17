@@ -1,94 +1,110 @@
-# Build NEO-LIB for Windows
+# Develop and build NEO-LIB for Windows
 
-Players should normally use the installer or portable package on the
-[NEO-LIB Releases page](https://github.com/fufugis/Neo-Lib-Launcher/releases/latest).
-These instructions are for contributors and people who deliberately want to build
-the source themselves.
+Players should normally use an attached installer or portable package from
+[Releases](https://github.com/fufugis/Neo-Lib-Launcher/releases).
+This is the canonical source-build guide; the main READMEs link here.
 
 ## Requirements
 
-- Windows 10 or 11, x64
-- a supported Node.js release with npm
-- enough free disk space for Electron dependencies and Windows artifacts
-- PowerShell
+- Windows 10 or 11, x64, and PowerShell
+- Node.js 22 with npm (the version used by Windows CI)
+- Yarn Classic 1.x, matching the committed `yarn.lock`
+- Free space for Electron dependencies and Windows artifacts
 
-## Install dependencies
+## Install dependencies and run locally
 
 From the repository root:
 
 ```powershell
 cd desktop-app
-npm ci
+yarn install --frozen-lockfile
+yarn dev
 ```
 
-`npm ci` uses the committed lockfile and is preferred over changing dependency
-versions during a release build.
+Development starts Vite and Electron together. Browser-only Vite preview cannot
+prove native file pickers, IPC, imports, process watching or packaged behavior.
+Use the existing Yarn lockfile; `npm ci` requires a package-lock that this repository
+does not provide.
 
-## Verify the source
+## Verify source changes
 
 ```powershell
-npm run prebuild:renderer
+yarn prebuild:renderer
 ```
 
-This runs the release configuration, security boundary, renderer, storage, launcher,
-metadata, visual, widget, and packaging-preflight checks. It does not replace a real
-installed-app test.
+This runs source, native-service, renderer, storage, launcher, visual, widget
+and release-preflight checks. It does not replace installed-app acceptance.
+Focused `test:*` commands are listed in [package.json](package.json).
 
-## Create the installer
+## Configure and build a release candidate
+
+Official packaging requires these operator-provided environment settings:
+
+- `NEOLIB_FEEDBACK_RELAY_URL`: an HTTPS feedback relay URL ending in `/feedback`.
+- `NEOLIB_FEEDBACK_RELAY_KEY`: its authorized client signing key
+  (32–256 URL-safe characters).
+- `NEOLIB_DISCORD_APP_ID`: optional numeric Discord application ID.
+- `VITE_USAGE_ENDPOINT`: the public optional-reporting collector endpoint when
+  building with reporting configured; official CI supplies this separately.
+
+Use your authorized deployment configuration, not placeholder credentials.
+Never commit environment files or put private Cloudflare/admin credentials or a
+Discord webhook into renderer settings. Relay setup is documented in the
+[feedback relay guide](cloudflare-relay/README.md).
+
+The release driver generates a temporary `desktop-app/.env` and removes it after
+the renderer attempt, even on failure. It overwrites that file: preserve any
+existing local `.env` before starting. Keep personal development overrides separate
+and review them so they do not override intended release configuration.
+
+Once configured, run:
 
 ```powershell
-npm run build:win
+yarn build:release
 ```
 
-The NSIS installer is written to `desktop-app/dist` with this fixed name for every version:
+This runs renderer verification/build, Windows installer and unpacked builds,
+portable packaging and candidate inspection. It does not publish a GitHub release.
+The complete artifact set in `desktop-app/dist/` is:
 
-```text
-NEO-LIB-Setup.exe
-```
+- `NEO-LIB-Setup.exe` — fixed installer name for every version
+- `NEO-LIB-windows-portable.zip`
+- `release-candidate-v1.8.7.json` — versioned inspection evidence
+- `SHA256SUMS-v1.8.7.txt` — versioned checksums
 
-## Create the complete release artifact set
+Future versions keep the first two names and update the versioned evidence names.
+`yarn inspect:release` regenerates inspection evidence using the current environment;
+retain the same release configuration when repeating it.
 
-The app retains its internal version and versioned release evidence. The public installer filename does not include a version. After a new published release includes this asset and becomes GitHub's latest release, the website can use this stable direct download:
+The stable website link works only when GitHub's latest completed release has the asset:
+[Download latest installer](https://github.com/fufugis/Neo-Lib-Launcher/releases/latest/download/NEO-LIB-Setup.exe).
+An empty release page or a tag alone is not a successful build.
 
-https://github.com/fufugis/Neo-Lib-Launcher/releases/latest/download/NEO-LIB-Setup.exe
+## GitHub Actions and acceptance
 
-Existing published release assets are not renamed by this source change.
+The [Windows workflow](../.github/workflows/build-windows.yml) runs manually or on
+version-tag pushes, not ordinary main-branch pushes. A release tag must exactly
+match `package.json` (currently `v1.8.7`). A manual run builds downloadable workflow
+artifacts; the tag flow stages a draft release, verifies its four assets and then
+publishes it as the latest stable release.
 
-```powershell
-npm run build:release
-```
+Before treating a candidate as accepted:
 
-That release path prepares the renderer and creates the artifacts expected by the
-GitHub workflow, including the Windows installer, portable ZIP, candidate report,
-and checksum file.
+1. Inspect the installer, portable ZIP, candidate report and matching checksums.
+2. Confirm About, Build ID, package version, tag and notes agree.
+3. Test a clean install and an upgrade with backed-up player data.
+4. Record actual results in the
+   [1.8.7 Windows acceptance checklist](../WINDOWS_ACCEPTANCE_V1.8.7.md).
 
-## GitHub Actions
+Do not infer installed-app success from source checks or publish incomplete assets.
+See [release hardening](../RELEASE_HARDENING.md) for the release policy.
 
-The `build-windows` workflow intentionally does **not** run on every normal push.
-Start it manually from the Actions page while testing, or push an exact version tag
-when producing a candidate. This avoids noisy and expensive packaging runs during
-ordinary development.
+## Player data and troubleshooting
 
-After the workflow succeeds:
+The current NSIS configuration preserves application data on uninstall.
+Back up important local data before testing upgrades or migrations.
 
-1. Download and inspect the produced `NEO-LIB-Windows` artifact.
-2. Install over an existing copy and also test a clean install.
-3. Complete [`../WINDOWS_ACCEPTANCE_V1.7.9.md`](../WINDOWS_ACCEPTANCE_V1.7.9.md).
-4. Publish only when the artifact, tag, release notes, checksums, and observed app
-   version all agree.
-
-## Player data
-
-Uninstalling or upgrading must not silently delete the player's library. The current
-NSIS configuration keeps application data during uninstall. Back up important local
-data before testing migration or cleanup behavior.
-
-## Troubleshooting
-
-- A browser preview cannot validate native Electron features.
-- If packaging reports a stale or missing renderer, run `npm run build:renderer` and
-  repeat the candidate build from clean source.
-- If native build tools cannot start in a managed sandbox, use a normal Windows shell
-  or the checked-in GitHub Actions workflow.
-- Unsigned builds may trigger Windows reputation or antivirus warnings. Do not claim
-  that a build is signed unless the produced executable has been verified.
+If packaging reports a stale renderer, rebuild the complete candidate from the
+intended source and configuration; do not bypass the provenance check.
+Unsigned executables may trigger Windows reputation warnings. Code signing is
+not claimed unless verified on the produced executable.

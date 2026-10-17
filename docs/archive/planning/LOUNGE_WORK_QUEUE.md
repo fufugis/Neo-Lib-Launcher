@@ -1,5 +1,9 @@
 # NEO Lounge work queue
 
+> Historical planning snapshot, retained for context and unfinished ideas—not the
+> current roadmap. See the [active queue](../../../WORK_QUEUE.md),
+> [progress](../../../PROGRESS.md) and [archive guide](../README.md).
+
 The full pre-build source verification passes. Renderer compilation is currently blocked in this managed environment because esbuild cannot start (`spawn EPERM`); no installer build was started. A Windows-shell build and rebuilt-app acceptance remain open.
 
 1. Desktop-theme gallery and Lounge-only theme override — implemented; renderer checks pass. Windows theme-preview acceptance pending.

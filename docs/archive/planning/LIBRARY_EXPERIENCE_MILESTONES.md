@@ -1,5 +1,9 @@
 # NEO-LIB Library Experience programme
 
+> Historical planning snapshot, retained for context and unfinished ideas—not the
+> current roadmap. See the [active queue](../../../WORK_QUEUE.md),
+> [progress](../../../PROGRESS.md) and [archive guide](../README.md).
+
 This programme turns several familiar launcher ideas into one coherent NEO-LIB
 system. We use common interaction patterns, but the language, appearance,
 privacy rules, review flow and implementation remain NEO-LIB's own.

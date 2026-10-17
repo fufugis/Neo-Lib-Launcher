@@ -1,5 +1,9 @@
 # NEO-LIB architecture roadmap
 
+> Historical planning snapshot, retained for context and unfinished ideas—not the
+> current roadmap. See the [active queue](../../../WORK_QUEUE.md),
+> [progress](../../../PROGRESS.md) and [archive guide](../README.md).
+
 This roadmap prepares NEO-LIB for long-term maintenance without rewriting the
 working application. Every stage is deliberately small enough to review and
 reverse on its own. A stage may reorganize code or deliberately change behaviour,
