@@ -14,67 +14,7 @@ const FIFI_ASSET = `${import.meta.env.BASE_URL}mascot/fifi/poses/fifi-idle-v1.pn
  * This is a live tour rather than a list of tooltips: every step asks App to
  * show the relevant area, then spotlights the real control or surface.
  */
-const STEPS = [
-  {
-    title: 'Welcome to your NEO-LIB',
-    body: 'One private, portable place for every game on this PC. Let’s take a quick look around before you start building your library.',
-    target: null,
-    view: 'home',
-    icon: '✨',
-    mascot: true,
-  },
-  {
-    title: 'This is your Library',
-    body: 'Imported games live here, grouped into shelves you control. Open Wizard to add one game manually, scan folders, or import installed launchers. Your library remains on this PC.',
-    target: ['sidebar-tree', 'sidebar-wizard-btn'],
-    view: 'library',
-    icon: '📚',
-    mascot: true,
-  },
-  {
-    title: 'Every game gets its own Preview',
-    body: 'Select a game and this side becomes its control room: Launch, artwork, description, genres and tags, news, updates, ratings, saves, and Customize all live together here.',
-    target: ['detail-title', 'detail-launch-btn', 'sidebar-tree'],
-    view: 'preview',
-    icon: '🎮',
-  },
-  {
-    title: 'Tools are part of the launcher',
-    body: 'NEO-LIB switches into the real Tools view here. Keep GPU-Z, CPU-Z, hardware panels, mod editors, and other useful programs beside your games instead of hunting for shortcuts.',
-    target: 'tab-tools',
-    view: 'tools',
-    icon: '🧰',
-  },
-  {
-    title: 'Make the launcher yours',
-    body: 'Visuals is open for you now. Pick a theme, then refine text, rows, category markers, glow, effects, textures, spacing, and layout until the library feels right.',
-    target: ['library-settings-popover', 'sidebar-visuals-btn'],
-    view: 'visuals',
-    icon: '🎨',
-  },
-  {
-    title: 'Home is your game-life dashboard',
-    body: 'Three places to start: Top 5 Played remembers your favourites, News and Game Updates surface what changed, and Library Health / Storage point out games that need a little attention. Drag, hide, and restore most panels your way.',
-    target: 'tab-home',
-    view: 'home',
-    icon: '🏠',
-  },
-  {
-    title: 'Game Ready watches the basics',
-    body: 'This bottom bar reads local CPU and RAM use. Green means ready, amber suggests a quick check, and red means your PC is under pressure. Click it for the details and useful next steps.',
-    target: 'system-health-footer',
-    view: 'home',
-    icon: '⚡',
-  },
-  {
-    title: 'Meet Fungist',
-    body: 'Fungist rests here when things are calm. He can flag PC pressure, favourite-game news, confirmed updates, and a new NEO-LIB version. Click him to chat with your configured AI; right-click for Inbox and quick settings. He stays quiet while a game is running.',
-    target: 'fungist-mascot',
-    view: 'home',
-    icon: '👾',
-    mascot: true,
-  },
-];
+import { TUTORIAL_STEPS as STEPS } from './tutorial-steps.mjs';
 
 export default function TutorialModal({ open, onClose, onDontShowAgain, onNavigate, mascotId = 'fungist', soundsEnabled = true, voiceEnabled = true, voiceVolume = 72 }) {
   const selectedMascot = mascotId === 'fifi' ? 'fifi' : 'fungist';
@@ -86,6 +26,22 @@ export default function TutorialModal({ open, onClose, onDontShowAgain, onNaviga
   const [spokenLine, setSpokenLine] = React.useState(null);
   const wasOpen = React.useRef(false);
   const speechTimer = React.useRef(null);
+  const closeRef = React.useRef(onClose); closeRef.current = onClose;
+  React.useEffect(() => {
+    if (!open) return undefined;
+    document.querySelector('[data-testid="tutorial-close"]')?.focus();
+    const key = event => {
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeRef.current?.(); }
+      if (event.key !== 'Tab') return;
+      const controls = [...document.querySelectorAll('[data-testid="tutorial-modal"] button:not(:disabled), [data-testid="tutorial-modal"] input')];
+      const index = controls.indexOf(document.activeElement);
+      if (!controls.length) return;
+      if (event.shiftKey && index <= 0) { event.preventDefault(); controls.at(-1).focus(); }
+      else if (!event.shiftKey && (index < 0 || index === controls.length - 1)) { event.preventDefault(); controls[0].focus(); }
+    };
+    document.addEventListener('keydown', key);
+    return () => document.removeEventListener('keydown', key);
+  }, [open]);
 
   // The tutorial sits above the docked companion. Mirror the shared Fungist
   // speaking event inside it so the welcome/introduction recordings always
@@ -136,7 +92,10 @@ export default function TutorialModal({ open, onClose, onDontShowAgain, onNaviga
     const targets = Array.isArray(step?.target) ? step.target : [step?.target];
     if (!targets.filter(Boolean).length) { setAnchor(null); return undefined; }
     const update = () => {
-      const el = targets.map((target) => document.querySelector(`[data-testid="${target}"]`)).find(Boolean);
+      const el = targets.map((target) => document.querySelector(`[data-testid="${target}"]`)).find(element => {
+        const bounds = element?.getBoundingClientRect();
+        return bounds && bounds.width > 0 && bounds.height > 0 && bounds.right > 0 && bounds.left < window.innerWidth && bounds.bottom > 0 && bounds.top < window.innerHeight;
+      });
       if (el) {
         const r = el.getBoundingClientRect();
         setAnchor({ x: r.left, y: r.top, w: r.width, h: r.height });
@@ -159,7 +118,7 @@ export default function TutorialModal({ open, onClose, onDontShowAgain, onNaviga
   const cardStyle = (() => {
     if (!anchor) return { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' };
     const vw = window.innerWidth, vh = window.innerHeight;
-    const cardW = 380, cardH = Math.min(460, vh - 24), gap = 18;
+    const cardW = Math.min(420, vw - 32), cardH = Math.min(460, vh - 24), gap = 18;
     // Prefer placing the card on the right of the spotlight; if it spills, switch sides
     let left = anchor.x + anchor.w + gap;
     let top  = anchor.y + anchor.h / 2 - cardH / 2;
@@ -188,6 +147,7 @@ export default function TutorialModal({ open, onClose, onDontShowAgain, onNaviga
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[150] bg-black/20"
         data-testid="tutorial-modal"
+        role="dialog" aria-modal="true" aria-label="NEO-LIB guided tutorial" data-controller-surface="modal"
       >
         {/* Spotlight on target */}
         {anchor && (
@@ -225,11 +185,12 @@ export default function TutorialModal({ open, onClose, onDontShowAgain, onNaviga
           animate={{ y: 0, opacity: 1, scale: 1 }}
           exit={{ y: -8, opacity: 0 }}
           transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-          style={{ position: 'absolute', width: 'min(380px, calc(100vw - 32px))', maxHeight: 'calc(100vh - 24px)', ...cardStyle }}
+          style={{ position: 'absolute', width: 'min(420px, calc(100vw - 32px))', maxHeight: 'calc(100vh - 24px)', ...cardStyle }}
           className="overflow-y-auto rounded-2xl hairline bg-panel/95 shadow-2xl p-5"
         >
           <button
             data-testid="tutorial-close"
+            data-controller-close aria-label="Close tutorial"
             onClick={close}
             className="absolute right-3 top-3 grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-surface hover:text-ink"
             title="Close (Esc)"

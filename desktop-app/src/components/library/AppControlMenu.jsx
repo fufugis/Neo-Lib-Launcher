@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Boxes, ChevronRight, Gamepad2, Lightbulb, Palette, PanelLeft, Power, RefreshCw, Settings2, SlidersHorizontal, Sparkles, Tv2, UserRound } from 'lucide-react';
+import { Boxes, ChevronRight, Gamepad2, Lightbulb, Palette, Power, RefreshCw, Settings2, SlidersHorizontal, Sparkles, Tv2, UserRound } from 'lucide-react';
 import { renderForegroundPortal } from '../ui/VisualBoundary';
 
 function MenuItem({ icon, label, detail, onClick, disabled = false, testid, danger = false }) {
@@ -34,7 +34,7 @@ function MenuToggle({ icon, label, detail, checked, onChange, testid }) {
  * One home for presentation, devices and app-level actions. It is portalled so
  * game rows, preview panes and theme FX can never cover it.
  */
-export default function AppControlMenu({ onOpenThemes, onOpenVisuals, onOpenControllers, onOpenMascot, onOpenSettings, onOpenModules, onOpenChangelog, onCheckForUpdates, onOpenFeedback, onQuit, onEnterLounge, sidebarMode = false, sidebarExpanded = false, sidebarEnabled = false, onToggleSidebar, minimalisticEnabled = false, onToggleMinimalistic }) {
+export default function AppControlMenu({ onOpenThemes, onOpenVisuals, onOpenControllers, onOpenMascot, onOpenSettings, onOpenModules, onOpenChangelog, onCheckForUpdates, onOpenFeedback, onQuit, onEnterLounge, sidebarMode = false, sidebarExpanded = false, minimalisticEnabled = false, onToggleMinimalistic }) {
   const [open, setOpen] = React.useState(false);
   const buttonRef = React.useRef(null);
   const panelRef = React.useRef(null);
@@ -104,8 +104,7 @@ export default function AppControlMenu({ onOpenThemes, onOpenVisuals, onOpenCont
           <MenuSection label="Personalise">
             <MenuItem icon={<Palette size={15} />} label="Themes" detail="Choose NEO-LIB's overall atmosphere" onClick={() => choose(onOpenThemes)} testid="app-menu-themes" />
             <MenuItem icon={<Palette size={15} />} label="Custom theme" detail="Build and save a personal theme" disabled testid="app-menu-custom-theme" />
-            <MenuItem icon={<SlidersHorizontal size={15} />} label="Visual Tweaks" detail="Library type, layout, texture, motion and FX" onClick={() => choose(onOpenVisuals)} testid="app-menu-visuals" />
-            <MenuToggle icon={<PanelLeft size={15} />} label="Sidebar" detail="Move Home, Library, Wall and Tools into a left icon rail" checked={sidebarEnabled} onChange={onToggleSidebar} testid="app-menu-sidebar-toggle" />
+            <MenuItem icon={<SlidersHorizontal size={15} />} label="Library tweaks" detail="Library type, layout, texture, motion and FX" onClick={() => choose(onOpenVisuals)} testid="app-menu-visuals" />
             <MenuToggle icon={<Sparkles size={15} />} label="Minimalistic" detail="Calmer Home and presentation; all themes and features remain available" checked={minimalisticEnabled} onChange={onToggleMinimalistic} testid="app-menu-minimalistic-toggle" />
           </MenuSection>
           <div className="mx-3 h-px bg-[rgb(var(--border)/0.55)]" />

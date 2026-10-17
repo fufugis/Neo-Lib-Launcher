@@ -183,7 +183,16 @@ assert.match(resizeHandle, /if \(next !== width\) onCommit\?\.\(next\)/, 'dragge
 const wizard = fs.readFileSync(path.join(import.meta.dirname, '../src/components/WizardModal.jsx'), 'utf8');
 assert.match(wizard, /Retro Library/);
 assert.match(wizard, /onImportRoms/);
-assert.match(wizard, /Jump to a Wizard task/, 'the Wizard exposes a quick visual task map');
+assert.match(wizard, /role="tablist" aria-label="Wizard tasks"/, 'the Wizard has text tabs instead of jump-down shortcuts');
+assert.doesNotMatch(wizard, /scrollIntoView|Jump to a Wizard task/, 'Wizard tabs do not scroll through an overwhelming task stack');
+for (const id of ['launchers', 'folder', 'manual', 'retro', 'external', 'care']) {
+  assert(wizard.includes(`aria-labelledby="wizard-tab-${id}" hidden={activeTab !== '${id}'}`), `${id} retains its own persistent hidden panel`);
+}
+assert.equal((wizard.match(/role="tabpanel"/g) || []).length, 6);
+assert(wizard.includes("['ArrowLeft', 'ArrowRight', 'Home', 'End']"), 'tabs support keyboard navigation');
+assert(wizard.includes('disabled={step !== 1 || busy || launcherImportBusy}'), 'review and active imports cannot be interrupted by tabs');
+assert(wizard.includes("setActiveTab('folder')"), 'drag/drop folder entry selects the right tab');
+assert(wizard.includes("hidden={activeTab !== 'folder'} className={activeTab === 'folder' ? 'flex justify-end' : 'hidden'}"), 'scan action is confined to the folder route');
 assert.match(wizard, /LAUNCHER_MARKS/, 'launcher imports have distinguishable visual marks');
 assert.match(wizard, /aria-label=\{`Import installed games from \$\{label\}`\}/, 'launcher marks retain accessible names');
 const retroPanel = fs.readFileSync(path.join(import.meta.dirname, '../src/components/wizard/RetroProfilesPanel.jsx'), 'utf8');

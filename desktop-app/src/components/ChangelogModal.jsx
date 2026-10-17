@@ -13,11 +13,13 @@ export { CHANGELOG } from './changelog/changelog-content.mjs';
  * settings.lastSeenVersion vs the current bundled APP_VERSION.
  *
  * Entries are pinned per-version so the user sees only what landed since they
- * last opened the app. First-run (no prior version) skips this modal — the
- * Tutorial handles that case.
+ * last opened the app. First-run shows this after the Welcome choice and
+ * before any requested Wizard; optional tutorial returns to Welcome first.
  */
 
 export default function ChangelogModal({ open, currentVersion, lastSeenVersion, onClose, theme }) {
+  const [showHistory, setShowHistory] = React.useState(false);
+  React.useEffect(() => { if (!open) setShowHistory(false); }, [open]);
   const entries = React.useMemo(
     () => {
       // Automatic opening only happens for an unseen version. A deliberate
@@ -70,7 +72,7 @@ export default function ChangelogModal({ open, currentVersion, lastSeenVersion, 
             </div>
 
             <div className="max-h-[60vh] space-y-5 overflow-y-auto px-5 py-4">
-              {[UPCOMING_CHANGELOG, ...entries].map((entry) => (
+              {[UPCOMING_CHANGELOG, ...(showHistory ? CHANGELOG : entries.slice(0, 1))].filter(entry => (entry.major || entry.items || []).length > 0).map((entry) => (
                 <section key={entry.version} data-testid={`changelog-entry-${entry.version}`}>
                   <div className="mb-2 flex items-center gap-2">
                     <span className="font-display text-base font-bold text-ink">
@@ -79,10 +81,9 @@ export default function ChangelogModal({ open, currentVersion, lastSeenVersion, 
                     <span className="text-[11px] text-muted">{entry.title}</span>
                   </div>
                   {(() => {
-                    const sections = entry.major || entry.fixes
+                    const sections = entry.major
                       ? [
                           { title: 'Major changes & new features', items: entry.major || [] },
-                          { title: 'Fixes, adjustments & polish', items: entry.fixes || [] },
                         ].filter((section) => section.items.length > 0)
                       : [{ title: null, items: entry.items || [] }];
 
@@ -114,6 +115,7 @@ export default function ChangelogModal({ open, currentVersion, lastSeenVersion, 
             </div>
 
             <div className="flex items-center justify-between gap-2 border-t border-[rgb(var(--border))]/60 bg-panel/70 backdrop-blur px-5 py-3">
+              <button type="button" aria-expanded={showHistory} onClick={() => setShowHistory(value => !value)} className="text-xs text-muted hover:text-ink">{showHistory ? 'Hide older highlights' : 'Older release highlights'}</button>
               {/* v1.5.0 — Rate this update: three emoji reactions fire to Discord */}
               <RateThisUpdate version={currentVersion} theme={theme} />
               <button

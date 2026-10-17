@@ -2,6 +2,7 @@ import React from 'react';
 import { Eye, EyeOff, FileUp, Info, Loader2, Power, Puzzle, RotateCcw, ShieldCheck, Trash2 } from 'lucide-react';
 import Modal from '../Modal';
 import { BUILTIN_HOME_WIDGETS } from './home-widget-registry.mjs';
+import WidgetDeveloperGuide from './WidgetDeveloperGuide';
 
 const PERMISSION_LABELS = Object.freeze({ storage: 'Private storage', 'library.read': 'Redacted Library', network: 'HTTPS network' });
 
@@ -25,20 +26,24 @@ function CommunityCard({ widget, config, onChange, onRemove }) {
   </article>;
 }
 
-export default function WidgetManagerModal({ open, onClose, communityWidgets = [], recoverableWidgets = [], communityConfig = {}, hiddenIds = [], onToggleBuiltin, onImport, onCommunityConfig, onRemove, onRestore, externalNotice = '' }) {
+export default function WidgetManagerModal({ open, onClose, communityWidgets = [], recoverableWidgets = [], communityConfig = {}, hiddenIds = [], onToggleBuiltin, onImport, onCommunityConfig, onRemove, onRestore, externalNotice = '', startWithGuide = false }) {
   const [busy, setBusy] = React.useState(false);
   const [notice, setNotice] = React.useState('');
+  const [guideOpen, setGuideOpen] = React.useState(false);
+  React.useEffect(() => { if (open) setGuideOpen(startWithGuide); }, [open, startWithGuide]);
   React.useEffect(() => { if (open) { setBusy(false); setNotice(''); } }, [open]);
   const act = async (task, fallback) => {
     setBusy(true); setNotice('');
     try { const result = await task?.(); setNotice(result?.message || fallback); } catch { setNotice(fallback); } finally { setBusy(false); }
   };
   return <Modal open={open} onClose={onClose} title="Home widgets" wide testid="home-widget-manager-modal"><div className="space-y-4 p-4">
-    <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[rgb(var(--accent)/0.38)] bg-[rgb(var(--accent)/0.07)] p-3"><div className="flex min-w-0 items-start gap-2.5"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[rgb(var(--accent)/0.18)] text-[rgb(var(--accent-2))]"><Puzzle size={16} /></span><div><p className="text-sm font-bold">Your Home, your canvas</p><p className="mt-0.5 text-[11px] leading-relaxed text-muted">Imported widgets stay disabled until you enable them. Grant only the capabilities you trust.</p></div></div><button type="button" disabled={busy} onClick={() => act(onImport, 'Widget import cancelled.')} className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-[rgb(var(--accent))] px-3 py-2 text-xs font-bold text-[rgb(var(--surface))] disabled:opacity-60">{busy ? <Loader2 size={14} className="animate-spin" /> : <FileUp size={14} />}Import widget</button></section>
+    <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[rgb(var(--accent)/0.38)] bg-[rgb(var(--accent)/0.07)] p-3"><div className="flex min-w-0 items-start gap-2.5"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[rgb(var(--accent)/0.18)] text-[rgb(var(--accent-2))]"><Puzzle size={16} /></span><div><p className="text-sm font-bold">Your Home, your canvas</p><p className="mt-0.5 text-[11px] leading-relaxed text-muted">Imported widgets stay disabled until you enable them. Grant only the capabilities you trust.</p></div></div><button type="button" disabled={busy} onClick={() => setGuideOpen(true)} className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-[rgb(var(--accent))] px-3 py-2 text-xs font-bold text-[rgb(var(--surface))] disabled:opacity-60">{busy ? <Loader2 size={14} className="animate-spin" /> : <FileUp size={14} />}Import widget</button></section>
     {(notice || externalNotice) && <p className="rounded-lg border border-[rgb(var(--border)/0.7)] bg-[rgb(var(--surface)/0.32)] px-3 py-2 text-xs text-ink">{notice || externalNotice}</p>}
+    <button type="button" aria-expanded={guideOpen} onClick={() => setGuideOpen(value => !value)} className="rounded-lg border border-[rgb(var(--border))] px-3 py-2 text-xs font-bold">{guideOpen ? 'Hide coding guide' : 'How to make a widget'}</button>
+    {guideOpen && <WidgetDeveloperGuide busy={busy} onChoose={() => act(onImport, 'Widget import cancelled.')} />}
     <section><div className="mb-2 flex items-center gap-2"><Info size={14} className="text-[rgb(var(--accent-2))]" /><h3 className="text-[11px] font-black uppercase tracking-[0.17em]">Built-in widgets</h3></div><div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">{BUILTIN_HOME_WIDGETS.map((widget) => <BuiltinCard key={widget.id} widget={widget} hidden={hiddenIds.includes(widget.id)} onToggle={onToggleBuiltin} />)}</div></section>
     <section><div className="mb-2 flex items-center gap-2"><ShieldCheck size={14} className="text-emerald-200" /><h3 className="text-[11px] font-black uppercase tracking-[0.17em]">Imported community widgets</h3></div>{communityWidgets.length ? <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">{communityWidgets.map((widget) => <CommunityCard key={widget.id} widget={widget} config={communityConfig[widget.id]} onChange={onCommunityConfig} onRemove={(item) => act(() => onRemove?.(item), 'Widget removal failed.')} />)}</div> : <p className="rounded-xl border border-dashed border-[rgb(var(--border)/0.7)] px-4 py-4 text-center text-xs text-muted">No community widgets installed yet. Choose a package’s <b>widget.json</b> to import it.</p>}</section>
     {recoverableWidgets.length > 0 && <section><h3 className="mb-2 text-[11px] font-black uppercase tracking-[0.17em]">Recovery</h3><div className="flex flex-wrap gap-2">{recoverableWidgets.map((widget) => <button key={`${widget.id}-${widget.installedAt}`} disabled={busy} onClick={() => act(() => onRestore?.(widget), 'Widget recovery failed.')} className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--border))] px-2.5 py-2 text-[10px] font-bold text-muted hover:text-ink"><RotateCcw size={11} />Restore {widget.name} · v{widget.version}</button>)}</div></section>}
-    <p className="rounded-lg bg-[rgb(var(--surface)/0.22)] px-3 py-2 text-[10px] leading-relaxed text-muted">Community code runs in a sandboxed frame without Node, Electron, Windows, files, settings, credentials, other widgets or private games. Removal keeps a recoverable local copy.</p>
+    <p className="rounded-lg bg-[rgb(var(--surface)/0.22)] px-3 py-2 text-[10px] leading-relaxed text-muted">Community code runs in a sandboxed frame without Node, Electron, Windows, files, settings, credentials, other widgets or locked games. Library permission shares visible unlocked summaries, so only grant it to authors you trust. Removal keeps a recoverable local copy.</p>
   </div></Modal>;
 }

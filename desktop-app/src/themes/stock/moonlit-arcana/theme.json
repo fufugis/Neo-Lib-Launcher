@@ -4,13 +4,13 @@
   "name": "Moonlit Arcana",
   "tone": "special",
   "palette": {
-    "ink": [232, 243, 255], "muted": [166, 191, 224],
-    "accent": [105, 224, 255], "accent2": [181, 151, 255],
-    "accentSoft": [28, 58, 92], "hairlineGlow": [105, 224, 255],
-    "grad1": [8, 16, 38], "grad2": [24, 35, 77],
-    "accentText": [105, 224, 255], "accent2Text": [181, 151, 255]
+    "ink": [242, 247, 255], "muted": [195, 212, 237],
+    "accent": [140, 231, 255], "accent2": [200, 178, 255],
+    "accentSoft": [49, 82, 121], "hairlineGlow": [140, 231, 255],
+    "grad1": [24, 37, 70], "grad2": [51, 63, 110],
+    "accentText": [140, 231, 255], "accent2Text": [200, 178, 255]
   },
-  "panels": { "surface": [13, 24, 48], "panel": [23, 39, 68], "border": [73, 111, 154] },
+  "panels": { "surface": [35, 49, 80], "panel": [47, 65, 101], "border": [105, 143, 187] },
   "layers": {
     "canvas": { "type": "gradient", "from": "grad1", "to": "grad2", "opacity": 1 },
     "atmosphere": { "type": "image", "asset": "assets/scene.jpg", "opacity": 1 },

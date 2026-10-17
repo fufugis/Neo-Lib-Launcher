@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import { createRequire } from 'node:module';
+
+const read = file => fs.readFileSync(new URL(`../src/components/${file}`, import.meta.url), 'utf8');
+const guide = read('home/WidgetDeveloperGuide.jsx');
+const constants = guide.slice(guide.indexOf('export const WIDGET_STARTER_MANIFEST'), guide.indexOf('export default')).replace(/export const /g, 'const ');
+const starter = vm.runInNewContext(`${constants}\n({ manifest: WIDGET_STARTER_MANIFEST, html: WIDGET_STARTER_HTML })`);
+const require = createRequire(import.meta.url);
+const { normalizeManifest } = require('../electron/widgets/widget-package-service.cjs');
+assert(normalizeManifest(starter.manifest));
+assert.equal(starter.manifest.apiVersion, 1);
+assert.equal(starter.manifest.entry, 'index.html');
+assert.deepEqual([...starter.manifest.permissions], ['library.read']);
+assert(Buffer.byteLength(starter.html) < 2 * 1024 * 1024);
+const summary = { textContent: '' }, list = { items: [], replaceChildren() { this.items = []; }, append(item) { this.items.push(item); } };
+const parent = {}; let receive;
+const script = starter.html.match(/<script>([\s\S]*?)<\/script>/)[1];
+vm.runInNewContext(script, { parent, addEventListener: (_type, handler) => { receive = handler; }, document: { getElementById: id => id === 'summary' ? summary : list, createElement: () => ({ textContent: '' }) } });
+receive({ source: {}, data: { channel: 'neo-lib-widget-v1', type: 'init', library: [] } });
+assert.equal(summary.textContent, '');
+receive({ source: parent, data: { channel: 'neo-lib-widget-v1', type: 'init', library: [{ name: '<img onerror=bad>', playtimeMinutes: 120 }] } });
+assert.equal(summary.textContent, '1 visible games');
+assert.equal(list.items[0].textContent, '<img onerror=bad> — 2h recorded', 'library strings remain inert text, not markup');
+receive({ source: parent, data: { channel: 'neo-lib-widget-v1', type: 'init' } });
+assert.equal(summary.textContent, '0 visible games', 'starter works without grants');
+for (const text of ['Extract ZIPs first', 'Home', 'Lounge', '2,000', '8,192', '500 files / 64 MB', 'Dynamic imports', 'Node/Electron/window.api', 'raise', 'Choose widget.json']) {
+  assert(guide.toLowerCase().includes(text.toLowerCase()), `guide missing ${text}`);
+}
+const manager = read('home/WidgetManagerModal.jsx');
+assert(manager.includes('onClick={() => setGuideOpen(true)}'));
+assert(manager.includes('<WidgetDeveloperGuide busy={busy} onChoose={() => act(onImport'));
+const home = read('HomeHub.jsx');
+const importEntry = home.slice(home.indexOf('const startWidgetImport'), home.indexOf('const startWidgetImport') + 230);
+assert(importEntry.includes('setWidgetGuideRequested(true)'));
+assert(!importEntry.includes('await importWidget'), 'guide appears before opening a native picker');
+const babel = createRequire(require.resolve('@vitejs/plugin-react'))('@babel/core');
+babel.parseSync(guide, { configFile: false, babelrc: false, parserOpts: { plugins: ['jsx'] } });
+console.log('PASS: import-first coding guidance, accepted API-v1 starter, real init rendering/missing grants/escaped names, precise capability limits and Home-only scope. Actual Electron import acceptance remains pending.');

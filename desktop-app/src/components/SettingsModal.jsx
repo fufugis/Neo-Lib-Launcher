@@ -3,6 +3,8 @@ import { BUILD_INFO } from '../build-info.mjs';
 import { SOUND_PACKS, setSoundPack, playLaunch, playHover } from '../lib/sound';
 import { Sparkles, Eye, EyeOff, Heart, DownloadCloud, MessageCircle, CheckCircle2, Database, Upload, Trash2, LockKeyhole } from 'lucide-react';
 import Modal from './Modal';
+import UsagePrivacyNotice from './UsagePrivacyNotice';
+import { USAGE_PRIVACY_READY } from '../services/usage-privacy.mjs';
 import { DONATE_PAYPAL_URL } from './DonateModal';
 import qrUrl from '../assets/donate-qr.png';
 import { SettingsSection as Section, SettingsToggle as Toggle } from './settings/SettingsControls';
@@ -10,7 +12,7 @@ import { hashPin } from '../lib/utils';
 import AddonSettings from './addons/AddonSettings';
 import RetroConnectionsPanel from './wizard/RetroConnectionsPanel';
 
-export default function SettingsModal({ open, onClose, settings, setSettings, onShowChangelog, currentVersion = '1.8.6', library, onExportLibrary, onImportLibrary, onResetLibrary, onConfirmCategoryRemoval, onRemoveCategories, onOpenModules }) {
+export default function SettingsModal({ open, onClose, settings, setSettings, onShowChangelog, currentVersion = '1.8.7', library, onExportLibrary, onImportLibrary, onResetLibrary, onConfirmCategoryRemoval, onRemoveCategories, onOpenModules }) {
   const setKey = (patch) => setSettings({ ...settings, ...patch });
   const [showKey, setShowKey] = React.useState(false);
   const [showArtworkKey, setShowArtworkKey] = React.useState(false);
@@ -152,6 +154,8 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
         {/* Tutorial */}
         <Section title="Onboarding">
           <div className="space-y-3">
+            <Toggle label="Help improve NEO-LIB — I am 16 or older" hint="Optional reporting of first-open/setup milestones and meaningful active days, with a random installation ID and app version. No game names, hardware IDs or input history. Only opt in if you are 16 or older. Turning off stops reporting and requests deletion of server usage records, with offline retry." value={USAGE_PRIVACY_READY && settings.usageReportingEnabled === true && settings.usageConsentVersion === 2} disabled={!USAGE_PRIVACY_READY && settings.usageReportingEnabled !== true} onChange={v => setKey({ usageReportingEnabled: v && USAGE_PRIVACY_READY, usageConsentVersion: v && USAGE_PRIVACY_READY ? 2 : 0 })} testid="opt-usage-reporting" />
+            <UsagePrivacyNotice />
             <Toggle
               label="Show tutorial on every startup"
               hint="If on, the welcome tour opens each time NEO-LIB launches."

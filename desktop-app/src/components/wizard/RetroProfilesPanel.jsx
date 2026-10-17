@@ -1,42 +1,71 @@
 import React from 'react';
 import RetroSourcesPanel from './RetroSourcesPanel';
 import { CheckSquare, Gamepad2, Loader2, ScanSearch, Square } from 'lucide-react';
-import { RETRO_PLATFORMS, ROM_EXTENSION_GROUPS, detectRomPlatform, retroPlatform, romDisplayName, romExtensions, romLibraryEntry } from '../../lib/emulation-library-model.mjs';
+import { RETRO_PLATFORMS, detectRomPlatform, retroPlatform, romDisplayName, romExtensions, romLibraryEntry } from '../../lib/emulation-library-model.mjs';
+import { emulatorIdentity, normalizeRetroProfiles } from '../../lib/emulator-profile-model.mjs';
+export { normalizeRetroProfiles } from '../../lib/emulator-profile-model.mjs';
 
 const normalizedPath = value => String(value || '').trim().replace(/\//g, '\\').replace(/\\+$/, '').toLowerCase();
-
-export function normalizeRetroProfiles(profiles) {
-  return (Array.isArray(profiles) ? profiles : []).slice(0, 20).flatMap((profile, index) => {
-    const id = String(profile?.id || `retro-${index + 1}`).replace(/[^a-z0-9-]/gi, '-').slice(0, 64);
-    if (!id) return [];
-    return [{
-      id,
-      name: String(profile?.name || 'Retro Profile').trim().slice(0, 80) || 'Retro Profile',
-      platform: Object.hasOwn(ROM_EXTENSION_GROUPS, profile?.platform) ? profile.platform : 'generic',
-      emulatorPath: String(profile?.emulatorPath || '').trim().slice(0, 1024),
-      romFolder: String(profile?.romFolder || '').trim().slice(0, 1024),
-      argumentPrefix: String(profile?.argumentPrefix || '').trim().slice(0, 240),
-      workingDirectory: String(profile?.workingDirectory || '').trim().slice(0, 1024),
-      trackingMethod: profile?.trackingMethod === 'manual' ? 'manual' : 'emulator-process',
-    }];
-  });
-}
 
 export default function RetroProfilesPanel({ profiles, onChange, onImportRoms, onApplyMetadata, existingGames = [], sourceVisibleGames = [] }) {
   const [drafts, setDrafts] = React.useState(() => normalizeRetroProfiles(profiles));
   const [scan, setScan] = React.useState({ profileId: '', rows: [], busy: false, message: '' });
+  const [adding, setAdding] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const latest = React.useRef(drafts); latest.current = drafts;
+  const mounted = React.useRef(true);
+  const scanSequence = React.useRef(0);
+  React.useEffect(() => { mounted.current = true; return () => { mounted.current = false; scanSequence.current++; }; }, []);
   React.useEffect(() => setDrafts(normalizeRetroProfiles(profiles)), [profiles]);
-  const update = (id, patch) => setDrafts((current) => current.map((profile) => profile.id === id ? { ...profile, ...patch } : profile));
-  const save = () => onChange?.(normalizeRetroProfiles(drafts));
-  const add = () => setDrafts((current) => [...current, { id: `retro-${Date.now()}`, name: 'New Retro Profile', platform: 'generic', emulatorPath: '', romFolder: '', argumentPrefix: '', workingDirectory: '', trackingMethod: 'emulator-process' }]);
-  const remove = (id) => { const next = drafts.filter((profile) => profile.id !== id); setDrafts(next); onChange?.(normalizeRetroProfiles(next)); if (scan.profileId === id) setScan({ profileId: '', rows: [], busy: false, message: '' }); };
-  const chooseExecutable = async (id) => { const result = await window.api?.pickExe?.(); const path = typeof result === 'string' ? result : result?.exePath; if (path) update(id, { emulatorPath: path }); };
-  const chooseFolder = async (id) => { const path = await window.api?.pickDirectory?.(); if (path) update(id, { romFolder: path }); };
+  const update = (id, patch, persist = false) => {
+    if (['emulatorPath', 'romFolder', 'platform'].some(key => Object.hasOwn(patch, key)) && scan.profileId === id) { scanSequence.current++; setScan({ profileId: '', rows: [], busy: false, message: '' }); }
+    const next = latest.current.map(profile => profile.id === id ? { ...profile, ...patch } : profile);
+    latest.current = next; setDrafts(next); if (persist) onChange?.(normalizeRetroProfiles(next));
+    return next.find(profile => profile.id === id);
+  };
+  const save = () => onChange?.(normalizeRetroProfiles(latest.current));
+  const add = async () => {
+    if (adding || latest.current.length >= 128) return;
+    setAdding(true); setError('');
+    try {
+      if (!window.api?.pickExe) { setError('Add emulators from the installed desktop app.'); return; }
+      const result = await window.api.pickExe(); const path = typeof result === 'string' ? result : result?.exePath;
+      if (!path || !mounted.current) return;
+      if (!/\.exe$/i.test(path)) { setError('Choose the emulator’s actual .exe, not a shortcut or script.'); return; }
+      let icon = ''; try { icon = await window.api.extractIcon?.(path) || ''; } catch { /* Generic icon remains available. */ }
+      if (!mounted.current) return;
+      const profile = { ...emulatorIdentity(path), id: `retro-${crypto.randomUUID()}`, icon, emulatorPath: path, romFolder: '', workingDirectory: '', trackingMethod: 'emulator-process' };
+      const next = normalizeRetroProfiles([...latest.current, profile]); latest.current = next; setDrafts(next); onChange?.(next);
+    } catch { if (mounted.current) setError('Could not add this emulator. Try selecting it again.'); }
+    finally { if (mounted.current) setAdding(false); }
+  };
+  const remove = (id) => { const next = latest.current.filter((profile) => profile.id !== id); latest.current = next; setDrafts(next); onChange?.(normalizeRetroProfiles(next)); if (scan.profileId === id) { scanSequence.current++; setScan({ profileId: '', rows: [], busy: false, message: '' }); } };
+  const chooseExecutable = async (id) => {
+    try {
+      const result = await window.api?.pickExe?.(); const path = typeof result === 'string' ? result : result?.exePath;
+      if (!path || !mounted.current || !latest.current.some(profile => profile.id === id)) return;
+      if (!/\.exe$/i.test(path)) { setError('Choose an emulator .exe.'); return; }
+      let icon = ''; try { icon = await window.api?.extractIcon?.(path) || ''; } catch { /* Local fallback. */ }
+      if (mounted.current) { const { name: _name, argumentPrefix: recommended, ...metadata } = emulatorIdentity(path); update(id, { ...metadata, icon, emulatorPath: path, argumentPrefix: latest.current.find(profile => profile.id === id)?.argumentPrefix || recommended }, true); }
+    } catch { if (mounted.current) setError('Could not change the emulator executable.'); }
+  };
+  const chooseFolder = async (id) => {
+    try { const path = await window.api?.pickDirectory?.(); if (path && mounted.current) { const profile = update(id, { romFolder: path }, true); if (profile) await scanProfile(profile); } }
+    catch { if (mounted.current) setError('Could not read this ROM folder. Try again.'); }
+  };
+  const chooseIcon = async id => {
+    try { const image = await window.api?.pickImage?.(); if (image && /\.(png|jpe?g|webp|ico)$/i.test(image.path) && mounted.current) update(id, { icon: image.url }, true); }
+    catch { if (mounted.current) setError('Could not load the emulator icon.'); }
+  };
   const scanProfile = async (profile) => {
     if (!profile.emulatorPath || !profile.romFolder) { setScan({ profileId: profile.id, rows: [], busy: false, message: 'Choose both the installed emulator and ROM folder first.' }); return; }
     if (!window.api?.scanRoms) { setScan({ profileId: profile.id, rows: [], busy: false, message: 'ROM scanning is available in the installed NEO-LIB app.' }); return; }
     setScan({ profileId: profile.id, rows: [], busy: true, message: 'Scanning the selected ROM folder…' });
-    const result = await window.api.scanRoms({ root: profile.romFolder, extensions: romExtensions(profile.platform), maxDepth: 6, maxFiles: 2000 });
+    const sequence = ++scanSequence.current;
+    let result;
+    try { result = await window.api.scanRoms({ root: profile.romFolder, extensions: romExtensions(profile.platform), maxDepth: 6, maxFiles: 2000 }); }
+    catch { result = { ok: false, error: 'ROM scan failed. Try again.' }; }
+    if (!mounted.current || sequence !== scanSequence.current || !latest.current.some(item => item.id === profile.id && item.romFolder === profile.romFolder && item.emulatorPath === profile.emulatorPath)) return;
     if (!result?.ok) { setScan({ profileId: profile.id, rows: [], busy: false, message: result?.error || 'ROM scan failed.' }); return; }
     const existing = new Set(existingGames.map(game => normalizedPath(game.romPath)).filter(Boolean));
     const rows = result.items.filter(item => !existing.has(normalizedPath(item.path))).map(item => ({ ...item, name: romDisplayName(item.path), platform: detectRomPlatform(item.path, profile.platform), selected: true }));
@@ -67,15 +96,27 @@ export default function RetroProfilesPanel({ profiles, onChange, onImportRoms, o
   const unresolvedCount = scan.rows.filter(row => row.selected && row.platform === 'generic').length;
   return <div className="mt-4 space-y-3 border-t border-[rgb(var(--border)/0.52)] pt-4">
     <p className="text-[10.5px] leading-relaxed text-muted">NEO-LIB never supplies emulators, BIOS files or ROMs. Each scan stays inside the folder you choose, shows a review list, and launches an imported ROM only through its saved emulator profile.</p>
+    {error && <p role="alert" className="text-xs text-amber-200">{error}</p>}
     {drafts.map((profile) => <div key={profile.id} className="rounded-lg border border-[rgb(var(--border)/0.68)] bg-panel/35 p-3">
-      <div className="mb-2 flex items-center gap-2"><input aria-label="Retro Profile name" value={profile.name} onChange={(event) => update(profile.id, { name: event.target.value })} className="min-w-0 flex-1 rounded-md bg-panel/60 hairline px-2.5 py-1.5 text-xs text-ink focus:border-[rgb(var(--accent)/0.6)] focus:outline-none" /><button type="button" onClick={() => remove(profile.id)} className="rounded-md px-2 py-1.5 text-[10px] text-muted hover:bg-red-400/10 hover:text-red-300">Remove</button></div>
+      <div className="mb-2 flex flex-wrap items-center gap-2" data-testid="retro-emulator-row">
+        {profile.icon ? <img src={profile.icon} alt="" className="h-9 w-9 rounded object-contain" onError={event => { event.currentTarget.style.display = 'none'; }} /> : <Gamepad2 size={28} className="text-[rgb(var(--accent))]" />}
+        <input aria-label="Emulator name" value={profile.name} onChange={(event) => update(profile.id, { name: event.target.value })} onBlur={save} className="min-w-0 flex-1 rounded-md bg-panel/60 hairline px-2.5 py-1.5 text-xs text-ink focus:border-[rgb(var(--accent)/0.6)] focus:outline-none" />
+        <button type="button" onClick={() => chooseFolder(profile.id)} disabled={!profile.emulatorPath || scan.busy} className="rounded-md hairline px-3 py-2 text-xs font-bold disabled:opacity-40">{profile.romFolder ? 'Change ROM folder' : 'Add ROM folder'}</button>
+        <button type="button" onClick={() => remove(profile.id)} className="rounded-md px-2 py-1.5 text-[10px] text-muted hover:bg-red-400/10 hover:text-red-300">Remove</button>
+      </div>
+      {profile.description && <p className="mb-2 text-xs text-muted">{profile.description}</p>}
+      {profile.romFolder && <p className="mb-2 break-all text-[10px] text-muted">ROM folder: {profile.romFolder}</p>}
       <div className="grid gap-2 sm:grid-cols-2">
         <label className="text-[10px] text-muted">Platform<select value={profile.platform} onChange={(event) => update(profile.id, { platform: event.target.value })} className="mt-1 w-full rounded-md bg-panel/60 hairline px-2.5 py-1.5 text-xs text-ink focus:border-[rgb(var(--accent)/0.6)] focus:outline-none"><option value="generic">Auto-detect clear extensions</option>{Object.entries(RETRO_PLATFORMS).map(([id, platform]) => <option key={id} value={id}>{platform.label}</option>)}</select><span className="mt-1 block text-[9px] text-muted">{romExtensions(profile.platform).join(' ')}</span></label>
         <label className="text-[10px] text-muted">Tracking<select value={profile.trackingMethod} onChange={(event) => update(profile.id, { trackingMethod: event.target.value })} className="mt-1 w-full rounded-md bg-panel/60 hairline px-2.5 py-1.5 text-xs text-ink focus:border-[rgb(var(--accent)/0.6)] focus:outline-none"><option value="emulator-process">Emulator process</option><option value="manual">Manual only</option></select></label>
       </div>
+      <details className="mt-2"><summary className="cursor-pointer text-xs font-bold">Emulator options and visuals</summary>
+      <button type="button" onClick={() => chooseIcon(profile.id)} className="mt-2 rounded-md hairline px-3 py-2 text-xs">Choose icon</button>
+      <p className="mt-1 text-[10px] text-muted">{profile.metadataSource || 'Player-configured emulator'}. Icon is read locally; no emulator or BIOS is downloaded.</p>
       <PathField label="Installed emulator" value={profile.emulatorPath} onChoose={() => chooseExecutable(profile.id)} onChange={(value) => update(profile.id, { emulatorPath: value })} chooseLabel="Choose .exe" />
       <PathField label="ROM folder" value={profile.romFolder} onChoose={() => chooseFolder(profile.id)} onChange={(value) => update(profile.id, { romFolder: value })} chooseLabel="Choose folder" />
       <div className="mt-2 grid gap-2 sm:grid-cols-2"><label className="text-[10px] text-muted">Argument before ROM path<input value={profile.argumentPrefix} onChange={(event) => update(profile.id, { argumentPrefix: event.target.value })} placeholder="Optional, e.g. -L core.dll" className="mt-1 w-full rounded-md bg-panel/60 hairline px-2.5 py-1.5 text-xs text-ink focus:border-[rgb(var(--accent)/0.6)] focus:outline-none" /></label><label className="text-[10px] text-muted">Working folder<input value={profile.workingDirectory} onChange={(event) => update(profile.id, { workingDirectory: event.target.value })} placeholder="Optional" className="mt-1 w-full rounded-md bg-panel/60 hairline px-2.5 py-1.5 text-xs text-ink focus:border-[rgb(var(--accent)/0.6)] focus:outline-none" /></label></div>
+      </details>
       <button type="button" data-testid={`retro-profile-scan-${profile.id}`} onClick={() => scanProfile(profile)} disabled={scan.busy} className="mt-3 inline-flex items-center gap-2 rounded-md border border-[rgb(var(--accent)/0.42)] bg-[rgb(var(--accent)/0.08)] px-3 py-2 text-[10px] font-bold text-ink hover:bg-[rgb(var(--accent)/0.15)] disabled:opacity-45">{scan.busy && scan.profileId === profile.id ? <Loader2 size={12} className="animate-spin" /> : <ScanSearch size={12} />} Scan and review ROMs</button>
     </div>)}
     {scan.profileId && <section data-testid="retro-rom-review" className="rounded-xl border border-[rgb(var(--accent)/0.44)] bg-[rgb(var(--surface)/0.55)] p-3">
@@ -87,9 +128,9 @@ export default function RetroProfilesPanel({ profiles, onChange, onImportRoms, o
       </div>)}</div>
       {unresolvedCount > 0 && <p className="mt-2 rounded-md border border-amber-300/30 bg-amber-300/[0.06] px-2.5 py-2 text-[9.5px] text-amber-100">Choose a platform for {unresolvedCount} ambiguous disc/archive file{unresolvedCount === 1 ? '' : 's'} before importing. NEO-LIB will not guess.</p>}
       {!scan.busy && !scan.rows.length && <p className="mt-3 rounded-lg hairline p-3 text-[10px] text-muted">No new supported ROMs were found for this profile.</p>}
-      <div className="mt-3 flex justify-end gap-2"><button type="button" onClick={() => setScan({ profileId: '', rows: [], busy: false, message: '' })} className="rounded-md hairline px-3 py-2 text-[10px] text-muted hover:text-ink">Close review</button><button type="button" data-testid="retro-import-selected" disabled={!selectedCount} onClick={importRows} className="rounded-md bg-[rgb(var(--accent))] px-3 py-2 text-[10px] font-black text-[rgb(var(--surface))] disabled:opacity-40">Import {selectedCount} selected</button></div>
+      <div className="mt-3 flex justify-end gap-2"><button type="button" onClick={() => { scanSequence.current++; setScan({ profileId: '', rows: [], busy: false, message: '' }); }} className="rounded-md hairline px-3 py-2 text-[10px] text-muted hover:text-ink">Close review</button><button type="button" data-testid="retro-import-selected" disabled={!selectedCount} onClick={importRows} className="rounded-md bg-[rgb(var(--accent))] px-3 py-2 text-[10px] font-black text-[rgb(var(--surface))] disabled:opacity-40">Import {selectedCount} selected</button></div>
     </section>}
-    <div className="flex flex-wrap gap-2"><button type="button" data-testid="retro-profile-add" onClick={add} className="rounded-md hairline px-3 py-2 text-xs text-muted hover:border-[rgb(var(--accent)/0.5)] hover:text-ink">Add profile</button><button type="button" data-testid="retro-profile-save" onClick={save} className="rounded-md bg-[rgb(var(--accent))] px-3 py-2 text-xs font-bold text-[rgb(var(--surface))] hover:brightness-110">Save Retro Profiles</button></div>
+    <div className="flex flex-wrap gap-2"><button type="button" disabled={adding || drafts.length >= 128} data-testid="retro-profile-add" onClick={add} className="rounded-md hairline px-3 py-2 text-xs text-muted hover:border-[rgb(var(--accent)/0.5)] hover:text-ink disabled:opacity-40">{adding ? 'Reading emulator…' : '+ Add emulator'}</button><button type="button" data-testid="retro-profile-save" onClick={save} className="rounded-md bg-[rgb(var(--accent))] px-3 py-2 text-xs font-bold text-[rgb(var(--surface))] hover:brightness-110">Save emulator options</button></div>
     <RetroSourcesPanel profiles={normalizeRetroProfiles(profiles)} existingGames={sourceVisibleGames} onImportRoms={onImportRoms} onApplyMetadata={onApplyMetadata} />
   </div>;
 }

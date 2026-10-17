@@ -1,0 +1,22 @@
+name = "neolib-optional-usage"
+account_id = "bc45a1bdb76771864ff6350b7de0c574"
+main = "worker.mjs"
+compatibility_date = "2026-10-12"
+
+# No persisted invocation logs, request payloads or traces for this collector.
+[observability]
+enabled = false
+
+[[d1_databases]]
+binding = "USAGE_DB"
+database_name = "neolib-optional-usage"
+database_id = "8d7a2e08-4492-421e-999f-492bdeb25c39"
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "c9d826a604b3438db9a09d089b84a652"
+
+[triggers]
+crons = ["15 3 * * *"]
+
+# Set ADMIN_TOKEN and PRIVACY_SALT through wrangler secret put, NEVER here.

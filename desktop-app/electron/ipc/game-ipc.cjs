@@ -62,6 +62,7 @@ function registerGameIpc({ registerIpc, services }) {
       && isBoundedString(payload.source, { max: 100 })
       && isBoundedString(payload.appid, { max: 20 })
       && isBoolean(payload.steamOwned)
+      && isBoolean(payload.trackPlaytime)
       && isIdentifier(payload.launchRouteId, { required: false })
       && isBoundedString(payload.launchToken, { max: 256 }),
     invalidRequest('The game launch request was malformed.'),

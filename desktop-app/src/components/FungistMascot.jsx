@@ -51,6 +51,7 @@ export default function FungistMascot({
   effectsLevel = 2,
   enabled = true,
   resting = false,
+  startupBlocked = false,
   healthState = 'checking',
   newsAlert = null,
   favouriteUpdate = null,
@@ -91,6 +92,7 @@ export default function FungistMascot({
   onLaunchRequested,
   onReportBug,
 }) {
+  resting = resting || startupBlocked;
   const selectedMascot = mascotId === 'fifi' ? 'fifi' : 'fungist';
   const mascotScale = Math.max(0.7, Math.min(1.45, Number(mascotSize || 100) / 100));
   const mascotName = selectedMascot === 'fifi' ? 'FiFi' : 'Fungist';

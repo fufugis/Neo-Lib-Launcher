@@ -403,9 +403,22 @@ export function LibrarySection({
 }
 
 /* ---------------- Game row ---------------- */
-export function LibraryGameRow({
+export function LibraryGameRow(props) {
+  // Parent lists use per-game closures. Keep their latest committed behaviour
+  // without making every unchanged row rebuild its icons/menu/motion tree.
+  const latest = React.useRef(props);
+  React.useLayoutEffect(() => { latest.current = props; });
+  const actions = React.useMemo(() => Object.fromEntries(
+    ['onClick', 'onContext', 'onReorderInCat', 'onMoveBetween'].map(name => [name, (...args) => latest.current[name]?.(...args)])
+  ), []);
+  const { sectionGames: unusedSectionGames, size: inputSize, ...rowProps } = props;
+  const size = React.useMemo(() => ({ id: inputSize.id, rowH: inputSize.rowH, icon: inputSize.icon, font: inputSize.font }), [inputSize.id, inputSize.rowH, inputSize.icon, inputSize.font]);
+  return <MemoizedLibraryGameRow {...rowProps} size={size} {...actions} />;
+}
+
+const MemoizedLibraryGameRow = React.memo(function LibraryGameRowContent({
   g, size, selected, onClick, onContext, fromCatId, indexInCat,
-  sectionGames, onReorderInCat, onMoveBetween, categories,
+  onReorderInCat, onMoveBetween, categories,
   iconPosition = 'left', rowGap = 2, showCategoryDot = true, showSubcatStrip = true, isPinned = false, flatList = false,
   iconOnly = false, selectionMode = false,
 }) {
@@ -683,7 +696,7 @@ export function LibraryGameRow({
       )}
     </motion.div>
   );
-}
+});
 
 function Item({ icon, label, onClick, testid, danger }) {
   return (

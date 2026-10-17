@@ -5,10 +5,11 @@ import { playtimePieSliceAtPoint, pieTooltipPosition } from './playtime-pie-mode
 
 // Hover state stays in the chart, rather than rerendering the widget's filters
 // or game list on every pointer move. No timers, network calls or frame loop.
-export default React.memo(function PlaytimePieChart({ chart }) {
+export default React.memo(function PlaytimePieChart({ chart, diameter = 160 }) {
   const [hover, setHover] = React.useState(null);
   const [size, setSize] = React.useState({ width: 280, height: 80 });
   const tooltip = React.useRef(null);
+  React.useEffect(() => { setHover(null); }, [chart, diameter]);
   const active = hover?.chart === chart ? hover : null;
   const showing = Boolean(active);
   React.useLayoutEffect(() => {
@@ -36,7 +37,7 @@ export default React.memo(function PlaytimePieChart({ chart }) {
     <div role="img" data-testid="playtime-pie-chart"
       aria-label={`Playtime distribution: ${chart.slices.map(slice => `${slice.label} ${slice.percent.toFixed(1)}%, ${formatPlaytime(slice.minutes)}`).join(', ')}`}
       onPointerMove={move} onPointerLeave={() => setHover(null)} onPointerCancel={() => setHover(null)}
-      className="aspect-square w-40 max-w-full shrink-0 rounded-full border border-[rgb(var(--border))]" style={{ backgroundImage: chart.gradient }} />
+      className="aspect-square max-w-full shrink-0 rounded-full border border-[rgb(var(--border))]" style={{ width: diameter, backgroundImage: chart.gradient }} />
     {active && renderForegroundPortal(<div ref={tooltip} role="tooltip" data-testid="playtime-pie-tooltip"
       className="playtime-pie-tooltip" style={position}>
       <strong><span aria-hidden="true" style={{ background: active.slice.color }} />{active.slice.label}</strong>

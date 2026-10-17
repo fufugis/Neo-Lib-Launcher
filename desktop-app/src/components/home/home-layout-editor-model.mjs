@@ -1,6 +1,24 @@
 const finite = (value, fallback) => Number.isFinite(Number(value)) ? Number(value) : fallback;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 export const HOME_EDITOR_GRID = 24;
+export const homeCanvasHeight = value => clamp(finite(value, 540), 540, 100000);
+
+export function resizeHomeEditorCanvas(draft, requestedHeight) {
+  return { ...draft, height: Math.max(homeCanvasHeight(requestedHeight), ...Object.values(draft.positions).map(box => box.y + box.height + 24)) };
+}
+
+export function parkHomeEditorBox(draft, parked, id) {
+  const box = draft.positions[id];
+  if (!box) return parked;
+  return { ...parked, [id]: { ...box, x: draft.width + 72,
+    y: Math.max(100, ...Object.values(parked).map(value => value.y + value.height + 24)) } };
+}
+
+export function returnHomeEditorBox(draft, parked, id) {
+  const box = parked[id];
+  if (!box) return draft;
+  return { ...draft, positions: { ...draft.positions, [id]: adjustEditorBox({ ...box, x: draft.positions[id].x, y: draft.positions[id].y }, 0, 0, draft, false) } };
+}
 
 export function normalizeEditorBox(raw = {}) {
   raw = raw || {};
@@ -13,7 +31,7 @@ export function createHomeEditorDraft(widgets, captured, layout = {}, canvas = {
     normalizeEditorBox(captured[widget.id] || layout.freePositions?.[widget.id] || { x: 0, y: index * 260, width: 480, height: 240 })]));
   return { positions, order: widgets.map(widget => widget.id), snap: layout.editorSnapToGrid !== false,
     width: Math.max(320, finite(canvas.width, 320), ...Object.values(positions).map(box => box.x + box.width + 24)),
-    height: Math.max(540, finite(canvas.height, 540), ...Object.values(positions).map(box => box.y + box.height + 24)) };
+    height: Math.max(homeCanvasHeight(layout.freeCanvasHeight), finite(canvas.height, 540), ...Object.values(positions).map(box => box.y + box.height + 24)) };
 }
 
 export function adjustEditorBox(box, dx, dy, canvas, snap = true, resize = false) {
@@ -37,10 +55,10 @@ export function homeEditorSavePatch(layout, draft, activeIds) {
   // Unknown/hidden widget data and unrelated settings remain core-owned.
   const positions = { ...(layout.freePositions || {}) };
   for (const id of editedIds) positions[id] = normalizeEditorBox(draft.positions[id]);
-  return { freePositions: positions, snapToGrid: false, editorSnapToGrid: draft.snap === true,
+  return { freePositions: positions, freeCanvasHeight: homeCanvasHeight(draft.height), snapToGrid: false, editorSnapToGrid: draft.snap === true,
     widgetOrder: [...new Set([...(layout.widgetOrder || []).filter(id => !editedIds.includes(id)), ...editedIds])] };
 }
 
-export function homeEditorFitZoom(draft, viewport) {
-  return clamp(Math.min((viewport.width - 48) / draft.width, (viewport.height - 48) / draft.height, 0.75), 0.1, 1);
+export function homeEditorFitZoom(draft, viewport, allowTiny = false) {
+  return clamp(Math.min(Math.max(1, viewport.width - 48) / draft.width, Math.max(1, viewport.height - 48) / draft.height, 0.75), allowTiny ? 0.000001 : 0.1, 1);
 }

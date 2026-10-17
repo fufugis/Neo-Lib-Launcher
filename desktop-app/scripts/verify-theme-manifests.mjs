@@ -18,7 +18,39 @@ function cssTokens(id) {
   return Object.fromEntries([...block[1].matchAll(/--([a-z0-9-]+):\s*(\d+)\s+(\d+)\s+(\d+)/g)].map(([, key, r, g, b]) => [key, [Number(r), Number(g), Number(b)]]));
 }
 const baseTokens = cssTokens('synthwave');
+const arcana = JSON.parse(fs.readFileSync(path.join(stockRoot, 'moonlit-arcana', 'theme.json'), 'utf8'));
+const luminance = rgb => rgb.map(channel => channel / 255).map(channel => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4).reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+for (const [current, previous] of [[arcana.panels.surface, [13, 24, 48]], [arcana.panels.panel, [23, 39, 68]], [arcana.palette.grad1, [8, 16, 38]], [arcana.palette.grad2, [24, 35, 77]]]) assert(luminance(current) > luminance(previous), 'Moonlit Arcana surfaces are brighter than their former palette');
+for (const text of [arcana.palette.ink, arcana.palette.muted, arcana.palette.accentText, arcana.palette.accent2Text]) {
+  for (const background of [arcana.panels.surface, arcana.panels.panel, arcana.palette.grad2]) assert((luminance(text) + 0.05) / (luminance(background) + 0.05) >= 4.5, 'Arcana text retains readable contrast on its brighter base surfaces');
+}
+assert.match(css, /\.theme-artwork-moonlit-arcana\[data-desktop-art-softened='true'\] \{\s*filter: blur\(2px\) saturate\(0.82\) contrast\(0.88\) brightness\(0.98\);/, 'Arcana desktop artwork is brighter without removing softening or touching Lounge');
+for (const [id, name] of [['gaming', 'Ember'], ['modern', 'Camo']]) {
+  const manifest = JSON.parse(fs.readFileSync(path.join(stockRoot, id, 'theme.json'), 'utf8'));
+  assert.equal(manifest.id, id, 'renaming preserves saved settings identity');
+  assert.equal(manifest.name, name);
+  assert.equal(manifest.layers.atmosphere.asset, `assets/${name.toLowerCase()}-atmosphere.webp`, 'new background replaces legacy artwork');
+  const original = fs.readFileSync(path.join(appRoot, 'artwork-originals/mid-theme-refresh', `${name.toLowerCase()}-original.png`));
+  assert.equal(original.readUInt32BE(16), 1672); assert.equal(original.readUInt32BE(20), 941);
+  const currentSidebar = fs.readFileSync(path.join(stockRoot, id, 'assets/sidebar.webp'));
+  const previousSidebar = fs.readFileSync(path.join(appRoot, 'artwork-originals/mid-theme-refresh', `${id}-previous-sidebar.webp`));
+  assert.notEqual(crypto.createHash('sha256').update(currentSidebar).digest('hex'), crypto.createHash('sha256').update(previousSidebar).digest('hex'), 'matching fresh sidebar is installed and previous art retained');
+}
+const contrast = (a, b) => (Math.max(luminance(a), luminance(b)) + 0.05) / (Math.min(luminance(a), luminance(b)) + 0.05);
+for (const id of ['gaming', 'modern']) {
+  const theme = JSON.parse(fs.readFileSync(path.join(stockRoot, id, 'theme.json'), 'utf8'));
+  assert.equal(theme.tone, 'middle', 'recolour keeps Mid classification and saved theme identity');
+  for (const foreground of ['ink', 'muted', 'accentText', 'accent2Text']) {
+    for (const background of ['surface', 'panel']) assert(contrast(theme.palette[foreground], theme.panels[background]) >= 4.5, `${id} ${foreground} readable on ${background}`);
+  }
+  assert(theme.layers.atmosphere.opacity <= 0.32 && theme.layers.sidebar.opacity <= 0.12, 'artwork cannot dominate the new palette');
+}
+assert(cssTokens('gaming').surface[0] > cssTokens('gaming').surface[1] && cssTokens('gaming').surface[1] > cssTokens('gaming').surface[2] && cssTokens('gaming').surface[0] < 110, 'Gaming is dark-mid brown, not an orange canvas');
+assert(cssTokens('gaming').accent[0] > 220 && cssTokens('gaming').accent[1] > 150 && cssTokens('gaming').accent[2] > 100, 'Gaming highlights are soft peach orange');
+assert(cssTokens('modern').surface[1] > Math.max(cssTokens('modern').surface[0], cssTokens('modern').surface[2]) && cssTokens('modern').surface[1] <= 70, 'Modern is darker military green');
 const folders = fs.readdirSync(stockRoot, { withFileTypes: true }).filter(item => item.isDirectory()).map(item => item.name).sort();
+assert(cssTokens('gaming').surface[0] <= 64 && cssTokens('gaming').panel[0] <= 74, 'brown canvas and panels are noticeably darker');
+assert(cssTokens('modern').surface[1] <= 49 && cssTokens('modern').panel[1] <= 61, 'military-green canvas and panels are noticeably darker');
 assert.deepEqual(folders, THEMES.map(theme => theme.id).sort(), 'Every selectable stock theme needs exactly one folder.');
 
 // Preserve the actual user originals, not a downsampled chat attachment.

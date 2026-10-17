@@ -4,12 +4,17 @@ import LoungeBrowserStage from './LoungeBrowserStage';
 import { loungePanelRects, loungeWidgetTopBoundary } from './lounge-widget-layout.mjs';
 
 // Selecting carousel games must not restart Home feeds or redraw widget content.
-const ImportedHomeWidgets = React.memo(function ImportedHomeWidgets({ games, ids, onSelect, resting, favoriteIds, filters, onFiltersChange }) {
-  const homeLayout = React.useMemo(() => ({ playtimePieFilters: filters }), [filters]);
-  return <HomeHub games={games} favoriteIds={favoriteIds} homeLayout={homeLayout} onUpdateHomeLayout={next => onFiltersChange?.(next.playtimePieFilters)} embeddedWidgetIds={ids} onSelect={onSelect} resting={resting} />;
+const ImportedHomeWidgets = React.memo(function ImportedHomeWidgets({ games, ids, onSelect, resting, favoriteIds, filters, onFiltersChange, calendarPreferences, onCalendarPreferencesChange }) {
+  const homeLayout = React.useMemo(() => ({ playtimePieFilters: filters, playtimeCalendarPreferences: calendarPreferences, excludeRoms: filters?.excludeRoms === true }), [filters, calendarPreferences]);
+  const updateLayout = next => {
+    const flagChanged = next.excludeRoms !== homeLayout.excludeRoms;
+    if (next.playtimePieFilters !== filters || flagChanged) onFiltersChange?.({ ...next.playtimePieFilters, excludeRoms: next.excludeRoms });
+    if (next.playtimeCalendarPreferences !== calendarPreferences || flagChanged) onCalendarPreferencesChange?.({ ...next.playtimeCalendarPreferences, excludeRoms: next.excludeRoms });
+  };
+  return <HomeHub games={games} favoriteIds={favoriteIds} homeLayout={homeLayout} onUpdateHomeLayout={updateLayout} embeddedWidgetIds={ids} onSelect={onSelect} resting={resting} />;
 });
 
-export default function LoungeWidgetArea({ game, index, total, preferences, updateLedger, onOpenDetails, games, resting, favoriteIds, onPlaytimePieFiltersChange }) {
+export default function LoungeWidgetArea({ game, index, total, preferences, updateLedger, onOpenDetails, games, resting, favoriteIds, onPlaytimePieFiltersChange, onCalendarPreferencesChange }) {
   const host = React.useRef(null);
   const [size, setSize] = React.useState({ width: 0, height: 0, available: 320, top: 0, obstacles: [], widgetTop: 16 });
   React.useLayoutEffect(() => {
@@ -63,7 +68,7 @@ export default function LoungeWidgetArea({ game, index, total, preferences, upda
     </div>
     {preferences.widgetAreaEnabled && <aside aria-label="Lounge Home widgets" data-testid="lounge-widget-area" data-show-box={preferences.widgetShowBox} style={rectangles.widgets}>
       <div className="lounge-widget-zoom" style={{ '--lounge-widget-zoom': preferences.widgetZoom / 100 }}>
-        <ImportedHomeWidgets games={games} ids={preferences.widgetIds} onSelect={onOpenDetails} resting={resting} favoriteIds={favoriteIds} filters={preferences.playtimePieFilters} onFiltersChange={onPlaytimePieFiltersChange} />
+        <ImportedHomeWidgets games={games} ids={preferences.widgetIds} onSelect={onOpenDetails} resting={resting} favoriteIds={favoriteIds} filters={preferences.playtimePieFilters} onFiltersChange={onPlaytimePieFiltersChange} calendarPreferences={preferences.playtimeCalendarPreferences} onCalendarPreferencesChange={onCalendarPreferencesChange} />
       </div>
     </aside>}
   </div>;

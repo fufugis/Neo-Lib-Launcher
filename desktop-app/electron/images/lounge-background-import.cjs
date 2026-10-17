@@ -40,7 +40,7 @@ async function importLoungeBackground(selected, destinationRoot) {
     await fs.mkdir(destinationRoot, { recursive: true });
     const destination = path.join(destinationRoot, `${crypto.randomUUID()}${extension}`);
     await fs.copyFile(selected, destination, require('fs').constants.COPYFILE_EXCL);
-    return { ok: true, url: pathToFileURL(destination).href };
+    return { ok: true, url: pathToFileURL(destination).href, name: path.basename(selected, extension).slice(0, 80) };
   } catch {
     return { ok: false, error: 'Could not save a private copy of this image.' };
   }

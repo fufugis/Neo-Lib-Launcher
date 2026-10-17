@@ -44,6 +44,8 @@ assert.equal(legacyIsNewer(releaseTag, '1.7.3'), true, 'v1.7.3 must recognize th
 assert.equal(legacyIsNewer(releaseTag, '1.7.9'), true, 'v1.7.9 must recognize the new release');
 assert.equal(isNewerVersion(releaseTag, '1.8.4'), true, 'installed v1.8.4 must discover the next release');
 assert.equal(isNewerVersion(releaseTag, '1.8.5'), true, 'installed v1.8.5 must discover the corrective release');
+assert.equal(isNewerVersion(releaseTag, '1.8.6'), true, 'published v1.8.6 must discover v1.8.7');
+assert.equal(legacyIsNewer(releaseTag, '1.8.6'), true, 'the published legacy checker accepts the new clean release tag');
 assert.equal(legacyIsNewer(releaseTag, '1.8.5'), true, 'legacy parser recognizes the corrective patch');
 assert.equal(legacyIsNewer(releaseTag, '1.8.4'), true, 'legacy parser must also recognize the next patch release');
 assert.equal(legacyIsNewer('v.1.7.5', '1.7.3'), false, 'fixture must reproduce the historical dotted-tag bug');

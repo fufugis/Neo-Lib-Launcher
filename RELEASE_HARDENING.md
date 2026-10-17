@@ -1,5 +1,11 @@
 # Release hardening checklist
 
+## Current candidate — v1.8.7 (2026-10-17)
+
+Local candidate built and inspected: Build ID DBC15379283B; configured feedback, optional usage endpoint and packaged privacy text verified. All source gates and isolated update/sidebar/performance browser fixtures pass. The installer and portable ZIP, versioned candidate report and checksum file are in desktop-app/dist. The installer is unsigned. Installed upgrade/finish-page behavior and physical-controller/visual acceptance remain unchecked in WINDOWS_ACCEPTANCE_V1.8.7.md; no publication or source push occurred.
+
+The current candidate is v1.8.7, with the stable installer filename NEO-LIB-Setup.exe. Versioned release notes and Windows acceptance are maintained in RELEASE_NOTES_v1.8.7.md and WINDOWS_ACCEPTANCE_V1.8.7.md. Build with the guarded release driver, then inspect installer, portable archive, provenance and checksum evidence before publication. The older package records below are historical, not acceptance evidence for this candidate.
+
 Stage 9 separates facts proven by source checks from behavior that still needs a
 rebuilt Windows app. Passing the source gate does not mean a release is packaged
 or visually accepted.

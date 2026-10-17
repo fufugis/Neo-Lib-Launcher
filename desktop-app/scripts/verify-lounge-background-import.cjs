@@ -14,6 +14,7 @@ const { registerDialogIpc } = require('../electron/ipc/dialog-ipc.cjs');
     await fs.writeFile(original, bytes);
     const result = await importLoungeBackground(original, path.join(root, 'saved backgrounds'));
     assert.equal(result.ok, true);
+    assert.equal(result.name, 'my original', 'theme display name comes from the chosen file, not its private-copy UUID');
     await fs.unlink(original);
     assert.deepEqual(await fs.readFile(fileURLToPath(result.url)), bytes, 'saved copy survives removal of original');
     const handlers = {};

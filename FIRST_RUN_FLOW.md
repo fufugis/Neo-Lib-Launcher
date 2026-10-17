@@ -1,0 +1,13 @@
+# First-run flow
+
+1. Interactive installation only arms a launch flag after its install hook completes. Launch now occurs in NSIS `.onGUIEnd`, after the setup window closes. Silent installation never auto-launches; failed/cancelled file-copy runs do not arm the flag. The customer app/installer still needs packaged Windows acceptance testing.
+2. A fresh library opens Welcome to NEO-LIB, with feature summaries, Feedback encouragement, optional usage reporting, and Wizard/Explore/Tutorial choices. Reporting is **unchecked by default**, because pre-ticked boxes are not affirmative consent. Version-2 opt-in also affirms age 16+; younger users retain all app features without reporting. The clickable notice sits beside the control and is also available in Settings.
+3. Tutorial is optional. It covers Home widgets/editor/pie, Wizard/retro, Library/Journey/Workshop, Wall, grouped Visuals, Lounge, Tools/modules/addons, Settings/privacy, Rest/idle/mascot, News/Feedback. Closing or finishing the first-run tour returns to Welcome; the reporting choice is retained and nothing is uploaded before final opt-in.
+4. Choosing Wizard or Explore saves the choices, closes Welcome and opens patch notes. A failed native save keeps Welcome open with a retry message. Resumed incomplete setup opens notes again before continuing the saved path.
+5. Closing patch notes opens Wizard only if it was chosen. Closing/finishing that Wizard completes setup; Explore completes after notes. The ordinary repeatable Wizard is unchanged.
+
+Existing libraries/settings do not receive a forced new-user Welcome or silently enabled telemetry. Upgrades still show their unseen version notes. Settings can replay the tour or withdraw usage reporting. Launcher-discovery popups, companion notices and the new News popup are deferred around the first-run flow so they cannot obscure it. Native first-run GPU setup now merges its patch with current settings instead of overwriting the onboarding/consent decision.
+
+Withdrawal stops reports and requests exact-installation server deletion, with a minimal offline retry and late-upload protection. Old version-1 consent does not enable version-2 reporting. The app ships a matching privacy document copy; operational records stay outside its resources.
+
+Source/state/privacy/reporting/admin checks and production compilation are separate from live desktop/controller/installer checks. The admin tool lives outside the packaged runtime; see admin/usage-dashboard/README.md for service setup and honest measurement limits. The separately authorized analytics service has been deployed and tested with synthetic fixtures only. No current client release/push or news broadcast has occurred.

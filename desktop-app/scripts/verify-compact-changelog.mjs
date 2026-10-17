@@ -1,0 +1,26 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { V187_CHANGELOG } from '../src/components/changelog/v187-changelog.mjs';
+import { UPCOMING_CHANGELOG } from '../src/components/changelog/upcoming-changelog.mjs';
+import { V186_CHANGELOG } from '../src/components/changelog/v186-changelog.mjs';
+import { V185_CHANGELOG } from '../src/components/changelog/v185-changelog.mjs';
+
+assert.equal(UPCOMING_CHANGELOG.unreleased, true);
+assert.equal(V187_CHANGELOG.major.length, 10);
+assert.equal(V187_CHANGELOG.version, '1.8.7');
+assert.equal(UPCOMING_CHANGELOG.major.length, 0, 'Released notes must not also appear as Upcoming');
+assert(V187_CHANGELOG.major.every(item => item.body.length < 180));
+assert(JSON.stringify(V187_CHANGELOG).split(/\s+/).length < 300);
+assert(!/Cloudflare|admin token|Windows path|CRLF|bugfix|installer launch|hover details/i.test(JSON.stringify(V187_CHANGELOG)), 'feature notes omit owner operations, fixes and small changes');
+assert.equal(V186_CHANGELOG.major.length, 0, 'recovery patch must not relabel v1.8.5 features as new');
+assert(V186_CHANGELOG.fixes.length > 0, 'technical recovery history is preserved');
+assert(V185_CHANGELOG.major.some(item => item.title.includes('Official modules')));
+const modal = fs.readFileSync(new URL('../src/components/ChangelogModal.jsx', import.meta.url), 'utf8');
+assert(modal.includes('showHistory ? CHANGELOG : entries.slice(0, 1)'));
+assert(modal.includes('Older release highlights'));
+assert(!modal.includes('Fixes, adjustments & polish'));
+assert(modal.includes('if (!open) setShowHistory(false)'));
+const draft = fs.readFileSync(new URL('../../NEWS_CHANGELOG.md', import.meta.url), 'utf8');
+assert.equal(draft.split('\n').filter(line => line.startsWith('- **')).length, 10);
+for (const item of V187_CHANGELOG.major) assert(draft.includes(`**${item.title}:** ${item.body}`));
+console.log('PASS: ten concise feature-only patch notes, matching Markdown/in-app content, versioned release clarity, collapsed history and preserved recovery record.');

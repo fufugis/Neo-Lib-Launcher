@@ -84,6 +84,7 @@ export function romLibraryEntry({ profile, romPath, sizeBytes = 0, now = Date.no
     workingDirectory: text(profile.workingDirectory),
     launcher: 'emulator',
     source: 'emulation',
+    emulationKind: 'rom',
     emulatorProfileId: text(profile.id),
     emulatorProfileName: text(profile.name, 'Emulator'),
     retroPlatform: platform,

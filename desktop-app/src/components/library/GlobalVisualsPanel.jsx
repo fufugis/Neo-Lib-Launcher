@@ -1,10 +1,12 @@
 import React from 'react';
 import LibraryVisualsPopover from './LibraryVisualsPopover';
+import { sidebarButtonGeometry } from './sidebar-tweaks-model.mjs';
 
 export default function GlobalVisualsPanel({ settings, sidebarWidth, wallActive, onUpdateSetting, onOpenFeedback, onClose }) {
   const theme = settings.theme || 'synthwave';
   const perThemeLevel = settings.effectsLevelByTheme?.[theme];
   return <LibraryVisualsPopover
+    railWidth={sidebarButtonGeometry(settings.sidebarTweaks).compact}
     sidebarWidth={wallActive ? 0 : sidebarWidth}
     rowSize={settings.rowSize ?? 44}
     catTextSize={settings.catTextSize ?? 11}
@@ -43,8 +45,6 @@ export default function GlobalVisualsPanel({ settings, sidebarWidth, wallActive,
     onChangeBgTextureOpacity={(bgTextureOpacity) => onUpdateSetting({ bgTextureOpacity })}
     cursorTheme={settings.cursorTheme || 'windows'}
     onChangeCursorTheme={(cursorTheme) => onUpdateSetting({ cursorTheme })}
-    navigationLayout={settings.navigationLayout === 'sidebar' ? 'sidebar' : 'top'}
-    onChangeNavigationLayout={(navigationLayout) => onUpdateSetting({ navigationLayout: navigationLayout === 'sidebar' ? 'sidebar' : 'top' })}
     twoRow={!!settings.twoRow}
     onToggleTwoRow={(twoRow) => onUpdateSetting({ twoRow })}
     libraryIconMode={settings.libraryIconMode === true}

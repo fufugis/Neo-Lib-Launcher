@@ -9,7 +9,7 @@ import { X, GripHorizontal } from 'lucide-react';
  * - ESC closes
  * - Title bar acts as a drag handle (only the header pointer-downs start a drag)
  */
-export default function Modal({ open, onClose, title, children, wide, testid }) {
+export default function Modal({ open, onClose, title, children, wide, testid, overlayStyle }) {
   const constraintsRef = React.useRef(null);
   const dragControls = useDragControls();
   React.useEffect(() => {
@@ -39,7 +39,7 @@ export default function Modal({ open, onClose, title, children, wide, testid }) 
           transition={{ duration: 0.14 }}
           className="fixed inset-0 z-[100] grid place-items-center bg-black/65 backdrop-blur-[2px]"
           onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }}
-          style={{ pointerEvents: 'auto' }}
+          style={{ pointerEvents: 'auto', ...overlayStyle }}
         >
           <motion.div
             drag

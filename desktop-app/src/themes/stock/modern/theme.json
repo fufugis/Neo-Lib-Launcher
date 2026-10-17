@@ -1,75 +1,75 @@
 {
   "schemaVersion": 1,
   "id": "modern",
-  "name": "Modern",
+  "name": "Camo",
   "tone": "middle",
   "palette": {
     "ink": [
-      239,
-      243,
-      248
+      251,
+      246,
+      221
     ],
     "muted": [
-      187,
-      197,
-      211
+      223,
+      224,
+      196
     ],
     "accent": [
-      184,
-      58,
-      69
+      255,
+      221,
+      76
     ],
     "accent2": [
-      145,
-      177,
-      217
+      255,
+      195,
+      224
     ],
     "accentSoft": [
-      75,
-      87,
-      105
+      199,
+      174,
+      75
     ],
     "hairlineGlow": [
-      184,
-      58,
-      69
+      255,
+      221,
+      76
     ],
     "grad1": [
-      52,
-      61,
-      77
+      22,
+      38,
+      26
     ],
     "grad2": [
-      77,
-      88,
-      107
+      39,
+      58,
+      38
     ],
     "accentText": [
-      244,
-      125,
-      133
+      255,
+      229,
+      113
     ],
     "accent2Text": [
-      176,
-      203,
-      235
+      255,
+      211,
+      232
     ]
   },
   "panels": {
     "surface": [
-      63,
-      73,
-      91
+      30,
+      49,
+      33
     ],
     "panel": [
-      85,
-      98,
-      117
+      39,
+      61,
+      40
     ],
     "border": [
-      135,
-      148,
-      168
+      111,
+      139,
+      87
     ]
   },
   "layers": {
@@ -81,13 +81,13 @@
     },
     "atmosphere": {
       "type": "image",
-      "asset": "assets/modern-atmosphere.png",
-      "opacity": 0.5
+      "asset": "assets/camo-atmosphere.webp",
+      "opacity": 0.32
     },
     "sidebar": {
       "type": "image",
-      "asset": "assets/modern-atmosphere.png",
-      "opacity": 0.18
+      "asset": "assets/camo-atmosphere.webp",
+      "opacity": 0.12
     },
     "decoration": {
       "type": "none"

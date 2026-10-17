@@ -1,4 +1,5 @@
 import { platformOf } from './home-model.mjs';
+import { statisticsGames } from '../../lib/emulator-profile-model.mjs';
 import { JOURNEY_STATUSES, normalizeJourneyStatus } from '../../lib/game-journey-model.mjs';
 
 export const PIE_COLORS = Object.freeze(['#60a5fa', '#a78bfa', '#34d399', '#fbbf24', '#f472b6', '#22d3ee', '#fb923c', '#818cf8', '#a3e635', '#e879f9', '#2dd4bf', '#f87171', '#38bdf8', '#c084fc', '#facc15', '#94a3b8']);
@@ -33,6 +34,9 @@ export function normalizePlaytimePieFilters(input = {}) {
   const minHours = hours(input.minHours);
   const maxHours = hours(input.maxHours);
   return {
+    chartSize: Number.isFinite(Number(input.chartSize)) && input.chartSize != null ? Math.max(100, Math.min(600, Math.round(Number(input.chartSize) / 10) * 10)) : 160,
+    showLegend: input.showLegend !== false,
+    excludeRoms: input.excludeRoms === true,
     search: String(input.search || '').slice(0, 160),
     platform: typeof input.platform === 'string' ? input.platform.slice(0, 40) : 'all',
     journey: JOURNEY_STATUSES.some(status => status.id === input.journey) ? input.journey : 'all',
@@ -47,7 +51,7 @@ export function playtimePie(games = [], input = {}, favoriteIds = [], now = Date
   const filters = normalizePlaytimePieFilters(input);
   const favorites = new Set(Array.isArray(favoriteIds) ? favoriteIds : []);
   const seen = new Set();
-  const entries = (Array.isArray(games) ? games : []).filter(game => {
+  const entries = statisticsGames(Array.isArray(games) ? games : [], filters.excludeRoms).filter(game => {
     if (!game || game.homeLocked || game.id == null || seen.has(game.id)) return false;
     seen.add(game.id);
     const minutes = Number(game.playtime);

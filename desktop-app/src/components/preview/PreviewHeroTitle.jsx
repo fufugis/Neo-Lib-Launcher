@@ -40,10 +40,10 @@ export default function PreviewHeroTitle({ game, onUpdateGame, installSize, meas
 function GameFacts({ game, installSize, measuringSize, onMeasureSize }) {
   const journey = journeyStatusDefinition(game.journeyStatus);
   const time = formatPlaytime(game.playtime);
-  const bytes = Number(installSize?.bytes ?? game.installSizeBytes);
-  const hasSize = Number.isFinite(bytes) && bytes >= 0;
+  const bytes = installSize?.bytes ?? game.installSizeBytes;
+  const hasSize = typeof bytes === 'number' && Number.isFinite(bytes) && bytes >= 0;
   const readable = hasSize ? `${installSize?.truncated || game.installSizePartial ? '≥ ' : ''}${bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3).toFixed(bytes >= 10 * 1024 ** 3 ? 0 : 1)} GB` : `${Math.max(0, Math.round(bytes / 1024 ** 2))} MB`}` : 'Not measured';
-  return <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.22 }} className="mt-3 flex w-fit max-w-full flex-wrap items-center gap-2 rounded-lg border border-white/15 bg-black/70 px-2.5 py-1.5 text-muted" style={{ textShadow: 'none' }} data-testid="preview-game-facts">
+  return <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.22 }} className="mt-3 flex w-fit max-w-full flex-wrap items-center gap-2 rounded-lg border border-white/15 bg-black/45 px-2.5 py-1.5 text-muted" style={{ textShadow: 'none' }} data-testid="preview-game-facts">
     <span data-testid="preview-journey-status"><b className="block text-[9px] font-semibold uppercase tracking-[0.1em] text-white/75">Journey status</b><strong className="block font-sans text-[12px] font-bold tracking-normal text-white">{journey.label}</strong>{journey.id === 'not-started' && <span className="block text-[10px] text-white/80">Click Journey to set game progress</span>}</span>
     <span className="inline-flex items-center gap-1.5"><Clock3 size={15} className="text-[rgb(var(--accent-2))]" /><span><b className="block text-[9px] font-semibold uppercase tracking-[0.1em] text-white/75">Time played</b><strong className="font-sans text-[12px] font-bold tracking-normal text-white">{time}</strong></span></span>
     <span className="inline-flex items-center gap-1.5 border-l border-white/20 pl-2"><HardDrive size={15} className="text-[rgb(var(--accent-2))]" /><span><b className="block text-[9px] font-semibold uppercase tracking-[0.1em] text-white/75">Install size</b><strong className="font-sans text-[12px] font-bold tracking-normal text-white">{readable}</strong></span></span>

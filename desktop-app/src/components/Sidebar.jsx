@@ -1,9 +1,9 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Wand2, ChevronDown, Tag, ArrowDownUp, Moon, Sun,
+  Wand2, Plus, ChevronDown, Tag, ArrowDownUp, Moon, Sun,
   Library as LibIcon, Boxes, CheckSquare, Columns, Home, Check, ListTree, Tv2,
-  Palette, SlidersHorizontal, PanelLeft, Gamepad2, UserRound, Settings2, Sparkles, RefreshCw, Lightbulb, Power,
+  Palette, SlidersHorizontal, Gamepad2, UserRound, Settings2, Sparkles, RefreshCw, Lightbulb, Power,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { stockThemeAssetUrl, customThemeManifest } from '../themes/stock-theme-registry.mjs';
@@ -17,10 +17,14 @@ import CollectionActions from './library/CollectionActions';
 import SidebarResizeHandle from './library/SidebarResizeHandle';
 import AddonMenu from './addons/AddonMenu';
 import RailActionFlyout from './library/RailActionFlyout';
+import SidebarTweaks, { SidebarButtonOrder, useSidebarHoverLabel } from './library/SidebarTweaks';
+import { normalizeSidebarTweaks, sidebarIsExpanded, sidebarButtonGeometry } from './library/sidebar-tweaks-model.mjs';
+import { LIBRARY_GRAPHIC_PATTERNS } from './library/library-graphics.mjs';
 
 /* v1.6.4 — Background texture styles applied INSIDE the sidebar so the
    texture never covers hero banners / preview images in the main pane. */
 const BG_TEXTURE_PATTERNS = {
+  ...LIBRARY_GRAPHIC_PATTERNS,
   grain: {
     backgroundImage:
       'radial-gradient(rgba(255,255,255,0.6) 1px, transparent 1px),' +
@@ -122,7 +126,7 @@ export default function Sidebar({
   bgTextureId, bgTextureOpacity,
   onChangeBgTextureId, onChangeBgTextureOpacity,
   cursorTheme = 'windows', onChangeCursorTheme,
-  navigationLayout = 'top', onChangeNavigationLayout, interfaceMode = 'default', onChangeInterfaceMode,
+  interfaceMode = 'default', onChangeInterfaceMode,
   onSelect, onGameViewed,
   onAddManual, onOpenWizard, manualResting = false, onToggleManualRest, onOpenFeedback,
   onCreateCategory, onCategoryContext, onGameContext,
@@ -162,12 +166,12 @@ export default function Sidebar({
   // slider (independent of icon size). If null, it derives from rowSize
   // like before so the sliders still play nicely together.
   const derivedFont = Math.max(11, Math.min(16, Math.round(rowSize * 0.28)));
-  const size = {
+  const size = React.useMemo(() => ({
     id: rowSize < 32 ? 'small' : rowSize > 60 ? 'big' : 'medium',
     rowH: rowSize,
     icon: Math.max(14, Math.round(rowSize * 0.72)),
     font: Number.isFinite(nameTextSize) ? Math.max(9, Math.min(22, nameTextSize)) : derivedFont,
-  };
+  }), [rowSize, nameTextSize, derivedFont]);
   const [categoriesMenuOpen, setCategoriesMenuOpen] = React.useState(false);
   const [sortMenuOpen, setSortMenuOpen] = React.useState(false);
   const [libraryFiltersOpen, setLibraryFiltersOpen] = React.useState(false);
@@ -176,7 +180,7 @@ export default function Sidebar({
   const treeScrollRef = React.useRef(null);
   const isTools = mode === 'tools';
   const minimalistic = interfaceMode === 'minimalistic';
-  const sideNavigation = navigationLayout === 'sidebar';
+  const sideNavigation = true;
   const [selectionMode, setSelectionMode] = React.useState(false); const [selectedIds, setSelectedIds] = React.useState([]);
   // Never squeeze words into tiny, half-visible text. Compact states keep the
   // actions discoverable through their icons, titles and accessible names.
@@ -203,9 +207,8 @@ export default function Sidebar({
     return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', escape); };
   }, [categoriesMenuOpen, sortMenuOpen]);
 
-  // Library reference used by the PinnedStrip (it pulls full game objects by id).
-  // We keep it as a plain object since we only need it inside the render.
-  const library = { games };
+  // Selection, hover and toolbar changes must not rebuild/sort every shelf.
+  const { sections, flatGames, visibleIconGames, lockedPrivateSections, visiblePinnedGames } = React.useMemo(() => {
   const sortGames = (list) => {
     const stable = [...list].map((game, index) => ({ game, index }));
     const numeric = (value) => Number(value || 0);
@@ -275,6 +278,8 @@ export default function Sidebar({
   const visibleIconGames = sortGames(searchFilter(games).filter((game) => !(game.categoryIds || []).some((categoryId) => lockedPrivateIds.has(categoryId))));
   const lockedPrivateSections = sections.filter((section) => section.category.private && section.isGhost);
   const visiblePinnedGames = games.filter((game) => pinnedIdsSet.has(game.id) && !(game.categoryIds || []).some((categoryId) => lockedPrivateIds.has(categoryId)));
+  return { sections, flatGames, visibleIconGames, lockedPrivateSections, visiblePinnedGames };
+  }, [games, categories, gameOrderByCategory, unlockedCategories, search, isTools, librarySortMode, pinnedIdsSet]);
 
   return (
     <aside
@@ -298,7 +303,7 @@ export default function Sidebar({
           className="pointer-events-none absolute inset-0 z-0"
           style={{
             ...BG_TEXTURE_PATTERNS[bgTextureId],
-            opacity: Math.max(0, Math.min(100, Number(bgTextureOpacity) || 40)) / 100,
+            opacity: Math.max(0, Math.min(100, Number.isFinite(Number(bgTextureOpacity)) ? Number(bgTextureOpacity) : 40)) / 100,
           }}
           data-testid="sidebar-bg-texture"
         />
@@ -350,8 +355,6 @@ export default function Sidebar({
           onCheckForUpdates={onCheckForUpdates}
           onOpenFeedback={() => onOpenFeedback?.('feedback')}
           onQuit={onQuit}
-          sidebarEnabled={sideNavigation}
-          onToggleSidebar={(enabled) => onChangeNavigationLayout?.(enabled ? 'sidebar' : 'top')}
           minimalisticEnabled={interfaceMode === 'minimalistic'} onToggleMinimalistic={(enabled) => onChangeInterfaceMode?.(enabled ? 'minimalistic' : 'default')}
         />
         <TabPill decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} label="Home" icon={<Home size={15} />} showLabel={navLabelsVisible} active={mode === 'home'} onClick={() => { onSelect?.(null); onSetMode('home'); }} testid="tab-home" />
@@ -443,26 +446,25 @@ export default function Sidebar({
       {!isTools && minimalistic && !sideNavigation && <button type="button" data-testid="sidebar-minimalistic-filters" aria-expanded={libraryFiltersOpen} onClick={() => { setLibraryFiltersOpen((open) => !open); setSortMenuOpen(false); setCategoriesMenuOpen(false); }} className="mx-3 mb-2 inline-flex h-7 items-center rounded-md hairline px-2.5 text-[10px] font-semibold text-ink">{libraryFiltersOpen ? 'Hide filters' : 'Filters'}{(launcherFilter || 'all') !== 'all' || (librarySortMode || 'manual') !== 'manual' ? ' · Active' : ''}</button>}
       {!isTools && (!minimalistic || libraryFiltersOpen || sideNavigation) && (
         <div className="relative z-40 flex items-center gap-1 px-3 pb-2" data-testid="launcher-pane-row">
-          <LauncherDropdown
-            value={launcherFilter || 'all'}
-            onChange={(v) => onSetLauncherFilter?.(v)}
-            compact={compactFilters}
-          />
-          <div className={`library-filter-spacer ${compactFilters ? 'hidden' : 'flex-1 min-w-[6px]'}`} />
           <div ref={sortMenuRef} className="relative shrink-0">
             <button
               type="button"
               data-testid="sidebar-sort-menu"
               onClick={() => setSortMenuOpen((open) => !open)}
-              title={showCategories ? 'Sort games inside every visible category' : 'Sort all visible games'}
-              aria-label="Sort games"
-              className={`library-toolbar-control library-filter-control inline-flex shrink-0 items-center justify-center gap-1 rounded-md hairline h-7 text-[10px] transition-colors ${compactFilters ? 'w-7 p-0' : 'px-2'} ${sortMenuOpen || librarySortMode !== 'manual' ? 'border-[rgb(var(--accent)/0.72)] text-ink' : 'text-ink/85 hover:text-ink hover:border-[rgb(var(--accent)/0.62)]'}`}
+              title={launcherFilter !== 'all' ? 'Sort games · launcher filter active' : 'Sort games and filter launchers'}
+              aria-label={launcherFilter !== 'all' ? 'Sort games, launcher filter active' : 'Sort games and filter launchers'}
+              aria-expanded={sortMenuOpen}
+              className={`library-toolbar-control library-filter-control inline-flex shrink-0 items-center justify-center gap-1 rounded-md hairline h-7 text-[10px] transition-colors ${compactFilters ? 'w-7 p-0' : 'px-2'} ${sortMenuOpen || librarySortMode !== 'manual' || launcherFilter !== 'all' ? 'border-[rgb(var(--accent)/0.72)] text-ink' : 'text-ink/85 hover:text-ink hover:border-[rgb(var(--accent)/0.62)]'}`}
             >
               <ArrowDownUp size={compactFilters ? 14 : 10} />{!compactFilters && <span className="library-filter-text inline-flex items-center gap-1 whitespace-nowrap">Sort <ChevronDown size={10} className={sortMenuOpen ? 'rotate-180 transition-transform' : 'transition-transform'} /></span>}
             </button>
             <AnimatePresence>
               {sortMenuOpen && (
-                <motion.div initial={{ opacity: 0, y: -6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }} className="library-toolbar-popover absolute right-0 z-30 mt-1 w-52 rounded-lg hairline p-1.5 shadow-2xl">
+                <motion.div data-testid="sidebar-sort-options" initial={{ y: -6, scale: 0.98 }} animate={{ y: 0, scale: 1 }} exit={{ y: -6 }} transition={{ duration: 0.15 }} className="library-toolbar-popover absolute left-0 z-30 mt-1 max-h-[min(70dvh,560px)] w-52 overflow-y-auto overscroll-contain rounded-lg hairline p-1.5 shadow-2xl">
+                  <div data-testid="sidebar-sort-launcher-filter" className="mb-1 border-b border-[rgb(var(--border)/0.6)] px-2 py-2">
+                    <p className="mb-2 text-[9.5px] font-bold uppercase tracking-[0.16em] text-muted">Launchers</p>
+                    <LauncherDropdown value={launcherFilter || 'all'} onChange={value => onSetLauncherFilter?.(value)} embedded />
+                  </div>
                   <div className="px-2.5 py-1.5"><p className="text-[9.5px] font-bold uppercase tracking-[0.16em] text-muted">{showCategories ? 'Sort each category' : 'Sort all visible games'}</p></div>
                   {[
                     ['manual', 'Custom order', 'Keep your own drag order'],
@@ -710,23 +712,36 @@ const RAIL_GROUP_TONES = Object.freeze({
   exit: '238 145 159',
 });
 
-export function SideNavigationRail({ mode, libraryViewMode, onOpenHome, onOpenLibrary, onOpenWall, onOpenTools, onOpenWizard, manualResting, onToggleManualRest, onOpenThemes, onOpenMascot, onOpenVisuals, onOpenControllers, onOpenSettings, onOpenChangelog, onEnterLounge, onCheckForUpdates, onOpenFeedback, onQuit, onDisableSidebar, minimalisticEnabled, onToggleMinimalistic, addonsEnabled = false, addons = [], activeAddonId, onOpenAddon, onManageAddons, onOpenModules }) {
-  const [expanded, setExpanded] = React.useState(false);
+export function SideNavigationRail({ mode, libraryViewMode, onOpenHome, onOpenLibrary, onOpenWall, onOpenTools, onOpenWizard, manualResting, onToggleManualRest, onOpenThemes, onOpenMascot, onOpenVisuals, onOpenControllers, onOpenSettings, onOpenChangelog, onEnterLounge, onCheckForUpdates, onOpenFeedback, onQuit, minimalisticEnabled, onToggleMinimalistic, addonsEnabled = false, addons = [], activeAddonId, onOpenAddon, onManageAddons, onOpenModules, sidebarTweaks, onSidebarTweaksChange }) {
+  const [expandedState, setExpanded] = React.useState(false);
+  const preferences = normalizeSidebarTweaks(sidebarTweaks);
+  const geometry = sidebarButtonGeometry(preferences);
+  const [tweaksOpen, setTweaksOpen] = React.useState(false);
+  const expanded = sidebarIsExpanded(preferences, expandedState, tweaksOpen);
   const [openMenu, setOpenMenu] = React.useState(null);
+  const labels = useSidebarHoverLabel(preferences.mode === 'icons' && !openMenu && !tweaksOpen);
   const closeMenu = React.useCallback(() => setOpenMenu(null), []);
-  return <div className="relative z-50 h-full w-12 shrink-0" data-testid="side-navigation-slot"><nav
+  return <div className="relative z-50 h-full w-12 shrink-0" data-testid="side-navigation-slot" data-sidebar-preview={tweaksOpen || undefined} style={{ width: geometry.compact, '--sidebar-expanded-width': `${geometry.expanded}px` }}><nav
     data-testid="side-navigation-rail"
+    data-sidebar-expanded={expanded}
     aria-label="Primary navigation"
     onMouseEnter={() => setExpanded(true)}
-    onMouseLeave={() => { if (!openMenu) setExpanded(false); }}
-    onFocusCapture={() => setExpanded(true)}
-    onBlurCapture={(event) => { if (!openMenu && !event.currentTarget.contains(event.relatedTarget)) setExpanded(false); }}
+    onMouseLeave={() => { labels.clear(); if (!openMenu) setExpanded(false); }}
+    onMouseOver={labels.show}
+    onMouseOut={event => { if (event.target.closest?.('button') !== event.relatedTarget?.closest?.('button')) labels.clear(); }}
+    onScroll={labels.clear}
+    onFocusCapture={event => { setExpanded(true); labels.show(event); }}
+    onBlurCapture={(event) => { labels.clear(); if (!openMenu && !event.currentTarget.contains(event.relatedTarget)) setExpanded(false); }}
     onKeyDown={(event) => { if (event.key === 'Escape') setExpanded(false); }}
     className="absolute inset-y-0 left-0 z-50 flex flex-col overflow-x-hidden overflow-y-auto border-r border-[rgb(var(--border)/0.8)] bg-[rgb(var(--surface)/0.97)] px-1 py-2 shadow-[8px_0_24px_-20px_rgba(0,0,0,.95)] backdrop-blur-xl transition-[width,box-shadow] duration-200 ease-out motion-reduce:transition-none"
-    style={{ width: expanded ? 148 : 48 }}
+    style={{ width: expanded ? geometry.expanded : geometry.compact, padding: `${8 * geometry.scale}px ${4 * geometry.scale}px`, '--sidebar-button-scale': geometry.scale, '--sidebar-spacing': `${preferences.spacing}px`, '--sidebar-icon-size': `${preferences.iconSize * geometry.scale}px`, '--sidebar-saturation': preferences.saturation / 100 }}
   >
+    <SidebarButtonOrder order={preferences.order}>
     <RailSectionHeader label="Lounge" tone={RAIL_GROUP_TONES.lounge} expanded={expanded} testid="side-navigation-lounge-header" />
     <RailNavigationButton icon={<Tv2 size={21} />} label="Lounge" hint="Couch mode" tone={RAIL_GROUP_TONES.lounge} expanded={expanded} onClick={onEnterLounge} testid="sidebar-rail-lounge-btn" />
+    <div data-testid="sidebar-add-games-area" className="my-2 border-y border-[rgb(var(--border)/0.55)] py-2">
+      <RailNavigationButton icon={<Plus size={23} />} label="Add games" hint="Wizard" tone={RAIL_GROUP_TONES.tools} expanded={expanded} prominent onClick={onOpenWizard} testid="sidebar-rail-wizard-btn" />
+    </div>
     <RailSectionHeader label="Browse" tone={RAIL_GROUP_TONES.browse} expanded={expanded} testid="side-navigation-lounge-divider" />
     <RailNavigationButton icon={<Home size={21} />} label="Home" hint="Your dashboard" tone={RAIL_GROUP_TONES.browse} expanded={expanded} active={mode === 'home'} onClick={onOpenHome} testid="tab-home" />
     <RailNavigationButton icon={<LibIcon size={21} />} label="Library" hint="Browse games" tone={RAIL_GROUP_TONES.browse} expanded={expanded} active={mode === 'library' && libraryViewMode !== 'wall'} onClick={onOpenLibrary} testid="tab-library" />
@@ -737,15 +752,13 @@ export function SideNavigationRail({ mode, libraryViewMode, onOpenHome, onOpenLi
     </>}
     <RailSectionHeader label="Actions" tone={RAIL_GROUP_TONES.tools} expanded={expanded} testid="side-navigation-primary-divider" />
     <RailNavigationButton icon={<Boxes size={21} />} label="Tools" hint="Utilities" tone={RAIL_GROUP_TONES.tools} expanded={expanded} active={mode === 'tools'} onClick={onOpenTools} testid="tab-tools" />
-    <RailNavigationButton icon={<Wand2 size={21} />} label="Wizard" hint="Add games" tone={RAIL_GROUP_TONES.tools} expanded={expanded} onClick={onOpenWizard} testid="sidebar-rail-wizard-btn" />
-    <RailNavigationButton icon={manualResting ? <Sun size={21} /> : <Moon size={21} />} label={manualResting ? 'Wake up' : 'Rest Zzz'} hint={manualResting ? 'Resume activity' : 'Pause background'} tone={RAIL_GROUP_TONES.tools} expanded={expanded} active={manualResting} onClick={onToggleManualRest} testid="sidebar-rail-rest-toggle" />
     <RailSectionHeader label="Personalise" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} testid="side-navigation-personalise-divider" />
     <RailNavigationButton icon={<Boxes size={21} />} label="Modules" hint="Built-in and imported" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} onClick={onOpenModules} testid="sidebar-rail-modules-btn" />
     <RailActionFlyout icon={<Palette size={21} />} label="Visuals" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} testid="sidebar-rail-visuals-menu-btn" open={openMenu === 'visuals'} onToggle={() => setOpenMenu(value => value === 'visuals' ? null : 'visuals')} onClose={closeMenu} items={[
       { label: 'Theme', icon: <Palette size={16} />, action: onOpenThemes, testid: 'sidebar-rail-themes-btn' },
-      { label: 'Visual tweaks', icon: <SlidersHorizontal size={16} />, action: onOpenVisuals, testid: 'sidebar-rail-visuals-btn' },
+      { label: 'Library tweaks', icon: <SlidersHorizontal size={16} />, action: onOpenVisuals, testid: 'sidebar-rail-visuals-btn' },
+      { label: 'Sidebar tweaks', icon: <SlidersHorizontal size={16} />, action: () => setTweaksOpen(true), testid: 'sidebar-rail-sidebar-tweaks-btn' },
     ]} />
-    <RailNavigationButton icon={<PanelLeft size={21} />} label="Sidebar" hint="On · click to turn off" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} active onClick={onDisableSidebar} testid="sidebar-rail-sidebar-toggle" />
     <RailSectionHeader label="NEO-LIB" tone={RAIL_GROUP_TONES.app} expanded={expanded} testid="side-navigation-app-divider" />
     <RailActionFlyout icon={<Settings2 size={21} />} label="Settings" tone={RAIL_GROUP_TONES.app} expanded={expanded} testid="sidebar-rail-settings-menu-btn" open={openMenu === 'settings'} onToggle={() => setOpenMenu(value => value === 'settings' ? null : 'settings')} onClose={closeMenu} items={[
       { label: 'Settings', icon: <Settings2 size={16} />, action: onOpenSettings, testid: 'sidebar-rail-settings-btn' },
@@ -757,8 +770,10 @@ export function SideNavigationRail({ mode, libraryViewMode, onOpenHome, onOpenLi
     ]} />
     <RailNavigationButton icon={<Sparkles size={21} />} label="Patch notes" hint="What changed" tone={RAIL_GROUP_TONES.app} expanded={expanded} onClick={onOpenChangelog} testid="sidebar-rail-changelog-btn" />
     <RailSectionHeader label="Exit" tone={RAIL_GROUP_TONES.exit} expanded={expanded} testid="side-navigation-exit-divider" />
+    <RailNavigationButton icon={manualResting ? <Sun size={21} /> : <Moon size={21} />} label={manualResting ? 'Wake up' : 'Rest Zzz'} hint={manualResting ? 'Resume activity' : 'Pause background'} tone={RAIL_GROUP_TONES.tools} expanded={expanded} active={manualResting} onClick={onToggleManualRest} testid="sidebar-rail-rest-toggle" />
     <RailNavigationButton icon={<Power size={21} />} label="Quit" hint="Close NEO-LIB" tone={RAIL_GROUP_TONES.exit} expanded={expanded} onClick={onQuit} testid="sidebar-rail-quit-btn" />
-  </nav></div>;
+    </SidebarButtonOrder>
+  </nav>{labels.tooltip}<SidebarTweaks open={tweaksOpen} onClose={() => setTweaksOpen(false)} value={preferences} onChange={onSidebarTweaksChange} addons={addonsEnabled ? addons : []} /></div>;
 }
 
 function RailSectionHeader({ label, tone, expanded, testid }) {
@@ -768,7 +783,7 @@ function RailSectionHeader({ label, tone, expanded, testid }) {
   </h2>;
 }
 
-function RailNavigationButton({ icon, label, hint, tone, expanded, active, onClick, testid }) {
+function RailNavigationButton({ icon, label, hint, tone, expanded, active, onClick, testid, prominent = false }) {
   return <button
     type="button"
     data-testid={testid}
@@ -777,7 +792,7 @@ function RailNavigationButton({ icon, label, hint, tone, expanded, active, onCli
     aria-pressed={active}
     onClick={onClick}
     style={{ '--rail-color': tone }}
-    className={`neo-rail-button mb-1 flex h-10 w-full shrink-0 items-center overflow-hidden rounded-lg border text-left ${expanded ? 'justify-start gap-2.5 px-2' : 'justify-center gap-0 px-0'}`}
+    className={`neo-rail-button ${prominent ? 'neo-rail-button--primary h-12' : 'h-10'} mb-1 flex w-full shrink-0 items-center overflow-hidden rounded-lg border text-left ${expanded ? 'justify-start gap-2.5 px-2' : 'justify-center gap-0 px-0'}`}
   >
     <span className="neo-rail-button__icon grid h-6 w-6 shrink-0 place-items-center">{icon}</span>
     <span className={`min-w-0 overflow-hidden whitespace-nowrap transition-all ${expanded ? 'max-w-[104px] translate-x-0 opacity-100' : 'max-w-0 -translate-x-1 opacity-0'}`}>

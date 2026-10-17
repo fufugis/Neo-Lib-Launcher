@@ -5,8 +5,9 @@ import CustomThemeParticles from './CustomThemeParticles';
 import ThemeGifMedia from './ThemeGifMedia';
 import ThemeVideoMedia from './ThemeVideoMedia';
 import { softenDesktopArtwork } from '../themes/artwork-presentation.mjs';
+import { LIBRARY_GRAPHIC_PATTERNS } from './library/library-graphics.mjs';
 
-export function BgAmbience({ theme, settings = {}, game = null, resting = false, eventPulse = null, particlesEnabled = true, loungeMode = false }) {
+export const BgAmbience = React.memo(function BgAmbience({ theme, settings = {}, game = null, resting = false, eventPulse = null, particlesEnabled = true, loungeMode = false }) {
   // `synthGridEnabled` and `particlesEnabled` were retired legacy switches.
   // They could silently hide every modern FX layer after an upgrade, even when
   // the player selected Low–Max effects. Effects intensity is now the one
@@ -211,7 +212,7 @@ export function BgAmbience({ theme, settings = {}, game = null, resting = false,
       {edgeGlowLayer}
     </>
   );
-}
+});
 
 function ThemeCanvasAnimation({ theme, level, cadence }) {
   const layer = customThemeManifest(theme)?.layers?.canvas;
@@ -379,6 +380,7 @@ export function useBgTextureStyle(textureId = 'none', opacity = 40) {
   return React.useMemo(() => {
     if (!textureId || textureId === 'none' || opacity <= 0) return null;
     const patterns = {
+      ...LIBRARY_GRAPHIC_PATTERNS,
       grain: {
         backgroundImage:
           'radial-gradient(rgba(255,255,255,0.6) 1px, transparent 1px),' +

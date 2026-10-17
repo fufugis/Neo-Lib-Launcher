@@ -1,14 +1,17 @@
 import React from 'react';
 import { motion, useDragControls } from 'framer-motion';
-import { Bug, GripVertical, Lightbulb, MessageCircle, X } from 'lucide-react';
+import { Bug, GripVertical, Lightbulb, MessageCircle, MousePointer2, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { renderForegroundPortal } from '../ui/VisualBoundary';
 import { LIBRARY_FONT_OPTIONS } from './library-visual-model.mjs';
+import { LIBRARY_GRAPHICS, libraryGraphicStyle } from './library-graphics.mjs';
+import { CURSOR_OPTIONS, normalizeCursorTheme } from '../../lib/cursor-presets.mjs';
 
 /* Library visuals popover owns only presentation controls; Sidebar supplies all state. */
 export default function LibraryVisualsPopover({
   anchorEl,
   sidebarWidth = 320,
+  railWidth = 48,
   rowSize = 44, catTextSize = 11, catGlow = 40, iconPosition = 'left',
   rowGap = 2, catGap = 8, catTopGap = 4, categoryMarkerMode = 'dot',
   showSubcatStrip = true, nameTextSize = null,
@@ -16,7 +19,6 @@ export default function LibraryVisualsPopover({
   effectsLevel = 2, currentTheme = 'synthwave', motionCadence = 'full',
   bgTextureId = 'none', bgTextureOpacity = 12,
   cursorTheme = 'windows',
-  navigationLayout = 'top', onChangeNavigationLayout,
   onChangeRowSize, onChangeCatTextSize, onChangeCatGlow, onChangeIconPosition,
   onChangeRowGap, onChangeCatGap, onChangeCatTopGap, onChangeCategoryMarkerMode,
   onToggleSubcatStrip, onChangeNameTextSize,
@@ -34,7 +36,7 @@ export default function LibraryVisualsPopover({
   const dragControls = useDragControls();
   // Visuals now has three deliberate control lanes on a desktop-sized window.
   // Keep its dimensions in one place so anchoring and drag bounds agree.
-  const libraryRight = sidebarWidth + (navigationLayout === 'sidebar' ? 48 : 0);
+  const libraryRight = sidebarWidth + railWidth;
   const availableRight = Math.max(0, window.innerWidth - libraryRight - 24);
   const opensBesideLibrary = availableRight >= 300;
   const popoverWidth = Math.min(960, Math.max(280, opensBesideLibrary ? availableRight : window.innerWidth - 32));
@@ -103,22 +105,14 @@ export default function LibraryVisualsPopover({
         className="cursor-move -mt-1 -mx-1 mb-2 px-2 py-1 text-[10px] uppercase tracking-[0.22em] text-[rgb(var(--accent))] flex items-center gap-1.5 select-none border-b border-[rgb(var(--border))]/60 font-bold"
         title="Drag to move"
       >
-        <GripVertical size={10} /> Visuals
-        <button type="button" data-testid="visuals-close" onPointerDown={(event) => event.stopPropagation()} onClick={onClose} aria-label="Close Visuals" title="Close Visuals" className="ml-auto grid h-7 w-7 place-items-center rounded-md border border-[rgb(var(--border))] text-ink hover:border-[rgb(var(--accent))]"><X size={16} /></button>
+        <GripVertical size={10} /> Library tweaks
+        <button type="button" data-testid="visuals-close" onPointerDown={(event) => event.stopPropagation()} onClick={onClose} aria-label="Close Library tweaks" title="Close Library tweaks" className="ml-auto grid h-7 w-7 place-items-center rounded-md border border-[rgb(var(--border))] text-ink hover:border-[rgb(var(--accent))]"><X size={16} /></button>
       </div>
       {/* Three clear lanes replace the tall masonry list. The solid heading on
           each group makes the current control family obvious at a glance. */}
       <div className="visuals-grid">
       <div className="space-y-3">
-        <VisualGroup title="Navigation">
-          <div>
-            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-muted">Menu position</div>
-            <div className="grid grid-cols-2 gap-1" data-testid="pop-navigation-layout">
-              {[['top', 'Default top'], ['sidebar', 'Sidebar']].map(([value, label]) => <button key={value} type="button" onClick={() => onChangeNavigationLayout?.(value)} aria-pressed={navigationLayout === value} className={cn('rounded-md hairline py-1.5 text-[11px] font-bold transition-colors', navigationLayout === value ? 'border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.12)] text-ink' : 'text-muted hover:text-ink hover:border-[rgb(var(--accent)/0.4)]')}>{label}</button>)}
-            </div>
-            <p className="mt-1.5 text-[9.5px] leading-relaxed text-muted">Sidebar keeps icons beside the Library and expands its labels only while you hover it.</p>
-          </div>
-        </VisualGroup><VisualGroup title="Library view">
+        <VisualGroup title="Library view">
           <div className="grid grid-cols-2 gap-1" data-testid="pop-library-view-mode">
             {[
               { active: !libraryIconMode, label: 'Standard' },
@@ -315,18 +309,13 @@ function DiscretePopSlider({ label, labels, value, onChange, testid }) {
   return <div className="rounded-md hairline bg-surface/40 px-2.5 py-2"><div className="mb-1 flex items-center justify-between"><div className="text-[11px] text-ink/90">{label}</div><div className="text-[10.5px] font-bold text-[rgb(var(--accent-2))]">{labels[safeValue]}</div></div><input type="range" data-testid={testid} min={0} max={labels.length - 1} step={1} value={safeValue} onChange={(event) => onChange?.(Number(event.target.value))} className="w-full accent-[rgb(var(--accent))]" /><div className="mt-1 flex justify-between text-[8px] uppercase tracking-wider text-muted/75">{labels.map((item) => <span key={item}>{item}</span>)}</div></div>;
 }
 
-const CURSOR_OPTIONS = [
-  { id: 'windows', label: 'Windows' },
-  { id: 'neon', label: 'Neon' },
-  { id: 'petal', label: 'Petal' },
-  { id: 'pixel', label: 'Pixel' },
-];
 function CursorPicker({ value = 'windows', onChange }) {
+  const selected = normalizeCursorTheme(value);
   return <div className="rounded-md hairline bg-panel/40 p-2.5" data-testid="visual-cursor-picker">
     <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-muted">App cursor</div>
     <p className="mb-2 text-[9.5px] leading-relaxed text-muted">Choose a cursor for NEO-LIB only. Windows keeps the familiar system pointer.</p>
     <div className="grid grid-cols-2 gap-1">
-      {CURSOR_OPTIONS.map((option) => <button key={option.id} type="button" data-testid={`visual-cursor-${option.id}`} onClick={() => onChange?.(option.id)} className={cn('rounded-md hairline px-2 py-1.5 text-[10px] font-bold transition-colors', value === option.id ? 'border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.12)] text-ink' : 'text-muted hover:border-[rgb(var(--accent)/0.42)] hover:text-ink')}>{option.label}</button>)}
+      {CURSOR_OPTIONS.map((option) => <button key={option.id} type="button" data-testid={`visual-cursor-${option.id}`} aria-pressed={selected === option.id} title={option.description} onClick={() => onChange?.(option.id)} className={cn('flex min-w-0 items-center gap-2 rounded-md hairline px-2 py-1.5 text-left text-[10px] font-bold transition-colors', selected === option.id ? 'border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--accent)/0.12)] text-ink' : 'text-muted hover:border-[rgb(var(--accent)/0.42)] hover:text-ink')}><span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded bg-[rgb(var(--surface)/0.8)]">{option.preview ? <img src={option.preview} alt="" width="32" height="32" draggable={false} /> : <MousePointer2 size={24} />}</span><span className="min-w-0 break-words">{option.label}</span></button>)}
     </div>
   </div>;
 }
@@ -345,16 +334,19 @@ export const BG_TEXTURES = [
   { id: 'weave',     label: 'Weave' },
   { id: 'brushed',    label: 'Brushed' },
   { id: 'stardust',  label: 'Stardust' },
+  ...LIBRARY_GRAPHICS,
 ];
 function BgTexturePicker({ textureId = 'none', opacity = 12, onChange, onChangeOpacity }) {
   return (
     <div className="rounded-md hairline bg-panel/40 p-2.5 space-y-2" data-testid="pop-bg-texture">
-      <div className="text-[10px] uppercase tracking-wider text-muted">Background texture</div>
+      <div className="text-[10px] uppercase tracking-wider text-muted">Background textures &amp; 3D graphics</div>
       <div className="grid grid-cols-3 gap-1.5">
         {BG_TEXTURES.map((t) => {
           const active = textureId === t.id;
           return (
             <button
+              type="button"
+              aria-pressed={active}
               key={t.id}
               onClick={() => onChange && onChange(t.id)}
               data-testid={`bg-tex-${t.id}`}
@@ -370,7 +362,7 @@ function BgTexturePicker({ textureId = 'none', opacity = 12, onChange, onChangeO
                 className="absolute inset-0"
                 style={{
                   background: 'rgb(var(--panel))',
-                  ...bgTexturePreview(t.id),
+                  ...(t.art ? libraryGraphicStyle(t.id, true) : bgTexturePreview(t.id)),
                 }}
               />
               <span
@@ -381,7 +373,7 @@ function BgTexturePicker({ textureId = 'none', opacity = 12, onChange, onChangeO
                   textAlign: 'center',
                 }}
               >
-                {t.label}
+                {t.label}{t.art && <span className="ml-1 text-[8px] text-[rgb(var(--accent-2))]">{t.fullHeight ? 'Full-height' : '3D'}</span>}
               </span>
             </button>
           );
@@ -390,7 +382,7 @@ function BgTexturePicker({ textureId = 'none', opacity = 12, onChange, onChangeO
       {textureId !== 'none' && (
         <div>
           <div className="mb-1 flex items-center justify-between">
-            <div className="text-[11px] text-ink/90">Texture opacity</div>
+            <div className="text-[11px] text-ink/90">Background opacity</div>
             <div className="text-[10.5px] text-[rgb(var(--accent-2))]">{opacity}%</div>
           </div>
           <input

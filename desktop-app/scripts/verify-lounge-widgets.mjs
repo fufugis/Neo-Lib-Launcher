@@ -75,7 +75,9 @@ for (const shelfPosition of ['bottom', 'left']) {
 }
 const settings = fs.readFileSync('src/components/lounge/LoungeSettingsPanel.jsx', 'utf8');
 assert(settings.includes('widgetHeightMax * percent / 100') && settings.includes('300 - percent * 6'));
-assert(settings.includes('Hero and widget opacity" value={preferences.previewPanelOpacity} min={20}'));
+const visuals = fs.readFileSync(new URL('../src/components/lounge/LoungeVisualBuilder.jsx', import.meta.url), 'utf8');
+assert(visuals.includes('Hero and widget opacity" value={preferences.previewPanelOpacity} min={20}'));
+assert(settings.includes('Visuals → Opacity & surfaces'), 'settings points to the single opacity category');
 const home = fs.readFileSync('src/components/HomeHub.jsx', 'utf8');
 for (const gate of ['!needsNews', '!needsReleases', '!needsUpdates', 'if (embedded) return']) assert(home.includes(gate));
 const area = fs.readFileSync('src/components/lounge/LoungeWidgetArea.jsx', 'utf8');
@@ -96,7 +98,8 @@ const lowerWidgets = loungePanelRects(1920, 850, { ...heroOnly, previewPosition:
 assert.equal(lowerWidgets.top + lowerWidgets.height, 834, 'side widgets can use ordinary-card clearance too');
 const lounge = fs.readFileSync('src/components/lounge/NeoLounge.jsx', 'utf8');
 const preview = fs.readFileSync('src/components/lounge/LoungePanelPreview.jsx', 'utf8');
-for (const source of [lounge, preview]) assert(source.includes("preferences.specialTheme !== 'theme' || preferences.widgetAreaEnabled"), 'scene hero uses bounded composition even with widgets disabled, including mini preview');
+assert(lounge.includes('{<LoungeWidgetArea') && !lounge.includes(': <LoungeBrowserStage'), 'all themes use bounded cover/info hero composition, with or without widgets');
+assert(preview.includes("preferences.specialTheme !== 'theme' || preferences.widgetAreaEnabled"), 'legacy miniature helper keeps bounded scene geometry');
 for (const shelfPosition of ['left', 'right', 'top', 'bottom']) {
   for (const previewPosition of loungePanelPositions(shelfPosition)) {
     let previousTop = Infinity;

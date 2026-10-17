@@ -28,6 +28,7 @@ import PlaytimeImportModal from '../PlaytimeImportModal';
 import RefreshCandidatesModal from '../RefreshCandidatesModal';
 import TroubleshootModal from '../TroubleshootModal';
 import TutorialModal from '../TutorialModal';
+import WelcomeModal from '../WelcomeModal';
 import AutoSortModal from '../AutoSortModal';
 import DonateModal from '../DonateModal';
 import LauncherDetectModal from '../LauncherDetectModal';
@@ -85,6 +86,15 @@ export default function AppModalLayer({ context }) {
     launchDoctorGame,
     setLaunchDoctorGame,
     changelogOpen,
+    firstRunPhase,
+    improveNeolib,
+    setImproveNeolib,
+    welcomeBusy,
+    welcomeError,
+    chooseFirstRun,
+    startFirstRunTutorial,
+    closeStartupNotes,
+    closeStartupTutorial,
     updateSetting,
     catModal,
     setCatModal,
@@ -245,17 +255,12 @@ export default function AppModalLayer({ context }) {
         }}
       />
       <ChangelogModal
+        key="startup-notes"
         open={changelogOpen}
         currentVersion={appVersion}
         lastSeenVersion={settings.lastSeenVersion}
         theme={settings.theme}
-        onClose={() => {
-          setChangelogOpen(false);
-          // Persist so we don't show it again for this version
-          if (settings.lastSeenVersion !== appVersion) {
-            updateSetting({ lastSeenVersion: appVersion });
-          }
-        }}
+        onClose={closeStartupNotes}
       />
       <CategoryModal
         open={catModal.open}
@@ -527,7 +532,7 @@ export default function AppModalLayer({ context }) {
         voiceEnabled={settings.fungistEnabled !== false && settings.fungistVoiceEnabled !== false}
         voiceVolume={settings.fungistVoiceVolume ?? 72}
         onNavigate={navigateTutorial}
-        onClose={() => { setTutorialVisualsOpen(false); setTutorialOpen(false); }}
+        onClose={closeStartupTutorial}
         onDontShowAgain={() => {
           updateSetting({ tutorialSeen: true, tutorialAlwaysShow: false });
           if (!isElectron && typeof localStorage !== 'undefined') {
@@ -535,6 +540,8 @@ export default function AppModalLayer({ context }) {
           }
         }}
       />
+
+      <WelcomeModal open={firstRunPhase === 'welcome'} improve={improveNeolib} onImprove={setImproveNeolib} busy={welcomeBusy} error={welcomeError} onChoose={chooseFirstRun} onTutorial={startFirstRunTutorial} />
 
       <AutoSortModal
         open={autoSortOpen}

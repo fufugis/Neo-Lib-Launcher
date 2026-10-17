@@ -75,6 +75,7 @@ jobs:
           NEOLIB_FEEDBACK_RELAY_URL: ${{ secrets.NEOLIB_FEEDBACK_RELAY_URL }}
           NEOLIB_FEEDBACK_RELAY_KEY: ${{ secrets.NEOLIB_FEEDBACK_RELAY_KEY }}
           NEOLIB_DISCORD_APP_ID: ${{ secrets.NEOLIB_DISCORD_APP_ID }}
+          VITE_USAGE_ENDPOINT: https://neolib-optional-usage.kennethnordsveen.workers.dev/events
         run: |
           try {
             node scripts/prepare-release-config.cjs
@@ -155,7 +156,26 @@ jobs:
             desktop-app/dist/release-candidate-v*.json
             desktop-app/dist/SHA256SUMS-v*.txt
           fail_on_unmatched_files: true
+          draft: true
+          prerelease: false
           generate_release_notes: false
-          body_path: RELEASE_NOTES_v1.8.6.md
+          body_path: RELEASE_NOTES_v1.8.7.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish only after all release assets are uploaded
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $version = node -p "require('./package.json').version"
+          $release = gh release view "$env:GITHUB_REF_NAME" --repo "$env:GITHUB_REPOSITORY" --json assets | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Could not inspect uploaded release assets.' }
+          $required = @('NEO-LIB-Setup.exe', 'NEO-LIB-windows-portable.zip', "release-candidate-v$version.json", "SHA256SUMS-v$version.txt")
+          foreach ($name in $required) {
+            $asset = @($release.assets | Where-Object { $_.name -eq $name })
+            if ($asset.Count -ne 1 -or $asset[0].size -le 0) { throw "Missing or empty release asset: $name" }
+          }
+          gh release edit "$env:GITHUB_REF_NAME" --repo "$env:GITHUB_REPOSITORY" --draft=false --latest
+          if ($LASTEXITCODE -ne 0) { throw 'Release remained unpublished because publishing failed.' }

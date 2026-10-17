@@ -41,7 +41,7 @@ export default function ThemeStudioModal({ open, onClose, settings, setSettings,
     <div className="p-5">
       <div className="mb-5 flex items-start gap-3 rounded-xl border border-[rgb(var(--accent)/0.24)] bg-[rgb(var(--accent)/0.055)] p-3">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[rgb(var(--accent)/0.13)] text-[rgb(var(--accent))]"><Palette size={18} /></span>
-        <div><p className="text-[12px] font-black text-ink">Choose NEO-LIB's atmosphere</p><p className="mt-0.5 text-[10px] leading-relaxed text-muted">Themes change the overall colour, ambience and Special artwork. Use Visual Tweaks from the NEO-LIB menu for typography, layout, texture, motion and effect strength.</p></div>
+        <div><p className="text-[12px] font-black text-ink">Choose NEO-LIB's atmosphere</p><p className="mt-0.5 text-[10px] leading-relaxed text-muted">Themes change the overall colour, ambience and Special artwork. Use Library tweaks from the NEO-LIB menu for typography, layout, texture, motion and effect strength.</p></div>
       </div>
       <div className="grid max-w-full gap-3 overflow-x-auto pb-1" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 148px))' }} data-testid="theme-picker-columns">
         {THEME_GROUPS.map((group) => <div key={group.tone} className="flex flex-col gap-1.5">

@@ -1,75 +1,75 @@
 {
   "schemaVersion": 1,
   "id": "gaming",
-  "name": "Gaming",
+  "name": "Ember",
   "tone": "middle",
   "palette": {
     "ink": [
-      240,
-      245,
-      255
+      255,
+      242,
+      228
     ],
     "muted": [
-      190,
-      201,
-      229
+      223,
+      204,
+      183
     ],
     "accent": [
-      184,
-      137,
-      255
+      235,
+      175,
+      118
     ],
     "accent2": [
-      114,
-      214,
-      255
+      255,
+      204,
+      160
     ],
     "accentSoft": [
-      169,
-      135,
-      236
+      217,
+      151,
+      100
     ],
     "hairlineGlow": [
-      184,
-      137,
-      255
+      235,
+      175,
+      118
     ],
     "grad1": [
-      45,
-      49,
-      91
+      43,
+      28,
+      20
     ],
     "grad2": [
-      66,
-      73,
-      122
+      68,
+      46,
+      32
     ],
     "accentText": [
-      184,
-      137,
-      255
+      240,
+      185,
+      136
     ],
     "accent2Text": [
-      114,
-      214,
-      255
+      255,
+      216,
+      181
     ]
   },
   "panels": {
     "surface": [
-      56,
-      61,
-      104
+      64,
+      44,
+      32
     ],
     "panel": [
-      75,
-      82,
-      133
+      74,
+      51,
+      36
     ],
     "border": [
-      122,
-      136,
-      194
+      162,
+      120,
+      87
     ]
   },
   "layers": {
@@ -81,13 +81,13 @@
     },
     "atmosphere": {
       "type": "image",
-      "asset": "assets/gaming-atmosphere.png",
-      "opacity": 0.5
+      "asset": "assets/ember-atmosphere.webp",
+      "opacity": 0.32
     },
     "sidebar": {
       "type": "image",
-      "asset": "assets/gaming-atmosphere.png",
-      "opacity": 0.18
+      "asset": "assets/ember-atmosphere.webp",
+      "opacity": 0.12
     },
     "decoration": {
       "type": "none"

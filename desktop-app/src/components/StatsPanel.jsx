@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { playtimeSource } from '../lib/utils';
+import { statisticsGames, isRomGame, recordedMinutesInPeriod } from '../lib/emulator-profile-model.mjs';
 
 /**
  * StatsPanel — a "stats & connected clients" side panel that pops up next
@@ -23,6 +24,7 @@ import { playtimeSource } from '../lib/utils';
  */
 
 const CLIENT_META = {
+  emulation:  { label: 'ROMs', color: '#a78bfa' },
   steam:      { label: 'Steam',      color: '#66c0f4' },
   gog:        { label: 'GOG',        color: '#c599ff' },
   itch:       { label: 'itch.io',    color: '#ff6494' },
@@ -36,6 +38,7 @@ const CLIENT_META = {
 };
 
 function clientOf(g) {
+  if (isRomGame(g)) return 'emulation';
   // Explicit `source` field always wins (Steam scanner/GOG scanner set this).
   // Only fall back to heuristics when source is truly missing (e.g. legacy
   // demo entries). v1.2.10 — no longer classifies "any game with an appid"
@@ -76,6 +79,7 @@ const RANGE_META = {
 };
 
 export default function StatsPanel({ games = [], onClose, anchorSelector, onOpenImportPreview }) {
+  const [excludeRoms, setExcludeRoms] = useState(false);
   const [range, setRange] = useState('all');
   const [importState, setImportState] = useState({ loading: false, error: '', count: 0, accounts: 0, at: 0 });
   const [steamPlaytime, setSteamPlaytime] = useState({}); // appid -> { playtime, lastPlayed }
@@ -125,8 +129,9 @@ export default function StatsPanel({ games = [], onClose, anchorSelector, onOpen
   // preview time based on Steam's own ownership signals). Manual overrides
   // (playtimeManual) always win — never overwritten.
   const mergedGames = useMemo(() => {
-    return games.map((g) => {
+    return statisticsGames(games, excludeRoms).map((g) => {
       if (g.playtimeManual) return g;
+      if (isRomGame(g)) return g;
       if (g.steamOwned !== true) return g;
       const steam = steamPlaytime[String(g.appid || '')];
       if (!steam) return g;
@@ -136,7 +141,7 @@ export default function StatsPanel({ games = [], onClose, anchorSelector, onOpen
         lastPlayedAt: Math.max(Number(g.lastPlayedAt || 0), Number(steam.lastPlayed || 0)),
       };
     });
-  }, [games, steamPlaytime]);
+  }, [games, steamPlaytime, excludeRoms]);
 
   const [anchorPos, setAnchorPos] = useState(() => {
     if (typeof document === 'undefined' || !anchorSelector) return { top: 76, left: 260 };
@@ -173,7 +178,7 @@ export default function StatsPanel({ games = [], onClose, anchorSelector, onOpen
     return mergedGames
       .map((g) => {
         const appid = g.appid ? String(g.appid) : null;
-        const deltaMins = appid && historyDeltas[appid] ? Number(historyDeltas[appid]) : 0;
+        const deltaMins = isRomGame(g) ? recordedMinutesInPeriod(g, RANGE_META[range].days) : appid && historyDeltas[appid] ? Number(historyDeltas[appid]) : recordedMinutesInPeriod(g, RANGE_META[range].days);
         // Non-Steam games: no snapshot exists, but if lastPlayedAt is within
         // the range, we can't compute a delta — show 0 rather than the full
         // lifetime total so the ranking stays honest.
@@ -306,6 +311,7 @@ export default function StatsPanel({ games = [], onClose, anchorSelector, onOpen
           <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-5">
             {/* Range chips */}
             <div className="flex flex-wrap gap-1.5" data-testid="stats-range-chips">
+              <button type="button" aria-pressed={excludeRoms} onClick={() => setExcludeRoms(value => !value)} className="rounded-full hairline px-3 py-1 text-xs">{excludeRoms ? '✓ ' : ''}Exclude ROMs</button>
               {Object.entries(RANGE_META).map(([key, meta]) => {
                 const active = range === key;
                 return (

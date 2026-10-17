@@ -2,7 +2,7 @@ import React from 'react';
 import { ArrowRight, ChevronDown, Images, Palette, Sparkles, X } from 'lucide-react';
 import { THEMES } from '../../lib/utils.js';
 import { customThemeList, stockThemeAssetUrl } from '../../themes/stock-theme-registry.mjs';
-import { applyLoungeDesktopTheme, applyLoungePreset, applyLoungeScene, applyLoungeVisualPreset, LOUNGE_PRESETS, LOUNGE_SCENES, LOUNGE_VISUAL_PRESETS } from './lounge-layout-model.mjs';
+import { applyLoungeBackground, normalizeLoungeBackgrounds, loungeBackgroundMediaKind, applyLoungeDesktopTheme, applyLoungePreset, applyLoungeScene, applyLoungeVisualPreset, LOUNGE_PRESETS, LOUNGE_SCENES, LOUNGE_VISUAL_PRESETS } from './lounge-layout-model.mjs';
 import { normalizeLoungeSavedPresets } from './lounge-saved-presets.mjs';
 import { loungeSceneArt } from './lounge-scene-art.mjs';
 import useDraggablePanel from './use-draggable-panel';
@@ -24,9 +24,10 @@ export default function LoungeThemeGallery({ preferences, layout, savedPresets =
   const [showDesktopThemes, setShowDesktopThemes] = React.useState(Boolean(preferences.desktopThemeOverride));
   const installedCustomThemes = customThemeList().map(manifest => ({ id: `custom:${manifest.id}`, label: manifest.name || manifest.label || manifest.id, gradient: customGradient(manifest), tone: 'Your themes' }));
   const desktopThemes = [...THEMES, ...installedCustomThemes];
-  const activeOverride = preferences.specialTheme === 'theme' ? preferences.desktopThemeOverride : '';
+  const customBackgrounds = normalizeLoungeBackgrounds(preferences.customBackgrounds, preferences.backgroundUrl);
+  const activeOverride = preferences.backdropMode !== 'image' && preferences.specialTheme === 'theme' ? preferences.desktopThemeOverride : '';
   const missingOverride = activeOverride && !desktopThemes.some(item => item.id === activeOverride);
-  const followingDesktop = preferences.specialTheme === 'theme' && !activeOverride;
+  const followingDesktop = preferences.backdropMode !== 'image' && preferences.specialTheme === 'theme' && !activeOverride;
   React.useEffect(() => { closeRef.current?.focus(); }, []);
   const savePreset = () => {
     const name = presetName.trim();
@@ -36,9 +37,12 @@ export default function LoungeThemeGallery({ preferences, layout, savedPresets =
     onSavedPresetsChange(normalizeLoungeSavedPresets([...savedPresets, preset]));
     setPresetName(''); setPresetError('Saved. Private-game access is never included.');
   };
-  const usePreset = preset => { onChange(preset.preferences); onLayoutChange(preset.layout); };
+  const usePreset = preset => {
+    const customBackgrounds = normalizeLoungeBackgrounds([...(preferences.customBackgrounds || []), ...(preset.preferences.customBackgrounds || [])], preferences.backgroundUrl);
+    onChange({ ...preset.preferences, customBackgrounds }); onLayoutChange(preset.layout);
+  };
   const exportPreset = preset => {
-    const portable = { ...preset, preferences: { ...preset.preferences, backgroundUrl: '', ambienceCustomUrl: '', showPrivateGamesInLounge: false } };
+    const portable = { ...preset, preferences: { ...preset.preferences, backgroundUrl: '', customBackgrounds: [], ambienceCustomUrl: '', showPrivateGamesInLounge: false } };
     if (portable.preferences.backdropMode === 'image') portable.preferences.backdropMode = 'theme';
     if (portable.preferences.ambienceTrack === 'custom') portable.preferences.ambienceTrack = 'none';
     const url = URL.createObjectURL(new Blob([JSON.stringify({ format: 'neo-lib-lounge-preset', version: 1, preset: portable }, null, 2)], { type: 'application/json' }));
@@ -52,7 +56,7 @@ export default function LoungeThemeGallery({ preferences, layout, savedPresets =
     try {
       const data = JSON.parse(await file.text());
       if (data?.format !== 'neo-lib-lounge-preset' || data?.version !== 1 || !data.preset) throw new Error('Invalid preset');
-      const importedPreferences = { ...data.preset.preferences, backgroundUrl: '', ambienceCustomUrl: '', showPrivateGamesInLounge: false };
+      const importedPreferences = { ...data.preset.preferences, backgroundUrl: '', customBackgrounds: [], ambienceCustomUrl: '', showPrivateGamesInLounge: false };
       if (importedPreferences.backdropMode === 'image') importedPreferences.backdropMode = 'theme';
       if (importedPreferences.ambienceTrack === 'custom') importedPreferences.ambienceTrack = 'none';
       const parsed = normalizeLoungeSavedPresets([{ ...data.preset, preferences: importedPreferences, id: `import-${Date.now()}` }]);
@@ -85,8 +89,19 @@ export default function LoungeThemeGallery({ preferences, layout, savedPresets =
             </button>;
           })}</div>
         </section>}
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">{Object.entries(LOUNGE_SCENES).map(([id, scene]) => {
-          const active = id === 'theme' ? followingDesktop : preferences.specialTheme === id;
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        {customBackgrounds.map(background => {
+          const active = preferences.backdropMode === 'image' && preferences.backgroundUrl === background.url;
+          return <button key={background.url} type="button" aria-pressed={active} aria-label={`Use ${background.name} in Lounge`} onClick={() => onChange(applyLoungeBackground(preferences, background))} className={`lounge-visual-choice overflow-hidden rounded-2xl border text-left ${active ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent)/0.18)]' : 'border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)]'}`}>
+            <span className="relative block h-36 overflow-hidden bg-[rgb(var(--panel))]">
+              {loungeBackgroundMediaKind(background.url) === 'video' ? <video src={background.url} muted playsInline preload="metadata" className="pointer-events-none h-full w-full object-cover" /> : <img src={background.url} alt="" loading="lazy" className="h-full w-full object-cover" />}
+              <span className="absolute left-3 top-3 rounded-full bg-black/75 px-3 py-1 text-xs font-bold text-white">Custom</span>
+              {active && <span className="absolute right-3 top-3 rounded-full bg-black/75 px-3 py-1 text-xs font-bold text-white">Active</span>}
+            </span><span className="block p-4"><strong className="block truncate text-base">{background.name}</strong><small className="mt-1 block text-xs text-muted">Your background · customize effects in Visuals</small></span>
+          </button>;
+        })}
+        {Object.entries(LOUNGE_SCENES).map(([id, scene]) => {
+          const active = preferences.backdropMode !== 'image' && (id === 'theme' ? followingDesktop : preferences.specialTheme === id);
           return <div key={id} className={`relative overflow-hidden rounded-2xl border ${active ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent)/0.18)]' : 'border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)]'}`}>
             <button type="button" aria-pressed={active} onClick={() => onChange(applyLoungeScene(preferences, id))} className="lounge-visual-choice block w-full text-left focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-[-3px] focus-visible:outline-[rgb(var(--accent))]"><span className="relative block h-36 bg-[rgb(var(--panel))] bg-cover bg-center" style={loungeSceneArt(id) ? { backgroundImage: `url(${JSON.stringify(loungeSceneArt(id))})` } : { backgroundImage: 'linear-gradient(130deg, rgb(var(--grad-1)), rgb(var(--accent) / 0.32), rgb(var(--grad-2)))' }}>{active && <span className={`absolute top-3 rounded-full border border-white/60 bg-black/70 px-3 py-1 text-xs font-black text-white ${id === 'theme' ? 'left-3' : 'right-3'}`}>Active</span>}</span><span className="block p-4"><strong className="block text-base">{scene.label}</strong><small className="mt-1 block text-xs text-muted">{scene.note}</small></span></button>
             {id === 'theme' && <button type="button" aria-expanded={showDesktopThemes} aria-controls="lounge-desktop-theme-picker" onClick={() => setShowDesktopThemes(value => !value)} className="lounge-visual-choice absolute right-3 top-3 inline-flex min-h-10 items-center gap-1 rounded-lg border border-white/55 bg-black/75 px-3 text-xs font-black text-white shadow-lg focus-visible:outline focus-visible:outline-3 focus-visible:outline-white"><Palette size={15} /> {showDesktopThemes ? 'Hide Desktop Themes' : 'Show Desktop Themes'} <ChevronDown size={14} className={showDesktopThemes ? 'rotate-180' : ''} /></button>}

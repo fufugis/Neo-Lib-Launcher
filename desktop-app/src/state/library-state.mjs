@@ -1,3 +1,5 @@
+import { sessionResult } from './playtime-state.mjs';
+
 export const EMPTY_LIBRARY = Object.freeze({
   games: [], categories: [], gameOrderByCategory: {},
   tools: [], toolCategories: [], toolOrderByCategory: {},
@@ -120,11 +122,10 @@ export function reorderWorkspaceItem(library, mode, categoryId, fromId, beforeId
 }
 
 export function applyGameSession(library, gameId, seconds, now = Date.now()) {
-  const minutes = Math.max(0, Number(seconds) || 0) / 60;
   return {
     ...library,
     games: (library.games || []).map((game) => game.id === gameId
-      ? { ...game, playtime: (Number(game.playtime) || 0) + minutes, lastPlayedAt: now }
+      ? { ...game, ...sessionResult(game, seconds, now).patch }
       : game),
   };
 }

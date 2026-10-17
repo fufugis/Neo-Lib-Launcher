@@ -74,7 +74,7 @@ for (const required of ['data-testid="news-mail-button"', 'data-testid="news-pop
   else assert(ui.includes(required), `News wiring missing ${required}`);
 }
 assert(ui.indexOf('localStorage.setItem') < ui.indexOf('current.current = next'), 'failed persistence cannot pretend to commit');
-assert(source('../src/App.jsx').includes('newsPaused={gameRestActive || lounge.active}'));
+assert(source('../src/App.jsx').includes("newsPaused={gameRestActive || lounge.active || firstRunPhase !== 'ready'}"));
 assert(source('../src/components/TitleBar.jsx').includes('<NewsInbox paused={newsPaused} settings={newsSettings} />'));
 assert(source('../src/App.jsx').includes('newsSettings={settings}'));
 assert(ui.includes('if (now < startupNotBefore.current)') && ui.includes('Date.now() < startupNotBefore.current ||'), 'network events and cached pending popups cannot bypass the startup delay');

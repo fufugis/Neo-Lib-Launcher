@@ -2,6 +2,7 @@ import { DEFAULT_LOUNGE_SAMPLES, normalizeLoungeSamples } from './lounge-sample-
 import { LOUNGE_EXTRA_PARTICLES, LOUNGE_PARTICLE_COLORS } from './lounge-particle-presets.mjs';
 import { THEMES } from '../../lib/utils.js';
 import { HOME_WIDGET_BY_ID } from '../home/home-widget-registry.mjs';
+import { normalizeCalendarPreferences } from '../home/playtime-calendar-model.mjs';
 import { resolveLoungePanelPositions } from './lounge-widget-layout.mjs';
 import { LOUNGE_EFFECTS, normalizeLoungeEffects } from './lounge-effect-model.mjs';
 import { normalizeHiddenLoungeConsoles } from './lounge-emulator-zone.mjs';
@@ -118,6 +119,7 @@ export const DEFAULT_LOUNGE_PREFERENCES = Object.freeze({
   quickLinks: ['continue', 'favorites', 'most'],
   backdropMode: 'theme',
   backgroundUrl: '',
+  customBackgrounds: [],
   backgroundOpacity: 65,
   backgroundFit: 'adaptive',
   backgroundPositionX: 50,
@@ -131,6 +133,7 @@ export const DEFAULT_LOUNGE_PREFERENCES = Object.freeze({
   widgetPosition: 'right',
   widgetIds: ['best-games', 'recent'],
   playtimePieFilters: normalizePlaytimePieFilters(),
+  playtimeCalendarPreferences: normalizeCalendarPreferences(),
   widgetWidth: 36,
   widgetHeight: 420,
   widgetZoom: 100,
@@ -214,11 +217,29 @@ const coverFrames = new Set(Object.keys(LOUNGE_COVER_FRAMES));
 const frameColors = new Set(Object.keys(LOUNGE_FRAME_COLORS));
 const browseSoundStyles = new Set(['glass', 'pulse', 'orbit', 'samples']);
 const ambienceTracks = new Set(['none', 'ambience-1', 'ambience-2', 'ambience-3', 'ambience-4', 'custom']);
-const controlSizes = new Set(['compact', 'comfortable', 'large']);
+const controlSizes = new Set(['compact', 'near', 'comfortable', 'far', 'large']);
 const browseSorts = new Set(['library', 'name', 'last-played', 'recently-added']);
 const entryScreens = new Set(['games', 'home']);
 const coverAspects = new Set(['portrait', 'tall']);
 const safeBackgroundUrl = value => typeof value === 'string' && value.length <= 2048 && /^file:\/\/\/?[a-z]:\/[^?#]+\.(png|apng|jpe?g|webp|gif|mp4|m4v|webm|mov|ogv)$/i.test(value) ? value : '';
+export function normalizeLoungeBackgrounds(value, legacyUrl = '') {
+  const seen = new Set();
+  const entries = (Array.isArray(value) ? value : []).slice(0, 48).flatMap(item => {
+    const url = safeBackgroundUrl(item?.url);
+    if (!url || seen.has(url)) return [];
+    seen.add(url);
+    return [{ url, name: String(item?.name || 'Custom background').trim().slice(0, 80) || 'Custom background' }];
+  });
+  const legacy = safeBackgroundUrl(legacyUrl);
+  if (legacy && !seen.has(legacy) && entries.length < 48) entries.push({ url: legacy, name: 'Custom background' });
+  return entries;
+}
+export function applyLoungeBackground(current, background) {
+  const url = safeBackgroundUrl(background?.url);
+  if (!url) return normalizeLoungePreferences(current);
+  return normalizeLoungePreferences({ ...current, specialTheme: 'theme', desktopThemeOverride: '', backdropMode: 'image', backgroundUrl: url,
+    customBackgrounds: normalizeLoungeBackgrounds([...(current.customBackgrounds || []), background], current.backgroundUrl) });
+}
 const safeAmbienceUrl = value => typeof value === 'string' && value.length <= 2048 && /^file:\/\/\/[a-z]:\/[^?#]+\.mp3$/i.test(value) ? value : '';
 const bounded = (value, fallback, min, max) => Number.isFinite(Number(value)) ? Math.min(max, Math.max(min, Math.round(Number(value)))) : fallback;
 
@@ -301,6 +322,7 @@ export function normalizeLoungePreferences(value) {
     quickLinks,
     backdropMode: backdropModes.has(input.backdropMode) ? input.backdropMode : defaults.backdropMode,
     backgroundUrl: safeBackgroundUrl(input.backgroundUrl),
+    customBackgrounds: normalizeLoungeBackgrounds(input.customBackgrounds, input.backgroundUrl),
     backgroundOpacity: bounded(input.backgroundOpacity, defaults.backgroundOpacity, 0, 100),
     backgroundFit: backgroundFits.has(input.backgroundFit) ? input.backgroundFit : defaults.backgroundFit,
     backgroundPositionX: bounded(input.backgroundPositionX, defaults.backgroundPositionX, 0, 100),
@@ -313,6 +335,7 @@ export function normalizeLoungePreferences(value) {
     widgetAreaEnabled: input.widgetAreaEnabled === true,
     widgetIds: Array.isArray(input.widgetIds) ? [...new Set(input.widgetIds.filter(id => Object.hasOwn(HOME_WIDGET_BY_ID, id)))].slice(0, 4) : [...defaults.widgetIds],
     playtimePieFilters: normalizePlaytimePieFilters(input.playtimePieFilters),
+    playtimeCalendarPreferences: normalizeCalendarPreferences(input.playtimeCalendarPreferences),
     widgetWidth: bounded(input.widgetWidth, defaults.widgetWidth, 20, 100),
     widgetHeight: bounded(input.widgetHeight, defaults.widgetHeight, 160, 8640),
     widgetZoom: bounded(input.widgetZoom, defaults.widgetZoom, 75, 200),

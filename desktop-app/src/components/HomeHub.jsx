@@ -1,17 +1,22 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Archive, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Download, EyeOff, ExternalLink, FileUp, FolderOpen, Gamepad2, Grip, GripVertical, HardDrive, LockKeyhole, Maximize2, Menu, Minimize2, Move, Newspaper, Puzzle, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Star, Trophy, Unlock, X } from 'lucide-react';
+import { Archive, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Download, EyeOff, ExternalLink, FolderOpen, Gamepad2, Grip, GripVertical, HardDrive, LockKeyhole, Maximize2, Menu, Minimize2, Move, Newspaper, Puzzle, RefreshCw, RotateCcw, ShieldCheck, Sparkles, Star, Trophy, Unlock, X } from 'lucide-react';
 import UpdateHistoryModal from './UpdateHistoryModal';
 import { PLATFORM, added, getChronicle, getLibraryHealth, getRecommendations, hours, maskHomeNews, maskHomeUpdates, normaliseGameUpdates, platformOf, relative } from './home/home-model.mjs';
 import { createBoundedOperation } from '../services/bounded-operation.mjs';
 import { OPERATION_STATUS } from '../state/operation-state.mjs';
+import { savedStorageSnapshot } from '../state/install-size-state.mjs';
 import { HOME_WIDGET_BY_ID, HOME_WIDGET_GRID, homeWidget, normaliseWidgetSize, widgetsForSegment } from './home/home-widget-registry.mjs';
 import { WIDGET_RESIZE_DIRECTIONS, resizeFreeWidget, resizeGridWidget } from './home/home-widget-resize.mjs';
 import WidgetManagerModal from './home/WidgetManagerModal';
 import CommunityWidgetHost from './home/CommunityWidgetHost';
 import PlaytimePieWidget from './home/PlaytimePieWidget';
+import PlaytimeCalendarWidget from './home/PlaytimeCalendarWidget';
 import HomeLayoutEditor from './home/HomeLayoutEditor';
-import { createHomeEditorDraft, homeEditorSavePatch } from './home/home-layout-editor-model.mjs';
+import HomeWidgetSettings from './home/HomeWidgetSettings';
+import { homeContentSize } from './home/home-content-size.mjs';
+import { statisticsGames } from '../lib/emulator-profile-model.mjs';
+import { createHomeEditorDraft, homeEditorSavePatch, homeCanvasHeight } from './home/home-layout-editor-model.mjs';
 import { renderForegroundPortal } from './ui/VisualBoundary';
 
 const RANGES = { today: { label: 'Today', days: 1 }, week: { label: 'This week', days: 7 }, month: { label: 'This month', days: 31 } };
@@ -32,6 +37,7 @@ const RESIZE_GRIP_POSITION = Object.freeze({
   nw: { top: 4, left: 4 },
 });
 const HOME_WIDGET_ICONS = {
+  'playtime-calendar': CalendarDays,
   'playtime-pie': Clock3,
   'top-played': Trophy, news: Newspaper, 'play-next': Sparkles, recent: Clock3,
   'best-games': Star, chronicle: Archive, updates: Download,
@@ -40,6 +46,7 @@ const HOME_WIDGET_ICONS = {
 // A small, muted dashboard palette: related widgets share a hue family, so
 // sections are easier to scan without turning Home into a rainbow.
 const HOME_WIDGET_ACCENTS = {
+  'playtime-calendar': ['34 211 238', '103 232 249'],
   'playtime-pie': ['96 165 250', '147 197 253'],
   'top-played': ['96 165 250', '147 197 253'], news: ['167 139 250', '196 181 253'],
   'play-next': ['167 139 250', '196 181 253'], recent: ['56 189 248', '125 211 252'],
@@ -47,9 +54,6 @@ const HOME_WIDGET_ACCENTS = {
   updates: ['251 191 36', '253 224 71'], 'released-week': ['251 191 36', '253 224 71'],
   health: ['52 211 153', '110 231 183'], storage: ['52 211 153', '110 231 183'],
 };
-// Home can unmount while a game is previewed. Keep a completed, local session
-// scan so Storage Control does not look empty when the player comes back.
-let STORAGE_SESSION_CACHE = { loading: false, scannedAt: 0, results: [], skipped: [] };
 
 function operationFailure(operation, label) {
   if (operation?.status === OPERATION_STATUS.TIMED_OUT) return `${label} timed out. Nothing is stuck; try again.`;
@@ -57,7 +61,7 @@ function operationFailure(operation, label) {
   return operation?.message || `${label} unavailable.`;
 }
 
-export default function HomeHub({ games = [], favoriteIds = [], lockedGameCategories = {}, hasPrivateCategories = false, hasLockedPrivateCategories = false, onPanicLock, onSelect, onOpenPlaytimeImport, onOpenTidyUp, resting = false, minimalistic = false, homeLayout = {}, onUpdateHomeLayout, onUpdateUpdatesCache, embeddedWidgetIds = null }) {
+export default function HomeHub({ games = [], favoriteIds = [], lockedGameCategories = {}, hasPrivateCategories = false, hasLockedPrivateCategories = false, onPanicLock, onSelect, onOpenPlaytimeImport, onOpenTidyUp, resting = false, minimalistic = false, homeLayout = {}, onUpdateHomeLayout, onUpdateUpdatesCache, onStorageMeasured, embeddedWidgetIds = null }) {
   const embedded = Array.isArray(embeddedWidgetIds);
   const needsNews = !embedded || embeddedWidgetIds.includes('news') || embeddedWidgetIds.includes('chronicle') || embeddedWidgetIds.includes('play-next');
   const needsReleases = !embedded || embeddedWidgetIds.includes('released-week');
@@ -65,7 +69,7 @@ export default function HomeHub({ games = [], favoriteIds = [], lockedGameCatego
   const [range, setRange] = React.useState('week');
   const [rankingScope, setRankingScope] = React.useState('period');
   const [news, setNews] = React.useState({ loading: false, items: [], error: '', operation: null });
-  const [storage, setStorage] = React.useState(() => STORAGE_SESSION_CACHE);
+  const [storage, setStorage] = React.useState({ loading: false, skipped: [] });
   const [weeklyReleases, setWeeklyReleases] = React.useState({ loading: false, items: [], criteria: '', tier: 'major', fetchedAt: 0, error: '', operation: null });
   // A saved update alert can outlive a Steam download. Never present cached
   // pending bytes as a current warning before checking the launcher again.
@@ -79,12 +83,13 @@ export default function HomeHub({ games = [], favoriteIds = [], lockedGameCatego
   const dragSessionRef = React.useRef(null);
   const dragCleanupRef = React.useRef(null);
   const [widgetManagerOpen, setWidgetManagerOpen] = React.useState(false);
+  const [widgetGuideRequested, setWidgetGuideRequested] = React.useState(false);
   const [communityWidgets, setCommunityWidgets] = React.useState([]);
   const [recoverableWidgets, setRecoverableWidgets] = React.useState([]);
   const [widgetImportNotice, setWidgetImportNotice] = React.useState('');
   const [layoutUnlocked, setLayoutUnlocked] = React.useState(false);
   const [layoutEditor, setLayoutEditor] = React.useState(null);
-  const [customizeOpen, setCustomizeOpen] = React.useState(false);
+  const [widgetSettingsOpen, setWidgetSettingsOpen] = React.useState(false);
   const [gridColumns, setGridColumns] = React.useState(HOME_WIDGET_GRID.desktop);
   const railRef = React.useRef(null);
   const homeGridHostRef = React.useRef(null);
@@ -92,15 +97,19 @@ export default function HomeHub({ games = [], favoriteIds = [], lockedGameCatego
   React.useEffect(() => () => { Object.values(operations.current).forEach(operation => operation?.cancel('Home widget host closed.')); }, []);
   const rangeMeta = RANGES[range];
   const visibleTrackableGames = React.useMemo(() => games.filter((game) => !game.homeLocked), [games]);
+  const statGames = React.useMemo(() => statisticsGames(games, homeLayout.excludeRoms === true), [games, homeLayout.excludeRoms]);
+  const pieFilters = React.useMemo(() => ({ ...homeLayout.playtimePieFilters, excludeRoms: homeLayout.excludeRoms === true }), [homeLayout.playtimePieFilters, homeLayout.excludeRoms]);
+  const calendarPreferences = React.useMemo(() => ({ ...homeLayout.playtimeCalendarPreferences, excludeRoms: homeLayout.excludeRoms === true }), [homeLayout.playtimeCalendarPreferences, homeLayout.excludeRoms]);
   const visibleNews = React.useMemo(() => ({ ...news, items: news.items.map((item) => maskHomeNews(item, lockedGameCategories)) }), [news, lockedGameCategories]);
   const visibleGameUpdates = React.useMemo(() => maskHomeUpdates(gameUpdates, lockedGameCategories), [gameUpdates, lockedGameCategories]);
   const visibleStorage = React.useMemo(() => ({
     ...storage,
+    ...savedStorageSnapshot(games),
     skipped: (storage.skipped || []).map((item) => lockedGameCategories?.[item?.id] ? { ...item, name: 'Locked game', reason: 'Protected until unlock' } : item),
-  }), [lockedGameCategories, storage]);
+  }), [games, lockedGameCategories, storage]);
   const cutoff = Date.now() - rangeMeta.days * 86400000;
-  const played = React.useMemo(() => games.filter((game) => Number(game.lastPlayedAt || 0) >= cutoff).sort((a, b) => Number(b.lastPlayedAt || 0) - Number(a.lastPlayedAt || 0)), [games, cutoff]);
-  const topFive = React.useMemo(() => [...(rankingScope === 'all' ? games : played)].filter((game) => Number(game.playtime || 0) > 0).sort((a, b) => Number(b.playtime || 0) - Number(a.playtime || 0)).slice(0, 5), [games, played, rankingScope]);
+  const played = React.useMemo(() => statGames.filter((game) => Number(game.lastPlayedAt || 0) >= cutoff).sort((a, b) => Number(b.lastPlayedAt || 0) - Number(a.lastPlayedAt || 0)), [statGames, cutoff]);
+  const topFive = React.useMemo(() => [...(rankingScope === 'all' ? statGames : played)].filter((game) => Number(game.playtime || 0) > 0).sort((a, b) => Number(b.playtime || 0) - Number(a.playtime || 0)).slice(0, 5), [statGames, played, rankingScope]);
   const totalMinutes = played.reduce((sum, game) => sum + Number(game.playtime || 0), 0);
   const health = React.useMemo(() => getLibraryHealth(games), [games]);
   const recommendations = React.useMemo(() => getRecommendations(games, visibleNews.items), [games, visibleNews.items]);
@@ -185,11 +194,10 @@ export default function HomeHub({ games = [], favoriteIds = [], lockedGameCatego
     await loadCommunityWidgets();
     return { message: result.replacedVersion ? (result.widget?.name || 'Widget') + ' updated safely. Review its capabilities before enabling it.' : (result.widget?.name || 'Widget') + ' imported safely and remains disabled until you enable it.' };
   }, [communityConfig, homeLayout, loadCommunityWidgets, onUpdateHomeLayout]);
-  const startWidgetImport = React.useCallback(async () => {
+  const startWidgetImport = React.useCallback(() => {
+    setWidgetGuideRequested(true);
     setWidgetManagerOpen(true);
-    const result = await importWidget();
-    setWidgetImportNotice(result?.message || 'Widget import cancelled.');
-  }, [importWidget]);
+  }, []);
   const reorderPane = React.useCallback((order, source, target, after = false) => {
     if (!source || !target || source === target) return order;
     const next = order.filter((id) => id !== source);
@@ -393,7 +401,7 @@ export default function HomeHub({ games = [], favoriteIds = [], lockedGameCatego
     const payloadGames = visibleTrackableGames.map(({ id, name, exePath, launcher }) => ({ id, name, exePath, launcher }));
     operations.current.storage?.cancel('Replaced by a newer storage scan.');
     const operation = createBoundedOperation({ domain: 'storage-scan', total: payloadGames.length, timeoutMs: 45_000, task: async () => {
-      const result = await window.api.scanGameStorage({ games: payloadGames, force: Boolean(storage.scannedAt) });
+      const result = await window.api.scanGameStorage({ games: payloadGames, force: true });
       if (result?.ok === false) throw new Error(result.error || 'Storage scan unavailable.');
       return { ...result, operationCompleted: Number(result?.results?.length || 0), operationFailed: Number(result?.skipped?.length || 0) };
     }, onState: (next) => setStorage((value) => ({ ...value, operation: next, loading: next.status === OPERATION_STATUS.RUNNING, error: '' })) });
@@ -405,13 +413,14 @@ export default function HomeHub({ games = [], favoriteIds = [], lockedGameCatego
       return;
     }
     const result = outcome.value || {};
-    const next = { loading: false, scannedAt: result.scannedAt || 0, results: result.results || [], skipped: result.skipped || [], error: outcome.state.status === OPERATION_STATUS.PARTIAL ? 'Some configured targets were skipped safely.' : '', operation: outcome.state };
-    STORAGE_SESSION_CACHE = next;
+    onStorageMeasured?.(result);
+    const next = { loading: false, skipped: result.skipped || [], error: outcome.state.status === OPERATION_STATUS.PARTIAL ? 'Some configured targets were skipped safely.' : '', operation: outcome.state };
     setStorage(next);
   };
   const paneContent = {
-    'playtime-pie': <PlaytimePieWidget games={visibleTrackableGames} favoriteIds={favoriteIds} filters={homeLayout.playtimePieFilters} onFiltersChange={playtimePieFilters => updateLayout({ playtimePieFilters })} onSelect={onSelect} />,
-    'top-played': <TopPlayed games={topFive} scope={rankingScope} onScope={setRankingScope} rangeLabel={rangeMeta.label} summary={{ totalMinutes, gamesTouched: played.length, today: games.filter((game) => Number(game.lastPlayedAt || 0) >= Date.now() - 86400000).length, library: games.length }} onSelect={onSelect} />,
+    'playtime-calendar': <PlaytimeCalendarWidget games={statGames} preferences={calendarPreferences} onPreferencesChange={playtimeCalendarPreferences => updateLayout({ playtimeCalendarPreferences, excludeRoms: playtimeCalendarPreferences.excludeRoms })} onSelect={onSelect} />,
+    'playtime-pie': <PlaytimePieWidget games={statGames} favoriteIds={favoriteIds} filters={pieFilters} onFiltersChange={playtimePieFilters => updateLayout({ playtimePieFilters, excludeRoms: playtimePieFilters.excludeRoms })} onSelect={onSelect} />,
+    'top-played': <><button type="button" aria-pressed={homeLayout.excludeRoms === true} onClick={() => updateLayout({ excludeRoms: homeLayout.excludeRoms !== true })} className="mb-2 rounded-md hairline px-3 py-2 text-xs">{homeLayout.excludeRoms ? '✓ ' : ''}Exclude ROMs from statistics</button><TopPlayed games={topFive} scope={rankingScope} onScope={setRankingScope} rangeLabel={rangeMeta.label} summary={{ totalMinutes, gamesTouched: played.length, today: statGames.filter((game) => Number(game.lastPlayedAt || 0) >= Date.now() - 86400000).length, library: statGames.length }} onSelect={onSelect} /></>,
     news: <PinnedNews news={visibleNews} railRef={railRef} onScroll={scrollNews} onOpen={setNewsDetail} rangeLabel={rangeMeta.label} />,
     'play-next': <PlayNext recommendations={recommendations} onSelect={onSelect} />,
     updates: <GameUpdates updates={visibleGameUpdates} onRefresh={() => refreshGameUpdates([], true)} onCancel={() => operations.current.updates?.cancel('Cancelled by the player.')} onResolve={(ids) => refreshGameUpdates(ids, true)} onSelect={onSelect} />,
@@ -441,36 +450,30 @@ export default function HomeHub({ games = [], favoriteIds = [], lockedGameCatego
   };
   const resolvedFreePositions = Object.fromEntries(visibleWidgetIds.map((id, index) => [id, freePositions[id] || fallbackFreePosition(index)]));
   const freeCanvasWidth = Math.max(320, ...Object.values(resolvedFreePositions).map((position) => Number(position.x || 0) + Number(position.width || 0) + 24));
-  const freeCanvasHeight = Math.max(540, ...Object.values(resolvedFreePositions).map((position) => Number(position.y || 0) + Number(position.height || 0) + 24));
+  const freeCanvasHeight = Math.max(homeCanvasHeight(homeLayout.freeCanvasHeight), ...Object.values(resolvedFreePositions).map((position) => Number(position.y || 0) + Number(position.height || 0) + 24));
   return <section className="flex h-full flex-col overflow-y-auto px-6 py-6 lg:px-9" data-testid="home-hub">
     <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div><p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[rgb(var(--accent-2))]">Your NEO-LIB</p><h1 className="font-display text-4xl font-black tracking-tight">Home</h1><p className="mt-1.5 text-[13px] text-muted">Your games, your time, and the updates that matter.</p></div>
       <div className="flex flex-wrap justify-end gap-2">
         {hasPrivateCategories && <button type="button" onClick={onPanicLock} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-400/60 bg-red-400/[0.09] px-3 text-xs font-bold text-red-200 shadow-[0_0_16px_-7px_rgba(248,113,113,.95)] transition hover:bg-red-400/[0.18] hover:text-red-100" title="Lock every private category and return to a safe Library view" aria-label="Lock private categories"><ShieldCheck size={15} />Lock private</button>}
-        {minimalistic && <button type="button" data-testid="home-minimalistic-customize" aria-expanded={customizeOpen || layoutUnlocked} onClick={() => setCustomizeOpen((value) => !value)} className="inline-flex h-9 items-center rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.55)] px-3 text-xs font-bold text-ink">Customize Home</button>}
-        {(!minimalistic || customizeOpen || layoutUnlocked) && <>
-        <button type="button" onClick={toggleLayoutLock} data-testid="home-layout-lock-toggle" aria-haspopup="dialog" className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] px-3 text-xs font-bold text-ink hover:border-[rgb(var(--accent)/0.65)]" title="Open the zoomed-out widget arrangement editor"><Move size={14} />Rearrange widgets</button>
-        <button type="button" onClick={toggleSnapping} data-testid="home-layout-snap-toggle" aria-pressed={snapToGrid} className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition ${snapToGrid ? 'border-[rgb(var(--accent)/0.48)] bg-[rgb(var(--accent)/0.10)] text-ink' : 'border-[rgb(var(--accent-2)/0.55)] bg-[rgb(var(--accent-2)/0.10)] text-[rgb(var(--accent-2))]'}`} title={snapToGrid ? 'Turn snapping off for free placement and overlapping' : 'Turn snapping on for automatic alignment'}><Grip size={14} />{snapToGrid ? 'Snap on' : 'Free move'}</button>
-        <button type="button" onClick={() => setWidgetManagerOpen(true)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] px-3 text-xs font-bold text-ink transition hover:border-[rgb(var(--accent)/0.65)] hover:bg-[rgb(var(--accent)/0.10)]" title="Inspect and manage Home widgets"><Puzzle size={14} />Widgets</button>
-        <button type="button" onClick={startWidgetImport} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.62)] bg-[rgb(var(--accent)/0.10)] px-3 text-xs font-bold text-ink transition hover:bg-[rgb(var(--accent)/0.18)]" title="Choose a widget.json package to import"><FileUp size={14} />Import widget</button>
-        </>}
+        <button type="button" aria-haspopup="dialog" aria-expanded={widgetSettingsOpen} data-testid="home-widget-settings-button" onClick={() => setWidgetSettingsOpen(true)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] px-3 text-xs font-bold text-ink hover:border-[rgb(var(--accent)/0.65)]"><Puzzle size={14} />Edit widgets</button>
         <div className="flex rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] p-1">{Object.entries(RANGES).map(([key, meta]) => <button key={key} onClick={() => setRange(key)} className={`rounded-md px-3 py-1.5 text-[11px] font-bold transition ${range === key ? 'bg-[rgb(var(--accent)/0.22)] text-ink shadow-[0_0_12px_-4px_rgb(var(--accent))]' : 'text-muted hover:text-ink'}`}>{meta.label}</button>)}</div>
-        {hiddenPanes.length > 0 && <button type="button" onClick={() => setWidgetManagerOpen(true)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.45)] px-3 text-[10px] font-bold text-muted hover:text-ink"><EyeOff size={13} />{hiddenPanes.length} hidden</button>}
       </div>
     </header>
 
     {hasLockedPrivateCategories && <div className="mb-3 inline-flex w-fit max-w-full items-center gap-2 rounded-lg border border-red-400/35 bg-red-400/[0.08] px-2.5 py-1.5 text-[10.5px]" role="status" title="Unlock private categories in Library to include their games in Home stats and news." data-testid="home-private-categories-locked-notice"><LockKeyhole size={13} className="shrink-0 text-red-200" /><span className="font-bold text-red-200">Private games hidden</span><span className="hidden text-muted sm:inline">· Unlock in Library to include them here</span></div>}
 
     {layoutUnlocked && <div className="mb-4 flex items-center gap-3 rounded-xl border border-[rgb(var(--accent)/0.48)] bg-[rgb(var(--accent)/0.09)] px-4 py-3" role="status" data-testid="home-layout-editing"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[rgb(var(--accent)/0.18)] text-[rgb(var(--accent-2))]"><Move size={15} /></span><div className="min-w-0 flex-1"><p className="text-xs font-black text-ink">Widget canvas unlocked · {snapToGrid ? 'snapping to grid' : 'free placement'}</p><p className="mt-0.5 text-[10px] text-muted">Drag any widget title bar and use its corner grip to resize. Turn snapping off to place and overlap widgets freely. Right-click a title bar for more actions.</p></div><span className="font-mono text-[10px] text-muted">{snapToGrid ? `${gridColumns} columns` : 'Free canvas'}</span></div>}
-    <div className="overflow-auto rounded-2xl [scrollbar-color:rgb(var(--accent))_transparent] [scrollbar-width:thin]">
+    <div className="shrink-0 overflow-auto rounded-2xl [scrollbar-color:rgb(var(--accent))_transparent] [scrollbar-width:thin]">
       <div ref={homeGridHostRef} className={`${snapToGrid ? 'grid grid-flow-row-dense gap-3' : 'relative'} ${layoutUnlocked ? 'bg-[linear-gradient(rgb(var(--border)/0.16)_1px,transparent_1px),linear-gradient(90deg,rgb(var(--border)/0.16)_1px,transparent_1px)] bg-[size:24px_24px] p-2' : ''}`} style={snapToGrid ? { gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))`, gridAutoRows: `${HOME_GRID_ROW_HEIGHT}px` } : { width: `${freeCanvasWidth}px`, height: `${freeCanvasHeight}px` }} data-home-canvas data-home-grid={snapToGrid ? 'snap' : 'free'} data-home-grid-columns={gridColumns} data-home-layout-unlocked={layoutUnlocked ? 'true' : 'false'} data-home-snap={snapToGrid ? 'true' : 'false'}>
-        {visibleWidgetIds.length ? visibleWidgetIds.map((id, index) => <HomePane key={id} id={id} widgetDefinition={widgetDefinitions[id]} {...paneProps} freePosition={resolvedFreePositions[id]} stackIndex={index}>{paneContent[id] || communityPaneContent[id]}</HomePane>) : <p className="p-8 text-center text-xs text-muted">Every Home widget is hidden. Open Widgets to bring one back.</p>}
+        {visibleWidgetIds.length ? visibleWidgetIds.map((id, index) => <HomePane key={id} id={id} widgetDefinition={widgetDefinitions[id]} {...paneProps} contentSize={homeContentSize(homeLayout, id)} freePosition={resolvedFreePositions[id]} stackIndex={index}>{paneContent[id] || communityPaneContent[id]}</HomePane>) : <p className="p-8 text-center text-xs text-muted">Every Home widget is hidden. Open Widgets to bring one back.</p>}
       </div>
     </div>
     {dragGhost && renderForegroundPortal(<div ref={dragGhostRef} className="pointer-events-none fixed z-[300] select-none overflow-hidden rounded-xl border-2 border-[rgb(var(--accent))] bg-[rgb(var(--panel)/0.94)] text-ink shadow-[0_0_0_4px_rgb(var(--accent)/0.22),0_24px_55px_rgb(0_0_0/0.5),0_0_32px_rgb(var(--accent)/0.5)] backdrop-blur-xl" style={{ left: dragGhost.left, top: dragGhost.top, width: dragGhost.width, height: dragGhost.height }} aria-hidden="true" data-testid="home-widget-drag-ghost"><div className="flex h-9 items-center gap-2 border-b border-[rgb(var(--accent)/0.5)] bg-[rgb(var(--accent)/0.18)] px-3"><GripVertical size={15} className="text-[rgb(var(--accent-2))]" /><span className="min-w-0 flex-1 truncate text-xs font-black uppercase tracking-wide">{dragGhost.label}</span><span className="rounded bg-[rgb(var(--accent)/0.22)] px-1.5 py-0.5 font-mono text-[10px]">{dragGhost.size?.cols}×{dragGhost.size?.rows}</span></div><div className="grid h-[calc(100%-36px)] place-items-center text-xs font-bold text-muted"><span className="inline-flex items-center gap-2"><Move size={18} className="text-[rgb(var(--accent))]" />Moving widget · release to place</span></div></div>)}
     {newsDetail && <NewsDetail item={newsDetail} onClose={() => setNewsDetail(null)} />}
-    <WidgetManagerModal open={widgetManagerOpen} onClose={() => setWidgetManagerOpen(false)} communityWidgets={communityWidgets} recoverableWidgets={recoverableWidgets} communityConfig={communityConfig} hiddenIds={hiddenPanes} onToggleBuiltin={togglePane} onImport={importWidget} onCommunityConfig={updateCommunityConfig} onRemove={removeCommunityWidget} onRestore={restoreCommunityWidget} externalNotice={widgetImportNotice} />
-    {layoutEditor && <HomeLayoutEditor initialDraft={layoutEditor.draft} widgets={layoutEditor.widgets}
+    <HomeWidgetSettings open={widgetSettingsOpen} onClose={() => setWidgetSettingsOpen(false)} layout={homeLayout} widgets={activePaneIds.map(id => ({ id, label: widgetDefinitions[id]?.label || id }))} onChange={updateLayout} snapToGrid={snapToGrid} onToggleSnap={toggleSnapping} hiddenCount={hiddenPanes.length} onRearrange={() => { setWidgetSettingsOpen(false); toggleLayoutLock(); }} onManage={() => { setWidgetSettingsOpen(false); setWidgetGuideRequested(false); setWidgetManagerOpen(true); }} onImport={() => { setWidgetSettingsOpen(false); startWidgetImport(); }} />
+    <WidgetManagerModal startWithGuide={widgetGuideRequested} open={widgetManagerOpen} onClose={() => setWidgetManagerOpen(false)} communityWidgets={communityWidgets} recoverableWidgets={recoverableWidgets} communityConfig={communityConfig} hiddenIds={hiddenPanes} onToggleBuiltin={togglePane} onImport={importWidget} onCommunityConfig={updateCommunityConfig} onRemove={removeCommunityWidget} onRestore={restoreCommunityWidget} externalNotice={widgetImportNotice} />
+    {layoutEditor && <HomeLayoutEditor initialDraft={layoutEditor.draft} widgets={layoutEditor.widgets} holdingArea expandableHeight
       onCancel={() => setLayoutEditor(null)} onSave={draft => { updateLayout(homeEditorSavePatch(homeLayout, draft, activePaneIds)); setLayoutEditor(null); }} />}
   </section>;
 }
@@ -530,7 +533,7 @@ function GameUpdates({ updates, onRefresh, onCancel, onResolve, onSelect }) {
 function TopPlayed({ games, scope, onScope, rangeLabel, summary, onSelect, onHide }) {
   return <section className="mx-auto mb-6 w-full max-w-5xl rounded-2xl border border-[rgb(var(--accent)/0.34)] bg-[linear-gradient(110deg,rgb(var(--accent)/0.13),rgb(var(--panel)/0.44)_44%,rgb(var(--accent-2)/0.09))] p-4 shadow-[0_0_34px_-22px_rgb(var(--accent))]" data-testid="home-top-played"><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-2.5"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[rgb(var(--accent)/0.16)]"><Trophy size={17} className="text-[rgb(var(--accent))]" /></span><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">Your favorites in motion</p><h2 className="text-sm font-black">Top 5 played</h2></div></div><div className="flex items-center gap-2"><div className="flex rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.38)] p-0.5 text-[10px] font-bold"><button onClick={() => onScope('period')} className={`rounded-md px-2.5 py-1.5 ${scope === 'period' ? 'bg-[rgb(var(--accent)/0.20)] text-ink' : 'text-muted'}`}>{rangeLabel}</button><button onClick={() => onScope('all')} className={`rounded-md px-2.5 py-1.5 ${scope === 'all' ? 'bg-[rgb(var(--accent)/0.20)] text-ink' : 'text-muted'}`}>All time</button></div>{onHide && <button onClick={onHide} className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink" title="Hide Top 5 played"><EyeOff size={13} /></button>}</div></div><div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-y border-[rgb(var(--border)/0.46)] py-2 text-[10px] text-muted"><span className="font-bold uppercase tracking-[0.14em] text-[rgb(var(--accent-2))]">{rangeLabel} at a glance</span><span><b className="text-ink">{hours(summary?.totalMinutes)}</b> played</span><span><b className="text-ink">{summary?.gamesTouched || 0}</b> games touched</span><span><b className="text-ink">{summary?.today || 0}</b> today</span><span><b className="text-ink">{summary?.library || 0}</b> in Library</span></div>{games.length ? <ol className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{games.map((game, index) => <li key={game.id}><button onClick={() => onSelect?.(game.id)} className="group flex w-full items-center gap-2.5 rounded-xl border border-[rgb(var(--border)/0.8)] bg-[rgb(var(--surface)/0.34)] p-2.5 text-left transition hover:-translate-y-0.5 hover:border-[rgb(var(--accent)/0.6)] hover:bg-[rgb(var(--surface)/0.58)]"><span className="w-4 font-mono text-[10px] font-black text-[rgb(var(--accent-2))]">{index + 1}</span><Cover game={game} className="h-10 w-[68px]" /><span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-black group-hover:text-[rgb(var(--accent))]">{game.name}</span><span className="mt-0.5 block text-[9.5px] text-muted">{PLATFORM[platformOf(game)]}</span><span className="mt-1 block text-[11px] font-bold text-[rgb(var(--accent-2))]">{hours(game.playtime)}</span></span></button></li>)}</ol> : <p className="mt-4 text-center text-xs text-muted">Import or track playtime to begin your ranking.</p>}</section>;
 }
-function HomePane({ id, widgetDefinition, children, paneOrder, draggedPane, dragInsertion, startPaneDrag, togglePane, layoutUnlocked, setLayoutUnlocked, gridColumns, snapToGrid, sizeForWidget, onResize, onResetSize, freePosition, stackIndex, onFreePosition, onBringFront, onToggleSnap }) {
+function HomePane({ id, widgetDefinition, children, contentSize = 100, paneOrder, draggedPane, dragInsertion, startPaneDrag, togglePane, layoutUnlocked, setLayoutUnlocked, gridColumns, snapToGrid, sizeForWidget, onResize, onResetSize, freePosition, stackIndex, onFreePosition, onBringFront, onToggleSnap }) {
   const widget = widgetDefinition || homeWidget(id);
   const WidgetIcon = HOME_WIDGET_ICONS[id] || Puzzle;
   const isDragging = draggedPane === id;
@@ -652,7 +655,7 @@ function HomePane({ id, widgetDefinition, children, paneOrder, draggedPane, drag
       {layoutUnlocked && <span className="font-mono text-[9px] font-bold text-ink/80">{sizeLabel}</span>}
       <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={openContextMenuButton} className="grid h-6 w-6 place-items-center rounded text-ink/75 hover:bg-[rgb(var(--accent)/0.18)] hover:text-ink" aria-label={`Open ${widget?.label || id} widget menu`} title="Widget options"><Menu size={12} /></button>
     </div>
-    <div className={`min-h-0 flex-1 overflow-auto p-1.5 [scrollbar-color:rgb(var(--accent))_transparent] [scrollbar-width:thin] ${isDragging && snapToGrid ? 'invisible' : ''}`}>{children}</div>
+    <div className={`min-h-0 flex-1 overflow-auto p-1.5 [scrollbar-color:rgb(var(--accent))_transparent] [scrollbar-width:thin] ${isDragging && snapToGrid ? 'invisible' : ''}`}><div className="home-widget-content-scale" style={{ zoom: contentSize / 100, minWidth: 0 }}>{children}</div></div>
     {isDragging && snapToGrid && <span className="pointer-events-none absolute inset-8 grid place-items-center rounded-lg border border-dashed border-[rgb(var(--accent)/0.55)] text-xs font-bold text-[rgb(var(--accent-2))]">Drop {widget?.label || id} here</span>}
     {layoutUnlocked && WIDGET_RESIZE_DIRECTIONS.map((direction) => <button key={direction} type="button" data-resize-direction={direction} style={{ position: 'absolute', ...RESIZE_GRIP_POSITION[direction] }} onPointerDown={startResize} onPointerMove={moveResize} onPointerUp={finishResize} onPointerCancel={cancelResize} onLostPointerCapture={cancelResize} className={`z-30 grid h-5 w-5 touch-none place-items-center rounded-md border border-[rgb(var(--accent)/0.7)] bg-[rgb(var(--panel)/0.94)] text-[rgb(var(--accent-2))] shadow-[0_0_9px_rgb(var(--accent)/0.3)] ${direction === 'n' || direction === 's' ? 'cursor-ns-resize' : direction === 'e' || direction === 'w' ? 'cursor-ew-resize' : direction === 'ne' || direction === 'sw' ? 'cursor-nesw-resize' : 'cursor-nwse-resize'}`} aria-label={`Resize ${widget?.label || id} ${direction}`} title="Drag to resize"><Grip size={11} /></button>)}
     {insertionHere && <span className={`pointer-events-none absolute z-40 rounded-full bg-[rgb(var(--accent))] shadow-[0_0_12px_rgb(var(--accent))] ${insertionClass}`} />}
@@ -759,7 +762,7 @@ function StorageCentre({ games, storage, onScan, onCancel, onSelect }) {
     const result = await window.api?.openPath?.(entry.root);
     if (!result?.ok) setOpenError(result?.error || `Could not open ${entry.root || 'this measured folder'}.`);
   };
-  return <section className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.34)] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-2"><HardDrive size={15} className="text-[rgb(var(--accent))]" /><div><h2 className="text-xs font-black uppercase tracking-[0.18em]">Storage control centre</h2><p className="mt-1 text-[10px] text-muted">Validated game folders and recognised mod folders only—read-only.</p></div></div><button onClick={storage.loading ? onCancel : onScan} className="inline-flex items-center gap-1.5 rounded-md border border-[rgb(var(--border))] px-2.5 py-1.5 text-[10px] font-bold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink"><RefreshCw size={11} className={storage.loading ? 'animate-spin text-[rgb(var(--accent))]' : ''} />{storage.loading ? 'Cancel' : storage.scannedAt ? 'Rescan' : 'Scan sizes'}</button></div>{storage.error && <p className="mt-3 rounded-lg border border-amber-300/30 bg-amber-300/[0.07] px-3 py-2 text-[10px] text-amber-200">{storage.error}</p>}{storage.scannedAt ? <><div className="mt-3 flex flex-wrap gap-x-5 gap-y-2"><Stat label="Folders measured" value={results.length} /><Stat label="Total" value={`${hasEstimate ? '≥ ' : ''}${readableBytes(total)}`} /><Stat label="Mod content" value={readableBytes(mods)} /></div>{openError && <p className="mt-3 rounded-lg border border-red-400/30 bg-red-400/[0.07] px-3 py-2 text-[10px] text-red-200">{openError}</p>}{storage.skipped?.length > 0 && <div className="mt-3 rounded-lg border border-amber-300/25 bg-amber-300/[0.05] px-3 py-2"><p className="text-[10px] font-bold text-amber-200">{storage.skipped.length} launch target{storage.skipped.length === 1 ? '' : 's'} skipped instead of guessing.</p><p className="mt-0.5 truncate text-[9.5px] text-muted" title={storage.skipped.slice(0, 3).map((item) => `${item.name}: ${item.reason}`).join(' · ')}>{storage.skipped.slice(0, 3).map((item) => `${item.name}: ${item.reason}`).join(' · ')}</p></div>}<div className="mt-3 max-h-[430px] space-y-1.5 overflow-y-auto pr-1" data-testid="storage-results-list">{results.map((entry) => <div key={entry.id} className="flex items-center gap-2 rounded-lg border border-[rgb(var(--border)/0.68)] bg-[rgb(var(--surface)/0.23)] p-2 transition hover:border-[rgb(var(--accent)/0.45)]"><button onClick={() => onSelect?.(entry.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left"><Cover game={entry.game} className="h-8 w-14" /><span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-black text-ink">{entry.game.name}</span><span className="mt-0.5 block truncate font-mono text-[8.5px] text-muted" title={entry.game.homeLocked ? 'Protected folder' : entry.root}>{entry.game.homeLocked ? 'Protected folder' : entry.root}</span><span className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[8.5px] text-muted"><span>{Number(entry.files || 0).toLocaleString()} files</span>{entry.modBytes > 0 && <span className="text-[rgb(var(--accent-2))]">mods {readableBytes(entry.modBytes)}</span>}{entry.truncated && <span className="text-amber-200">partial scan</span>}</span></span></button><div className="flex shrink-0 items-center gap-2"><span className="font-mono text-[10px] font-bold text-ink">{entry.truncated ? '≥ ' : ''}{readableBytes(entry.bytes)}</span>{entry.game.homeLocked ? <span className="inline-flex h-7 items-center rounded-md border border-[rgb(var(--accent)/0.35)] px-2 text-[9px] font-bold text-[rgb(var(--accent-2))]">Locked</span> : <button onClick={() => openFolder(entry)} className="inline-flex h-7 items-center gap-1 rounded-md border border-[rgb(var(--border))] px-2 text-[9px] font-bold text-[rgb(var(--accent-2))] hover:border-[rgb(var(--accent)/0.55)] hover:text-ink" title={`Open measured folder: ${entry.root}`}><FolderOpen size={11} />Open</button>}</div></div>)}{!results.length && <p className="rounded-lg border border-dashed border-[rgb(var(--border))] p-4 text-center text-xs text-muted">No valid game folders were measured. Review the skipped launch targets above, then use Customize to correct a game’s executable.</p>}</div><p className="mt-2 text-[9px] leading-relaxed text-muted/85">Every size is tied to the shown folder. “Partial scan” means NEO-LIB stopped at its safety limit, so the displayed total is at least that large.</p></> : <p className="mt-4 text-xs leading-relaxed text-muted">Scan when you want a current view. NEO-LIB never crawls entire drives; it walks only validated configured game folders.</p>}</section>;
+  return <section className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.34)] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div className="flex items-center gap-2"><HardDrive size={15} className="text-[rgb(var(--accent))]" /><div><h2 className="text-xs font-black uppercase tracking-[0.18em]">Storage control centre</h2><p className="mt-1 text-[10px] text-muted">Validated game folders and recognised mod folders only—read-only.</p></div></div><button onClick={storage.loading ? onCancel : onScan} className="inline-flex items-center gap-1.5 rounded-md border border-[rgb(var(--border))] px-2.5 py-1.5 text-[10px] font-bold text-muted hover:border-[rgb(var(--accent)/0.55)] hover:text-ink"><RefreshCw size={11} className={storage.loading ? 'animate-spin text-[rgb(var(--accent))]' : ''} />{storage.loading ? 'Cancel' : storage.scannedAt ? 'Rescan' : 'Scan sizes'}</button></div>{storage.error && <p className="mt-3 rounded-lg border border-amber-300/30 bg-amber-300/[0.07] px-3 py-2 text-[10px] text-amber-200">{storage.error}</p>}{storage.scannedAt ? <><div className="mt-3 flex flex-wrap gap-x-5 gap-y-2"><Stat label="Folders measured" value={results.length} /><Stat label="Total" value={`${hasEstimate ? '≥ ' : ''}${readableBytes(total)}`} /><Stat label="Mod content" value={readableBytes(mods)} /></div>{openError && <p className="mt-3 rounded-lg border border-red-400/30 bg-red-400/[0.07] px-3 py-2 text-[10px] text-red-200">{openError}</p>}{storage.skipped?.length > 0 && <div className="mt-3 rounded-lg border border-amber-300/25 bg-amber-300/[0.05] px-3 py-2"><p className="text-[10px] font-bold text-amber-200">{storage.skipped.length} launch target{storage.skipped.length === 1 ? '' : 's'} skipped instead of guessing.</p><p className="mt-0.5 truncate text-[9.5px] text-muted" title={storage.skipped.slice(0, 3).map((item) => `${item.name}: ${item.reason}`).join(' · ')}>{storage.skipped.slice(0, 3).map((item) => `${item.name}: ${item.reason}`).join(' · ')}</p></div>}<div className="mt-3 max-h-[430px] space-y-1.5 overflow-y-auto pr-1" data-testid="storage-results-list">{results.map((entry) => <div key={entry.id} className="flex items-center gap-2 rounded-lg border border-[rgb(var(--border)/0.68)] bg-[rgb(var(--surface)/0.23)] p-2 transition hover:border-[rgb(var(--accent)/0.45)]"><button onClick={() => onSelect?.(entry.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left"><Cover game={entry.game} className="h-8 w-14" /><span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-black text-ink">{entry.game.name}</span><span className="mt-0.5 block truncate font-mono text-[8.5px] text-muted" title={entry.game.homeLocked ? 'Protected folder' : entry.root}>{entry.game.homeLocked ? 'Protected folder' : entry.root}</span><span className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[8.5px] text-muted"><span>{Number.isFinite(entry.files) ? `${entry.files.toLocaleString()} files` : 'Saved measurement'}</span>{entry.modBytes > 0 && <span className="text-[rgb(var(--accent-2))]">mods {readableBytes(entry.modBytes)}</span>}{entry.truncated && <span className="text-amber-200">partial scan</span>}</span></span></button><div className="flex shrink-0 items-center gap-2"><span className="font-mono text-[10px] font-bold text-ink">{entry.truncated ? '≥ ' : ''}{readableBytes(entry.bytes)}</span>{entry.game.homeLocked ? <span className="inline-flex h-7 items-center rounded-md border border-[rgb(var(--accent)/0.35)] px-2 text-[9px] font-bold text-[rgb(var(--accent-2))]">Locked</span> : <button disabled={!entry.root} onClick={() => openFolder(entry)} className="inline-flex h-7 items-center gap-1 rounded-md border border-[rgb(var(--border))] px-2 text-[9px] font-bold text-[rgb(var(--accent-2))] hover:border-[rgb(var(--accent)/0.55)] hover:text-ink" title={entry.root ? `Open measured folder: ${entry.root}` : 'Rescan to save folder details'}><FolderOpen size={11} />Open</button>}</div></div>)}{!results.length && <p className="rounded-lg border border-dashed border-[rgb(var(--border))] p-4 text-center text-xs text-muted">No valid game folders were measured. Review the skipped launch targets above, then use Customize to correct a game’s executable.</p>}</div><p className="mt-2 text-[9px] leading-relaxed text-muted/85">Every size is tied to the shown folder. “Partial scan” means NEO-LIB stopped at its safety limit, so the displayed total is at least that large.</p></> : <p className="mt-4 text-xs leading-relaxed text-muted">Scan when you want a current view. NEO-LIB never crawls entire drives; it walks only validated configured game folders.</p>}</section>;
 }
 
 function GamingChronicle({ entries, onSelect }) {

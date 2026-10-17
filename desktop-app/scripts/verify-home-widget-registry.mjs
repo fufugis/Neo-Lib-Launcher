@@ -14,7 +14,7 @@ babel.parseSync(homeSource, { configFile: false, babelrc: false, parserOpts: { p
 const ids = BUILTIN_HOME_WIDGETS.map((widget) => widget.id);
 assert.equal(HOME_WIDGET_API_VERSION, 1);
 assert.equal(new Set(ids).size, ids.length, 'every built-in Home widget must have one stable identity');
-assert.deepEqual([...ids].sort(), ['best-games', 'chronicle', 'health', 'news', 'play-next', 'playtime-pie', 'recent', 'released-week', 'storage', 'top-played', 'updates']);
+assert.deepEqual([...ids].sort(), ['best-games', 'chronicle', 'health', 'news', 'play-next', 'playtime-calendar', 'playtime-pie', 'recent', 'released-week', 'storage', 'top-played', 'updates']);
 for (const widget of BUILTIN_HOME_WIDGETS) {
   assert.equal(widget.kind, 'first-party');
   assert.deepEqual(widget.capabilities, [], `${widget.id} must not receive native capabilities through its layout registry`);
@@ -28,13 +28,15 @@ for (const widget of BUILTIN_HOME_WIDGETS) {
   assert(atDesktop.cols >= widget.layout.minCols && atDesktop.rows >= widget.layout.minRows);
   assert.equal(widgetSizeIsAllowed(widget, { cols: widget.layout.minCols - 1, rows: widget.layout.minRows }, HOME_WIDGET_GRID.desktop), false, `${widget.id} cannot be undersized`);
 }
-assert.deepEqual(widgetsForSegment('play').map((widget) => widget.id), ['playtime-pie', 'play-next', 'recent', 'best-games', 'chronicle']);
+assert.deepEqual(widgetsForSegment('play').map((widget) => widget.id), ['playtime-calendar', 'playtime-pie', 'play-next', 'recent', 'best-games', 'chronicle']);
 assert.deepEqual(normaliseWidgetSize(homeWidget('updates'), { cols: 1, rows: 1 }, 8), { cols: 1, rows: 1 });
 assert.deepEqual(normaliseWidgetSize(homeWidget('updates'), { cols: 99, rows: 99 }, 8), { cols: 8, rows: 99 });
 assert.deepEqual(normaliseWidgetSize(homeWidget('recent'), { cols: 5.6, rows: 2.6 }, 12), { cols: 6, rows: 3 });
 assert.equal(homeWidget('unknown-widget'), null);
-assert.match(homeSource, /data-testid="home-layout-lock-toggle"/, 'Home must expose an explicit Unlock and Done control');
-assert.match(homeSource, /data-testid="home-layout-snap-toggle"/, 'Home must expose a snap/free placement toggle');
+const widgetControls = readFileSync(new URL('../src/components/home/HomeWidgetSettings.jsx', import.meta.url), 'utf8');
+assert.match(homeSource, /home-widget-settings-button/, 'Home exposes one widget management entry');
+assert.match(widgetControls, /data-testid="home-layout-lock-toggle"/, 'the widget panel exposes arrangement editing');
+assert.match(widgetControls, /data-testid="home-layout-snap-toggle"/, 'the widget panel exposes snap/free placement');
 assert.match(homeSource, /data-home-layout-unlocked=/, 'Home must expose its grid editing state');
 assert.match(homeSource, /data-home-snap=/, 'Home must expose the active placement mode');
 assert.match(homeSource, /onContextMenu=\{openContextMenu\}/, 'widget title bars must expose the context menu');

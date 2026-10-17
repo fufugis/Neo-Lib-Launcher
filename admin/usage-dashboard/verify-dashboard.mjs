@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+const base = 'http://127.0.0.1:4784';
+const page = await fetch(base, { signal: AbortSignal.timeout(5000) });
+assert.equal(page.status, 200);
+const html = await page.text();
+const nonce = html.match(/name="local-session" content="([^"]+)"/)[1];
+assert.equal((await fetch(`${base}/api/metrics`)).status, 403);
+assert.equal((await fetch(`${base}/api/metrics`, { headers: { 'X-Local-Session': nonce, Origin: 'https://untrusted.example' } })).status, 403);
+const result = await fetch(`${base}/api/metrics`, { headers: { 'X-Local-Session': nonce }, signal: AbortSignal.timeout(15000) });
+assert.equal(result.status, 200);
+const data = await result.json();
+assert.equal(typeof data.totals.firstOpens, 'number'); assert.equal(typeof data.active.today, 'number');
+assert(!html.includes('ADMIN_TOKEN') && !html.includes('Bearer '));
+console.log(JSON.stringify({ pageStatus: page.status, metricsStatus: result.status, totals: data.totals, active: data.active }));
+console.log('PASS: running localhost dashboard reaches protected live summary; missing nonce and cross-origin reads rejected.');

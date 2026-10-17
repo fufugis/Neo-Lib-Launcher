@@ -14,6 +14,7 @@ const firstParty = (id, label, segment, layout, options = {}) => Object.freeze({
 // current UI still renders the same React components; the registry lets the
 // upcoming grid host own their identity and sizing without changing data flow.
 export const BUILTIN_HOME_WIDGETS = Object.freeze([
+  firstParty('playtime-calendar', 'Playtime calendar', 'play', { minCols: 1, minRows: 1, defaultCols: 6, defaultRows: 5 }, { description: 'Month/year heatmap of locally recorded daily playtime, with game filters and day details.' }),
   firstParty('playtime-pie', 'Playtime pie', 'play', { minCols: 1, minRows: 1, defaultCols: 6, defaultRows: 4 }, { description: 'Recorded playtime distribution with title, hours, launcher, progress, activity and favourite filters.' }),
   firstParty('top-played', 'Top 5 played', 'pinned', { minCols: 1, minRows: 1, defaultCols: 12, defaultRows: 3 }, { description: 'Your most-played games and activity totals for the selected period.' }),
   firstParty('news', 'News', 'pinned', { minCols: 1, minRows: 1, defaultCols: 12, defaultRows: 3 }, { description: 'A compact rail of recent stories and patch notes from your own library.' }),

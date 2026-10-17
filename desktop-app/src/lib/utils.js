@@ -43,10 +43,10 @@ export const THEMES = [
   { id: 'crimson',       label: 'Crimson',        swatch: '#dc263c', tone: 'dark',
     gradient: 'linear-gradient(135deg, #080405 0%, #dc263c 55%, #ff5a6e 100%)' },
   // Middle themes (somewhere between dark and bright)
-  { id: 'gaming',        label: 'Gaming',         swatch: '#b889ff', tone: 'middle',
-    gradient: 'linear-gradient(135deg, #2f335d 0%, #797fd0 52%, #b8e7ff 100%)' },
-  { id: 'modern',        label: 'Modern',         swatch: '#b83a45', tone: 'middle',
-    gradient: 'linear-gradient(135deg, #353e4e 0%, #68778d 55%, #d77780 100%)' },
+  { id: 'gaming',        label: 'Ember',          swatch: '#402c20', tone: 'middle',
+    gradient: 'linear-gradient(135deg, #2b1c14 0%, #442e20 55%, #ebaf76 82%, #ffcca0 100%)' },
+  { id: 'modern',        label: 'Camo',           swatch: '#1e3121', tone: 'middle',
+    gradient: 'linear-gradient(135deg, #16261a 0%, #273a26 55%, #ffdd4c 78%, #ffc3e0 100%)' },
   { id: 'home',          label: 'Home',           swatch: '#5eaed9', tone: 'middle',
     gradient: 'linear-gradient(135deg, #8f989f 0%, #7198ae 52%, #c39637 100%)' },
   // Bright themes

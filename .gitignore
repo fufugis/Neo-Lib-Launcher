@@ -93,3 +93,4 @@ credentials.json
 *.key
 .credentials
 desktop-app/electron/discord-config.generated.js
+admin/usage-dashboard/private/

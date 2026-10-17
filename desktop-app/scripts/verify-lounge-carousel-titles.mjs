@@ -15,7 +15,7 @@ assert(styles.includes("[data-lounge-carousel-titles='false'] .lounge-browser-ca
 assert(styles.includes('{ align-items: flex-end; }'));
 assert(styles.includes('{ transform-origin: center bottom; }'));
 const builder = read('../src/components/lounge/LoungeVisualBuilder.jsx');
-assert(builder.includes('(preferences.carouselShowTitles ? 1 : 0.74)'), 'mini cards reclaim caption height');
+assert(builder.includes('<LoungeLivePreview preferences={preferences}'), 'mini cards use the actual title-hidden geometry');
 const settings = read('../src/components/lounge/LoungeSettingsPanel.jsx');
 assert(settings.includes('label="Carousel game titles"'));
 assert(settings.includes("'selectedGameScale', 'carouselShowTitles',"), 'reset layout restores titles');

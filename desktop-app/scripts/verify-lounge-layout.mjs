@@ -156,7 +156,7 @@ assert.equal(normalizeLoungePreferences({ preset: 'custom', shelfPosition: 'top'
 assert.equal(defaults.previewStyle, 'cinema');
 assert.equal(defaults.entryScreen, 'games', 'existing installs resume their last game view by default');
 assert.equal(defaults.controlSize, 'comfortable');
-for (const controlSize of ['compact', 'comfortable', 'large']) assert.equal(hydrateSettings({ loungePreferences: { controlSize } }).loungePreferences.controlSize, controlSize, `${controlSize} viewing distance remains saved`);
+for (const controlSize of ['compact', 'near', 'comfortable', 'far', 'large']) assert.equal(hydrateSettings({ loungePreferences: { controlSize } }).loungePreferences.controlSize, controlSize, `${controlSize} viewing distance remains saved`);
 assert.equal(defaults.browseSort, 'library');
 assert.equal(hydrateSettings({ loungePreferences: { browseSort: 'name' } }).loungePreferences.browseSort, 'name');
 assert.equal(hydrateSettings({ loungePreferences: { showPrivateGamesInLounge: true } }).loungePreferences.showPrivateGamesInLounge, true, 'the private-game display preference is saved independently of session PIN unlocks');

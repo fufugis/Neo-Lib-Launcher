@@ -36,6 +36,7 @@ export function useModuleCoreBridge(options) {
           const ids = new Set((action.value?.games || []).map(game => game.id));
           const games = current.loungeGames.filter(game => ids.has(game.id));
           const data = action.type === 'updates' ? await nativeApi.scanGameUpdates({ games, force: action.value?.force === true }) : await nativeApi.scanGameStorage({ games, force: action.value?.force === true });
+          if (action.type === 'storageScan') current.saveStorageMeasurements?.(data);
           response = { ok: data?.ok !== false, data };
         } else throw new Error('Unsupported request');
       } else {

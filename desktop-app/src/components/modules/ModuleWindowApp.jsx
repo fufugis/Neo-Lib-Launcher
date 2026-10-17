@@ -1,10 +1,13 @@
 import React from 'react';
+import { normalizeCursorTheme } from '../../lib/cursor-presets.mjs';
 import NeoLounge from '../lounge/NeoLounge';
 import AddonPage from '../addons/AddonPage';
 import { applyStockThemePalette, setCustomThemes } from '../../themes/stock-theme-registry.mjs';
 import { setSoundPack } from '../../lib/sound';
 import ControllerNavigationBridge from '../controller/ControllerNavigationBridge';
 import { useIdlePowerSaver } from '../../state/use-idle-power-saver.mjs';
+import { useUsageReporting } from '../../state/use-usage-reporting.mjs';
+import { version as APP_VERSION } from '../../../package.json';
 
 export default function ModuleWindowApp() {
   const [context, setContext] = React.useState(null);
@@ -43,6 +46,8 @@ export default function ModuleWindowApp() {
   }, []);
   React.useEffect(() => window.api?.onModuleCloseRequest?.(() => { void close(); }), [close]);
   const value = context?.lounge;
+  useUsageReporting({ ready: Boolean(value && context?.official?.official === true), enabled: value?.themeSettings?.usageReportingEnabled === true && value?.themeSettings?.usageConsentVersion === 2,
+    endpoint: import.meta.env.VITE_USAGE_ENDPOINT || '', version: APP_VERSION, setupComplete: value?.themeSettings?.welcomeCompleted === true && !value?.themeSettings?.firstRunPending, blocked: value?.resting === true });
   const idlePowerSaving = useIdlePowerSaver({ nativeApi: window.api, enabled: context?.official?.official === true && value?.themeSettings?.idlePowerSavingEnabled !== false, blocked: !value || value.resting === true });
   const theme = value?.theme || context?.theme || 'synthwave';
   React.useEffect(() => {
@@ -50,7 +55,7 @@ export default function ModuleWindowApp() {
     document.documentElement.setAttribute('data-theme', theme.startsWith('custom:') ? 'custom' : theme);
     applyStockThemePalette(document.documentElement, theme);
     document.documentElement.setAttribute('data-motion-cadence', value?.themeSettings?.motionCadence || 'full');
-    document.documentElement.setAttribute('data-neolib-cursor', value?.themeSettings?.cursorTheme || 'windows');
+    document.documentElement.setAttribute('data-neolib-cursor', normalizeCursorTheme(value?.themeSettings?.cursorTheme));
     setSoundPack(value?.resting || value?.soundsEnabled === false ? 'none' : value?.themeSettings?.soundPack || 'synthwave');
     return () => setSoundPack('none');
   }, [theme, value?.installedCustomThemes, value?.resting, value?.soundsEnabled, value?.themeSettings]);

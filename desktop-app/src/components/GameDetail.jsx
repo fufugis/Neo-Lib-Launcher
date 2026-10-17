@@ -3,7 +3,9 @@ import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 import { DetailList, GameCapabilities, GameMediaGallery, GameStory } from './preview/PreviewInformationPanels';
 import PreviewActionBar from './preview/PreviewActionBar';
+import PreviewPageLayout from './preview/PreviewPageLayout';
 import PreviewHeroTitle from './preview/PreviewHeroTitle';
+import { installSizePatch, savedStorageSnapshot } from '../state/install-size-state.mjs';
 import { LatestNewsPill, ManagedToolSetup, SteamManifestLine, UpdateAvailablePill } from './preview/PreviewStatusCards';
 import { DEFAULT_HERO_FILTER, heroImageFilter } from './preview/hero-treatment-model.mjs';
 import { libraryHeroArtworkOptions, libraryHeroCandidates, libraryHeroFocalPoint, libraryHeroMediaKind, libraryHeroMotion, libraryHeroMotionStyle, libraryHeroWidth } from './preview/library-hero-artwork.mjs';
@@ -17,25 +19,20 @@ import { libraryHeroArtworkOptions, libraryHeroCandidates, libraryHeroFocalPoint
  */
 export default function GameDetail({
   game, categories, onLaunch, onLaunchError, onRefetch, onRevealFolder,
-  onToggleCategory, onCustomize, onUpdateGame, onOpenSaveManager, onLocateManagedTool, onInstallManagedTool, managedToolInstalling = false, fetching, settings = {},
+  onToggleCategory, onCustomize, onUpdateGame, onOpenSaveManager, onLocateManagedTool, onInstallManagedTool, managedToolInstalling = false, fetching, settings = {}, onPreviewLayoutChange,
 }) {
-  const [installSize, setInstallSize] = React.useState(null);
+  const installSize = React.useMemo(() => savedStorageSnapshot(game ? [game] : []).results[0] || null, [game]);
   const [measuringSize, setMeasuringSize] = React.useState(false);
-  React.useEffect(() => {
-    setInstallSize(game && Number.isFinite(Number(game.installSizeBytes))
-      ? { bytes: Number(game.installSizeBytes), truncated: Boolean(game.installSizePartial) }
-      : null);
-  }, [game?.id, game?.installSizeBytes, game?.installSizePartial]);
   const measureInstallSize = React.useCallback(async () => {
     if (!game?.exePath || !window.api?.scanGameStorage || measuringSize) return;
     setMeasuringSize(true);
     try {
       const result = await window.api.scanGameStorage({ games: [{ id: game.id, name: game.name, exePath: game.exePath, launcher: game.launcher }], force: true });
-      const found = result?.results?.[0];
-      if (!result?.ok || !found || !Number.isFinite(Number(found.bytes))) return;
-      const next = { bytes: Number(found.bytes), truncated: Boolean(found.truncated) };
-      setInstallSize(next);
-      onUpdateGame?.(game.id, { installSizeBytes: next.bytes, installSizeMeasuredAt: Date.now(), installSizePartial: next.truncated });
+      if (result?.ok !== true) return;
+      const patch = installSizePatch(game, result.results?.find(entry => entry.id === game.id), result.scannedAt || Date.now());
+      if (patch) onUpdateGame?.(game.id, patch);
+    } catch {
+      // A failed rescan must never erase a saved measurement.
     } finally { setMeasuringSize(false); }
   }, [game, measuringSize, onUpdateGame]);
   const heroCandidates = React.useMemo(() => libraryHeroCandidates(game), [game]);
@@ -120,20 +117,8 @@ export default function GameDetail({
   const measuredWidth = heroDimensions?.src === bg ? heroDimensions.width : 0;
   const isHeroVideo = libraryHeroMediaKind(bg) === 'video';
   const compactWidth = isHeroVideo ? null : libraryHeroWidth(measuredWidth, heroRef.current?.clientWidth || 0);
-  return (
-    <motion.div
-      key={game.id}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.28 }}
-      className="relative flex h-full flex-1 flex-col overflow-hidden"
-    >
-      {/* Unified hero section — banner image stretches from the very top down BEHIND
-          the title block, action bar AND meta strip, fading cleanly into the About
-          section below. The bars sit on top of the image with glass/blur.
-          Height reduced by ~35% (aspect 16:2.1 vs old 16:3.2) so the two
-          content panels below get more room. */}
-      <div
+  const blocks = {
+    hero: (<div
         ref={heroRef}
         className="relative isolate shrink-0"
         onMouseMove={onHeroMove}
@@ -233,38 +218,21 @@ export default function GameDetail({
           settings={settings}
         />
 
-      </div>
-
-      {/* Preview stays anchored to Library: reading stays left, while verified
-          game artwork has its own fuller gallery on the right. */}
-      <div className="flex min-h-0 flex-1 justify-start overflow-y-auto px-3 py-5 sm:px-4 sm:py-6">
-        <section
-          className="mx-auto min-h-min w-full max-w-[1500px] rounded-2xl border border-[rgb(var(--border)/0.88)] bg-[rgb(var(--panel)/0.56)] px-4 py-4 shadow-[0_28px_80px_-52px_rgba(0,0,0,.96)] backdrop-blur-md sm:px-6 sm:py-5"
-          data-testid="game-text-panel"
-        >
-          <ManagedToolSetup game={game} onLocate={onLocateManagedTool} onInstall={onInstallManagedTool} installing={managedToolInstalling} />
-          <UpdateAvailablePill game={game} />
-          <LatestNewsPill game={game} />
-          <DetailList game={game} />
-          <GameCapabilities game={game} onUpdateGame={onUpdateGame} />
-          <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(460px,560px)]">
-            <div className="min-w-0">
-              <GameStory game={game} profile={game.genreProfile} />
-              <div className="mt-5 rounded-xl border border-[rgb(var(--border)/0.56)] bg-[rgb(var(--surface)/0.30)] px-3 py-2.5 text-[10.5px] text-muted/75 break-all font-mono">
-                {game.exePath}
-                {game.appid && <span className="block mt-0.5">Steam App ID · {game.appid}</span>}
-                {game.source && <span className="block mt-0.5">Source · {game.source}</span>}
-              </div>
-              <SteamManifestLine game={game} />
-            </div>
-            <aside className="min-w-0 space-y-5 xl:sticky xl:top-3">
-              <GameMediaGallery game={game} />
-            </aside>
-          </div>
-        </section>
-      </div>
-    </motion.div>
-  );
+      </div>),
+    notices: <><ManagedToolSetup game={game} onLocate={onLocateManagedTool} onInstall={onInstallManagedTool} installing={managedToolInstalling} /><UpdateAvailablePill game={game} /><LatestNewsPill game={game} /></>,
+    details: <DetailList game={game} />,
+    capabilities: <GameCapabilities game={game} onUpdateGame={onUpdateGame} />,
+    description: <GameStory game={game} profile={game.genreProfile} />,
+    media: <GameMediaGallery game={game} />,
+    source: <><div className="rounded-xl border border-[rgb(var(--border)/0.56)] bg-[rgb(var(--surface)/0.30)] px-3 py-2.5 text-[10.5px] text-muted/75 break-all font-mono">
+      {game.exePath}
+      {game.appid && <span className="block mt-0.5">Steam App ID · {game.appid}</span>}
+      {game.source && <span className="block mt-0.5">Source · {game.source}</span>}
+    </div><SteamManifestLine game={game} /></>,
+  };
+  return <motion.div key={game.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.28 }} className="relative flex h-full flex-1 flex-col overflow-hidden">
+    <PreviewPageLayout blocks={blocks} savedLayout={settings.previewLayout} onLayoutChange={onPreviewLayoutChange} />
+  </motion.div>;
 }
 /* ---------- Empty state ---------- */
 function EmptyState() {

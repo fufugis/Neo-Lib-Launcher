@@ -16,6 +16,24 @@ import { createDemoLibrary } from '../src/state/demo-library.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const components = path.join(root, 'src', 'components');
+const graphicsSource = fs.readFileSync(path.join(components, 'library/library-graphics.mjs'), 'utf8');
+for (const id of ['cyber-rings', 'prism-shards', 'liquid-chrome', 'star-trails', 'dragon-sketches', 'retro-doodles']) {
+  assert(graphicsSource.includes(`id: '${id}'`));
+  const asset = name => fs.readFileSync(path.join(root, 'src/assets/library-graphics', name));
+  const png = asset(`${id}-original.png`);
+  const portrait = ['star-trails', 'dragon-sketches', 'retro-doodles'].includes(id);
+  assert.equal(png.readUInt32BE(16), portrait ? 1024 : 1672); assert.equal(png.readUInt32BE(20), portrait ? 1536 : 941);
+  if (portrait) assert.match(graphicsSource, new RegExp(`id: '${id}'[^\n]*fullHeight: true`), 'portrait textures fill the complete Library box');
+  assert.equal(png[25], 6, 'original graphics have RGBA transparency');
+  for (const suffix of ['', '-thumb']) {
+    const webp = asset(`${id}${suffix}.webp`);
+    assert.equal(webp.toString('ascii', 0, 4), 'RIFF'); assert.equal(webp.toString('ascii', 8, 12), 'WEBP');
+    assert.equal(webp.toString('ascii', 12, 16), 'VP8X'); assert(webp[20] & 16, 'WebP preserves alpha');
+    assert(webp.length < (portrait ? (suffix ? 50000 : 1000000) : (suffix ? 30000 : 500000)), 'decorative art and picker thumbnails remain bounded');
+  }
+}
+assert.doesNotMatch(graphicsSource, /requestAnimationFrame|setInterval|setTimeout|canvas|three\.js/, 'static decorations need no per-frame work');
+assert(graphicsSource.includes("backgroundSize: graphic.fullHeight ? '100% 100%'"), 'full-height textures cover both axes without cropping their top/bottom');
 // Yarn/npm hoist Babel to node_modules, while pnpm keeps it in its content store.
 // Accept both layouts so the same verification runs locally and in GitHub Actions.
 const flatParser = path.join(root, 'node_modules', '@babel', 'parser', 'lib', 'index.js');
@@ -122,7 +140,7 @@ const railGroups = {
   lounge: ['sidebar-rail-lounge-btn'],
   browse: ['tab-home', 'tab-library', 'tab-cover-wall'],
   tools: ['tab-tools', 'sidebar-rail-wizard-btn', 'sidebar-rail-rest-toggle'],
-  personalise: ['sidebar-rail-sidebar-toggle'],
+  personalise: ['sidebar-rail-modules-btn'],
   app: ['sidebar-rail-changelog-btn'],
   exit: ['sidebar-rail-quit-btn'],
 };
@@ -142,19 +160,23 @@ assert.match(sidebarSource, /expanded \? 'max-w-\[104px\][^']*opacity-100' : 'ma
 assert.match(sidebarSource, /<Home size=\{21\}[\s\S]*?<LibIcon size=\{21\}[\s\S]*?<Columns size=\{21\}[\s\S]*?<Boxes size=\{21\}/, 'Sidebar navigation icons must use one larger size.');
 assert.match(sidebarSource, /expanded \? 'justify-start gap-2\.5 px-2' : 'justify-center gap-0 px-0'/, 'Collapsed sidebar icons must remain centered.');
 assert.match(controlMenuSource, /sidebarMode \? <span className="neo-rail-button__icon grid h-6 w-6 shrink-0 place-items-center"><Settings2 size=\{21\}/, 'Collapsed sidebar menu icon must not shrink away.');
-assert.match(sidebarSource, /style=\{\{ width: expanded \? 148 : 48 \}\}/, 'The navigation rail must expand on hover without permanently consuming Library width.');
-assert.match(appSource, /settings\.navigationLayout === 'sidebar' && <SideNavigationRail[\s\S]*?!wallActive && <Sidebar/, 'The rail must be a workspace sibling before Library and remain available on Wall.');
+assert.match(sidebarSource, /style=\{\{ width: expanded \? geometry.expanded : geometry.compact,/, 'Navigation preview follows scaled button geometry without permanently reserving expanded width.');
+assert.match(appSource, /<SideNavigationRail[\s\S]*?!wallActive && <Sidebar/, 'The permanent rail is a workspace sibling and remains available on Wall.');
+assert.doesNotMatch(appSource, /settings\.navigationLayout|onDisableSidebar|onChangeNavigationLayout/, 'the root has no sidebar-off path');
+assert.match(sidebarSource, /const sideNavigation = true/, 'library top navigation cannot replace the permanent rail');
 assert.match(sidebarSource, /data-testid="side-navigation-slot"/, 'The rail must reserve its own fixed-width workspace strip.');
 assert.doesNotMatch(sidebarSource, /paddingLeft: sideNavigation/, 'Sidebar mode must not indent Library content to make room for navigation.');
 assert.match(sidebarSource, /!sideNavigation && \(\(\) =>/, 'The default top tabs must be replaced rather than duplicated in Sidebar mode.');
-assert.match(libraryVisualsSource, /data-testid="pop-navigation-layout"/, 'Visual Tweaks must expose Default top and Sidebar navigation choices.');
+assert.doesNotMatch(libraryVisualsSource, /pop-navigation-layout|onChangeNavigationLayout/, 'Visual Tweaks has no sidebar-off choice');
 assert.match(controlMenuSource, /data-testid=\{testid\} role="switch"/, 'Control Center must provide a real accessible navigation-layout switch.');
-assert.match(controlMenuSource, /testid="app-menu-sidebar-toggle"/, 'The Sidebar switch must live under Control Center Personalise.');
+assert.doesNotMatch(controlMenuSource, /app-menu-sidebar-toggle|onToggleSidebar/, 'the Sidebar switch is removed from the menu');
+assert.doesNotMatch(sidebarSource, /sidebar-rail-sidebar-toggle|onDisableSidebar/, 'the Sidebar switch is removed from the rail');
 assert.match(sidebarSource, /testid="sidebar-wizard-btn"/, 'Library must retain Wizard as its single game-add entry point.');
 assert.match(sidebarSource, /\(!sideNavigation \|\| isTools\) && \(\(\) =>/, 'Sidebar layout must remove the redundant Library action row.');
 assert.match(sidebarSource, /!isTools && !sideNavigation && <button type="button" data-testid="sidebar-select-games"/, 'Default layout must keep Select in the Library action row.');
 assert.match(sidebarSource, /sideNavigation && <button type="button" data-testid="sidebar-select-games"/, 'Sidebar layout must move Select beside Library filters.');
-assert.match(sidebarSource, /testid="side-navigation-primary-divider"[\s\S]*?testid="sidebar-rail-wizard-btn"[\s\S]*?testid="sidebar-rail-rest-toggle"/, 'Sidebar actions sit below their labelled section break.');
+assert.match(sidebarSource, /testid="sidebar-rail-lounge-btn"[\s\S]*?data-testid="sidebar-add-games-area"[\s\S]*?testid="sidebar-rail-wizard-btn"[\s\S]*?testid="side-navigation-lounge-divider"/, 'Lounge stays first, followed by a separate Add games action before Browse');
+assert.match(sidebarSource, /testid="side-navigation-exit-divider"[\s\S]*?testid="sidebar-rail-rest-toggle"[\s\S]*?testid="sidebar-rail-quit-btn"/, 'Rest remains alongside Quit');
 assert.match(appSource, /onOpenWizard=\{\(\) => setShowWizard\(true\)\} manualResting=\{manualRestActive\} onToggleManualRest=\{toggleManualRest\}/, 'The rail must receive the real Wizard and Rest handlers.');
 assert.doesNotMatch(sidebarSource, /testid="sidebar-add-btn"|data-testid="add-menu-game"/, 'Library must not restore a duplicate Add-game control outside Wizard.');
 assert.match(wizardSource, /data-testid="wizard-manual-add-section"/, 'Wizard must visibly own the manual add route.');
@@ -189,7 +211,8 @@ assert.match(libraryVisualsSource, /fieldset disabled=\{!libraryIconMode\}/, 'Ic
 assert.match(sidebarSource, /libraryIconMode \? \(/, 'Icon mode must replace category and pinned presentation, not layer over it.');
 assert.match(sidebarSource, /const labelsVisible = !libraryIconMode && sidebarWidth >= 300/, 'Narrow or icon-only Library must not show squeezed toolbar labels.');
 assert.match(sidebarSource, /const compactFilters = libraryIconMode \|\| sidebarWidth < 390/, 'Narrow Library filter controls must switch to icon-only buttons.');
-assert.match(sidebarSource, /compact=\{compactFilters\}/, 'Launcher filter must follow the same compact state.');
+assert.match(sidebarSource, /<LauncherDropdown value=\{launcherFilter \|\| 'all'\}[^\n]+embedded \/>/, 'Launcher filter stays labelled inside Sort, even on a compact sidebar');
+assert.match(read('src/components/library/LibraryToolbarControls.jsx'), /!embedded && 'library-filter-control'/, 'Embedded launcher picker is not squeezed by toolbar-only compact rules');
 assert.match(read('src/components/library/LibraryToolbarControls.jsx'), /<Filter size=\{14\}/, 'Launcher filter needs its own recognizable compact icon.');
 assert.match(stylesSource, /@container \(max-width: 389px\)[\s\S]*?\.library-filter-text \{ display: none !important; \}/, 'Library filters must collapse during a live sidebar resize.');
 assert.match(libraryIconGridSource, /data-testid="library-icon-grid"/);
@@ -197,7 +220,9 @@ assert.match(libraryIconGridSource, /gridTemplateColumns: `repeat\(\$\{safeRows\
 assert.match(libraryIconGridSource, /iconOnly/);
 assert.match(libraryTreeSource, /!iconOnly && <div className="flex min-w-0 flex-1 flex-col/, 'Icon-only rows must omit game-name and metadata text.');
 assert.match(libraryVisualsSource, /CURSOR_OPTIONS/);
-for (const cursorName of ['windows', 'neon', 'petal', 'pixel']) assert.match(libraryVisualsSource, new RegExp(`id: '${cursorName}'`));
+const cursorPresetsSource = read('src/lib/cursor-presets.mjs');
+for (const cursorName of ['windows', 'neon', 'petal', 'pixel', 'industrial', 'future', 'stoneage']) assert.match(cursorPresetsSource, new RegExp(`id: '${cursorName}'`));
+assert.match(libraryVisualsSource, /import \{ CURSOR_OPTIONS, normalizeCursorTheme \}/, 'picker and runtime share cursor IDs');
 assert.equal(LIBRARY_FONT_OPTIONS.length, 5);
 assert.equal(libraryFontFamily('georgia'), 'Georgia, "Times New Roman", serif');
 assert.equal(libraryFontFamily('unknown'), LIBRARY_FONT_OPTIONS[0].family);
@@ -273,7 +298,7 @@ assert.match(coverWallSource, /data-testid="wall-columns-menu"/, 'Wall detailed 
 assert.match(coverWallSource, /data-testid="wall-open-home"/, 'Wall must provide a direct Home return action.');
 assert.match(coverWallSource, /data-testid="wall-open-library"/, 'Wall must provide a direct Library return action.');
 assert.match(coverWallSource, /!sideNavigation && <div className="flex shrink-0 items-center gap-1\.5" aria-label="Wall navigation"/, 'Wall navigation belongs at the toolbar start and is omitted beside the rail');
-assert.match(appSource, /sideNavigation=\{settings\.navigationLayout === 'sidebar'\}/, 'Wall receives the active vertical navigation layout');
+assert.match(appSource, /\n\s+sideNavigation\n/, 'Wall always receives vertical navigation');
 assert.match(coverWallSource, /data-testid="wall-peek-backdrop"/, 'Wall selection must open a dismissible Peek backdrop instead of navigating away immediately.');
 assert.match(coverWallSource, /data-testid="wall-peek"/, 'Wall Peek needs a dedicated overlay surface.');
 assert.match(coverWallSource, /data-testid="wall-peek-close"/, 'Wall Peek needs an explicit close control.');

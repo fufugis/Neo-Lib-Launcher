@@ -19,11 +19,12 @@ assert.match(hero, />Install size</, 'Preview facts must label install size.');
 assert.match(hero, /!hasSize && game\.exePath/, 'Size scans must only be offered for a validated local game target.');
 assert.match(hero, /onClick=\{onMeasureSize\}/, 'The scan control must call the bounded measurement handler.');
 assert.match(hero, /Not measured/, 'Unknown size must be stated rather than guessed.');
+assert.match(hero, /typeof bytes === 'number'/, 'Null and empty values must not hide Scan size by pretending to be measured zero.');
 assert.match(detail, /window\.api\.scanGameStorage\(/, 'Measurement must use the established bounded storage scanner.');
 assert.match(detail, /force: true/, 'A player-requested size scan must refresh its cached measurement.');
-assert.match(detail, /installSizeBytes: next\.bytes/, 'Measured bytes must persist on the game entry.');
-assert.match(detail, /installSizeMeasuredAt: Date\.now\(\)/, 'Measurement time must persist on the game entry.');
-assert.match(detail, /installSizePartial: next\.truncated/, 'Partial scan status must persist on the game entry.');
+assert.match(detail, /installSizePatch\(game, result.results\?\.find/, 'Individual scans validate and persist the matching game measurement.');
+assert.match(detail, /onUpdateGame\?\.\(game.id, patch\)/, 'Individual scans use the canonical saved library entry.');
+assert.match(detail, /savedStorageSnapshot/, 'Preview reads the same persisted measurements as Home.');
 
 assert.match(hero, /data-testid="preview-journey-status"/, 'Journey facts are always rendered');
 assert.match(hero, /\{journey.label\}/);

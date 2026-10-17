@@ -16,6 +16,22 @@ import { OPERATION_STATUS } from '../state/operation-state.mjs';
 import RetroProfilesPanel from './wizard/RetroProfilesPanel';
 import ExternalLibraryRootsPanel from './wizard/ExternalLibraryRootsPanel';
 
+const WIZARD_TABS = [['launchers', 'Launchers'], ['folder', 'Folder scan'], ['manual', 'Manual add'], ['retro', 'Retro'], ['external', 'External libraries'], ['care', 'Library care']];
+function WizardTaskTabs({ active, onChange, disabled }) {
+  const choose = (event, id) => {
+    onChange(id);
+    event.currentTarget.parentElement.querySelector(`[data-wizard-tab="${id}"]`)?.focus();
+  };
+  return <nav role="tablist" aria-label="Wizard tasks" className="sticky top-0 z-10 grid grid-cols-3 gap-1 border-b hairline bg-panel px-4 py-3 sm:grid-cols-6">
+    {WIZARD_TABS.map(([id, label], index) => <button key={id} type="button" role="tab" id={`wizard-tab-${id}`} data-wizard-tab={id} aria-controls={`wizard-${id}-section`} aria-selected={active === id} tabIndex={active === id ? 0 : -1} disabled={disabled} onClick={event => choose(event, id)} onKeyDown={event => {
+      if (disabled || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault(); event.stopPropagation();
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? WIZARD_TABS.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + WIZARD_TABS.length) % WIZARD_TABS.length;
+      choose(event, WIZARD_TABS[next][0]);
+    }} className={`min-h-10 rounded-lg border px-2 py-2 text-xs font-bold disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[rgb(var(--accent))] ${active === id ? 'border-[rgb(var(--accent))] bg-[rgb(var(--accent)/0.15)] text-ink' : 'border-transparent text-muted hover:bg-surface hover:text-ink'}`}>{label}</button>)}
+  </nav>;
+}
+
 /**
  * Auto-import Wizard
  *  1. Pick folder/drive
@@ -47,6 +63,7 @@ function operationFailureMessage(operation, label) {
 
 export default function WizardModal({ open, suspended = false, onClose, onImport, onAccept, onAddManual, onRefreshLibrary, onTidyLibrary, onRetroProfilesChange, onImportRoms, onRetroMetadataApply, retroVisibleGames = [], retroProfiles = [], onExternalLibraryRootsChange, externalLibraryRoots = [], geminiKey, aiModel = 'gemini-2.5-flash', existingExePaths = [], existingGames = [], prefilledRoot = '', autoScan = false }) {
   const [step, setStep] = React.useState(1);
+  const [activeTab, setActiveTab] = React.useState('launchers');
   const [root, setRoot] = React.useState('');
   const [candidates, setCandidates] = React.useState([]);
   const [skippedExisting, setSkippedExisting] = React.useState(0);
@@ -92,7 +109,7 @@ export default function WizardModal({ open, suspended = false, onClose, onImport
   };
 
   const notifyTodo = (name) =>
-    setLauncherStatus(`${name} integration is on the roadmap — for now use "Choose folder" below and point it at your ${name} install directory.`);
+    setLauncherStatus(`${name} integration is on the roadmap — use the Folder scan tab and choose your ${name} install directory.`);
 
   React.useEffect(() => {
     if (!open || launcherImportBusy) return;
@@ -218,7 +235,7 @@ export default function WizardModal({ open, suspended = false, onClose, onImport
       metadataBoundedOperation.current?.cancel('Wizard closed.');
       imageBoundedOperation.current?.cancel('Wizard closed.');
       launcherOperation.current = false;
-      setStep(1); setRoot(''); setCandidates([]); setCursor(0);
+      setStep(1); setActiveTab('launchers'); setRoot(''); setCandidates([]); setCursor(0);
       setCurrent(null); setResult(null); setIcon(null); setBusy(false);
       setAccepted([]); setQueryOverride(''); setSkipSources([]); setLauncherStatus(''); setLauncherConfirm(null); setLauncherImportBusy(false);
       setWizardStatus('');
@@ -227,6 +244,7 @@ export default function WizardModal({ open, suspended = false, onClose, onImport
       // Drag-drop opened the Wizard with a specific folder — skip the picker step
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setRoot(prefilledRoot);
+      setActiveTab('folder');
     }
   }, [open, prefilledRoot]);
 
@@ -258,6 +276,7 @@ export default function WizardModal({ open, suspended = false, onClose, onImport
 
   const startScan = async () => {
     if (!root) return;
+    setActiveTab('folder');
     const run = ++folderScanRun.current;
     folderBoundedOperation.current?.cancel('Replaced by a newer folder scan.');
     setStep(2);
@@ -468,21 +487,15 @@ export default function WizardModal({ open, suspended = false, onClose, onImport
   return (
     <>
     <Modal open={open && !suspended && !launcherConfirm} onClose={onClose} title="Add Games · Wizard" wide testid="wizard-modal">
+      <WizardTaskTabs active={activeTab} onChange={setActiveTab} disabled={step !== 1 || busy || launcherImportBusy} />
       {step === 1 && (
         <div className="space-y-4 p-6">
           <div className="flex items-start gap-3 rounded-xl border border-[rgb(var(--accent)/0.3)] bg-[rgb(var(--accent)/0.08)] p-3">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[rgb(var(--accent)/0.16)] text-[rgb(var(--accent))]"><Sparkles size={19} /></span>
             <p className="text-sm leading-relaxed text-ink"><strong className="block font-bold">How would you like to add games?</strong><span className="text-xs text-muted">Pick a route below. NEO-LIB lets you review matches before adding them.</span></p>
           </div>
-          <nav aria-label="Jump to a Wizard task" className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-            {[
-              ['manual', 'One game', PlusCircle], ['launchers', 'Launchers', LayoutGrid],
-              ['folder', 'Folder', FolderSearch], ['retro', 'Retro', Gamepad2],
-              ['external', 'External', HardDrive], ['care', 'Care', RefreshCw],
-            ].map(([id, label, Icon]) => <button key={id} type="button" title={`Go to ${label}`} aria-label={`Go to ${label}`} onClick={() => document.getElementById(`wizard-${id}-section`)?.scrollIntoView({ block: 'start' })} className="group flex flex-col items-center gap-1 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.55)] px-2 py-2 text-[10.5px] font-semibold text-ink hover:border-[rgb(var(--accent)/0.7)] hover:bg-[rgb(var(--accent)/0.12)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[rgb(var(--accent))]"><Icon size={18} className="text-[rgb(var(--accent))] transition-transform group-hover:scale-110" /><span>{label}</span></button>)}
-          </nav>
 
-          <div id="wizard-manual-section" className="rounded-xl border border-[rgb(var(--accent)/0.38)] bg-[rgb(var(--accent)/0.08)] p-4" data-testid="wizard-manual-add-section">
+          <div id="wizard-manual-section" role="tabpanel" aria-labelledby="wizard-tab-manual" hidden={activeTab !== 'manual'} className="rounded-xl border border-[rgb(var(--accent)/0.38)] bg-[rgb(var(--accent)/0.08)] p-4" data-testid="wizard-manual-add-section">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[rgb(var(--accent)/0.2)] text-[rgb(var(--accent))]"><PlusCircle size={23} /></span>
@@ -498,7 +511,7 @@ export default function WizardModal({ open, suspended = false, onClose, onImport
             </div>
           </div>
 
-          <div id="wizard-retro-section" className="rounded-xl hairline bg-surface/50 p-4" data-testid="wizard-retro-profiles-section">
+          <div id="wizard-retro-section" role="tabpanel" aria-labelledby="wizard-tab-retro" hidden={activeTab !== 'retro'} className="rounded-xl hairline bg-surface/50 p-4" data-testid="wizard-retro-profiles-section">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[rgb(var(--accent-2)/0.15)] text-[rgb(var(--accent-2))]"><Gamepad2 size={24} /></span><div><div className="text-sm font-black text-ink">Retro Library</div><p className="mt-0.5 text-xs text-muted">Choose an emulator and ROM folder for each platform.</p></div></div>
               <button type="button" data-testid="wizard-retro-profiles-toggle" onClick={() => setRetroProfilesOpen((value) => !value)} className="inline-flex shrink-0 items-center gap-2 rounded-full hairline px-4 py-2 text-xs font-semibold text-ink hover:border-[rgb(var(--accent)/0.6)] hover:bg-[rgb(var(--accent)/0.10)]"><Gamepad2 size={13} className="text-[rgb(var(--accent))]" />{retroProfilesOpen ? 'Close profiles' : 'Manage profiles'}</button>
@@ -506,7 +519,7 @@ export default function WizardModal({ open, suspended = false, onClose, onImport
             {retroProfilesOpen && <RetroProfilesPanel profiles={retroProfiles} onChange={onRetroProfilesChange} onImportRoms={onImportRoms} onApplyMetadata={onRetroMetadataApply} existingGames={existingGames} sourceVisibleGames={retroVisibleGames} />}
           </div>
 
-          <div id="wizard-external-section" className="rounded-xl hairline bg-surface/50 p-4" data-testid="wizard-external-roots-section">
+          <div id="wizard-external-section" role="tabpanel" aria-labelledby="wizard-tab-external" hidden={activeTab !== 'external'} className="rounded-xl hairline bg-surface/50 p-4" data-testid="wizard-external-roots-section">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[rgb(var(--accent-2)/0.15)] text-[rgb(var(--accent-2))]"><HardDrive size={23} /></span><div><div className="text-sm font-black text-ink">External libraries</div><p className="mt-0.5 text-xs text-muted">Link a drive, NAS or cloud catalogue without copying files.</p></div></div>
               <button type="button" onClick={() => setExternalRootsOpen((value) => !value)} className="inline-flex items-center gap-2 rounded-full hairline px-4 py-2 text-xs font-semibold text-ink hover:border-[rgb(var(--accent)/0.6)]"><FolderCog size={13} />{externalRootsOpen ? 'Close roots' : 'Manage roots'}</button>
@@ -514,7 +527,7 @@ export default function WizardModal({ open, suspended = false, onClose, onImport
             {externalRootsOpen && <ExternalLibraryRootsPanel roots={externalLibraryRoots} onChange={onExternalLibraryRootsChange} />}
           </div>
 
-          <div id="wizard-care-section" className="rounded-lg hairline bg-surface/50 p-4" data-testid="wizard-library-care-section">
+          <div id="wizard-care-section" role="tabpanel" aria-labelledby="wizard-tab-care" hidden={activeTab !== 'care'} className="rounded-lg hairline bg-surface/50 p-4" data-testid="wizard-library-care-section">
             <div className="mb-3 flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[rgb(var(--accent)/0.14)] text-[rgb(var(--accent))]"><RefreshCw size={17} /></span><div><div className="text-sm font-bold text-ink">Care for your library</div><p className="text-[11px] text-muted">Improve games already added.</p></div></div>
             <div className="grid gap-2 sm:grid-cols-3">
               <button
@@ -545,7 +558,7 @@ export default function WizardModal({ open, suspended = false, onClose, onImport
           </div>
 
           {/* Launcher imports */}
-          <div id="wizard-launchers-section" className="rounded-lg hairline bg-surface/50 p-4">
+          <div id="wizard-launchers-section" role="tabpanel" aria-labelledby="wizard-tab-launchers" hidden={activeTab !== 'launchers'} className="rounded-lg hairline bg-surface/50 p-4">
             <div className="mb-3 flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[rgb(var(--accent)/0.14)] text-[rgb(var(--accent))]"><LayoutGrid size={17} /></span><div><div className="text-sm font-bold text-ink">Import from a launcher</div><p className="text-[11px] text-muted">Installed games only · confirm before adding</p></div></div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               <LauncherBtn kind="steam" label="Steam"       onClick={() => requestLauncherImport('steam')}     disabled={launcherImportBusy || !!launcherConfirm} testid="launcher-steam" />
@@ -570,7 +583,7 @@ export default function WizardModal({ open, suspended = false, onClose, onImport
           </div>
 
           {/* Manual folder pick */}
-          <div id="wizard-folder-section" className="rounded-lg hairline bg-surface/50 p-4">
+          <div id="wizard-folder-section" role="tabpanel" aria-labelledby="wizard-tab-folder" hidden={activeTab !== 'folder'} className="rounded-lg hairline bg-surface/50 p-4">
             <div className="mb-3 flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[rgb(var(--accent)/0.14)] text-[rgb(var(--accent))]"><FolderSearch size={17} /></span><div><div className="text-sm font-bold text-ink">Scan a folder or drive</div><p className="text-[11px] text-muted">Find local games, then review each match.</p></div></div>
 
             {/* Exclude paths */}
@@ -685,7 +698,7 @@ export default function WizardModal({ open, suspended = false, onClose, onImport
               </div>
             </div>
           </div>
-          <div className="flex justify-end">
+          <div hidden={activeTab !== 'folder'} className={activeTab === 'folder' ? 'flex justify-end' : 'hidden'}>
             <button
               data-testid="wizard-start-btn"
               disabled={!root}

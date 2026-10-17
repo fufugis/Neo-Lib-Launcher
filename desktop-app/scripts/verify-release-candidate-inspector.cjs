@@ -13,6 +13,9 @@ assert.equal(buildConfig.win.artifactName, 'NEO-LIB-Setup.exe', 'all future Wind
 assert.equal((workflow.match(/desktop-app\/dist\/NEO-LIB-Setup\.exe/g) || []).length, 2, 'Actions and Release must upload the exact stable installer');
 assert(!workflow.includes('desktop-app/dist/*.exe'), 'stale versioned installers must not be accidentally published');
 assert(workflow.includes('yarn inspect:release'), 'GitHub Windows build must inspect the packaged candidate');
+assert(workflow.includes('draft: true') && workflow.includes('prerelease: false'), 'New stable releases remain drafts until every asset is uploaded');
+assert(workflow.indexOf('draft: true') < workflow.indexOf('--draft=false --latest'), 'Publishing follows draft upload, not the reverse');
+assert(workflow.includes('$asset.Count -ne 1 -or $asset[0].size -le 0'), 'Publication rejects missing, duplicate and empty assets');
 assert(workflow.includes('yarn package:portable'), 'GitHub and local builds must share the portable packaging owner');
 assert(workflow.includes('release-candidate-v*.json'), 'GitHub artifacts must retain candidate evidence');
 assert(workflow.includes('SHA256SUMS-v*.txt'), 'GitHub artifacts must retain public installer/portable checksums');

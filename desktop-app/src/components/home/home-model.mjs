@@ -1,8 +1,10 @@
 import { libraryArtworkAudit } from './library-artwork-audit.mjs';
+import { isRomGame } from '../../lib/emulator-profile-model.mjs';
 
-export const PLATFORM = Object.freeze({ steam: 'Steam', epic: 'Epic', gog: 'GOG', ea: 'EA app', ubisoft: 'Ubisoft', battlenet: 'Battle.net', riot: 'Riot', xbox: 'Xbox / Game Pass', rockstar: 'Rockstar', itch: 'itch.io', private: 'Protected', local: 'Local' });
+export const PLATFORM = Object.freeze({ steam: 'Steam', epic: 'Epic', gog: 'GOG', ea: 'EA app', ubisoft: 'Ubisoft', battlenet: 'Battle.net', riot: 'Riot', xbox: 'Xbox / Game Pass', rockstar: 'Rockstar', itch: 'itch.io', emulator: 'ROMs / emulators', private: 'Protected', local: 'Local' });
 
 export function platformOf(game) {
+  if (isRomGame(game)) return 'emulator';
   const launcher = (game?.launcher || '').toLowerCase();
   if (PLATFORM[launcher]) return launcher;
   if (/itch\.io/i.test(game?.website || '')) return 'itch';

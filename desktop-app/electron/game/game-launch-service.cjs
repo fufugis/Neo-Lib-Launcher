@@ -26,7 +26,7 @@ function createGameLaunchService({
     return { ok: true, token };
   }
 
-  async function launch(event, { exePath, launchArgs, workingDirectory, gameId, name, launchToken, libraryRootPath, launcher, source, appid, steamOwned, launchRouteId } = {}) {
+  async function launch(event, { exePath, launchArgs, workingDirectory, gameId, name, launchToken, libraryRootPath, launcher, source, appid, steamOwned, launchRouteId, trackPlaytime = true } = {}) {
     if (!exePath || typeof exePath !== 'string') return { ok: false, error: 'No exePath provided' };
     try {
       if (/^(?:ms-settings:|shell:)/i.test(exePath)) {
@@ -102,7 +102,7 @@ function createGameLaunchService({
           const seconds = Math.max(1, Math.round((nowMs() - startedAt) / 1000));
           runningGames.delete(key);
           clearDiscordActivity();
-          sendExited({ gameId, exePath, seconds });
+          sendExited({ gameId, exePath, seconds: trackPlaytime ? seconds : 0, ...(!trackPlaytime ? { trackingDisabled: true } : {}) });
         });
         child.on('error', () => { runningGames.delete(key); clearDiscordActivity(); });
         child.unref();

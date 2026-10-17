@@ -1,7 +1,11 @@
+import { recordPlaytimeDays } from './playtime-days.mjs';
+import { isEmulatorEntry } from '../lib/emulator-profile-model.mjs';
+
 export function sessionResult(game, seconds, now = Date.now()) {
-  if (!game) return { patch: null, shouldPromptRating: false };
-  const numericSeconds = Math.max(0, Number(seconds) || 0);
-  const patch = { playtime: (Number(game.playtime) || 0) + numericSeconds / 60, lastPlayedAt: now };
+  if (!game || isEmulatorEntry(game)) return { patch: null, shouldPromptRating: false };
+  const numericSeconds = Number.isFinite(Number(seconds)) ? Math.max(0, Number(seconds)) : 0;
+  const patch = { playtime: (Number(game.playtime) || 0) + numericSeconds / 60, lastPlayedAt: now,
+    playtimeDays: recordPlaytimeDays(game.playtimeDays, numericSeconds, now) };
   const shouldPromptRating = numericSeconds >= 15 * 60
     && !Number(game.rating) && !game.ratingPromptDismissed
     && Number(game.ratingPromptSnoozedUntil || 0) <= now;

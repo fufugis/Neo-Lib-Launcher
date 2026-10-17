@@ -1,13 +1,16 @@
 import { DEFAULT_LOUNGE_PREFERENCES, normalizeLoungePreferences } from '../components/lounge/lounge-layout-model.mjs';
 import { DEFAULT_LOUNGE_RESUME, normalizeLoungeResume } from '../components/lounge/lounge-resume-model.mjs';
 import { normalizeLoungeSavedPresets } from '../components/lounge/lounge-saved-presets.mjs';
+import { DEFAULT_SIDEBAR_TWEAKS, normalizeSidebarTweaks } from '../components/library/sidebar-tweaks-model.mjs';
 
 export const DEFAULT_SETTINGS = Object.freeze({
   theme: 'synthwave', firstRun: true, geminiKey: '', steamGridDbKey: '', aiModel: 'gemini-2.5-flash',
   fungistNotifications: {}, librarySize: 'medium', showcaseMode: 'recent_added', collapsed: {},
   interfaceMode: 'default', presentationMode: 'desktop', preferredControllerFingerprint: '', controllerNavigationEnabled: false,
-  navigationLayout: 'top',
+  navigationLayout: 'sidebar',
+  sidebarTweaks: DEFAULT_SIDEBAR_TWEAKS,
   idlePowerSavingEnabled: true,
+  usageReportingEnabled: false, usageConsentVersion: 0,
   addonsEnabled: false, addonConfig: {},
   modulesEnabled: false, moduleConfig: {},
   coverWallShape: 'portrait',
@@ -22,7 +25,8 @@ export const DEFAULT_SETTINGS = Object.freeze({
 export function hydrateSettings(raw = {}, { resetRatings = false } = {}) {
   const next = { ...DEFAULT_SETTINGS, ...(raw && typeof raw === 'object' ? raw : {}) };
   if (!next.categoriesCollapsedDefault) next.collapsed = {};
-  if (!['top', 'sidebar'].includes(next.navigationLayout)) next.navigationLayout = 'top';
+  next.navigationLayout = 'sidebar';
+  next.sidebarTweaks = normalizeSidebarTweaks(next.sidebarTweaks);
   if (!['default', 'minimalistic'].includes(next.interfaceMode)) next.interfaceMode = 'default';
   if (!['portrait', 'square'].includes(next.coverWallShape)) next.coverWallShape = 'portrait';
   if (!['wall', 'browser'].includes(next.loungeLayout)) next.loungeLayout = 'browser';
@@ -31,6 +35,7 @@ export function hydrateSettings(raw = {}, { resetRatings = false } = {}) {
   next.loungeSavedPresets = normalizeLoungeSavedPresets(next.loungeSavedPresets);
   next.controllerNavigationEnabled = next.controllerNavigationEnabled === true;
   next.idlePowerSavingEnabled = next.idlePowerSavingEnabled !== false;
+  next.usageReportingEnabled = next.usageReportingEnabled === true && next.usageConsentVersion === 2;
   next.addonsEnabled = next.addonsEnabled === true;
   next.modulesEnabled = next.modulesEnabled === true;
   if (next.mode !== 'tools') next.mode = 'home';
@@ -40,6 +45,7 @@ export function hydrateSettings(raw = {}, { resetRatings = false } = {}) {
 
 export function mergeSettings(settings, patch) {
   const next = { ...(settings || DEFAULT_SETTINGS), ...(patch && typeof patch === 'object' ? patch : {}) };
+  if (patch && Object.hasOwn(patch, 'sidebarTweaks')) next.sidebarTweaks = normalizeSidebarTweaks(patch.sidebarTweaks);
   if (patch && Object.hasOwn(patch, 'loungePreferences')) next.loungePreferences = normalizeLoungePreferences(patch.loungePreferences);
   if (patch && Object.hasOwn(patch, 'loungeResume')) next.loungeResume = normalizeLoungeResume(patch.loungeResume);
   if (patch && Object.hasOwn(patch, 'loungeSavedPresets')) next.loungeSavedPresets = normalizeLoungeSavedPresets(patch.loungeSavedPresets);

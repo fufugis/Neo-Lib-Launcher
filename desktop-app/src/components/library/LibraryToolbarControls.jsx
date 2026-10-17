@@ -129,7 +129,7 @@ const LAUNCHER_OPTIONS = [
   { id: 'itch', label: 'itch.io' },
   { id: 'other', label: 'Other' },
 ];
-export function LauncherDropdown({ value = 'all', onChange, compact = false }) {
+export function LauncherDropdown({ value = 'all', onChange, compact = false, embedded = false }) {
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef(null);
   React.useEffect(() => {
@@ -152,26 +152,28 @@ export function LauncherDropdown({ value = 'all', onChange, compact = false }) {
         onClick={() => setOpen((v) => !v)}
         aria-label={`Filter launchers: ${current.label}`}
         title={`Filter launchers: ${current.label}`}
+        aria-expanded={open}
         className={cn(
           'inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-md hairline text-[10.5px] font-semibold tracking-wide transition-all',
           compact ? 'w-7 p-0' : 'px-2.5',
-          'library-filter-control',
+          embedded && 'w-full justify-between',
+          !embedded && 'library-filter-control',
           open || value !== 'all'
             ? 'text-ink border-[rgb(var(--accent-2)/0.78)]'
             : 'text-ink/85 hover:text-ink hover:border-[rgb(var(--accent)/0.62)]'
         )}
       >
         <Filter size={14} className={compact ? '' : 'library-compact-only hidden'} />
-        {!compact && <span className="library-filter-text inline-flex items-center gap-1 whitespace-nowrap"><ChevronDown size={10} className={cn('transition-transform', open && 'rotate-180')} />{current.label}</span>}
+        {!compact && <span className={cn(!embedded && 'library-filter-text', 'inline-flex items-center gap-1 whitespace-nowrap')}><ChevronDown size={10} className={cn('transition-transform', open && 'rotate-180')} />{current.label}</span>}
       </button>
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: -4, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4 }}
+            initial={{ y: -4, scale: 0.98 }}
+            animate={{ y: 0, scale: 1 }}
+            exit={{ y: -4 }}
             transition={{ duration: 0.12 }}
-            className="library-toolbar-popover absolute left-0 top-full z-40 mt-1 w-40 rounded-md hairline shadow-2xl p-1"
+            className={cn('library-toolbar-popover mt-1 rounded-md hairline p-1', embedded ? 'library-toolbar-popover--embedded relative w-full' : 'absolute left-0 top-full z-40 w-40 shadow-2xl')}
             data-testid="launcher-dropdown-menu"
           >
             {LAUNCHER_OPTIONS.map((o) => (

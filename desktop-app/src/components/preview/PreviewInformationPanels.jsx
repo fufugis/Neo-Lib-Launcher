@@ -19,7 +19,7 @@ export function GameStory({ game, profile }) {
         {game.releaseDate && <span className="shrink-0 rounded-full border border-[rgb(var(--border)/0.55)] bg-[rgb(var(--surface)/0.24)] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-muted">{game.releaseDate}</span>}
       </div>
 
-      <div className="grid items-start gap-4 px-3.5 py-3.5 sm:grid-cols-[minmax(0,1fr)_190px]">
+      <div className="preview-story-content grid items-start gap-4 px-3.5 py-3.5 sm:grid-cols-[minmax(0,1fr)_190px]">
         <div className="min-w-0 space-y-3">
           {story.length ? story.map((block, index) => block.type === 'heading' ? (
             <h4 key={`${game.id}-story-${index}`} className="pt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[rgb(var(--accent-2))]">{block.text}</h4>

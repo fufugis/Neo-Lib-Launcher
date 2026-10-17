@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { normalizeEditorBox, createHomeEditorDraft, adjustEditorBox, homeEditorSavePatch, homeEditorFitZoom } from '../src/components/home/home-layout-editor-model.mjs';
+import { normalizeEditorBox, createHomeEditorDraft, adjustEditorBox, homeEditorSavePatch, homeEditorFitZoom, resizeHomeEditorCanvas, parkHomeEditorBox, returnHomeEditorBox, homeCanvasHeight } from '../src/components/home/home-layout-editor-model.mjs';
 
 const saved = { snapToGrid: true, widgetOrder: ['hidden', 'a', 'b'], hiddenPanes: ['hidden'],
   freePositions: { a: { x: 900, y: 900, width: 200, height: 100 }, hidden: { x: 20, y: 20, width: 200, height: 100 } },
@@ -37,10 +37,35 @@ assert.deepEqual(saved, original, 'draft edits, Cancel and Save patch constructi
 assert.equal(homeEditorFitZoom(draft, { width: 1248, height: 948 }), .75);
 assert.equal(homeEditorFitZoom(draft, { width: 648, height: 498 }), .5);
 assert.equal(homeEditorFitZoom(draft, { width: 1, height: 1 }), .1);
+const expanded = resizeHomeEditorCanvas(draft, 5000);
+assert.equal(expanded.height, 5000);
+assert.equal(draft.height, 900, 'height edits remain draft-only');
+assert.equal(resizeHomeEditorCanvas(draft, 1).height, 540);
+assert.equal(homeCanvasHeight(Infinity), 540);
+assert.equal(homeCanvasHeight(999999), 100000);
+const extendedPatch = homeEditorSavePatch(saved, expanded, ['a', 'b']);
+assert.equal(extendedPatch.freeCanvasHeight, 5000);
+assert.equal(createHomeEditorDraft([{ id: 'a' }, { id: 'b' }], captured, { ...saved, ...extendedPatch }).height, 5000, 'empty space survives save/reopen');
+let parking = parkHomeEditorBox(draft, {}, 'a');
+parking = parkHomeEditorBox(draft, parking, 'b');
+assert(parking.a.x > draft.width && parking.b.x > draft.width);
+assert(parking.b.y >= parking.a.y + parking.a.height + 24, 'button parking stacks boxes without overlap');
+assert.equal(parking.a.width, draft.positions.a.width);
+assert.equal(parking.a.height, draft.positions.a.height);
+assert.deepEqual(returnHomeEditorBox(draft, parking, 'a').positions.a, draft.positions.a, 'keyboard return keeps original Home placement and size');
+assert.deepEqual(draft.positions, captured, 'parking never changes saved Home coordinates');
+assert(!('parked' in extendedPatch) && !('parking' in extendedPatch), 'temporary bay is never persisted');
 
 const editor = readFileSync(new URL('../src/components/home/HomeLayoutEditor.jsx', import.meta.url), 'utf8');
 const home = readFileSync(new URL('../src/components/HomeHub.jsx', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
+assert(home.includes('holdingArea expandableHeight'));
+assert(home.includes('homeCanvasHeight(homeLayout.freeCanvasHeight)'));
+assert(editor.includes('holdingArea = false, expandableHeight = false'), 'shared Preview editor is unchanged by default');
+assert(editor.includes('disabled={Object.keys(parked).length > 0}'));
+assert(editor.includes('setParked({})') && editor.includes('Return selected to Home'));
+assert(editor.includes('host.scrollTop - active.scrollY'), 'scrolling while dragging preserves scaled coordinates');
+assert(css.includes('.home-editor-parking') && css.includes('.home-editor-workspace'));
 const require = createRequire(import.meta.url);
 const babel = createRequire(require.resolve('@vitejs/plugin-react'))('@babel/core');
 babel.parseSync(editor, { configFile: false, babelrc: false, parserOpts: { plugins: ['jsx'] } });
@@ -54,11 +79,12 @@ assert.match(editor, /onPointerCancel: event => endPointer\(event, false\)/);
 assert.match(editor, /addEventListener\('blur', cancelDrag\)/);
 assert.match(editor, /event.key === 'Escape'/);
 assert.match(editor, /setDraft\(initialDraft\)/);
-assert.equal((editor.match(/onSave\(latest.current\)/g) || []).length, 1);
+assert.equal((editor.match(/\bonSave\(/g) || []).length, 1, 'only the Save control may commit the editor');
+assert(editor.includes('onSave(expandableHeight ? resizeHomeEditorCanvas(latest.current, heightInput || latest.current.height) : latest.current)'));
 assert.doesNotMatch(editor, /onUpdateHomeLayout|updateLayout\(/, 'dragging and resizing only modify local draft');
 assert.match(css, /\.home-editor-canvas[^}]+transform-origin: top left/);
 assert.match(editor, /aria-modal="true"/);
 assert.match(editor, /event.key !== 'Tab'/);
-assert.match(editor, /aria-label="Choose widget to move"/);
+assert.match(editor, /'Choose widget to move'/);
 assert.match(editor, /querySelectorAll\('button:not\(:disabled\), input, select'\)/);
 console.log('PASS: Home editor capture, isolated drafts, snap/free motion, zoom scaling, bounds, resize, Save persistence, hidden/community preservation, focus/cancel wiring and JSX parsing. Live pointer/controller acceptance remains separate.');

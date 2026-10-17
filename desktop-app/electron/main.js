@@ -401,6 +401,9 @@ function createWindow() {
   // Later launches always prefer the user's own saved resize/move bounds.
   const defaultW = Math.max(960, Math.round(primary.width * 0.75));
   const defaultH = Math.max(600, Math.round(primary.height * 0.90));
+  // Stop shrinking the app before readable preview boxes become unusable.
+  const minimumW = Math.min(primary.width, Math.max(960, Math.round(defaultW * 0.70)));
+  const minimumH = Math.min(primary.height, Math.max(600, Math.round(defaultH * 0.70)));
 
   // Restore the last window bounds the user resized to (if saved). Validate
   // against current displays so a saved bound that's now off-screen (monitor
@@ -411,8 +414,8 @@ function createWindow() {
     const saved = s && s.windowBounds;
     if (saved && typeof saved.width === 'number' && typeof saved.height === 'number') {
       // Constrain to primary display so the window can't open off-screen
-      const w = Math.max(960, Math.min(saved.width, primary.width));
-      const h = Math.max(600, Math.min(saved.height, primary.height));
+      const w = Math.max(minimumW, Math.min(saved.width, primary.width));
+      const h = Math.max(minimumH, Math.min(saved.height, primary.height));
       bounds = { width: w, height: h };
       if (typeof saved.x === 'number' && typeof saved.y === 'number'
           && saved.x >= 0 && saved.y >= 0
@@ -430,8 +433,8 @@ function createWindow() {
     height: bounds.height,
     x: bounds.x,
     y: bounds.y,
-    minWidth: 960,
-    minHeight: 600,
+    minWidth: minimumW,
+    minHeight: minimumH,
     center: bounds.center === true,
     frame: false,
     backgroundColor: '#0a0a0c',

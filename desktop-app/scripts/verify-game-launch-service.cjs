@@ -81,5 +81,14 @@ const { createGameLaunchService } = require('../electron/game/game-launch-servic
   assert.deepEqual(service.arm(event), { ok: true, token: 'token-10' });
   assert.deepEqual(await service.launch(event, { exePath: 'C:\\Games\\Standalone.exe', gameId: 'standalone', launcher: 'steam', source: 'steam-import', appid: '1149460', steamOwned: false, launchToken: 'token-10' }), { ok: true });
   assert.equal(spawnCalls.length, 5, 'explicitly non-owned copies must not be redirected into Steam.');
-  console.log('PASS: extracted launch service enforces startup quarantine, one-use expiry, local/shared cooldown, offline library-root refusal, exact spawn arguments and running-game lifecycle. No process launched.');
+  clock += 20000;
+  let armed = service.arm(event);
+  assert.equal((await service.launch(event, { exePath: 'C:\\Emulators\\RetroArch.exe', gameId: 'rom-two', launchArgs: '"D:\\ROMs\\Second.sfc"', launchToken: armed.token })).ok, true);
+  clock += 90000; childHandlers.exit();
+  assert.equal(exited.at(-1).gameId, 'rom-two'); assert.equal(exited.at(-1).seconds, 90, 'time belongs to ROM ID, not shared executable');
+  clock += 20000; armed = service.arm(event);
+  assert.equal((await service.launch(event, { exePath: 'C:\\Emulators\\RetroArch.exe', gameId: 'emulator-app', trackPlaytime: false, launchToken: armed.token })).ok, true);
+  clock += 90000; childHandlers.exit();
+  assert.deepEqual(exited.at(-1), { gameId: 'emulator-app', exePath: 'C:\\Emulators\\RetroArch.exe', seconds: 0, trackingDisabled: true });
+  console.log('PASS: launch safety, exact spawn arguments, ROM-specific session identity and emulator/manual tracking suppression. Fake child events only; no process launched.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
