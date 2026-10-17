@@ -15,22 +15,31 @@ export function SidebarButtonOrder({ order, children }) {
 
 export function useSidebarHoverLabel(enabled) {
   const [label, setLabel] = React.useState(null);
+  const tooltipRef = React.useRef(null);
   React.useEffect(() => { if (!enabled) setLabel(null); }, [enabled]);
+  React.useLayoutEffect(() => {
+    if (!label || !tooltipRef.current) return;
+    const box = tooltipRef.current.getBoundingClientRect();
+    const left = Math.max(8, Math.min(label.left, window.innerWidth - box.width - 8));
+    const top = Math.max(8, Math.min(label.top, window.innerHeight - box.height - 8));
+    if (left !== label.left || top !== label.top) setLabel(previous => previous && { ...previous, left, top });
+  }, [label]);
   const clear = () => setLabel(null);
   const show = event => {
     if (!enabled) return;
     const button = event.target.closest?.('button[aria-label]');
     if (!button || !event.currentTarget.contains(button)) { clear(); return; }
     const rect = button.getBoundingClientRect();
-    setLabel({ text: button.getAttribute('aria-label'), left: rect.right + 8, top: Math.max(8, Math.min(rect.top, window.innerHeight - 40)) });
+    setLabel({ text: button.getAttribute('aria-label'), hint: button.dataset.sidebarHint || '', left: rect.right + 8, top: Math.max(8, rect.top) });
   };
-  const tooltip = enabled && label ? renderForegroundPortal(<div role="tooltip" aria-hidden="true" data-testid="sidebar-instant-label" className="pointer-events-none fixed z-[10001] max-w-[240px] rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--surface))] px-3 py-2 text-xs font-bold text-ink shadow-xl" style={{ left: label.left, top: label.top }}>{label.text}</div>) : null;
+  const tooltip = enabled && label ? renderForegroundPortal(<div ref={tooltipRef} role="tooltip" aria-hidden="true" data-testid="sidebar-instant-label" className="pointer-events-none fixed z-[10001] max-w-[240px] rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--surface))] px-3 py-2 text-xs font-bold text-ink shadow-xl" style={{ left: label.left, top: label.top, maxWidth: 'min(240px, calc(100vw - 16px))' }}><span data-sidebar-label className="block">{label.text}</span>{label.hint && <span data-sidebar-hint className="mt-0.5 block text-[10px] font-medium leading-snug text-muted">{label.hint}</span>}</div>) : null;
   return { show, clear, tooltip };
 }
 
 export default function SidebarTweaks({ open, onClose, value, onChange, addons = [] }) {
   const preferences = normalizeSidebarTweaks(value);
   const geometry = sidebarButtonGeometry(preferences);
+  const previewWidth = preferences.mode === 'icons' ? geometry.compact : geometry.expanded;
   const [reordering, setReordering] = React.useState(false);
   const body = React.useRef(null);
   React.useEffect(() => {
@@ -52,13 +61,13 @@ export default function SidebarTweaks({ open, onClose, value, onChange, addons =
   const ids = buttons.map(([id]) => id);
   const ordered = orderedSidebarIds(preferences.order, ids);
   const buttonClass = 'rounded-lg border border-[rgb(var(--border))] px-3 py-2 text-xs font-bold hover:bg-[rgb(var(--accent)/0.12)] disabled:opacity-35';
-  return <Modal open={open} onClose={onClose} title="Sidebar tweaks" testid="sidebar-tweaks-modal" overlayStyle={{ '--sidebar-preview-clear': `${geometry.expanded + 8}px`, '--sidebar-editor-offset': `${geometry.expanded + 16}px` }}>
+  return <Modal open={open} onClose={onClose} title="Sidebar tweaks" testid="sidebar-tweaks-modal" overlayStyle={{ '--sidebar-preview-clear': `${previewWidth + 8}px`, '--sidebar-editor-offset': `${previewWidth + 16}px` }}>
     <div ref={body} role="dialog" aria-modal="true" aria-label="Sidebar tweaks" className="space-y-5 p-5">
       <p className="text-xs text-muted">Changes apply immediately and are saved on this computer.</p>
       <fieldset><legend className="mb-2 text-xs font-black uppercase tracking-wider">Button layout</legend><div className="flex gap-2">{[['default', 'Default'], ['icons', 'Icons only']].map(([mode, label]) => <button key={mode} type="button" className={buttonClass} aria-pressed={preferences.mode === mode} style={preferences.mode === mode ? { background: 'rgb(var(--accent)/0.18)', borderColor: 'rgb(var(--accent))' } : undefined} onClick={() => update({ mode })}>{label}</button>)}</div><p className="mt-2 text-xs text-muted">Default expands on hover. Icons only stays compact, with immediate labels on hover or keyboard focus.</p></fieldset>
       {[['buttonSize', 'Button size', 75, 150, '%'], ['spacing', 'Spacing', 0, 16, 'px'], ['iconSize', 'Icon size', 14, 30, 'px'], ['saturation', 'Color saturation', 0, 200, '%']].map(([key, label, min, max, unit]) => <label key={key} className="block text-xs font-bold"><span className="flex justify-between">{label}<output>{preferences[key]}{unit}</output></span><input className="mt-2 w-full accent-[rgb(var(--accent))]" type="range" min={min} max={max} step="1" value={preferences[key]} aria-label={label} onChange={event => update({ [key]: Number(event.target.value) })} /></label>)}
       <p className="text-xs text-muted">Button size scales the whole button, including its text and icon. Icon size adjusts the symbol separately. 100% keeps the original size.</p>
-      <p className="text-xs text-muted">0% saturation is black and white; 100% keeps the theme colors.</p>
+      <p className="text-xs text-muted">Color saturation affects only icons and colored button borders. 0% makes those black and white; 100% keeps their theme colors. Sidebar backgrounds, text and headings stay unchanged.</p>
       <div className="flex flex-wrap gap-2"><button type="button" className={buttonClass} aria-expanded={reordering} onClick={() => setReordering(value => !value)}>Reorder buttons</button><button type="button" className={buttonClass} onClick={() => onChange?.({ ...DEFAULT_SIDEBAR_TWEAKS, order: [] })}>Reset sidebar</button></div>
       {reordering && <section aria-label="Sidebar button order" className="space-y-2"><p className="text-xs text-muted">Move buttons up or down. Custom order replaces the category headings; reset to restore the grouped layout.</p>{ordered.map((id, index) => <div key={id} className="flex items-center gap-2 rounded-lg border border-[rgb(var(--border))] p-2"><span className="min-w-0 flex-1 truncate text-xs font-bold">{buttons.find(([key]) => key === id)?.[1]}</span>{[[-1, 'Up'], [1, 'Down']].map(([direction, text]) => <button key={direction} type="button" className={buttonClass} disabled={direction < 0 ? index === 0 : index === ordered.length - 1} aria-label={`Move ${buttons.find(([key]) => key === id)?.[1]} ${text.toLowerCase()}`} onClick={() => update({ order: moveSidebarButton(preferences.order, ids, id, direction) })}>{text}</button>)}</div>)}</section>}
     </div>

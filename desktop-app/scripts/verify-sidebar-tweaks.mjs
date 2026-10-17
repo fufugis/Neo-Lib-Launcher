@@ -27,23 +27,32 @@ const read = file => fs.readFileSync(new URL('../' + file, import.meta.url), 'ut
 const rail = read('src/components/Sidebar.jsx'), panel = read('src/components/library/SidebarTweaks.jsx');
 assert.match(rail, /sidebarIsExpanded\(preferences, expandedState, tweaksOpen\)/, 'Preview-open state drives temporary expansion');
 for (const mode of ['icons', 'default']) for (const hovered of [false, true]) {
-  assert.equal(sidebarIsExpanded({ mode }, hovered, true), true, 'Editor pins the sidebar open, including icons-only mode');
+  assert.equal(sidebarIsExpanded({ mode }, hovered, true), mode !== 'icons', 'Editor previews the selected layout even while hovered');
   assert.equal(sidebarIsExpanded({ mode }, hovered, false), mode !== 'icons' && hovered, 'Closing editor restores the chosen hover/compact behavior');
 }
 assert.match(rail, /data-sidebar-preview=\{tweaksOpen \|\| undefined\}/, 'Highlight exists only while editor is open');
 assert.match(read('src/styles.css'), /\[data-testid='sidebar-tweaks-modal'\][\s\S]*?transparent var\(--sidebar-preview-clear, 156px\)[\s\S]*?backdrop-filter: none/, 'Modal does not dim or blur the live rail');
 assert.match(panel, /'buttonSize', 'Button size', 75, 150, '%'/, 'Whole-button scale has its own slider');
-assert.match(panel, /geometry.expanded \+ 16/, 'Editor clearance follows scaled width');
+assert.match(panel, /previewWidth \+ 16/, 'Editor clearance follows selected layout width');
+assert.match(panel, /preferences.mode === 'icons' \? geometry.compact : geometry.expanded/, 'Icons-only preview uses compact geometry');
 assert.match(read('src/components/library/LibraryVisualsPopover.jsx'), /sidebarWidth \+ railWidth/, 'Other tweak menus follow the resized rail');
 assert.match(rail, /onMouseOver=\{labels.show\}/);
 assert.match(rail, /labels.show\(event\)/, 'Keyboard focus also identifies icons');
 assert.match(rail, /<SidebarButtonOrder order=\{preferences.order\}>/);
 assert.match(rail, /--sidebar-icon-size/);
 assert.match(panel, /data-testid="sidebar-instant-label"/);
+assert.match(rail, /data-sidebar-hint=\{hint\}/, 'Compact labels retain each navigation button explanation');
+assert.match(read('src/components/library/RailActionFlyout.jsx'), /data-sidebar-hint="Choose an option"/, 'Flyout buttons retain their explanatory label');
+assert(panel.includes('label.hint') && panel.includes('button.dataset.sidebarHint'), 'Hover/focus labels display the button subtext');
+assert.match(read('src/styles.css'), /\.neo-rail-button__icon\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\)/, 'Icon tracks cannot grow off-center with intrinsic SVG size');
 assert.doesNotMatch(panel, /setTimeout/, 'Hover labels have no delay');
 assert.match(panel, /renderForegroundPortal/, 'Labels escape the clipped sidebar');
 assert.match(panel, /Reset sidebar/);
 assert.match(panel, /event.key !== 'Tab'/, 'Editor traps keyboard focus');
 assert.match(read('src/App.jsx'), /sidebarTweaks=\{settings.sidebarTweaks\} onSidebarTweaksChange=/);
-assert.match(read('src/styles.css'), /\[data-testid='side-navigation-rail'\] \{ filter: saturate\(var\(--sidebar-saturation, 1\)\); \}/, 'Whole sidebar, not just icons, reaches grayscale');
+const styles = read('src/styles.css');
+assert.doesNotMatch(styles, /\[data-testid='side-navigation-rail'\]\s*\{[^}]*filter:\s*saturate/, 'Sidebar backgrounds, text and headings must not be filtered');
+assert.match(styles, /\.neo-rail-button__icon\s*\{[^}]*filter:[^;]*saturate\(var\(--sidebar-saturation, 1\)\)/, 'Only icon artwork/glow uses a saturation filter');
+assert.match(styles, /--rail-border-color: oklch\(from rgb\(var\(--rail-color\)\) l calc\(c \* var\(--sidebar-saturation, 1\)\) h\)/, 'Colored borders adjust independently of button backgrounds');
+assert(panel.includes('only icons and colored button borders'), 'Settings explain the narrow saturation scope');
 console.log('PASS: Sidebar tweaks defaults/bounds, zero saturation, saved controls, stable complete/addon ordering, immediate labels and isolated rail wiring.');

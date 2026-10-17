@@ -567,7 +567,7 @@ input, textarea { font-family: inherit; user-select: text; color: rgb(var(--ink)
 }
 .library-toolbar-popover > * { position: relative; z-index: 1; }
 /* Functional dropdowns never inherit decorative glass transparency. */
-[data-testid='sidebar-sort-options'], [data-testid='launcher-dropdown-menu'] {
+[data-testid='sidebar-sort-options'], [data-testid='sidebar-categories-options'], [data-testid='launcher-dropdown-menu'] {
   background: rgb(var(--surface)) !important;
   opacity: 1;
   backdrop-filter: none;
@@ -2891,12 +2891,13 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 .neo-rail-section__label { position: relative; max-width: 116px; overflow: hidden; margin-left: 5px; padding: 0 5px; background: rgb(var(--surface) / 0.98); color: rgb(var(--rail-color)); font-size: 9px; font-weight: 900; letter-spacing: 0.14em; line-height: 15px; text-overflow: ellipsis; text-transform: uppercase; transition: opacity 150ms ease; }
 .neo-rail-button {
   --rail-color: 110 190 255;
+  --rail-border-color: oklch(from rgb(var(--rail-color)) l calc(c * var(--sidebar-saturation, 1)) h);
   position: relative;
   isolation: isolate;
-  border-color: rgb(var(--rail-color) / 0.28);
+  border-color: color-mix(in srgb, var(--rail-border-color) 28%, transparent);
   background: linear-gradient(100deg, rgb(var(--rail-color) / 0.13), rgb(var(--panel) / 0.38) 78%);
   color: rgb(var(--ink));
-  box-shadow: inset 2px 0 rgb(var(--rail-color) / 0.7), inset 0 1px rgb(255 255 255 / 0.07);
+  box-shadow: inset 2px 0 color-mix(in srgb, var(--rail-border-color) 70%, transparent), inset 0 1px rgb(255 255 255 / 0.07);
   transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
 }
 .neo-rail-button__icon {
@@ -2904,16 +2905,15 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
   border: 1px solid rgb(var(--rail-color) / 0.27);
   border-radius: 7px;
   background: rgb(var(--rail-color) / 0.12);
-  filter: drop-shadow(0 0 5px rgb(var(--rail-color) / 0.22));
+  filter: drop-shadow(0 0 5px rgb(var(--rail-color) / 0.22)) saturate(var(--sidebar-saturation, 1));
 }
 .neo-rail-button:is(:hover, :focus-visible, [aria-pressed='true'], [aria-expanded='true']) {
-  border-color: rgb(var(--rail-color) / 0.85);
+  border-color: color-mix(in srgb, var(--rail-border-color) 85%, transparent);
   background: linear-gradient(100deg, rgb(var(--rail-color) / 0.29), rgb(var(--rail-color) / 0.1) 70%, rgb(var(--panel) / 0.58));
-  box-shadow: inset 3px 0 rgb(var(--rail-color)), 0 0 18px -7px rgb(var(--rail-color) / 0.8), inset 0 1px rgb(255 255 255 / 0.12);
+  box-shadow: inset 3px 0 var(--rail-border-color), 0 0 18px -7px color-mix(in srgb, var(--rail-border-color) 80%, transparent), inset 0 1px rgb(255 255 255 / 0.12);
 }
 .neo-rail-button:is(:hover, :focus-visible) { transform: translateX(2px); }
-.neo-rail-button:focus-visible { outline: 2px solid rgb(var(--rail-color)); outline-offset: 2px; }
-[data-testid='side-navigation-rail'] { filter: saturate(var(--sidebar-saturation, 1)); }
+.neo-rail-button:focus-visible { outline: 2px solid var(--rail-border-color); outline-offset: 2px; }
 /* Keep the live rail clear and visible beside its editor, without allowing
    accidental navigation behind the modal. The outline is outside saturation. */
 [data-testid='side-navigation-slot'][data-sidebar-preview='true']::after {
@@ -2931,14 +2931,15 @@ html, body, .glass, [class*='bg-surface'], [class*='bg-panel'],
 [data-testid='side-navigation-rail'][data-sidebar-expanded='true'] .neo-rail-button > span:last-of-type { max-width: calc(104px * var(--sidebar-button-scale, 1)); }
 [data-testid='side-navigation-rail'] .neo-rail-button > span > span:first-child { font-size: calc(10px * var(--sidebar-button-scale, 1)); line-height: calc(13px * var(--sidebar-button-scale, 1)); }
 [data-testid='side-navigation-rail'] .neo-rail-button > span > span:last-child { font-size: calc(9px * var(--sidebar-button-scale, 1)); line-height: calc(11px * var(--sidebar-button-scale, 1)); }
-[data-testid='side-navigation-rail'] .neo-rail-button__icon { width: max(calc(24px * var(--sidebar-button-scale, 1)), var(--sidebar-icon-size, 21px)); height: max(calc(24px * var(--sidebar-button-scale, 1)), var(--sidebar-icon-size, 21px)); }
-[data-testid='side-navigation-rail'] .neo-rail-button__icon > svg { width: var(--sidebar-icon-size, 21px); height: var(--sidebar-icon-size, 21px); }
+[data-testid='side-navigation-rail'] .neo-rail-button__icon { display: grid; place-items: center; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); box-sizing: border-box; width: max(calc(24px * var(--sidebar-button-scale, 1)), calc(var(--sidebar-icon-size, 21px) + 2px)); height: max(calc(24px * var(--sidebar-button-scale, 1)), calc(var(--sidebar-icon-size, 21px) + 2px)); }
+[data-testid='side-navigation-rail'] .neo-rail-button--primary .neo-rail-button__icon { width: max(calc(24px * var(--sidebar-button-scale, 1)), calc(var(--sidebar-icon-size, 21px) + 2px * var(--sidebar-button-scale, 1) + 2px)); height: max(calc(24px * var(--sidebar-button-scale, 1)), calc(var(--sidebar-icon-size, 21px) + 2px * var(--sidebar-button-scale, 1) + 2px)); }
+[data-testid='side-navigation-rail'] .neo-rail-button__icon > svg { display: block; width: var(--sidebar-icon-size, 21px); height: var(--sidebar-icon-size, 21px); max-width: 100%; max-height: 100%; }
 [data-testid='side-navigation-rail'] .neo-rail-button--primary .neo-rail-button__icon > svg { width: calc(var(--sidebar-icon-size, 21px) + 2px * var(--sidebar-button-scale, 1)); height: calc(var(--sidebar-icon-size, 21px) + 2px * var(--sidebar-button-scale, 1)); }
 .neo-rail-button:active { transform: translateX(2px) scale(0.97); }
 .neo-rail-button--primary {
-  border-color: rgb(var(--rail-color) / 0.8);
+  border-color: color-mix(in srgb, var(--rail-border-color) 80%, transparent);
   background: linear-gradient(100deg, rgb(var(--rail-color) / 0.3), rgb(var(--panel) / 0.72));
-  box-shadow: inset 3px 0 rgb(var(--rail-color)), inset 0 1px rgb(255 255 255 / 0.15);
+  box-shadow: inset 3px 0 var(--rail-border-color), inset 0 1px rgb(255 255 255 / 0.15);
 }
 .neo-rail-button--primary .neo-rail-button__icon { background: rgb(var(--rail-color) / 0.25); border-color: rgb(var(--rail-color) / 0.65); }
 

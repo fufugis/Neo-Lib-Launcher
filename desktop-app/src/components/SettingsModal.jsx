@@ -12,7 +12,7 @@ import { hashPin } from '../lib/utils';
 import AddonSettings from './addons/AddonSettings';
 import RetroConnectionsPanel from './wizard/RetroConnectionsPanel';
 
-export default function SettingsModal({ open, onClose, settings, setSettings, onShowChangelog, currentVersion = '1.8.7', library, onExportLibrary, onImportLibrary, onResetLibrary, onConfirmCategoryRemoval, onRemoveCategories, onOpenModules }) {
+export default function SettingsModal({ open, onClose, settings, setSettings, onShowChangelog, currentVersion = '1.8.8', library, onExportLibrary, onImportLibrary, onResetLibrary, onConfirmCategoryRemoval, onRemoveCategories, onOpenModules }) {
   const setKey = (patch) => setSettings({ ...settings, ...patch });
   const [showKey, setShowKey] = React.useState(false);
   const [showArtworkKey, setShowArtworkKey] = React.useState(false);

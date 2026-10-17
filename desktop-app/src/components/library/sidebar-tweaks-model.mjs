@@ -11,7 +11,7 @@ export function sidebarButtonGeometry(preferences) {
   return { scale, compact: Math.round(48 * scale), expanded: Math.round(148 * scale) };
 }
 export function sidebarIsExpanded(preferences, hovering, previewOpen) {
-  return previewOpen || (preferences.mode !== 'icons' && hovering);
+  return preferences.mode !== 'icons' && (previewOpen || hovering);
 }
 const clamp = (value, fallback, min, max) => Number.isFinite(Number(value)) && value !== null ? Math.min(max, Math.max(min, Math.round(Number(value)))) : fallback;
 export function normalizeSidebarTweaks(raw = {}) {

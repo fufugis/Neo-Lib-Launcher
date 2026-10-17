@@ -21,7 +21,9 @@ assert(sortOptions.includes('overflow-y-auto overscroll-contain'), 'expanded lau
 assert(sidebar.includes("librarySortMode !== 'manual' || launcherFilter !== 'all'"), 'Sort shows an active filter even with custom ordering');
 assert(toolbar.includes("embedded ? 'library-toolbar-popover--embedded relative w-full'"), 'embedded choices explicitly override shared absolute popup positioning');
 assert.match(styles, /\.library-toolbar-popover--embedded \{\s*position: relative;\s*z-index: auto !important;/, 'embedded list remains in flow below the picker');
-assert.match(styles, /\[data-testid='sidebar-sort-options'\], \[data-testid='launcher-dropdown-menu'\] \{\s*background: rgb\(var\(--surface\)\) !important;\s*opacity: 1;/, 'Sort and launcher menus are fully opaque');
+assert.match(styles, /\[data-testid='sidebar-sort-options'\], \[data-testid='sidebar-categories-options'\], \[data-testid='launcher-dropdown-menu'\] \{\s*background: rgb\(var\(--surface\)\) !important;\s*opacity: 1;/, 'Sort, Categories and launcher menus are fully opaque');
+assert(sidebar.includes('<LibraryCategoriesPopover anchorRef={categoriesMenuRef} panelRef={categoriesPanelRef}>'), 'Categories uses an unclipped foreground popup');
+assert(sidebar.includes('!categoriesPanelRef.current?.contains(event.target)'), 'clicks inside portaled Categories do not close the menu before its action');
 const launcherComponent = toolbar.slice(toolbar.indexOf('export function LauncherDropdown'));
 assert(!launcherComponent.includes('opacity: 0'), 'launcher entry/exit never reveal rows through a transparency fade');
 assert(!sortOptions.includes('opacity: 0'), 'Sort entry/exit never reveal rows through a transparency fade');

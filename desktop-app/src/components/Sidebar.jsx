@@ -15,6 +15,7 @@ import { LibraryGameRow, LibrarySection, PinnedStrip, TwoColumnSections } from '
 import { LauncherDropdown, SideBtn, TabPill } from './library/LibraryToolbarControls';
 import CollectionActions from './library/CollectionActions';
 import SidebarResizeHandle from './library/SidebarResizeHandle';
+import LibraryCategoriesPopover from './library/LibraryCategoriesPopover';
 import AddonMenu from './addons/AddonMenu';
 import RailActionFlyout from './library/RailActionFlyout';
 import SidebarTweaks, { SidebarButtonOrder, useSidebarHoverLabel } from './library/SidebarTweaks';
@@ -176,6 +177,7 @@ export default function Sidebar({
   const [sortMenuOpen, setSortMenuOpen] = React.useState(false);
   const [libraryFiltersOpen, setLibraryFiltersOpen] = React.useState(false);
   const categoriesMenuRef = React.useRef(null);
+  const categoriesPanelRef = React.useRef(null);
   const sortMenuRef = React.useRef(null);
   const treeScrollRef = React.useRef(null);
   const isTools = mode === 'tools';
@@ -198,7 +200,7 @@ export default function Sidebar({
   React.useEffect(() => {
     if (!categoriesMenuOpen && !sortMenuOpen) return undefined;
     const close = (event) => {
-      if (categoriesMenuRef.current && !categoriesMenuRef.current.contains(event.target)) setCategoriesMenuOpen(false);
+      if (categoriesMenuRef.current && !categoriesMenuRef.current.contains(event.target) && !categoriesPanelRef.current?.contains(event.target)) setCategoriesMenuOpen(false);
       if (sortMenuRef.current && !sortMenuRef.current.contains(event.target)) setSortMenuOpen(false);
     };
     const escape = (event) => { if (event.key === 'Escape') { setCategoriesMenuOpen(false); setSortMenuOpen(false); } };
@@ -484,14 +486,15 @@ export default function Sidebar({
               onClick={() => setCategoriesMenuOpen((open) => !open)}
               title="Categories — show shelves or manage your categories"
               aria-label="Categories"
+              aria-expanded={categoriesMenuOpen}
+              aria-controls={categoriesMenuOpen ? 'library-categories-popover' : undefined}
               className={`library-toolbar-control library-filter-control inline-flex shrink-0 items-center justify-center gap-1 rounded-md hairline h-7 text-[10px] transition-colors ${compactFilters ? 'w-7 p-0' : 'px-2'} ${categoriesMenuOpen ? 'border-[rgb(var(--accent)/0.72)] text-ink' : 'text-ink/85 hover:text-ink hover:border-[rgb(var(--accent)/0.62)]'}`}
             >
               {showCategories ? <ListTree size={compactFilters ? 14 : 10} /> : <Boxes size={compactFilters ? 14 : 10} />}
               {!compactFilters && <span className="library-filter-text inline-flex items-center gap-1 whitespace-nowrap">Categories <ChevronDown size={10} className={categoriesMenuOpen ? 'rotate-180 transition-transform' : 'transition-transform'} /></span>}
             </button>
-            <AnimatePresence>
               {categoriesMenuOpen && (
-                <motion.div initial={{ opacity: 0, y: -6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }} className="library-toolbar-popover absolute right-0 z-30 mt-1 w-64 rounded-lg hairline p-1.5 shadow-2xl">
+                <LibraryCategoriesPopover anchorRef={categoriesMenuRef} panelRef={categoriesPanelRef}>
                   <div className="px-2.5 py-1.5">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted">Library categories</p>
                   </div>
@@ -513,9 +516,8 @@ export default function Sidebar({
                     <span className="flex items-center gap-2 text-xs font-semibold text-ink"><Tag size={12} className="text-[rgb(var(--accent-2))]" />Manage categories</span>
                     <span className="text-[10.5px] leading-snug text-muted">Add, edit, or remove groups. Games are kept safely.</span>
                   </button>
-                </motion.div>
+                </LibraryCategoriesPopover>
               )}
-            </AnimatePresence>
           </div>
           {onAutoSort && (
             <button
@@ -721,7 +723,7 @@ export function SideNavigationRail({ mode, libraryViewMode, onOpenHome, onOpenLi
   const [openMenu, setOpenMenu] = React.useState(null);
   const labels = useSidebarHoverLabel(preferences.mode === 'icons' && !openMenu && !tweaksOpen);
   const closeMenu = React.useCallback(() => setOpenMenu(null), []);
-  return <div className="relative z-50 h-full w-12 shrink-0" data-testid="side-navigation-slot" data-sidebar-preview={tweaksOpen || undefined} style={{ width: geometry.compact, '--sidebar-expanded-width': `${geometry.expanded}px` }}><nav
+  return <div className="relative z-50 h-full w-12 shrink-0" data-testid="side-navigation-slot" data-sidebar-preview={tweaksOpen || undefined} style={{ width: geometry.compact, '--sidebar-expanded-width': `${expanded ? geometry.expanded : geometry.compact}px` }}><nav
     data-testid="side-navigation-rail"
     data-sidebar-expanded={expanded}
     aria-label="Primary navigation"
@@ -790,6 +792,7 @@ function RailNavigationButton({ icon, label, hint, tone, expanded, active, onCli
     title={expanded ? undefined : label}
     aria-label={label}
     aria-pressed={active}
+    data-sidebar-hint={hint}
     onClick={onClick}
     style={{ '--rail-color': tone }}
     className={`neo-rail-button ${prominent ? 'neo-rail-button--primary h-12' : 'h-10'} mb-1 flex w-full shrink-0 items-center overflow-hidden rounded-lg border text-left ${expanded ? 'justify-start gap-2.5 px-2' : 'justify-center gap-0 px-0'}`}

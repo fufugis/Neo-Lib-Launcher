@@ -15,6 +15,7 @@ assert.equal(firstRunState({welcomeStartedVersion:1,tutorialSeen:true}, {}, '1.8
 assert.equal(firstRunState({lastSeenVersion:'1.8.6'}, {}, '1.8.6').phase, 'ready');
 assert.equal(firstRunState({lastSeenVersion:'1.8.5'}, {}, '1.8.6').phase, 'notes');
 assert.equal(firstRunState({lastSeenVersion:'1.8.6', welcomeCompleted:true}, {games:[{id:'existing'}]}, '1.8.7').phase, 'notes', 'upgrading to 1.8.7 shows its release notes without restarting first-run setup');
+assert.equal(firstRunState({lastSeenVersion:'1.8.7', welcomeCompleted:true}, {games:[{id:'existing'}]}, '1.8.8').phase, 'notes', 'hotfix upgrade shows new notes without restarting welcome');
 assert.equal(firstRunState({}, {games:[{id:'existing'}]}, '1.8.6').phase, 'ready');
 assert.deepEqual(firstRunState({firstRunPending:'wizard',firstRunChoice:'wizard'}, {}, '1.8.6'),{phase:'notes',firstRun:true,next:'wizard'});
 assert.equal(welcomeFinishPatch('wizard',false).usageReportingEnabled,false);

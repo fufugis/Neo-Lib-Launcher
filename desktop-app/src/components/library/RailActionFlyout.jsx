@@ -55,7 +55,7 @@ export default function RailActionFlyout({ label, icon, tone, expanded, testid, 
     buttons[next]?.focus();
   };
   return <>
-    <button ref={trigger} type="button" data-testid={testid} aria-label={label} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? `${testid}-menu` : undefined}
+    <button ref={trigger} type="button" data-testid={testid} data-sidebar-hint="Choose an option" aria-label={label} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? `${testid}-menu` : undefined}
       onClick={onToggle} onKeyDown={event => { if (['ArrowRight', 'ArrowDown'].includes(event.key)) { event.preventDefault(); if (!open) onToggle(); else panel.current?.querySelector('[role="menuitem"]')?.focus(); } }}
       title={expanded ? undefined : label} style={{ '--rail-color': tone }}
       className={`neo-rail-button mb-1 flex h-10 w-full shrink-0 items-center overflow-hidden rounded-lg border text-left ${expanded ? 'justify-start gap-2.5 px-2' : 'justify-center gap-0 px-0'}`}>

@@ -8,7 +8,7 @@ local services, build resources and verification checks.
 - [Documentation index](../docs/README.md)
 - [Modules](MODULES.md), [addons](ADDONS.md) and [community widgets](../docs/HOME_WIDGETS.md)
 - [Retro metadata sources](RETRO_SOURCES.md) and [custom themes](docs/THEME_FORMAT.md)
-- [Current Windows acceptance record](../WINDOWS_ACCEPTANCE_V1.8.7.md)
+- [Current Windows acceptance record](../WINDOWS_ACCEPTANCE_V1.8.8.md)
 
 ## Directory guide
 

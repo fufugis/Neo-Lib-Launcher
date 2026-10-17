@@ -69,8 +69,8 @@ The complete artifact set in `desktop-app/dist/` is:
 
 - `NEO-LIB-Setup.exe` — fixed installer name for every version
 - `NEO-LIB-windows-portable.zip`
-- `release-candidate-v1.8.7.json` — versioned inspection evidence
-- `SHA256SUMS-v1.8.7.txt` — versioned checksums
+- `release-candidate-v1.8.8.json` — versioned inspection evidence
+- `SHA256SUMS-v1.8.8.txt` — versioned checksums
 
 Future versions keep the first two names and update the versioned evidence names.
 `yarn inspect:release` regenerates inspection evidence using the current environment;
@@ -84,7 +84,7 @@ An empty release page or a tag alone is not a successful build.
 
 The [Windows workflow](../.github/workflows/build-windows.yml) runs manually or on
 version-tag pushes, not ordinary main-branch pushes. A release tag must exactly
-match `package.json` (currently `v1.8.7`). A manual run builds downloadable workflow
+match `package.json` (currently `v1.8.8`). A manual run builds downloadable workflow
 artifacts; the tag flow stages a draft release, verifies its four assets and then
 publishes it as the latest stable release.
 
@@ -94,7 +94,7 @@ Before treating a candidate as accepted:
 2. Confirm About, Build ID, package version, tag and notes agree.
 3. Test a clean install and an upgrade with backed-up player data.
 4. Record actual results in the
-   [1.8.7 Windows acceptance checklist](../WINDOWS_ACCEPTANCE_V1.8.7.md).
+   [1.8.8 Windows acceptance checklist](../WINDOWS_ACCEPTANCE_V1.8.8.md).
 
 Do not infer installed-app success from source checks or publish incomplete assets.
 See [release hardening](../RELEASE_HARDENING.md) for the release policy.

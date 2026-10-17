@@ -7,14 +7,14 @@ Steam, Epic, EA, GOG, Ubisoft, Battle.net, Riot, Xbox, Rockstar, itch.io and you
 folders, then launch them through their normal client or executable.
 
 [![Windows x64](https://img.shields.io/badge/Windows-x64-6b8cff)](https://github.com/fufugis/Neo-Lib-Launcher/releases/latest)
-[![Version](https://img.shields.io/badge/version-1.8.7-9b5cff)](RELEASE_NOTES_v1.8.7.md)
+[![Version](https://img.shields.io/badge/version-1.8.8-9b5cff)](RELEASE_NOTES_v1.8.8.md)
 
 [Downloads and releases](https://github.com/fufugis/Neo-Lib-Launcher/releases)
-· [1.8.7 patch notes](RELEASE_NOTES_v1.8.7.md)
+· [1.8.8 patch notes](RELEASE_NOTES_v1.8.8.md)
 · [Discord](https://discord.gg/spk6QWREk8)
 · [Reddit](https://www.reddit.com/r/NeoLibLauncher/)
 
-> Current source version: **1.8.7**. Download an attached installer or portable
+> Current source version: **1.8.8**. Download an attached installer or portable
 > package from a completed release. A tag or release page alone does not mean
 > its Windows downloads have finished building.
 
@@ -79,7 +79,7 @@ The active application is in [desktop-app](desktop-app/). Use the
 local startup, verification and packaging. The repository uses a Yarn lockfile.
 
 Source checks do not establish that every installed Windows interaction has passed.
-The [1.8.7 acceptance record](WINDOWS_ACCEPTANCE_V1.8.7.md) keeps remaining physical,
+The [1.8.8 acceptance record](WINDOWS_ACCEPTANCE_V1.8.8.md) keeps remaining physical,
 installed-upgrade and controller checks explicit.
 [WORK_QUEUE.md](WORK_QUEUE.md) is the authoritative active queue.
 
