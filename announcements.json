@@ -2,6 +2,12 @@
   "schemaVersion": 1,
   "messages": [
     {
+      "id": "news-2026-10-18-kenneth-welcome-01",
+      "title": "A message from Kenneth",
+      "body": "Hello, this is Kenneth.\n\nI see i finally have gotten some users for my app.\nI hope everyone decides to keep using Neo-Lib, tell your friends about it,\nand if you do have issues or find bugs, please report them in the \"Feedback\" button top left in the app.\nFeel free to also come with suggestions about Neo-Lib!",
+      "publishedAt": "2026-10-18T20:48:19Z"
+    },
+    {
       "id": "test-2026-10-17-mailbox-01",
       "title": "NEO-LIB news test",
       "body": "Test message to see if the mailbox and popup works.",
