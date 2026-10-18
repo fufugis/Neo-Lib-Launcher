@@ -1,7 +1,7 @@
 {
   "name": "neo-lib",
   "productName": "NEO-LIB",
-  "version": "1.8.9",
+  "version": "1.8.10",
   "description": "A synthwave-flavored, multi-source game library for Windows.",
   "main": "electron/main.js",
   "author": {
@@ -20,6 +20,7 @@
     "test:secrets": "node scripts/verify-secret-boundary.cjs",
     "test:diagnostics": "node scripts/verify-diagnostic-recorder.cjs",
     "test:renderer-bindings": "node scripts/verify-renderer-bindings.cjs",
+    "test:wizard-review": "node scripts/verify-wizard-review-contract.mjs && node scripts/verify-wizard-folder-review-browser.cjs && node scripts/verify-wizard-artwork-browser.cjs",
     "test:startup-performance": "node scripts/verify-startup-performance.mjs",
     "test:visual-performance": "node scripts/verify-visual-performance.mjs",
     "test:cursors": "node scripts/verify-cursors.mjs",
@@ -30,7 +31,7 @@
     "test:storage-scan": "node scripts/verify-storage-scan-service.cjs && node scripts/verify-install-size-persistence.mjs",
     "test:preview-facts": "node scripts/verify-preview-game-facts.mjs && node scripts/verify-preview-layout.mjs",
     "test:capabilities": "node scripts/verify-game-capabilities.mjs && node scripts/verify-steam-achievement-service.cjs",
-    "test:artwork": "node scripts/verify-game-artwork.mjs",
+    "test:artwork": "node scripts/verify-game-artwork.mjs && npm run test:wizard-review",
     "test:emulation": "node scripts/verify-emulation-library-model.mjs && node scripts/verify-retro-sources.cjs && node scripts/verify-retro-source-model.mjs && node scripts/verify-lounge-emulator-customization.mjs",
     "test:library-experience": "node scripts/verify-library-experience-foundation.mjs",
     "test:optimize": "node scripts/verify-junk-service.cjs && node scripts/verify-optimize-process-service.cjs",

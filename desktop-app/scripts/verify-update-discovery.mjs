@@ -47,6 +47,8 @@ assert.equal(isNewerVersion(releaseTag, '1.8.5'), true, 'installed v1.8.5 must d
 assert.equal(isNewerVersion(releaseTag, '1.8.6'), true, 'published v1.8.6 must discover v1.8.7');
 assert.equal(isNewerVersion(releaseTag, '1.8.7'), true, 'installed v1.8.7 must discover the sidebar hotfix');
 assert.equal(isNewerVersion(releaseTag, '1.8.8'), true, 'installed v1.8.8 must discover the missing-artwork hotfix');
+assert.equal(isNewerVersion(releaseTag, '1.8.9'), true, 'installed v1.8.9 must discover the Wizard folder-review hotfix');
+assert.equal(legacyIsNewer(releaseTag, '1.8.9'), true, 'double-digit patch version remains compatible with the old updater');
 assert.equal(legacyIsNewer(releaseTag, '1.8.7'), true, 'legacy parser recognizes v1.8.8 from v1.8.7');
 assert.equal(legacyIsNewer(releaseTag, '1.8.6'), true, 'the published legacy checker accepts the new clean release tag');
 assert.equal(legacyIsNewer(releaseTag, '1.8.5'), true, 'legacy parser recognizes the corrective patch');

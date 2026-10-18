@@ -810,12 +810,12 @@ export default function WizardModal({ open, suspended = false, onClose, onImport
                   </div>
                   {detectedGenreGroups.length > 0 ? (
                     <div className="space-y-2">
-                      {detectedGenreGroups.map((group) => (
-                        <div key={group.label}>
-                          <div className="mb-1 text-[9px] uppercase tracking-wider text-muted/80">{group.label}</div>
+                      {detectedGenreGroups.map(([label, entries]) => (
+                        <div key={label}>
+                          <div className="mb-1 text-[9px] uppercase tracking-wider text-muted/80">{label}</div>
                           <div className="flex flex-wrap gap-1">
-                            {group.items.map((item) => (
-                              <span key={item} className="rounded-full border border-emerald-400/25 bg-emerald-400/[0.09] px-2 py-0.5 text-[10px] text-emerald-200">{item}</span>
+                            {entries.map((entry) => (
+                              <span key={entry.id} className="rounded-full border border-emerald-400/25 bg-emerald-400/[0.09] px-2 py-0.5 text-[10px] text-emerald-200">{entry.label}</span>
                             ))}
                           </div>
                         </div>
