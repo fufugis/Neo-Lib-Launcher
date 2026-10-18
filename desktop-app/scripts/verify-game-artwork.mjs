@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { artworkBackdrop, hasPortraitDimensions, officialSteamPortrait, portraitArtwork, portraitArtworkCandidates } from '../src/lib/game-artwork-model.mjs';
 import { libraryHeroArtworkOptions, libraryHeroCandidates, libraryHeroFocalPoint, libraryHeroMediaKind, libraryHeroMotion, libraryHeroMotionStyle, libraryHeroWidth } from '../src/components/preview/library-hero-artwork.mjs';
 
@@ -42,4 +43,12 @@ assert.equal(hasPortraitDimensions(512, 512), false);
 assert.equal(artworkBackdrop({ headerImage: 'hero.jpg', coverUrl: 'cover.jpg' }), 'hero.jpg');
 assert.equal(artworkBackdrop({}), '');
 
-console.log('Library hero artwork can be inspected, switched and reframed; portrait artwork still requires verified dimensions.');
+const detailSource = readFileSync(new URL('../src/components/GameDetail.jsx', import.meta.url), 'utf8');
+const expression = detailSource.match(/const measuredWidth = ([^;]+);/)[1];
+const measuredWidth = new Function('heroDimensions', 'bg', `return (${expression});`);
+for (const missing of [undefined, null, '']) assert.equal(measuredWidth(null, missing), 0, 'absent artwork and unloaded dimensions must not dereference null');
+assert.equal(measuredWidth(null, 'new.jpg'), 0);
+assert.equal(measuredWidth({ src: 'old.jpg', width: 800 }, 'new.jpg'), 0);
+assert.equal(measuredWidth({ src: 'new.jpg', width: 800 }, 'new.jpg'), 800);
+assert.throws(() => { const dimensions = null, background = undefined; return dimensions?.src === background ? dimensions.width : 0; }, /reading 'width'/, 'fixture reproduces the released null-width defect');
+console.log('Library hero artwork safety includes newly imported games without artwork, stale/loading dimensions and the released null-width regression.');

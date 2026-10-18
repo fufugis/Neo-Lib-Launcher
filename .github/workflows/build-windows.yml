@@ -159,7 +159,7 @@ jobs:
           draft: true
           prerelease: false
           generate_release_notes: false
-          body_path: RELEASE_NOTES_v1.8.8.md
+          body_path: RELEASE_NOTES_v1.8.9.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

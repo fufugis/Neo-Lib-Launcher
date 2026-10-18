@@ -114,7 +114,7 @@ export default function GameDetail({
     el.style.setProperty('--hero-ty', '0px');
   }, []);
   if (!game) return <EmptyState />;
-  const measuredWidth = heroDimensions?.src === bg ? heroDimensions.width : 0;
+  const measuredWidth = heroDimensions && bg && heroDimensions.src === bg ? heroDimensions.width : 0;
   const isHeroVideo = libraryHeroMediaKind(bg) === 'video';
   const compactWidth = isHeroVideo ? null : libraryHeroWidth(measuredWidth, heroRef.current?.clientWidth || 0);
   const blocks = {
