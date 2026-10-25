@@ -7,8 +7,8 @@ import { journeyStatusDefinition } from '../../lib/game-journey-model.mjs';
 /** Title, release date and player-owned rating layered over GameDetail's hero art. */
 export default function PreviewHeroTitle({ game, onUpdateGame, installSize, measuringSize, onMeasureSize }) {
   return (
-    <div className="relative min-h-[185px] aspect-[16/2.1] w-full">
-      <div className="absolute inset-0 mx-auto flex max-w-[1500px] items-end px-8 pb-3">
+    <div className="preview-hero-title relative min-h-[185px] aspect-[16/2.1] w-full">
+      <div className="preview-hero-title-inner absolute inset-0 mx-auto flex max-w-[1500px] items-end px-8 pb-3">
         <div className="max-w-3xl">
           <motion.div
             initial={{ y: 8, opacity: 0 }}

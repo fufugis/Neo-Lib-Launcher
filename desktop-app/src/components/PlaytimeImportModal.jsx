@@ -110,6 +110,7 @@ export default function PlaytimeImportModal({
       // typed a manual value).
       const patch = { id: row.id, steamOwned: !!row.owned };
       if (row._bulkReset) {
+        patch.playtimeResetAt = Date.now();
         // v1.6.2 — Bulk reset explicitly clears playtimeManual so subsequent
         // Steam imports work again. Previously bulk reset stamped rows as
         // "manual", which locked them out of future Steam merges forever.
@@ -117,6 +118,7 @@ export default function PlaytimeImportModal({
         patch.playtimeManual = false;
         patch.lastPlayedAt = 0;
       } else if (row.overrideValue !== null) {
+        patch.playtimeResetAt = Date.now();
         // User typed the value in the manual input — mark it as manual so
         // future Steam imports skip it.
         patch.playtime = row.overrideValue;

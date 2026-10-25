@@ -15,19 +15,29 @@ const providers = [
   'public-news-provider-service.cjs', 'weekly-release-provider-service.cjs',
   'steam-news-provider-service.cjs', 'steam-achievement-service.cjs', 'steamgriddb-artwork-service.cjs',
   'owned-news-provider-service.cjs',
+  'game-history-service.cjs',
+  'game-press-history-service.cjs',
   'update-history-provider-service.cjs', 'deals-provider-service.cjs',
   'update-scan-coordinator-service.cjs', 'update-source-discovery-service.cjs',
   'installed-version-evidence-service.cjs', 'update-page-version-service.cjs',
   'independent-update-assessment-service.cjs',
 ];
 
-assert.deepEqual(fs.readdirSync(providerDir).filter(name => name.endsWith('.cjs')).sort(), [...providers].sort(), 'Stage 4 provider inventory changed without updating its completion contract');
+const historySupport=['game-history-http.cjs','game-history-parser.cjs'];
+assert.deepEqual(fs.readdirSync(providerDir).filter(name => name.endsWith('.cjs')).sort(), [...providers,...historySupport].sort(), 'Provider inventory changed without updating its completion contract');
 for (const name of providers) {
   const source = fs.readFileSync(path.join(providerDir, name), 'utf8');
   assert.match(source, /module\.exports\s*=\s*\{\s*create[A-Za-z]+Service\s*\}/, `${name} exports an injectable factory`);
   assert(!/require\(['"](?:https?|electron|child_process)['"]\)/.test(source), `${name} must not own hidden network, Electron or process dependencies`);
   assert(main.includes(`require('./providers/${name}')`), `${name} is wired into the native composition root`);
 }
+for(const name of historySupport) {
+  const source=fs.readFileSync(path.join(providerDir,name),'utf8');
+  assert(!/require\(['"](?:electron|child_process)['"]\)/.test(source),'History transport/parser cannot access Electron or processes');
+}
+assert(main.includes("createGameHistoryService({ http: gameHistoryHttp, press: createGamePressHistoryService({ http: gameHistoryHttp }) })"),'Publisher and press history share the explicitly composed safe transport');
+assert(fs.readFileSync(path.join(providerDir,'game-history-service.cjs'),'utf8').includes("require('./game-history-parser.cjs')"),'History parser stays owned by the history service');
+assert(pkg.scripts['test:providers'].includes('verify-game-history.cjs'),'History network, parser and cache safety stays in the default source gate');
 
 const removedLegacy = [
   'DEALS_CACHE', 'updateScanInFlight', 'recentUpdateScan', 'UPDATE_SOURCE_DISCOVERY_CACHE',
@@ -59,4 +69,4 @@ for (const verifier of [
   'verify-independent-update-assessment-service.cjs',
 ]) assert(providerCommand.includes(verifier), `${verifier} must remain in the provider gate`);
 
-console.log('PASS: Stage 4 inventory has 19 injected provider/evidence services, no hidden direct I/O dependencies or legacy main-process caches, one IPC route per feed, per-game assessment delegation and guarded user-reviewed refresh.');
+console.log('PASS: 21 injected provider/evidence services plus explicit public-only history transport/parser; no hidden provider I/O or legacy main caches, one IPC route per feed and guarded reviewed refresh.');

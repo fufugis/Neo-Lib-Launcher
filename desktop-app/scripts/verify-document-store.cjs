@@ -36,7 +36,7 @@ function harness(seed = {}, faults = {}) {
       files.set(key(to), files.get(key(from)));
     },
   };
-  const fs = { readFileSync() { throw new Error('sync access not expected'); }, writeFileSync() { throw new Error('sync access not expected'); }, appendFileSync() { throw new Error('sync access not expected'); } };
+  const fs = { readFileSync(file) { if (!files.has(key(file))) throw missing(file); return files.get(key(file)); }, writeFileSync() { throw new Error('sync writes not expected'); }, appendFileSync() { throw new Error('sync access not expected'); } };
   const app = { getPath(name) { assert.equal(name, 'userData'); return appData; } };
   const storage = createAppStorage({ app, path: path.win32, fs, fsp });
   return { files, trace, storage, documents: createDocumentStore({ storage }) };
@@ -73,6 +73,27 @@ const playtimePath = path.win32.join(appData, 'playtime-history.json');
   assert.deepEqual(await recovery.documents.loadLibrary(), backupLibrary);
   assert.equal(recovery.files.get(key(libraryPath)), '{broken', 'load does not overwrite corrupt evidence');
   assert.equal(recovery.documents.getDiagnostics().library.state, 'recovered-backup');
+
+  // Missing is not necessarily new: a valid backup can be the only copy left.
+  const missingPrimary = harness({ [libraryPath + '.bak']: JSON.stringify(backupLibrary) });
+  const restoredMissing = await missingPrimary.documents.loadLibrary();
+  assert.deepEqual(restoredMissing, backupLibrary);
+  await missingPrimary.documents.saveLibrary(restoredMissing);
+  await missingPrimary.documents.saveLibrary({ ...restoredMissing, custom: 'second save' });
+  assert.equal(JSON.parse(missingPrimary.files.get(key(libraryPath + '.bak'))).games[0].id, 'safe');
+  const unopened = harness({ [libraryPath + '.bak']: JSON.stringify(backupLibrary) });
+  await assert.rejects(unopened.documents.saveLibrary({ games: [] }), /backup recovery/);
+  assert.deepEqual(JSON.parse(unopened.files.get(key(libraryPath + '.bak'))), backupLibrary);
+  const brokenBackup = harness({ [libraryPath + '.bak']: '{broken' });
+  assert.deepEqual(await brokenBackup.documents.loadLibrary(), { games: [] });
+  await assert.rejects(brokenBackup.documents.saveLibrary({ games: [] }), /Refusing to overwrite/);
+  const newerBackup = harness({ [libraryPath + '.bak']: JSON.stringify({ games: [], [SCHEMA_KEY]: 99 }) });
+  await newerBackup.documents.loadLibrary();
+  await assert.rejects(newerBackup.documents.saveLibrary({ games: [] }), /Refusing to overwrite/);
+  const syncRecovery = harness({ [settingsPath + '.bak']: JSON.stringify({ theme: 'retained', [SCHEMA_KEY]: 1 }) });
+  assert.equal(syncRecovery.documents.loadSettingsSnapshot().theme, 'retained');
+  await syncRecovery.documents.saveSettings({ theme: 'retained' });
+  assert.equal(JSON.parse(syncRecovery.files.get(key(settingsPath + '.bak'))).theme, 'retained');
 
   // Invalid/future documents fail closed and are never rewritten or downgraded.
   const invalid = harness({ [libraryPath]: JSON.stringify({ games: [] }) });

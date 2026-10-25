@@ -13,6 +13,7 @@ import LaunchDoctorModal from '../LaunchDoctorModal';
 import ChangelogModal from '../ChangelogModal';
 import CategoryModal from '../CategoryModal';
 import CategoryManagerModal from '../CategoryManagerModal';
+import { toolsLibraryView } from '../../state/tools-category-state.mjs';
 import PinModal from '../PinModal';
 import { CategoryContextMenu } from '../library/LibraryTree';
 import PromptModal from '../PromptModal';
@@ -187,7 +188,7 @@ export default function AppModalLayer({ context }) {
         suspended={tidyOpen || Boolean(refreshReview)}
         onClose={() => { setShowWizard(false); setWizardPrefillRoot(''); setWizardAutoScan(false); }}
         onAccept={addToGames}
-        onAddManual={() => setShowAdd(true)}
+        onAddManual={() => { setToolMetadataTarget(null); setShowAdd(true); }}
         onRefreshLibrary={requestMetadataRefresh}
         onTidyLibrary={openTidyUp}
         onRetroProfilesChange={onRetroProfilesChange}
@@ -276,8 +277,8 @@ export default function AppModalLayer({ context }) {
       <CategoryManagerModal
         open={categoryManagerOpen}
         onClose={() => setCategoryManagerOpen(false)}
-        categories={library.categories || []}
-        games={library.games || []}
+        categories={currentCats}
+        games={toolsLibraryView(library).games}
         onCreate={() => { setCategoryManagerOpen(false); setCatModal({ open: true, initial: null }); }}
         onEdit={(category) => { setCategoryManagerOpen(false); setCatModal({ open: true, initial: category }); }}
         onDelete={requestDeleteCategory}

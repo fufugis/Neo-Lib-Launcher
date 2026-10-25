@@ -72,6 +72,18 @@ export const FUNGIST_SOUND_CUES = [
   { id: 'completed-ding', label: 'Completed ding' },
 ];
 
+// Announcement-only sound. Saved mute preferences are checked by the caller;
+// manual ZZZ must not suppress this cue through the decorative UI sound pack.
+export function playNewsChime({ enabled = true } = {}) {
+  if (!enabled) return false;
+  const ac = getCtx();
+  if (!ac) return false;
+  if (ac.state === 'suspended') ac.resume().catch(() => {});
+  fungistTone(ac, 880, 0, 0.16, 0.035, 'sine');
+  fungistTone(ac, 1320, 0.12, 0.24, 0.045, 'sine');
+  return true;
+}
+
 export function playFungistCue(cue) {
   const ac = getCtx();
   if (!ac) return;

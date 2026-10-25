@@ -17,6 +17,17 @@ import { createDemoLibrary } from '../src/state/demo-library.mjs';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const components = path.join(root, 'src', 'components');
 const graphicsSource = fs.readFileSync(path.join(components, 'library/library-graphics.mjs'), 'utf8');
+for (const id of ['carbon-weave', 'obsidian-slate', 'hammered-titanium']) {
+  assert.match(graphicsSource, new RegExp(`id: '${id}'[^\\n]*fullHeight: true, material: true`), 'materials fill the complete Library panel');
+  const asset = name => fs.readFileSync(path.join(root, 'src/assets/library-graphics', name));
+  const png = asset(`${id}-original.png`);
+  assert.equal(png.readUInt32BE(16), 1024); assert.equal(png.readUInt32BE(20), 1536);
+  for (const suffix of ['', '-thumb']) {
+    const webp = asset(`${id}${suffix}.webp`);
+    assert.equal(webp.toString('ascii', 0, 4), 'RIFF'); assert.equal(webp.toString('ascii', 8, 12), 'WEBP');
+    assert(webp.length < (suffix ? 20000 : 800000), 'material runtime assets and thumbnails stay bounded');
+  }
+}
 for (const id of ['cyber-rings', 'prism-shards', 'liquid-chrome', 'star-trails', 'dragon-sketches', 'retro-doodles']) {
   assert(graphicsSource.includes(`id: '${id}'`));
   const asset = name => fs.readFileSync(path.join(root, 'src/assets/library-graphics', name));
@@ -139,7 +150,7 @@ assert.match(sidebarSource, /label="Lounge" hint="Couch mode" tone=\{RAIL_GROUP_
 const railGroups = {
   lounge: ['sidebar-rail-lounge-btn'],
   browse: ['tab-home', 'tab-library', 'tab-cover-wall'],
-  tools: ['tab-tools', 'sidebar-rail-wizard-btn', 'sidebar-rail-rest-toggle'],
+  tools: ['sidebar-rail-wizard-btn', 'sidebar-rail-rest-toggle'],
   personalise: ['sidebar-rail-modules-btn'],
   app: ['sidebar-rail-changelog-btn'],
   exit: ['sidebar-rail-quit-btn'],
@@ -152,7 +163,8 @@ assert.match(sidebarSource, /<RailActionFlyout[^\n]+label="Visuals"[^\n]+tone=\{
 assert.match(sidebarSource, /<RailActionFlyout[^\n]+label="Settings"[^\n]+tone=\{RAIL_GROUP_TONES.app\}/, 'Settings groups app configuration/help actions');
 assert.match(sidebarSource, /className="neo-rail-section"/, 'section headings retain a labelled rule in the expanded rail');
 assert.match(sidebarSource, /manualResting \? 'Wake up' : 'Rest Zzz'/, 'Rest and Wake remain distinguishable by text and active state');
-for (const hint of ['Your dashboard', 'Browse games', 'Cover view', 'Utilities', 'Couch mode', 'Add games', 'Pause background', 'Resume activity']) {
+assert.doesNotMatch(sidebarSource, /testid="tab-tools"/, 'Tools now lives in Library categories, not navigation.');
+for (const hint of ['Your dashboard', 'Browse games', 'Cover view', 'Couch mode', 'Add games', 'Pause background', 'Resume activity']) {
   assert.ok(sidebarSource.includes(hint), `Expanded navigation needs a concise explanation: ${hint}`);
 }
 assert.match(controlMenuSource, /App controls<\/span>/, 'Expanded Menu needs a concise explanation.');
@@ -273,9 +285,9 @@ const coverWallSource = read('src/components/CoverWall.jsx');
 assert.match(coverWallSource, /Math\.min\(14, Number\(density\)/, 'Wall density must allow fourteen covers across.');
 assert.match(coverWallSource, /max="14"/, 'The Wall density slider must reach fourteen.');
 assert.match(coverWallSource, /function personalRating/, 'Cover Wall rating tags need a bounded personal-rating formatter.');
-assert.match(coverWallSource, /portraitArtwork/, 'Cover Wall must prefer a true portrait cover over landscape banner art.');
+assert.match(coverWallSource, /import GameArtwork/, 'Cover Wall must use the shared artwork recovery renderer.');
 assert.match(coverWallSource, /aspect-\[2\/3\]/, 'Cover Wall must present games as portrait covers.');
-assert.match(coverWallSource, /Portrait cover needed/, 'A missing portrait must use an honest designed placeholder, not stretch wide art into the cover slot.');
+assert.match(coverWallSource, /<GameArtwork game=\{game\} role="cover"/, 'Wall must accept same-game artwork fallbacks and a generated final image instead of a blank portrait warning.');
 assert.match(coverWallSource, /function fallbackCoverStyle/, 'A game with no usable portrait must receive a colorful deterministic fallback cover.');
 assert.match(coverWallSource, /data-testid="wall-compact-toolbar"[^\n]*px-3 py-2/, 'Wall view controls must remain a slim toolbar instead of a tall introduction card.');
 assert.match(coverWallSource, /data-testid=\{`cover-wall-rating-\$\{game\.id\}`\}/, 'Rated Cover Wall games need a visible personal-rating tag.');
@@ -332,7 +344,7 @@ assert.match(controlMenuSource, /open && renderForegroundPortal\(/, 'Control Cen
 assert.doesNotMatch(controlMenuSource, /<AnimatePresence>/, 'Control Center must not pass a portal object through AnimatePresence.');
 assert.match(titleBarSource, /data-testid="titlebar-discord-btn"[\s\S]{0,900}data-testid="titlebar-reddit-btn"/, 'Reddit must sit beside the Discord title-bar action.');
 assert.match(titleBarSource, /https:\/\/www\.reddit\.com\/r\/NeoLibLauncher\//, 'The title-bar Reddit action must use the official NEO-LIB community URL.');
-assert.match(changelogModalSource, /return unseen\.length \? unseen : CHANGELOG\.slice\(0, 1\)/, 'Manual Patch notes must fall back to the current entry after the player has acknowledged it.');
+assert.match(changelogModalSource, /if \(open\) setSelectedVersion\(releases\[0\]\?\.version/, 'Every opening selects the latest bundled release, regardless of acknowledgement.');
 assert.doesNotMatch(changelogModalSource, /You&apos;re fully caught up/, 'Patch notes must not open as an empty caught-up screen.');
 assert.match(hoverTipsSource, /React\.useLayoutEffect/);
 assert.match(hoverTipsSource, /anchorTop/);

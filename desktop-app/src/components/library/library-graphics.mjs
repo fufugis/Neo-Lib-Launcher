@@ -10,6 +10,12 @@ import retroDoodles from '../../assets/library-graphics/retro-doodles.webp';
 import starsThumb from '../../assets/library-graphics/star-trails-thumb.webp';
 import dragonsThumb from '../../assets/library-graphics/dragon-sketches-thumb.webp';
 import retroThumb from '../../assets/library-graphics/retro-doodles-thumb.webp';
+import carbonWeave from '../../assets/library-graphics/carbon-weave.webp';
+import obsidianSlate from '../../assets/library-graphics/obsidian-slate.webp';
+import hammeredTitanium from '../../assets/library-graphics/hammered-titanium.webp';
+import carbonThumb from '../../assets/library-graphics/carbon-weave-thumb.webp';
+import slateThumb from '../../assets/library-graphics/obsidian-slate-thumb.webp';
+import titaniumThumb from '../../assets/library-graphics/hammered-titanium-thumb.webp';
 
 export const LIBRARY_GRAPHICS = Object.freeze([
   { id: 'cyber-rings', label: 'Cyber Rings', art: cyberRings, thumbnail: ringsThumb },
@@ -18,6 +24,9 @@ export const LIBRARY_GRAPHICS = Object.freeze([
   { id: 'star-trails', label: 'Star Trails', art: starTrails, thumbnail: starsThumb, fullHeight: true },
   { id: 'dragon-sketches', label: 'Dragon Sketches', art: dragonSketches, thumbnail: dragonsThumb, fullHeight: true },
   { id: 'retro-doodles', label: 'Retro Doodles', art: retroDoodles, thumbnail: retroThumb, fullHeight: true },
+  { id: 'carbon-weave', label: 'Carbon Weave', art: carbonWeave, thumbnail: carbonThumb, fullHeight: true, material: true },
+  { id: 'obsidian-slate', label: 'Obsidian Slate', art: obsidianSlate, thumbnail: slateThumb, fullHeight: true, material: true },
+  { id: 'hammered-titanium', label: 'Hammered Titanium', art: hammeredTitanium, thumbnail: titaniumThumb, fullHeight: true, material: true },
 ]);
 export function libraryGraphicStyle(id, preview = false) {
   const graphic = LIBRARY_GRAPHICS.find(item => item.id === id);

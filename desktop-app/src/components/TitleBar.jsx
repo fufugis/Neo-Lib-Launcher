@@ -6,7 +6,7 @@ import NewsInbox from './news/NewsInbox';
 const DISCORD_INVITE = 'https://discord.gg/spk6QWREk8';
 const REDDIT_COMMUNITY = 'https://www.reddit.com/r/NeoLibLauncher/';
 
-export default function TitleBar({ search, setSearch, currentVersion, updateAvailable, latestVersion, onClickUpdate, onOpenFeedback, onDonate, newsPaused = false, newsSettings }) {
+export default function TitleBar({ search, setSearch, currentVersion, updateAvailable, latestVersion, onClickUpdate, onOpenFeedback, onDonate, newsPaused = false, newsMascotResting = false, newsSettings }) {
   const openDiscord = () => {
     if (typeof window !== 'undefined' && window.api?.openExternal) window.api.openExternal(DISCORD_INVITE);
     else window.open(DISCORD_INVITE, '_blank');
@@ -35,7 +35,7 @@ export default function TitleBar({ search, setSearch, currentVersion, updateAvai
 
       {/* Global actions live beside the brand, leaving the sidebar tabs room to breathe. */}
       <div className="titlebar-nodrag flex items-center gap-1">
-        <NewsInbox paused={newsPaused} settings={newsSettings} />
+        <NewsInbox paused={newsPaused} mascotResting={newsMascotResting} settings={newsSettings} />
         {onOpenFeedback && (
           <button
             data-testid="tab-feedback"

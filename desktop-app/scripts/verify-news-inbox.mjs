@@ -6,6 +6,7 @@ import { fetchNewsFeed, mergeNewsFeed, newsCheckDue, newsVoiceOptions, normalize
 const now = Date.parse('2026-10-08T12:00:00Z');
 assert.equal(NEWS_STARTUP_DELAY_MS, 60000, 'patch notes get a full minute before news');
 assert.equal(newsVoiceOptions().enabled, true);
+assert.equal(newsVoiceOptions({}, true).enabled, false, 'ZZZ suppresses mascot voice without blocking announcements');
 assert.equal(newsVoiceOptions({ mascotId: 'fifi', fungistVoiceVolume: 34 }).mascotId, 'fifi');
 assert.equal(newsVoiceOptions({ fungistVoiceVolume: 34 }).volume, 34);
 for (const setting of [{ fungistEnabled: false }, { soundsEnabled: false }, { fungistVoiceEnabled: false }, { soundPack: 'none' }, { fungistVoiceVolume: 0 }, { fungistVoiceVolume: -10 }]) assert.equal(newsVoiceOptions(setting).enabled, false);
@@ -68,18 +69,34 @@ const aborted = new AbortController(); aborted.abort();
 await assert.rejects(fetchNewsFeed({ fetchImpl: fakeFetch, signal: aborted.signal, now }));
 const source = relative => fs.readFileSync(fileURLToPath(new URL(relative, import.meta.url)), 'utf8');
 const ui = source('../src/components/news/NewsInbox.jsx');
+const announcement = source('../src/components/news/NewsAnnouncement.jsx');
 assert(!ui.includes('dangerouslySetInnerHTML') && !ui.includes('eval('));
-for (const required of ['data-testid="news-mail-button"', 'data-testid="news-popup"', 'useReducedMotion', 'updateNewsMessage(current.current, message.id, \'notify\')', 'localStorage.setItem', 'if (paused)', 'document.visibilityState', 'lastAttempt.current', 'NEWS_CHECK_MS', '7500', 'data-controller-close', 'event.key !== \'Tab\'', 'aria-modal="true"', "'delete'", 'controller.abort()', 'active?.abort()', 'reader']) {
+for (const required of ['data-testid="news-mail-button"', 'useReducedMotion', 'updateNewsMessage(current.current, message.id, \'present\')', 'localStorage.setItem', 'if (paused)', 'lastAttempt.current', 'NEWS_CHECK_MS', 'data-controller-close', 'event.key !== \'Tab\'', 'aria-modal="true"', "'delete'", 'controller.abort()', 'active?.abort()', 'reader']) {
   if (required === 'reader') assert(source('../src/components/news/news-model.mjs').includes('reader.cancel()'));
   else assert(ui.includes(required), `News wiring missing ${required}`);
 }
 assert(ui.indexOf('localStorage.setItem') < ui.indexOf('current.current = next'), 'failed persistence cannot pretend to commit');
-assert(source('../src/App.jsx').includes("newsPaused={gameRestActive || lounge.active || firstRunPhase !== 'ready'}"));
-assert(source('../src/components/TitleBar.jsx').includes('<NewsInbox paused={newsPaused} settings={newsSettings} />'));
+assert(source('../src/App.jsx').includes("newsPaused={firstRunPhase !== 'ready'}"));
+assert(!ui.includes("document.visibilityState === 'hidden'") && !ui.includes('!document.hasFocus()'), 'background gameplay cannot suppress team feed checks or announcements');
+assert(source('../src/App.jsx').includes('newsMascotResting={gameRestActive}'));
+assert(source('../src/components/TitleBar.jsx').includes('<NewsInbox paused={newsPaused} mascotResting={newsMascotResting} settings={newsSettings} />'));
 assert(source('../src/App.jsx').includes('newsSettings={settings}'));
-assert(ui.includes('if (now < startupNotBefore.current)') && ui.includes('Date.now() < startupNotBefore.current ||'), 'network events and cached pending popups cannot bypass the startup delay');
+assert(ui.includes('if (now < startupNotBefore.current)') && ui.includes('Date.now() < startupNotBefore.current\n'), 'network events and cached pending popups cannot bypass the startup delay');
 assert.equal(ui.split("playMascotVoice('news'").length - 1, 1, 'one voice call only in popup delivery');
-assert(ui.includes("playMascotVoice('news', newsVoiceOptions(latestSettings.current))"));
+assert(ui.includes("playMascotVoice('news', newsVoiceOptions(preferences, latestMascotResting.current))"));
+assert(ui.includes("playNewsChime({ enabled: sounds })") && ui.includes("new CustomEvent('neolib:team-news'"));
+assert(!ui.includes('7500') && !announcement.includes('setTimeout'), 'announcements have no auto-dismiss timer');
+assert(announcement.includes('aria-label="Close announcement"') && announcement.includes('role="dialog"') && announcement.includes('aria-modal="true"'));
+assert(!announcement.includes('onMouseDown=') && !announcement.includes('onClick={onClose}'), 'backdrop cannot accidentally dismiss');
+let pending = updateNewsMessage(mergeNewsFeed({}, [one], now), one.id, 'present');
+assert.equal(pending.messages[0].acknowledged, false);
+pending = normalizeNewsInbox(JSON.parse(JSON.stringify(pending)));
+assert.equal(pending.messages[0].notified, true, 'restore does not repeat sound/reaction');
+assert.equal(pending.messages[0].acknowledged, false, 'unacknowledged popup survives restart');
+pending = updateNewsMessage(pending, one.id, 'acknowledge');
+assert.equal(pending.messages[0].acknowledged, true);
+assert.equal(pending.messages.length, 1, 'X keeps saved mailbox copy');
+assert.equal(normalizeNewsInbox({messages:[{...one,notified:true}]}).messages[0].acknowledged, true, 'old shown messages do not replay during migration');
 assert(source('../src/components/ChangelogModal.jsx').includes('UPCOMING_CHANGELOG'));
 const publicFeed = JSON.parse(source('../../announcements.json'));
 assert.doesNotThrow(() => normalizeNewsFeed(publicFeed), 'operator-published feed must validate; empty and intentionally populated feeds are both supported');

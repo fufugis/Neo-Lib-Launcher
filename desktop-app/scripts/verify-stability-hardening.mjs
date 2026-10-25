@@ -1,0 +1,43 @@
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { safeGameRecord, safeLibraryRecords } from '../src/state/record-safety.mjs';
+import { hydrateLibrary } from '../src/state/library-state.mjs';
+import { toolsLibraryView } from '../src/state/tools-category-state.mjs';
+import { normalizeGenreProfile } from '../src/lib/genreTaxonomy.js';
+const require = createRequire(import.meta.url);
+const {registerMetadataIpc} = require('../electron/ipc/metadata-ipc.cjs');
+const {registerPersistenceIpc} = require('../electron/ipc/persistence-ipc.cjs');
+const handlers = {}, malformed = {source:'steam',name:'Safe name',developers:'Studio',publishers:[{name:'Publisher'},null],genres:[{description:'Action'}],screenshots:'https://example.test/screen.png',releaseDate:{date:'2020-01-01'}};
+registerMetadataIpc({registerIpc:(id,handler)=>handlers[id]=handler, services:new Proxy({},{get:()=>async()=>malformed})});
+for(const [id,payload] of [['metadata:auto',{query:'Safe name'}],['metadata:expandCandidate',{candidate:{source:'steam',id:'1',name:'Safe name'}}]]) {
+ const clean=await handlers[id]({},payload);
+ assert.deepEqual(clean.developers,['Studio']);assert.deepEqual(clean.publishers,['Publisher']);assert.deepEqual(clean.genres,['Action']);assert.equal(clean.releaseDate,'2020-01-01');assert.deepEqual(clean.screenshots,['https://example.test/screen.png']);
+}
+const profile=normalizeGenreProfile({rawTags:['Action','Co-op']});
+assert.deepEqual(safeGameRecord({genreProfile:profile}).genreProfile,profile,'valid profiles and grouped traits remain intact');
+const game={id:'g',name:'Game',developers:'Studio',categoryIds:{bad:true},genres:[{description:'Action'}],genreProfile:{core:'bad'},artworkRevisions:'bad',unknown:{keep:true}};
+const safe=safeGameRecord(game);assert.deepEqual(safe.developers,['Studio']);assert.deepEqual(safe.genres,['Action']);assert.equal(safe.homeLocked,true,'uncertain privacy memberships fail closed');assert.equal(safe.genreProfile,null);assert.deepEqual(safe.recordRecovery.developers,'Studio');assert.deepEqual(safe.unknown,{keep:true});assert.deepEqual(safeGameRecord(safe),safe,'repair is idempotent');
+const raw={games:[{...game,categoryIds:['private']},null,42,{...game,categoryIds:['private'],name:'duplicate'}],categories:[null,{id:'private',name:'Private',private:true,pin:'hash'}],tools:[{id:'t',name:'Tool',categoryIds:'legacy'}],toolCategories:[],gameOrderByCategory:{private:['g',null]},futureField:{keep:'top level'}};
+const library=hydrateLibrary(raw,{normalizeGenres:normalizeGenreProfile,taxonomyVersion:3});
+assert.equal(library.games.length,1);assert.equal(library.categories.length,1);assert.equal(library.libraryRecovery.length,4);assert.equal(library.categories[0].pin,'hash');assert.deepEqual(library.futureField,{keep:'top level'});assert.deepEqual(library.tools[0].categoryIds,['legacy']);assert.doesNotThrow(()=>toolsLibraryView(library));
+assert.equal(hydrateLibrary(JSON.parse(JSON.stringify(library))).libraryRecovery.length,4,'archive survives reopen without growth');
+assert.doesNotThrow(()=>safeLibraryRecords(null));
+assert.doesNotThrow(()=>safeLibraryRecords({categories:{bad:true},tools:'bad',games:null}));
+const uncertainPrivacy = safeLibraryRecords({games:[game]});assert.equal(uncertainPrivacy.games.length,0);assert.deepEqual(uncertainPrivacy.libraryRecovery[0].value,game,'uncertain category membership is isolated, never published as a public game');
+const persisted={};registerPersistenceIpc({registerIpc:(id,handler)=>persisted[id]=handler,documents:{loadLibrary:async()=>({games:[]}),loadSettings:async()=>({}),saveLibrary:async()=>{throw Error('simulated disk failure');},saveSettings:async()=>true,getDiagnostics:()=>({library:{state:'invalid'}})}});
+assert.equal((await persisted['library:load']({}))._neoLibReadIssue,'invalid');assert.equal(await persisted['library:save']({},{games:[]}),false,'native write failure reaches renderer as explicit false');
+// Real atomic writes/backup recovery, confined to a new synthetic temp profile.
+const {createAppStorage}=require('../electron/storage/app-storage.cjs');
+const {createDocumentStore}=require('../electron/storage/document-store.cjs');
+const directory=fs.mkdtempSync(path.join(os.tmpdir(),'neolib-recovery-roundtrip-'));
+const storage=createAppStorage({app:{getPath:()=>directory},path,fs,fsp:fs.promises});
+let documents=createDocumentStore({storage});
+await documents.saveLibrary(library);await documents.saveLibrary({...library,testMarker:1});
+await fs.promises.rename(storage.libraryFile(),path.join(directory,'preserved-primary.json'));
+documents=createDocumentStore({storage});const recovered=await documents.loadLibrary();assert.equal(recovered.games[0].id,'g');assert.equal(recovered.libraryRecovery.length,4);
+await documents.saveLibrary(recovered);await documents.saveLibrary({...recovered,testMarker:2});
+const restarted=await createDocumentStore({storage}).loadLibrary();assert.equal(restarted.testMarker,2);assert.equal(restarted.libraryRecovery.length,4);assert.equal(restarted.categories[0].pin,'hash');assert.deepEqual(restarted.games[0].recordRecovery.developers,'Studio');
+console.log('PASS: typed metadata boundary, safe legacy field normalization, preserved recovery originals/unknown fields/private data, idempotent library reopen and native storage failure/status contracts. Synthetic data only.');

@@ -56,13 +56,14 @@ export function SteamManifestLine({ game }) {
 
 
 
-export function LatestNewsPill({ game }) {
+export function LatestNewsPill({ game, history }) {
   const [item, setItem] = React.useState(null);
   const [expanded, setExpanded] = React.useState(false);
 
   React.useEffect(() => {
     let alive = true;
     setItem(null); setExpanded(false);
+    if (history) { setItem(history.items?.[0] || null); return () => { alive = false; }; }
     if (!game) return () => { alive = false; };
     // The per-game latest-news pill follows the same all-launcher policy as
     // Home: named local and launcher-owned entries may use public discovery.
@@ -77,7 +78,7 @@ export function LatestNewsPill({ game }) {
       if (res?.ok && res.item) setItem(res.item);
     }).catch(() => {});
     return () => { alive = false; };
-  }, [game?.id, game?.appid, game?.gogId, game?.website, game?.launcher, game?.source, game?.name]);
+  }, [game?.id, game?.appid, game?.gogId, game?.website, game?.launcher, game?.source, game?.name, history?.items]);
 
   if (!item) return null;
 

@@ -18,11 +18,14 @@ export function applyPlaytimeImport(games = [], patches = [], now = Date.now()) 
     const patch = byId.get(game.id);
     if (!patch) return game;
     const { id: _id, ...fields } = patch;
+    const reset = Number(patch.playtimeResetAt) > 0 || patch.playtimeManual === true;
+    const observed = !reset && Object.keys(game.externalPlaytimeSessions || {}).length > 0;
     return {
       ...game,
       ...fields,
-      playtime: Number.isFinite(Number(patch.playtime)) ? Math.max(0, Number(patch.playtime)) : game.playtime,
-      lastPlayedAt: Number.isFinite(Number(patch.lastPlayedAt)) ? Number(patch.lastPlayedAt) : game.lastPlayedAt,
+      ...(reset ? {playtimeResetAt: Number(patch.playtimeResetAt) || now, externalPlaytimeSessions: {}} : {}),
+      playtime: Number.isFinite(Number(patch.playtime)) ? Math.max(0, Number(patch.playtime), observed ? Number(game.playtime) || 0 : 0) : game.playtime,
+      lastPlayedAt: Number.isFinite(Number(patch.lastPlayedAt)) ? Math.max(Number(patch.lastPlayedAt), observed ? Number(game.lastPlayedAt) || 0 : 0) : game.lastPlayedAt,
       playtimeImportedAt: now,
     };
   });

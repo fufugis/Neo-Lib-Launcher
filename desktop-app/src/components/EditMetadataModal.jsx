@@ -1,5 +1,7 @@
 import React from 'react';
+import { safeGameRecord } from '../state/record-safety.mjs';
 import WorkshopArtworkGallery from './WorkshopArtworkGallery';
+import GameArtwork from './GameArtwork';
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { Check, Globe2, GripVertical, History, Image as ImageIcon, Loader2, Lock, LockOpen, Plus, RefreshCw, RotateCcw, Save, Search, Trash2, Upload, X } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -26,7 +28,8 @@ const CONTENT_SIGNALS = GAME_SIGNAL_DEFINITIONS.filter(({ group }) => group === 
  * details. It preserves the former metadata fields while arranging them into
  * focused sections and only stores typed, bounded route/status data.
  */
-export default function EditMetadataModal({ open, game, onClose, onSave, steamGridDbKey = '' }) {
+export default function EditMetadataModal({ open, game: rawGame, onClose, onSave, steamGridDbKey = '' }) {
+  const game = React.useMemo(() => rawGame ? safeGameRecord(rawGame) : null, [rawGame]);
   const [form, setForm] = React.useState(() => emptyForm(game));
   const [tab, setTab] = React.useState('overview');
   const dragControls = useDragControls();
@@ -229,6 +232,7 @@ function Overview({ form, set }) {
 }
 
 function Artwork({ form, set, game, onPick, steamGridDbKey }) {
+  const artworkGame = { ...game, ...form, portraitImage: form.coverUrl, screenshots: splitLines(form.screenshots) };
   const heroOptions = libraryHeroArtworkOptions({
     ...game,
     heroArtworkOverride: form.heroArtworkOverride,
@@ -262,11 +266,11 @@ function Artwork({ form, set, game, onPick, steamGridDbKey }) {
   return <div className="space-y-4">
     <Section title="Artwork Workshop" description="Choose local files or paste a URL. Protected artwork is kept out of future repair suggestions, and nothing replaces it without your review.">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <ImageSlot label="Icon" value={form.icon} onChange={(value) => updateArtwork('icon', 'icon', value)} onPick={() => onPick('icon')} onBrowse={() => setCatalogue({ open: true, slot: 'icon', query: form.name, games: [], assets: [], busy: false, error: '', selectedGame: null })} protected={form.artworkLocks?.icon} onToggleProtect={() => toggleLock('icon')} source={form.artworkSources?.icon} aspect="1/1" />
-        <ImageSlot label="Cover" value={form.coverUrl} onChange={(value) => updateArtwork('cover', 'coverUrl', value)} onPick={() => onPick('coverUrl')} onBrowse={() => setCatalogue({ open: true, slot: 'cover', query: form.name, games: [], assets: [], busy: false, error: '', selectedGame: null })} protected={form.artworkLocks?.cover} onToggleProtect={() => toggleLock('cover')} source={form.artworkSources?.cover} aspect="3/4" emptyHint="No portrait cover selected. The Lounge will use a game-art fallback." />
-        <ImageSlot label="Hero / header" value={form.headerImage} onChange={(value) => updateArtwork('hero', 'headerImage', value)} onPick={() => onPick('headerImage')} onBrowse={() => setCatalogue({ open: true, slot: 'hero', query: form.name, games: [], assets: [], busy: false, error: '', selectedGame: null })} protected={form.artworkLocks?.hero} onToggleProtect={() => toggleLock('hero')} source={form.artworkSources?.hero} aspect="16/9" />
-        <ImageSlot label="Background" value={form.background} onChange={(value) => updateArtwork('background', 'background', value)} onPick={() => onPick('background')} onBrowse={() => setCatalogue({ open: true, slot: 'background', query: form.name, games: [], assets: [], busy: false, error: '', selectedGame: null })} protected={form.artworkLocks?.background} onToggleProtect={() => toggleLock('background')} source={form.artworkSources?.background} aspect="16/9" />
-        <ImageSlot label="Logo" value={form.logo} onChange={(value) => updateArtwork('logo', 'logo', value)} onPick={() => onPick('logo')} onBrowse={() => setCatalogue({ open: true, slot: 'logo', query: form.name, games: [], assets: [], busy: false, error: '', selectedGame: null })} protected={form.artworkLocks?.logo} onToggleProtect={() => toggleLock('logo')} source={form.artworkSources?.logo} aspect="16/9" />
+        <ImageSlot game={artworkGame} label="Icon" value={form.icon} onChange={(value) => updateArtwork('icon', 'icon', value)} onPick={() => onPick('icon')} onBrowse={() => setCatalogue({ open: true, slot: 'icon', query: form.name, games: [], assets: [], busy: false, error: '', selectedGame: null })} protected={form.artworkLocks?.icon} onToggleProtect={() => toggleLock('icon')} source={form.artworkSources?.icon} aspect="1/1" />
+        <ImageSlot game={artworkGame} label="Cover" value={form.coverUrl} onChange={(value) => updateArtwork('cover', 'coverUrl', value)} onPick={() => onPick('coverUrl')} onBrowse={() => setCatalogue({ open: true, slot: 'cover', query: form.name, games: [], assets: [], busy: false, error: '', selectedGame: null })} protected={form.artworkLocks?.cover} onToggleProtect={() => toggleLock('cover')} source={form.artworkSources?.cover} aspect="3/4" emptyHint="No portrait cover selected. The Lounge will use a game-art fallback." />
+        <ImageSlot game={artworkGame} label="Hero / header" value={form.headerImage} onChange={(value) => updateArtwork('hero', 'headerImage', value)} onPick={() => onPick('headerImage')} onBrowse={() => setCatalogue({ open: true, slot: 'hero', query: form.name, games: [], assets: [], busy: false, error: '', selectedGame: null })} protected={form.artworkLocks?.hero} onToggleProtect={() => toggleLock('hero')} source={form.artworkSources?.hero} aspect="16/9" />
+        <ImageSlot game={artworkGame} label="Background" value={form.background} onChange={(value) => updateArtwork('background', 'background', value)} onPick={() => onPick('background')} onBrowse={() => setCatalogue({ open: true, slot: 'background', query: form.name, games: [], assets: [], busy: false, error: '', selectedGame: null })} protected={form.artworkLocks?.background} onToggleProtect={() => toggleLock('background')} source={form.artworkSources?.background} aspect="16/9" />
+        <ImageSlot game={artworkGame} label="Logo" value={form.logo} onChange={(value) => updateArtwork('logo', 'logo', value)} onPick={() => onPick('logo')} onBrowse={() => setCatalogue({ open: true, slot: 'logo', query: form.name, games: [], assets: [], busy: false, error: '', selectedGame: null })} protected={form.artworkLocks?.logo} onToggleProtect={() => toggleLock('logo')} source={form.artworkSources?.logo} aspect="16/9" />
       </div>
     </Section>
     <Section title="Library hero fit" description="Choose and frame the large banner shown on this game’s Library page. These changes save with the rest of Edit game.">
@@ -436,20 +440,22 @@ function ArtworkHistory({ revisions, onRestore }) {
   </Section>;
 }
 
-function ImageSlot({ label, value, onChange, onPick, onBrowse, protected: isProtected, onToggleProtect, source, aspect = '1/1', emptyHint = '' }) {
+function ImageSlot({ game, label, value, onChange, onPick, onBrowse, protected: isProtected, onToggleProtect, source, aspect = '1/1', emptyHint = '' }) {
   const [dimensions, setDimensions] = React.useState('');
+  const [resolvedSource, setResolvedSource] = React.useState('');
+  const role = ({ Icon: 'icon', Cover: 'cover', 'Hero / header': 'hero', Background: 'background', Logo: 'logo' })[label];
   React.useEffect(() => setDimensions(''), [value]);
   return <div className="space-y-1.5">
     <div className="flex items-center justify-between gap-2"><span className="block text-[10px] uppercase tracking-wider text-muted">{label}</span><button onClick={onToggleProtect} className={cn('inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px]', isProtected ? 'bg-[rgb(var(--accent)/0.16)] text-ink' : 'text-muted hover:bg-panel hover:text-ink')} title="Protect this artwork from future repair suggestions">{isProtected ? <Lock size={10} /> : <LockOpen size={10} />}{isProtected ? ' Protected' : ' Protect mine'}</button></div>
     <div className="relative overflow-hidden rounded-md hairline bg-surface/60" style={{ aspectRatio: aspect }}>
-      {value ? <img src={value} alt={`${label} preview`} onLoad={(event) => setDimensions(`${event.currentTarget.naturalWidth} × ${event.currentTarget.naturalHeight}`)} className="h-full w-full object-cover" /> : <div className="grid h-full w-full place-items-center text-muted/50"><ImageIcon size={20} /></div>}
+      <GameArtwork game={game} role={role} alt={`${label} preview`} loading="eager" className="absolute inset-0 h-full w-full" onDimensions={({ width, height, src }) => { setDimensions(`${width} × ${height}`); setResolvedSource(src === value ? '' : 'Automatic same-game fallback'); }} />
     </div>
-    {emptyHint && !value && <p className="text-[9px] leading-snug text-muted">{emptyHint}</p>}
-    <p className="min-h-3 truncate text-[9px] text-muted" title={source || ''}>{source ? `Source: ${source}` : 'Source not recorded'}{dimensions ? ` · ${dimensions}` : ''}</p>
+    {emptyHint && !value && <p className="text-[9px] leading-snug text-muted">No dedicated image selected. Related game artwork is used automatically.</p>}
+    <p className="min-h-3 truncate text-[9px] text-muted" title={resolvedSource || source || ''}>{resolvedSource || (source ? `Source: ${source}` : 'Automatic game artwork')}{dimensions ? ` · ${dimensions}` : ''}</p>
     <div className="flex gap-1">
       <button onClick={onPick} className="inline-flex flex-1 items-center justify-center gap-1 rounded-md hairline px-1 py-1.5 text-[10px] text-muted hover:border-[rgb(var(--accent)/0.5)] hover:text-ink"><Upload size={10} /> File</button>
       <button onClick={onBrowse} className="inline-flex flex-1 items-center justify-center gap-1 rounded-md hairline px-1 py-1.5 text-[10px] text-muted hover:border-[rgb(var(--accent-2)/0.5)] hover:text-ink"><Globe2 size={10} /> Online</button>
-      {value && <button onClick={() => onChange('')} className="grid w-7 place-items-center rounded-md hairline text-muted hover:border-red-400/40 hover:text-red-400" title="Clear"><RefreshCw size={10} /></button>}
+      {value && <button onClick={() => onChange('')} className="grid w-7 place-items-center rounded-md hairline text-muted hover:border-red-400/40 hover:text-red-400" title="Clear selected image (use automatic fallback)"><Trash2 size={10} /></button>}
     </div>
     <input value={value} onChange={(event) => onChange(event.target.value)} placeholder="…or paste URL" className="w-full rounded-md bg-panel/40 hairline px-2 py-1.5 text-[10px] text-muted/90 focus:border-[rgb(var(--accent)/0.6)] focus:outline-none focus:text-ink" />
   </div>;

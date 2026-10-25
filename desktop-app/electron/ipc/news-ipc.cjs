@@ -19,6 +19,8 @@ function validNewsGame(game) {
     && isIdentifier(game.gogId, { required: false })
     && isBoundedString(game.name, { max: 500 })
     && isBoundedString(game.website, { max: 4096 })
+    && isBoundedString(game.newsUrl, { max: 4096 })
+    && isBoundedString(game.updateWatchUrl, { max: 4096 })
     && isBoundedString(game.source, { max: 200 })
     && isBoundedString(game.launcher, { max: 200 });
 }
@@ -44,6 +46,15 @@ function registerNewsIpc({ registerIpc, services }) {
   ), result => isPlainObject(result) && result.ok === true
     && (result.item === null || isNewsItem(result.item)) && isBoolean(result.cached),
   invalidResponse('Latest-news lookup returned an invalid result.', { item: null })));
+  registerIpc("news:historyForGame", guardResult(guardHandler(
+    requireService(services, "news:historyForGame"),
+    payload => isPlainObject(payload) && validNewsGame(payload.game) && isBoolean(payload.force),
+    invalidRequest('The game-history request was malformed.', { items: [] }),
+  ), result => isNewsFeed(result) && result.items.length <= 10
+    && result.items.every(item => isBoundedString(item.id, {required:true,max:1000})
+      && isBoundedString(item.sourceLabel, {required:true,max:160}) && ['News','Patch','Devblog','Event','Coverage'].includes(item.kind))
+    && isBoolean(result.stale) && isBoolean(result.unavailable) && isBoolean(result.noSource),
+  invalidResponse('Game history returned an invalid result.', { items: [] })));
   registerIpc("news:fetchAll", guardResult(guardHandler(
     requireService(services, "news:fetchAll"),
     validNewsRequest,

@@ -5,13 +5,18 @@ function registerPersistenceIpc({ registerIpc, documents }) {
     throw new TypeError('registerPersistenceIpc requires registerIpc and documents.');
   }
 
-  registerIpc('library:load', guardResult(async () => documents.loadLibrary(),
+  const loadWithStatus = async (kind, load) => {
+    const data = await load();
+    const state = documents.getDiagnostics?.()?.[kind]?.state;
+    return /^(invalid|unsupported-newer-schema|migration-deferred)/.test(state || '') ? { ...data, _neoLibReadIssue: state } : data;
+  };
+  registerIpc('library:load', guardResult(async () => loadWithStatus('library', () => documents.loadLibrary()),
     data => isJsonObjectWithin(data, { maxDepth: 14, maxEntries: 250000, maxString: 100000 }), {}));
   registerIpc('library:save', guardResult(guardHandler(async (_event, data) => {
     await documents.saveLibrary(data);
     return true;
   }, data => isJsonObjectWithin(data, { maxDepth: 14, maxEntries: 250000, maxString: 100000 }), false), value => value === true, false));
-  registerIpc('settings:load', guardResult(async () => documents.loadSettings(),
+  registerIpc('settings:load', guardResult(async () => loadWithStatus('settings', () => documents.loadSettings()),
     data => isJsonObjectWithin(data, { maxDepth: 12, maxEntries: 50000, maxString: 100000 }), {}));
   registerIpc('settings:save', guardResult(guardHandler(async (_event, data) => {
     await documents.saveSettings(data);

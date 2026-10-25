@@ -1,12 +1,18 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
-import { PREVIEW_SECTIONS, normalizePreviewLayout, previewLayoutDraft, savePreviewLayout, previewCanvasBox, fitPreviewSurface, previewContentMeasurement } from '../src/components/preview/preview-layout-model.mjs';
+import { PREVIEW_SECTIONS, normalizePreviewLayout, previewLayoutDraft, savePreviewLayout, previewCanvasBox, fitPreviewSurface, previewContentMeasurement, previewContentSize, updatePreviewSection } from '../src/components/preview/preview-layout-model.mjs';
 import { adjustEditorBox } from '../src/components/home/home-layout-editor-model.mjs';
 import { hydrateSettings } from '../src/state/settings-state.mjs';
 
 assert.equal(normalizePreviewLayout(null), null);
 assert.equal(normalizePreviewLayout({ version: 2, positions: {} }), null);
+const legacyPositions=Object.fromEntries(PREVIEW_SECTIONS.filter(section=>section.id!=='history').map((section,index)=>[section.id,{x:0,y:index*200,width:1,height:180}]));
+const migrated=normalizePreviewLayout({version:1,positions:legacyPositions});
+for(const id of Object.keys(legacyPositions))assert.deepEqual(migrated.positions[id],legacyPositions[id],'adding history never resets existing preview rectangles');
+assert(migrated.positions.history.y>Math.max(...Object.values(legacyPositions).map(box=>box.y+box.height)));
+assert.equal(migrated.order.at(-1),'history');
+assert.deepEqual(normalizePreviewLayout(JSON.parse(JSON.stringify(migrated))),migrated);
 assert.equal(savePreviewLayout({}), null);
 const captured = Object.fromEntries(PREVIEW_SECTIONS.map((section, index) => [section.id, { x: index === 5 ? 650 : 0, y: index * 180, width: 500, height: 160 }]));
 const original = JSON.parse(JSON.stringify(captured));
@@ -19,6 +25,21 @@ const saved = savePreviewLayout(modified);
 assert.equal(saved.positions.description.width, 320 / 1200);
 assert.deepEqual(normalizePreviewLayout(JSON.parse(JSON.stringify(saved))), saved);
 assert.deepEqual(hydrateSettings({ previewLayout: saved }).previewLayout, saved, 'global layout survives settings hydration');
+assert.equal(previewContentSize(NaN), 100);
+assert.equal(previewContentSize(1), 70);
+assert.equal(previewContentSize(999), 150);
+const sizedDraft = updatePreviewSection(draft, 'description', 'contentSize', 125);
+assert.equal(sizedDraft.contentSizes.description, 125);
+assert.equal(draft.contentSizes.description, undefined, 'sliders do not mutate saved/draft input');
+assert.deepEqual(sizedDraft.positions.description, draft.positions.description, 'content slider does not scale the whole page or box');
+const sizedSaved = savePreviewLayout(sizedDraft);
+assert.equal(hydrateSettings({ previewLayout: sizedSaved }).previewLayout.contentSizes.description, 125);
+assert.equal(previewLayoutDraft({}, 1200, 900, sizedSaved).contentSizes.description, 125);
+assert.equal(updatePreviewSection(draft, 'description', 'x', 99999).positions.description.x, draft.width - draft.positions.description.width);
+assert.equal(updatePreviewSection(draft, 'description', 'y', -99).positions.description.y, 0);
+assert.equal(updatePreviewSection(draft, 'unknown', 'x', 10), draft);
+assert(!Object.hasOwn(normalizePreviewLayout({ ...sizedSaved, contentSizes: { unknown: 120, description: 900 } }).contentSizes, 'unknown'));
+assert.equal(normalizePreviewLayout({ ...sizedSaved, contentSizes: { description: 900 } }).contentSizes.description, 150);
 assert.deepEqual(previewLayoutDraft({}, 1200, 800, saved).positions.description, modified.positions.description);
 for (const width of [1, 150, 320, 900, 3440]) for (const box of Object.values(saved.positions)) {
   const rect = previewCanvasBox(box, width);
@@ -49,7 +70,7 @@ assert(read('App.jsx').includes('onPreviewLayoutChange={previewLayout => updateS
 const css = read('styles.css');
 assert(css.includes('@container preview-box (min-width: 520px)'));
 assert(css.includes('.preview-custom-block { box-sizing: border-box; position: absolute; min-width: 0; min-height: 0; overflow: visible;'));
-assert(css.includes('.preview-fit-viewport { position: relative; overflow: auto; min-width: 0; }'), 'only whole-page overflow remains reachable at normal text size');
+assert(css.includes('.preview-fit-viewport { position: relative; overflow-y: auto; overflow-x: hidden; min-width: 0; }'), 'whole-page vertical scrolling stays reachable without sideways scroll from hero effects');
 assert(!page.includes('overflow-auto'), 'preview page and individual boxes are not scrollports');
 const grown = fitPreviewSurface(saved, 1200, { description: 1700, hero: 800 }, { media: 800 });
 assert(grown.boxes.description.height >= 1702 && grown.boxes.hero.height >= 802);
@@ -68,7 +89,14 @@ for (const viewport of [{ width: 320, height: 240 }, { width: 3440, height: 1440
 const desktopMain = fs.readFileSync(new URL('../electron/main.js', import.meta.url), 'utf8');
 assert(desktopMain.includes('Math.round(defaultW * 0.70)') && desktopMain.includes('Math.round(defaultH * 0.70)'));
 assert(desktopMain.includes('minWidth: minimumW') && desktopMain.includes('minHeight: minimumH'));
-assert.equal(previewLayoutDraft({ description: { x: 10, y: 400, width: 500, height: 1702 } }, 1200, grown.height, saved).positions.description.height, 1702, 'reopening editor captures actual grown content geometry');
+assert.equal(previewLayoutDraft({ description: { x: 10, y: 400, width: 500, height: 1702 } }, 1200, grown.height, saved).positions.description.height, saved.positions.description.height, 'reopening retains requested geometry, not a temporary content-expanded size');
+for (const id of ['hero', 'notices', 'details']) {
+  const smaller = updatePreviewSection(updatePreviewSection(draft, id, 'width', 300), id, 'height', 110);
+  const restored = previewLayoutDraft({ [id]: { x: 0, y: 0, width: 1000, height: 600 } }, 1200, 900, savePreviewLayout(smaller));
+  assert.equal(restored.positions[id].width, 300);
+  assert.equal(restored.positions[id].height, 110);
+  assert.equal(fitPreviewSurface(savePreviewLayout(smaller), 1200, {}, { [id]: 1000 }).boxes[id].width, 300, 'intrinsic width cannot undo a deliberate resize');
+}
 let floor = 0, stable = fitPreviewSurface(saved, 1200);
 for (let frame = 0; frame < 1000; frame++) {
   const allocated = stable.boxes.description.width;
@@ -83,4 +111,10 @@ assert.equal(overflow.width, 800);
 assert.equal(previewContentMeasurement({ clientWidth: 800, scrollWidth: 800, offsetHeight: 400, scrollHeight: 400 }, overflow.width).width, 800, 'retain genuine overflow after growth to prevent alternating grow/shrink');
 const require = createRequire(import.meta.url), babel = createRequire(require.resolve('@vitejs/plugin-react'))('@babel/core');
 for (const source of [page, detail]) babel.parseSync(source, { configFile: false, babelrc: false, parserOpts: { plugins: ['jsx'] } });
+const live = read('components/preview/PreviewLayoutLivePreview.jsx'), inspector = read('components/preview/PreviewLayoutInspector.jsx');
+for (const source of [live, inspector]) babel.parseSync(source, { configFile: false, babelrc: false, parserOpts: { plugins: ['jsx'] } });
+assert(page.includes('renderPreview=') && page.includes('renderInspector='));
+assert(live.includes('fitPreviewSurface(layout, viewport.width') && live.includes('inert=""') && live.includes('current window'));
+assert(!/window\.api|fetch\(/.test(live), 'preview itself never launches games, fetches or changes metadata');
+for (const label of ['Section content size', 'Section ${axis.toUpperCase()} position', 'Selected section']) assert(inspector.includes(label));
 console.log('PASS: fixed preview sections, draft isolation, narrower description, absent-row reservations, global persistence, resize bounds, safe reset and independent geometry-only host; live acceptance pending.');

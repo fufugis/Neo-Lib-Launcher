@@ -1,4 +1,5 @@
 import { sessionResult } from './playtime-state.mjs';
+import { safeLibraryRecords } from './record-safety.mjs';
 
 export const EMPTY_LIBRARY = Object.freeze({
   games: [], categories: [], gameOrderByCategory: {},
@@ -12,6 +13,7 @@ export function workspaceKeys(mode) {
 }
 
 export function hydrateLibrary(raw = {}, { now = Date.now(), resetRatings = false, normalizeGenres = null, taxonomyVersion = null } = {}) {
+  raw = safeLibraryRecords(raw);
   const games = Array.isArray(raw.games) ? raw.games.map((game) => {
     const hydrated = { categoryIds: [], addedAt: now, ...game };
     if (!Object.prototype.hasOwnProperty.call(hydrated, 'librarySeenAt')) hydrated.librarySeenAt = hydrated.addedAt || now;
@@ -25,6 +27,7 @@ export function hydrateLibrary(raw = {}, { now = Date.now(), resetRatings = fals
   }) : [];
   const tools = Array.isArray(raw.tools) ? raw.tools.map((tool) => ({ categoryIds: [], addedAt: now, ...tool })) : [];
   return {
+    ...raw,
     games,
     categories: Array.isArray(raw.categories) ? raw.categories : [],
     gameOrderByCategory: objectOrEmpty(raw.gameOrderByCategory),
@@ -32,6 +35,7 @@ export function hydrateLibrary(raw = {}, { now = Date.now(), resetRatings = fals
     tools,
     toolCategories: Array.isArray(raw.toolCategories) ? raw.toolCategories : [],
     toolOrderByCategory: objectOrEmpty(raw.toolOrderByCategory),
+    ...(Array.isArray(raw.unifiedCategoryOrder) ? {unifiedCategoryOrder:raw.unifiedCategoryOrder.filter(id=>typeof id==='string')} : {}),
   };
 }
 
@@ -61,6 +65,7 @@ export function updateWorkspaceItem(library, mode, id, patch) {
 
 export function deleteWorkspaceCategory(library, mode, id) {
   const keys = workspaceKeys(mode);
+  if((library[keys.cats]||[]).some(category=>category.id===id&&category.system==='tools'))return library;
   return {
     ...library,
     [keys.cats]: (library[keys.cats] || []).filter((category) => category.id !== id),
@@ -70,10 +75,10 @@ export function deleteWorkspaceCategory(library, mode, id) {
 }
 
 export function clearRegularGameCategories(library) {
-  const removed = new Set((library.categories || []).filter((category) => !category.private).map((category) => category.id));
+  const removed = new Set((library.categories || []).filter((category) => !category.private&&category.system!=='tools').map((category) => category.id));
   return {
     ...library,
-    categories: (library.categories || []).filter((category) => category.private),
+    categories: (library.categories || []).filter((category) => category.private||category.system==='tools'),
     games: (library.games || []).map((game) => ({ ...game, categoryIds: (game.categoryIds || []).filter((id) => !removed.has(id)) })),
     gameOrderByCategory: Object.fromEntries(Object.entries(library.gameOrderByCategory || {}).filter(([id]) => !removed.has(id))),
   };

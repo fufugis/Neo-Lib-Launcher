@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Wand2, Plus, ChevronDown, Tag, ArrowDownUp, Moon, Sun,
   Library as LibIcon, Boxes, CheckSquare, Columns, Home, Check, ListTree, Tv2,
-  Palette, SlidersHorizontal, Gamepad2, UserRound, Settings2, Sparkles, RefreshCw, Lightbulb, Power,
+  Palette, SlidersHorizontal, Gamepad2, UserRound, Settings2, Sparkles, RefreshCw, Lightbulb, Power, Wrench,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { stockThemeAssetUrl, customThemeManifest } from '../themes/stock-theme-registry.mjs';
@@ -129,7 +129,7 @@ export default function Sidebar({
   cursorTheme = 'windows', onChangeCursorTheme,
   interfaceMode = 'default', onChangeInterfaceMode,
   onSelect, onGameViewed,
-  onAddManual, onOpenWizard, manualResting = false, onToggleManualRest, onOpenFeedback,
+  onAddManual, onAddTool, onOpenWizard, manualResting = false, onToggleManualRest, onOpenFeedback,
   onCreateCategory, onCategoryContext, onGameContext,
   onMoveGameToCategory,
   onReorderGameInCategory, onReorderCategory,
@@ -229,13 +229,14 @@ export default function Sidebar({
   };
 
   // Build per-category game lists honoring per-category ordering
+  const lockedPrivateIds = new Set(categories.filter((category) => category.private && !unlockedCategories.includes(category.id)).map((category) => category.id));
   const orderedGamesIn = (catId) => {
     const order = gameOrderByCategory?.[catId] || [];
-    const inCat = games.filter((g) =>
+    const inCat = games.filter((g) => !(g.categoryIds || []).some(id => lockedPrivateIds.has(id)) && (
       catId === '__uncat__'
         ? !(g.categoryIds || []).length
         : (g.categoryIds || []).includes(catId)
-    );
+    ));
     const byId = new Map(inCat.map((g) => [g.id, g]));
     const ordered = [];
     for (const id of order) {
@@ -275,7 +276,6 @@ export default function Sidebar({
       count: orderedGamesIn('__uncat__').length,
     },
   ];
-  const lockedPrivateIds = new Set(categories.filter((category) => category.private && !unlockedCategories.includes(category.id)).map((category) => category.id));
   const flatGames = sortGames(searchFilter(games).filter((game) => !(game.categoryIds || []).some((categoryId) => lockedPrivateIds.has(categoryId)) && !pinnedIdsSet.has(game.id)));
   const visibleIconGames = sortGames(searchFilter(games).filter((game) => !(game.categoryIds || []).some((categoryId) => lockedPrivateIds.has(categoryId))));
   const lockedPrivateSections = sections.filter((section) => section.category.private && section.isGhost);
@@ -362,16 +362,6 @@ export default function Sidebar({
         <TabPill decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} label="Home" icon={<Home size={15} />} showLabel={navLabelsVisible} active={mode === 'home'} onClick={() => { onSelect?.(null); onSetMode('home'); }} testid="tab-home" />
         <TabPill decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} label="Library" icon={<LibIcon size={15} />} showLabel={navLabelsVisible} active={mode === 'library' && libraryViewMode !== 'wall'} onClick={() => { onChangeLibraryViewMode?.('preview'); onSetMode('library'); onSetLauncherFilter?.('all'); }} testid="tab-library" />
         <TabPill decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} label="Wall" icon={<Columns size={15} />} showLabel={navLabelsVisible} active={mode === 'library' && libraryViewMode === 'wall'} onClick={() => { onChangeLibraryViewMode?.('wall'); onSelect?.(null); }} testid="tab-cover-wall" />
-        <TabPill
-          decorationTheme={currentTheme}
-          decorationOpacity={gameResting ? 0 : navDecorationOpacity}
-          label="Tools"
-          icon={<Boxes size={15} />}
-          showLabel={navLabelsVisible}
-          active={mode === 'tools'}
-          onClick={() => onSetMode('tools')}
-          testid="tab-tools"
-        />
         {addonsEnabled && <AddonMenu addons={addons} onOpen={onOpenAddon} onManage={onManageAddons} showLabel={navLabelsVisible} decorationTheme={currentTheme} decorationOpacity={gameResting ? 0 : navDecorationOpacity} />}
         {/* Bottom accent line separating the toolbar from what's underneath */}
         <span
@@ -498,6 +488,7 @@ export default function Sidebar({
                   <div className="px-2.5 py-1.5">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted">Library categories</p>
                   </div>
+                  <button type="button" data-testid="categories-menu-add-tool" onClick={()=>{setCategoriesMenuOpen(false);onAddTool?.();}} className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs font-semibold text-ink hover:bg-[rgb(var(--accent)/0.08)]"><Wrench size={14}/>Add tool</button>
                   <button
                     data-testid="categories-menu-visibility-switch"
                     onClick={() => onToggleCategories?.(!showCategories)}
@@ -726,6 +717,7 @@ export function SideNavigationRail({ mode, libraryViewMode, onOpenHome, onOpenLi
   return <div className="relative z-50 h-full w-12 shrink-0" data-testid="side-navigation-slot" data-sidebar-preview={tweaksOpen || undefined} style={{ width: geometry.compact, '--sidebar-expanded-width': `${expanded ? geometry.expanded : geometry.compact}px` }}><nav
     data-testid="side-navigation-rail"
     data-sidebar-expanded={expanded}
+    data-sidebar-frames={preferences.frames}
     aria-label="Primary navigation"
     onMouseEnter={() => setExpanded(true)}
     onMouseLeave={() => { labels.clear(); if (!openMenu) setExpanded(false); }}
@@ -738,7 +730,7 @@ export function SideNavigationRail({ mode, libraryViewMode, onOpenHome, onOpenLi
     className="absolute inset-y-0 left-0 z-50 flex flex-col overflow-x-hidden overflow-y-auto border-r border-[rgb(var(--border)/0.8)] bg-[rgb(var(--surface)/0.97)] px-1 py-2 shadow-[8px_0_24px_-20px_rgba(0,0,0,.95)] backdrop-blur-xl transition-[width,box-shadow] duration-200 ease-out motion-reduce:transition-none"
     style={{ width: expanded ? geometry.expanded : geometry.compact, padding: `${8 * geometry.scale}px ${4 * geometry.scale}px`, '--sidebar-button-scale': geometry.scale, '--sidebar-spacing': `${preferences.spacing}px`, '--sidebar-icon-size': `${preferences.iconSize * geometry.scale}px`, '--sidebar-saturation': preferences.saturation / 100 }}
   >
-    <SidebarButtonOrder order={preferences.order}>
+    <SidebarButtonOrder order={preferences.order} colors={preferences.colors}>
     <RailSectionHeader label="Lounge" tone={RAIL_GROUP_TONES.lounge} expanded={expanded} testid="side-navigation-lounge-header" />
     <RailNavigationButton icon={<Tv2 size={21} />} label="Lounge" hint="Couch mode" tone={RAIL_GROUP_TONES.lounge} expanded={expanded} onClick={onEnterLounge} testid="sidebar-rail-lounge-btn" />
     <div data-testid="sidebar-add-games-area" className="my-2 border-y border-[rgb(var(--border)/0.55)] py-2">
@@ -753,7 +745,6 @@ export function SideNavigationRail({ mode, libraryViewMode, onOpenHome, onOpenLi
       {addons.map(addon => <RailNavigationButton key={addon.id} icon={<Boxes size={21} />} label={addon.name} hint="Custom page" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} active={activeAddonId === addon.id} onClick={() => onOpenAddon(addon.id)} testid={`addon-${addon.id}`} />)}
     </>}
     <RailSectionHeader label="Actions" tone={RAIL_GROUP_TONES.tools} expanded={expanded} testid="side-navigation-primary-divider" />
-    <RailNavigationButton icon={<Boxes size={21} />} label="Tools" hint="Utilities" tone={RAIL_GROUP_TONES.tools} expanded={expanded} active={mode === 'tools'} onClick={onOpenTools} testid="tab-tools" />
     <RailSectionHeader label="Personalise" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} testid="side-navigation-personalise-divider" />
     <RailNavigationButton icon={<Boxes size={21} />} label="Modules" hint="Built-in and imported" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} onClick={onOpenModules} testid="sidebar-rail-modules-btn" />
     <RailActionFlyout icon={<Palette size={21} />} label="Visuals" tone={RAIL_GROUP_TONES.personalise} expanded={expanded} testid="sidebar-rail-visuals-menu-btn" open={openMenu === 'visuals'} onToggle={() => setOpenMenu(value => value === 'visuals' ? null : 'visuals')} onClose={closeMenu} items={[

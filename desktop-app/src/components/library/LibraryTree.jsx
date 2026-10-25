@@ -1,4 +1,5 @@
 import React from 'react';
+import GameArtwork from '../GameArtwork';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import {
   RefreshCw, Trash2, Pencil, FolderOpen, MoreVertical, Lock, ChevronRight, ChevronDown,
@@ -168,7 +169,7 @@ export function LibrarySection({
           e.dataTransfer.effectAllowed = 'move';
         }}
         onContextMenu={(e) => {
-          if (isUncat) return;
+          if (isUncat || c.system==='tools') return;
           e.preventDefault();
           e.stopPropagation();
           onCategoryContext(c, { x: e.clientX, y: e.clientY });
@@ -230,6 +231,7 @@ export function LibrarySection({
             label such as Steam must not silently replace the player's chosen
             Dot marker mode—both get their own stable slot after the arrow. */}
         {!isUncat && <>
+          {c.system==='tools' && <Wrench size={categoryControlSize} aria-label="Tools category" className="shrink-0 text-[rgb(var(--accent-2))]"/>}
           {categoryMarkerMode === 'dot' && (
             <span
               data-testid={`category-marker-${c.id}`}
@@ -326,7 +328,8 @@ export function LibrarySection({
         </span>}
 
         {/* Kebab menu — guaranteed access to Rename / Set Private / Delete (alongside right-click) */}
-        {!isUncat && (
+        {c.system==='tools'&&<button type="button" data-testid="tools-category-add" onClick={event=>{event.stopPropagation();onContext('add-tool',{game:null});}} className="shrink-0 rounded border hairline px-2 py-1 text-[10px] font-bold text-ink hover:bg-panel">+ Add tool</button>}
+        {!isUncat && c.system!=='tools' && (
           <button
             data-testid={`section-menu-btn-${c.id}`}
             onClick={(e) => {
@@ -507,7 +510,7 @@ const MemoizedLibraryGameRow = React.memo(function LibraryGameRowContent({
       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); openMenuAt(e.clientX, e.clientY); }}
       onClick={onClick}
       data-testid={`game-row-${g.id}`}
-      title={iconOnly ? (g.name || 'Untitled') : undefined}
+      title={iconOnly ? ((g.name || 'Untitled') + (g.libraryToolId != null ? ' · Tools' : '')) : undefined}
       className={cn(
         'group relative flex min-w-0 cursor-pointer items-center gap-2.5 overflow-hidden rounded-md transition-colors',
         selected ? 'bg-[rgb(var(--accent)/0.10)] text-ink' : 'text-muted hover:bg-panel/70 hover:text-ink',
@@ -536,6 +539,7 @@ const MemoizedLibraryGameRow = React.memo(function LibraryGameRowContent({
           : {}),
       }}
     >
+      {iconOnly && g.libraryToolId != null && <span data-testid={`tool-tag-${g.id}`} className="absolute bottom-0 right-0 z-10 rounded bg-panel p-0.5 text-ink" title="Tools"><Wrench size={11}/></span>}
       {/* Selection bar */}
       <span
         className={cn(
@@ -554,6 +558,7 @@ const MemoizedLibraryGameRow = React.memo(function LibraryGameRowContent({
           New
         </span>
       )}
+      {!iconOnly && g.libraryToolId != null && <span data-testid={`tool-tag-${g.id}`} className="inline-flex shrink-0 items-center gap-1 rounded border border-amber-300/40 bg-amber-300/10 px-1.5 py-0.5 text-[9px] font-bold text-amber-200"><Wrench size={11}/>Tools</span>}
 
       {/* Icon — position controlled by iconPosition setting (left | right | none) */}
       {(iconOnly || (iconPosition !== 'none' && iconPosition !== 'right')) && (
@@ -561,15 +566,7 @@ const MemoizedLibraryGameRow = React.memo(function LibraryGameRowContent({
           className={cn('relative shrink-0 overflow-hidden rounded hairline bg-surface/70', iconOnly && 'h-full w-full')}
           style={{ width: size.icon, height: size.icon }}
         >
-          {g.icon ? (
-            <img src={g.icon} alt="" className="h-full w-full object-cover" />
-          ) : g.coverUrl ? (
-            <img src={g.coverUrl} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <div className="grid h-full w-full place-items-center text-[9px] text-muted">
-              {(g.name || '?').slice(0, 1).toUpperCase()}
-            </div>
-          )}
+          <GameArtwork game={g} role="icon" className="absolute inset-0 h-full w-full" />
         </div>
       )}
 
@@ -631,15 +628,7 @@ const MemoizedLibraryGameRow = React.memo(function LibraryGameRowContent({
           className="relative shrink-0 overflow-hidden rounded hairline bg-surface/70"
           style={{ width: size.icon, height: size.icon }}
         >
-          {g.icon ? (
-            <img src={g.icon} alt="" className="h-full w-full object-cover" />
-          ) : g.coverUrl ? (
-            <img src={g.coverUrl} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <div className="grid h-full w-full place-items-center text-[9px] text-muted">
-              {(g.name || '?').slice(0, 1).toUpperCase()}
-            </div>
-          )}
+          <GameArtwork game={g} role="icon" className="absolute inset-0 h-full w-full" />
         </div>
       )}
 
@@ -669,7 +658,7 @@ const MemoizedLibraryGameRow = React.memo(function LibraryGameRowContent({
           style={{ position: 'fixed', top: menu.y, left: menu.x, zIndex: 200, width: 240 }}
           className="overflow-hidden rounded-lg hairline glass shadow-2xl py-1"
         >
-          <Item icon={<RefreshCw size={13} />} label="Refresh info (this game)" onClick={() => { setMenu({ ...menu, open: false }); onContext('refetch'); }} testid={`game-ctx-refetch-${g.id}`} />
+          <Item icon={<RefreshCw size={13} />} label={g.libraryToolId != null ? 'Edit tool metadata' : 'Refresh info (this game)'} onClick={() => { setMenu({ ...menu, open: false }); onContext('refetch'); }} testid={`game-ctx-refetch-${g.id}`} />
           <Item icon={<Wand2 size={13} />} label="Re-search by name…" onClick={() => { setMenu({ ...menu, open: false }); onContext('research'); }} testid={`game-ctx-research-${g.id}`} />
           <Divider />
           <Item
@@ -681,15 +670,15 @@ const MemoizedLibraryGameRow = React.memo(function LibraryGameRowContent({
           <Divider />
           <Item icon={<Pencil size={13} />} label="Rename" onClick={() => { setMenu({ ...menu, open: false }); onContext('rename'); }} testid={`game-ctx-rename-${g.id}`} />
           <Item icon={<Terminal size={13} />} label="Edit launch args" onClick={() => { setMenu({ ...menu, open: false }); onContext('args'); }} testid={`game-ctx-args-${g.id}`} />
-          <Item icon={<Info size={13} />} label="Edit game" onClick={() => { setMenu({ ...menu, open: false }); onContext('details'); }} testid={`game-ctx-details-${g.id}`} />
+          <Item icon={<Info size={13} />} label={g.libraryToolId != null ? 'Edit tool' : 'Edit game'} onClick={() => { setMenu({ ...menu, open: false }); onContext('details'); }} testid={`game-ctx-details-${g.id}`} />
           <Divider />
           <Item icon={<Tag size={13} />} label="Manage categories…" onClick={() => { setMenu({ ...menu, open: false }); onContext('manage-categories'); }} testid={`game-ctx-cats-${g.id}`} />
           <Item icon={<FolderOpen size={13} />} label="Reveal in folder" onClick={() => { setMenu({ ...menu, open: false }); onContext('reveal'); }} testid={`game-ctx-reveal-${g.id}`} />
-          <Item icon={<ArchiveRestore size={13} />} label="Save game folder…" onClick={() => { setMenu({ ...menu, open: false }); onContext('save-games'); }} testid={`game-ctx-save-games-${g.id}`} />
+          {g.libraryToolId == null && <Item icon={<ArchiveRestore size={13} />} label="Save game folder…" onClick={() => { setMenu({ ...menu, open: false }); onContext('save-games'); }} testid={`game-ctx-save-games-${g.id}`} />}
           {g.launchDoctorSuggested && <Item icon={<Stethoscope size={13} />} label="Launch Doctor" onClick={() => { setMenu({ ...menu, open: false }); onContext('launch-doctor'); }} testid={`game-ctx-launch-doctor-${g.id}`} />}
           <Divider />
-          <Item icon={<RotateCcw size={13} />} label="Reset playtime to 0" onClick={() => { setMenu({ ...menu, open: false }); onContext('reset-playtime'); }} testid={`game-ctx-reset-playtime-${g.id}`} />
-          <Item icon={<RefreshCw size={13} />} label="Re-import from Steam" onClick={() => { setMenu({ ...menu, open: false }); onContext('reimport-steam'); }} testid={`game-ctx-reimport-steam-${g.id}`} />
+          {g.libraryToolId == null && <Item icon={<RotateCcw size={13} />} label="Reset playtime to 0" onClick={() => { setMenu({ ...menu, open: false }); onContext('reset-playtime'); }} testid={`game-ctx-reset-playtime-${g.id}`} />}
+          {g.libraryToolId == null && <Item icon={<RefreshCw size={13} />} label="Re-import from Steam" onClick={() => { setMenu({ ...menu, open: false }); onContext('reimport-steam'); }} testid={`game-ctx-reimport-steam-${g.id}`} />}
           <Divider />
           <Item icon={<Trash2 size={13} />} label="Remove from library" danger onClick={() => { setMenu({ ...menu, open: false }); onContext('remove'); }} testid={`game-ctx-remove-${g.id}`} />
         </motion.div>,
@@ -842,14 +831,8 @@ export function PinnedStrip({ games, selectedId, onSelect, onContext, selectionM
             style={{ maxWidth: 140 }}
             title={g.name}
           >
-            <span className="h-4 w-4 shrink-0 overflow-hidden rounded-sm hairline bg-surface/60">
-              {(g.icon || g.coverUrl) ? (
-                <img src={g.icon || g.coverUrl} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <span className="grid h-full w-full place-items-center text-[7px] text-muted">
-                  {(g.name || '?').slice(0, 1).toUpperCase()}
-                </span>
-              )}
+            <span className="relative h-4 w-4 shrink-0 overflow-hidden rounded-sm hairline bg-surface/60">
+              <GameArtwork game={g} role="icon" className="absolute inset-0 h-full w-full" />
             </span>
             <span className="truncate">{g.name}</span>
             {selectionMode && <span className="shrink-0 text-[rgb(var(--accent))]">{selectedIds.has(g.id) ? <CheckSquare size={12} /> : <Square size={12} />}</span>}

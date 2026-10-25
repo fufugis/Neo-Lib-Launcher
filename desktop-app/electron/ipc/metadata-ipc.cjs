@@ -3,9 +3,12 @@ const { guardHandler, guardResult, isBoolean, isBoundedArray, isBoundedString, i
 const METADATA_SOURCES = new Set(['steam', 'steamgriddb', 'gog', 'itch', 'dlsite', 'jast', 'gamejolt', 'vndb', 'ryuugames', 'f95zone', 'google', 'ai']);
 const METADATA_SEARCH_SOURCES = new Set([...METADATA_SOURCES, 'all']);
 const validSecret = value => isBoundedString(value, { max: 4096 });
+const { normalizeMetadata } = require('./metadata-normalization.cjs');
 const isMetadata = value => value === null || (isJsonObjectWithin(value, { maxDepth: 12, maxEntries: 2000, maxString: 50000 })
   && isBoundedString(value.source, { required: true, max: 100 })
-  && isBoundedString(value.name, { required: true, max: 500 }));
+  && isBoundedString(value.name, { required: true, max: 500 })
+  && ['developers','publishers','genres','genreTags','screenshots'].every(key => value[key] == null || isBoundedArray(value[key], 2000, item => typeof item === 'string'))
+  && (value.releaseDate == null || typeof value.releaseDate === 'string'));
 const isCandidate = candidate => isJsonObjectWithin(candidate, { maxDepth: 10, maxEntries: 1000, maxString: 50000 })
   && METADATA_SOURCES.has(candidate.source)
   && isIdentifier(candidate.id)
@@ -32,7 +35,8 @@ function registerMetadataIpc({ registerIpc, services }) {
   const requireService = (all, channel) => {
     const handler = all[channel];
     if (typeof handler !== 'function') throw new TypeError(`Missing service for ${channel}.`);
-    return handler;
+    if (!['metadata:auto','metadata:expandCandidate','gemini:metadata'].includes(channel)) return handler;
+    return async function (...args) { return normalizeMetadata(await handler.apply(this, args)); };
   };
   registerIpc("metadata:auto", guardResult(guardHandler(
     requireService(services, "metadata:auto"),

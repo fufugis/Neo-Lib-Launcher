@@ -38,7 +38,7 @@ export function hydrateSettings(raw = {}, { resetRatings = false } = {}) {
   next.usageReportingEnabled = next.usageReportingEnabled === true && next.usageConsentVersion === 2;
   next.addonsEnabled = next.addonsEnabled === true;
   next.modulesEnabled = next.modulesEnabled === true;
-  if (next.mode !== 'tools') next.mode = 'home';
+  next.mode = next.mode === 'tools' ? 'library' : 'home';
   if (resetRatings) next.ratingSystemVersion = 2;
   return next;
 }

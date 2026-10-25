@@ -1,12 +1,15 @@
 import React from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { Mail, Newspaper, Trash2, X, ArrowUpRight } from 'lucide-react';
+import { AnimatePresence, useReducedMotion } from 'framer-motion';
+import { Mail, Trash2, X, ArrowUpRight } from 'lucide-react';
 import Modal from '../Modal';
 import { renderForegroundPortal } from '../ui/VisualBoundary';
 import { playMascotVoice } from '../../lib/mascotVoice';
+import { playNewsChime } from '../../lib/sound';
+import NewsAnnouncement from './NewsAnnouncement';
+import { notificationSurfaceBlocked } from './notification-surface.mjs';
 import { fetchNewsFeed, mergeNewsFeed, newsCheckDue, newsVoiceOptions, normalizeNewsInbox, NEWS_STORAGE_KEY, NEWS_CHECK_MS, NEWS_STARTUP_DELAY_MS, updateNewsMessage } from './news-model.mjs';
 
-export default function NewsInbox({ paused = false, settings = {} }) {
+export default function NewsInbox({ paused = false, mascotResting = false, settings = {} }) {
   const [inbox, setInbox] = React.useState(() => {
     try { return normalizeNewsInbox(JSON.parse(localStorage.getItem(NEWS_STORAGE_KEY) || '{}')); }
     catch { return normalizeNewsInbox(null); }
@@ -17,6 +20,8 @@ export default function NewsInbox({ paused = false, settings = {} }) {
   const startupNotBefore = React.useRef(Date.now() + NEWS_STARTUP_DELAY_MS);
   const latestSettings = React.useRef(settings);
   latestSettings.current = settings;
+  const latestMascotResting = React.useRef(mascotResting);
+  latestMascotResting.current = mascotResting;
   const [open, setOpen] = React.useState(false);
   const [selectedId, setSelectedId] = React.useState('');
   const [popup, setPopup] = React.useState(null);
@@ -32,7 +37,7 @@ export default function NewsInbox({ paused = false, settings = {} }) {
   }, []);
 
   React.useEffect(() => {
-    if (paused) { setPopup(null); return undefined; }
+    if (paused) return undefined;
     let disposed = false;
     let active = null;
     let nextCheck;
@@ -46,9 +51,9 @@ export default function NewsInbox({ paused = false, settings = {} }) {
         return;
       }
       const dueAt = Math.max(current.current.lastCheckedAt, lastAttempt.current) + NEWS_CHECK_MS;
-      if (document.visibilityState === 'hidden' || !navigator.onLine
+      if (!navigator.onLine
         || !newsCheckDue(current.current) || (lastAttempt.current && now < dueAt)) {
-        nextCheck = window.setTimeout(check, Math.max(1000, dueAt - now, document.visibilityState === 'hidden' || !navigator.onLine ? NEWS_CHECK_MS : 0));
+        nextCheck = window.setTimeout(check, Math.max(1000, dueAt - now, !navigator.onLine ? NEWS_CHECK_MS : 0));
         return;
       }
       lastAttempt.current = now;
@@ -70,35 +75,34 @@ export default function NewsInbox({ paused = false, settings = {} }) {
   }, [paused, commit]);
 
   React.useEffect(() => {
-    if (paused || open || popup || !inbox.messages.some(message => !message.notified)) return undefined;
+    if (paused || open || popup || !inbox.messages.some(message => !message.acknowledged)) return undefined;
     const showNext = () => {
-      if (Date.now() < startupNotBefore.current || document.visibilityState === 'hidden' || !document.hasFocus()
-        || document.querySelector('[role="dialog"], [aria-modal="true"], [data-testid="modal-close-btn"], [data-testid="changelog-overlay"], [data-testid="tutorial-overlay"]')) return;
-      const message = current.current.messages.find(entry => !entry.notified);
+      if (Date.now() < startupNotBefore.current
+        || notificationSurfaceBlocked(document)) return;
+      const message = current.current.messages.find(entry => !entry.acknowledged);
       if (!message || !button.current) return;
-      const rect = button.current.getBoundingClientRect();
-      const width = Math.min(420, window.innerWidth - 24);
-      const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
-      const top = Math.min(rect.bottom + 14, Math.max(12, window.innerHeight - 260));
-      // Persist before showing: a restart cannot replay an already displayed popup.
-      if (commit(updateNewsMessage(current.current, message.id, 'notify'))) {
-        setPopup({ message, left, top, width,
-          x: rect.left + rect.width / 2 - left - width / 2, y: rect.top + rect.height / 2 - top });
-        // Play only for the actual popup, never for polling, reopening or deletion.
-        playMascotVoice('news', newsVoiceOptions(latestSettings.current));
+      // Persist pending acknowledgement: only the X closes this announcement,
+      // including across rest transitions and app restarts.
+      if (commit(updateNewsMessage(current.current, message.id, 'present'))) {
+        setPopup({ message });
+        if (!message.notified) {
+          const preferences = latestSettings.current;
+          const sounds = preferences.soundsEnabled !== false && preferences.soundPack !== 'none';
+          playNewsChime({ enabled: sounds });
+          if (!latestMascotResting.current && preferences.fungistEnabled !== false) {
+            window.dispatchEvent(new CustomEvent('neolib:team-news', { detail: { id: message.id } }));
+          }
+          playMascotVoice('news', newsVoiceOptions(preferences, latestMascotResting.current));
+        }
       }
     };
     const timer = window.setInterval(showNext, 1500);
     return () => window.clearInterval(timer);
   }, [inbox, paused, open, popup, commit]);
 
-  React.useEffect(() => {
-    if (!popup) return undefined;
-    const timer = window.setTimeout(() => setPopup(null), 7500);
-    const hideWhenBackgrounded = () => { if (document.visibilityState === 'hidden') setPopup(null); };
-    document.addEventListener('visibilitychange', hideWhenBackgrounded);
-    return () => { window.clearTimeout(timer); document.removeEventListener('visibilitychange', hideWhenBackgrounded); };
-  }, [popup]);
+  const dismissAnnouncement = () => {
+    if (popup && commit(updateNewsMessage(current.current, popup.message.id, 'acknowledge'))) setPopup(null);
+  };
 
   const close = React.useCallback(() => { setOpen(false); window.setTimeout(() => button.current?.focus(), 0); }, []);
   const select = id => { setSelectedId(id); commit(updateNewsMessage(current.current, id, 'read')); };
@@ -128,22 +132,14 @@ export default function NewsInbox({ paused = false, settings = {} }) {
 
   return <>
     {inbox.messages.length > 0 && <button ref={button} type="button" data-testid="news-mail-button"
-      className="titlebar-action news-mail-button" aria-label={`News inbox: ${inbox.messages.length} messages, ${unread} unread`}
+      className="titlebar-action news-mail-button" data-unread={unread > 0 ? 'true' : 'false'} data-pending={inbox.messages.some(message => !message.acknowledged) ? 'true' : 'false'} aria-label={`News inbox: ${inbox.messages.length} messages, ${unread} unread`}
       title={`News · ${inbox.messages.length} messages${storageError ? ' · Inbox could not be saved' : ''}`}
       aria-haspopup="dialog" onClick={() => openInbox()}>
-      <Mail size={16} /><span className="news-mail-count">{inbox.messages.length > 99 ? '99+' : inbox.messages.length}</span>
+      <Mail size={20} /><span className="news-mail-label">News</span><span className="news-mail-count">{inbox.messages.length > 99 ? '99+' : inbox.messages.length}</span>
       {unread > 0 && <span className="news-unread-dot" aria-hidden="true" />}
     </button>}
-    {renderForegroundPortal(<AnimatePresence>{popup && !paused && <motion.aside key={popup.message.id}
-      data-testid="news-popup" role="status" aria-live="polite" className="news-popup titlebar-nodrag"
-      style={{ left: popup.left, top: popup.top, width: popup.width }}
-      initial={{ opacity: 0, y: reducedMotion ? 0 : -8 }} animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: reducedMotion ? 1 : 0.08, x: reducedMotion ? 0 : popup.x, y: reducedMotion ? 0 : popup.y }}
-      transition={{ duration: reducedMotion ? 0.12 : 0.4 }}>
-      <header><span><Newspaper size={19} /> News</span><button type="button" aria-label="Keep news in inbox" onClick={() => setPopup(null)}><X size={17} /></button></header>
-      <h3>{popup.message.title}</h3><p>{popup.message.body}</p>
-      <button type="button" className="news-open" onClick={() => openInbox(popup.message.id)}>Read in inbox <Mail size={15} /></button>
-    </motion.aside>}</AnimatePresence>)}
+    {renderForegroundPortal(<AnimatePresence>{popup && !paused && <NewsAnnouncement key={popup.message.id}
+      message={popup.message} reducedMotion={reducedMotion} storageError={storageError} onDismiss={dismissAnnouncement} />}</AnimatePresence>)}
     <Modal open={open} onClose={close} title="News" wide testid="news-inbox-modal">
       <section data-news-dialog role="dialog" aria-modal="true" aria-label="News inbox" className="news-inbox">
         <div className="news-inbox-heading"><p>{inbox.messages.length} saved messages · {unread} unread</p>

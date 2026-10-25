@@ -1,13 +1,13 @@
 import React from 'react';
 import { ArrowUpRight, ChevronLeft, ChevronRight, Play, X } from 'lucide-react';
 import { previewMedia, previewStoryParagraphs } from '../preview/preview-information-model.mjs';
-import { portraitArtwork } from '../../lib/game-artwork-model.mjs';
+import GameArtwork from '../GameArtwork';
+import { gameArtworkCandidates } from '../../lib/artwork-fallbacks.mjs';
 import { loungeSessionContext } from './lounge-context.mjs';
 
 export default function LoungeGamePanel({ game, position = 1, total = 1, updateLedger, onPrevious, onNext, onClose, onLaunch }) {
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState('');
-  const [failedArt, setFailedArt] = React.useState('');
   const [enlargedScreenshot, setEnlargedScreenshot] = React.useState('');
   const closeRef = React.useRef(null);
   const bodyRef = React.useRef(null);
@@ -46,8 +46,7 @@ export default function LoungeGamePanel({ game, position = 1, total = 1, updateL
   const media = previewMedia(game);
   const facts = loungeSessionContext(game, updateLedger);
   const story = previewStoryParagraphs(game);
-  const wideArt = [game.headerImage, game.capsuleImage, game.background, media[0]].find(value => typeof value === 'string' && value.trim()) || '';
-  const heroArt = wideArt || portraitArtwork(game);
+  const heroArt = gameArtworkCandidates(game, 'hero')[0];
   const gallery = media.filter(src => src && src !== heroArt).slice(0, 3);
   const detailFacts = [['Played', facts?.playtime], ['Journey', facts?.journey], ['Last played', facts?.lastPlayed], ['Released', game.releaseDate], ['Metacritic', game.metacritic]].filter(([, value]) => value);
   const launch = async () => {
@@ -64,7 +63,7 @@ export default function LoungeGamePanel({ game, position = 1, total = 1, updateL
   return <div role="dialog" aria-modal="true" aria-label={`${game.name || 'Game'} details`} className="lounge-detail-scrim fixed inset-0 z-[9100] flex items-center justify-center bg-black/75 p-3 sm:p-8" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <section data-testid="lounge-game-panel" className="lounge-detail-panel relative flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-[rgb(var(--accent)/0.55)] bg-[rgb(var(--surface))] shadow-[0_30px_100px_rgb(0_0_0/0.58)]">
       <div className="lounge-detail-hero relative flex h-48 shrink-0 items-end overflow-hidden bg-[rgb(var(--panel))] sm:h-72">
-        {heroArt && heroArt !== failedArt && <img key={heroArt} src={heroArt} alt="" onError={() => setFailedArt(heroArt)} className={`absolute inset-0 h-full w-full object-cover ${wideArt ? '' : 'lounge-detail-hero--portrait'}`} />}
+        <GameArtwork game={game} role="hero" loading="eager" className="absolute inset-0 h-full w-full" />
         <div className="lounge-detail-hero-shade pointer-events-none absolute inset-0" aria-hidden="true" />
         <div className="relative z-10 min-w-0 px-5 pb-5 pr-16 sm:px-8 sm:pb-7"><p className="text-xs font-black uppercase tracking-[0.2em] text-[rgb(var(--accent-2))]">In Lounge · {game.launcher || game.source || 'Library game'}</p><h2 className="mt-2 line-clamp-2 text-3xl font-black leading-tight text-white sm:text-5xl">{game.name || 'Untitled game'}</h2></div>
       </div>

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { normalizeEditorBox, createHomeEditorDraft, adjustEditorBox, homeEditorSavePatch, homeEditorFitZoom, resizeHomeEditorCanvas, parkHomeEditorBox, returnHomeEditorBox, homeCanvasHeight } from '../src/components/home/home-layout-editor-model.mjs';
+import { normalizeEditorBox, createHomeEditorDraft, adjustEditorBox, homeEditorSavePatch, homeEditorFitZoom, resizeHomeEditorCanvas, parkHomeEditorBox, returnHomeEditorBox, homeCanvasHeight, toggleHomeEditorWidget } from '../src/components/home/home-layout-editor-model.mjs';
 
 const saved = { snapToGrid: true, widgetOrder: ['hidden', 'a', 'b'], hiddenPanes: ['hidden'],
   freePositions: { a: { x: 900, y: 900, width: 200, height: 100 }, hidden: { x: 20, y: 20, width: 200, height: 100 } },
@@ -55,6 +55,18 @@ assert.equal(parking.a.height, draft.positions.a.height);
 assert.deepEqual(returnHomeEditorBox(draft, parking, 'a').positions.a, draft.positions.a, 'keyboard return keeps original Home placement and size');
 assert.deepEqual(draft.positions, captured, 'parking never changes saved Home coordinates');
 assert(!('parked' in extendedPatch) && !('parking' in extendedPatch), 'temporary bay is never persisted');
+const visibilityDraft = createHomeEditorDraft([{ id: 'a' }, { id: 'b' }], captured, { hidden: ['b', 'unknown'], freeCanvasHeight: 900 }, { width: 1200, height: 900 });
+const hidden = toggleHomeEditorWidget(visibilityDraft, 'a', false);
+assert.deepEqual(hidden.hiddenIds, ['b', 'unknown', 'a']);
+assert.deepEqual(visibilityDraft.hiddenIds, ['b', 'unknown'], 'visibility remains draft-only');
+const restored = toggleHomeEditorWidget(hidden, 'b', true);
+assert.deepEqual(restored.hiddenIds, ['unknown', 'a']);
+assert.deepEqual(restored.positions.b, captured.b, 'toggling retains geometry');
+assert.deepEqual(homeEditorSavePatch({ hidden: ['unknown', 'library-tools'] }, restored, ['a', 'b', 'storage', 'chronicle']).hidden, ['unknown', 'a'], 'preserve unknown hidden IDs but retire combined legacy alias');
+const tallHidden = createHomeEditorDraft([{ id: 'a' }, { id: 'b' }], { ...captured, b: { ...captured.b, y: 9000 } }, { hidden: ['b'] }, { width: 1200, height: 900 });
+assert.equal(tallHidden.height, 900, 'hidden boxes must not enlarge the canvas');
+assert.equal(resizeHomeEditorCanvas(tallHidden, 1400).height, 1400);
+assert.equal(toggleHomeEditorWidget(tallHidden, 'b', true).height, 9504, 'enabling an offscreen saved box makes room for it');
 
 const editor = readFileSync(new URL('../src/components/home/HomeLayoutEditor.jsx', import.meta.url), 'utf8');
 const home = readFileSync(new URL('../src/components/HomeHub.jsx', import.meta.url), 'utf8');
@@ -70,13 +82,23 @@ const require = createRequire(import.meta.url);
 const babel = createRequire(require.resolve('@vitejs/plugin-react'))('@babel/core');
 babel.parseSync(editor, { configFile: false, babelrc: false, parserOpts: { plugins: ['jsx'] } });
 assert.match(home, /if \(!host \|\| embedded\) return/);
-assert.match(home, /createHomeEditorDraft\(widgets, captured, homeLayout/);
+assert.match(home, /createHomeEditorDraft\(widgets, captured, \{ \.\.\.homeLayout, hidden: hiddenPanes \}/);
 assert.match(home, /updateLayout\(homeEditorSavePatch\(homeLayout, draft, activePaneIds\)\)/);
 assert.match(editor, /getBoundingClientRect\(\)\.width \/ element.offsetWidth/);
 assert.match(editor, /setPointerCapture\(event.pointerId\)/);
 assert.match(editor, /active.pointerId !== event.pointerId/);
 assert.match(editor, /onPointerCancel: event => endPointer\(event, false\)/);
 assert.match(editor, /addEventListener\('blur', cancelDrag\)/);
+assert.match(editor, /addEventListener\('pointerup', release, true\)/);
+assert.match(editor, /addEventListener\('pointercancel', cancelPointer, true\)/);
+assert.match(editor, /event.pointerType === 'mouse' && !\(event.buttons & 1\)/);
+assert(editor.includes('const sync = () => { if (gesture.current) return;'), 'fit-to-window measurements wait for release instead of cancelling a drag');
+const startSource = editor.slice(editor.indexOf('const start ='), editor.indexOf('const move ='));
+assert(!startSource.includes('setDraft('), 'starting capture must not reorder its DOM node');
+assert(editor.indexOf('data-testid="home-editor-add-height"') > editor.indexOf('<footer'), 'extension lives in bottom bar, not toolbar');
+assert(editor.includes('2 * Math.max(360') && editor.includes('draft.height * 2'), 'temporary holding bay doubles both dimensions');
+assert(editor.includes('Choose Home widgets') && editor.includes('toggleHomeEditorWidget(previous, widget.id, enabled)'));
+assert(home.includes('holdingArea expandableHeight chooseWidgets'));
 assert.match(editor, /event.key === 'Escape'/);
 assert.match(editor, /setDraft\(initialDraft\)/);
 assert.equal((editor.match(/\bonSave\(/g) || []).length, 1, 'only the Save control may commit the editor');

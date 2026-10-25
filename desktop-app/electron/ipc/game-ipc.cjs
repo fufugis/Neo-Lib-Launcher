@@ -41,11 +41,15 @@ function registerGameIpc({ registerIpc, services }) {
   registerIpc("game:watchExternal", guardResult(guardHandler(
     requireService(services, "game:watchExternal"),
     payload => isPlainObject(payload)
+      && isBoundedString(payload.clientId, { max: 128 })
       && (payload.games == null || isBoundedArray(payload.games, 1000, game => isPlainObject(game)
         && isIdentifier(game.id)
         && isBoundedString(game.name, { max: 500 })
         && isPath(game.exePath)
         && isPath(game.installDir, { required: false })
+        && isBoolean(game.trackingEnabled)
+        && isNumberBetween(game.playtime, 0, Number.MAX_SAFE_INTEGER)
+        && isNumberBetween(game.playtimeResetAt, 0, Number.MAX_SAFE_INTEGER)
         && isBoundedString(game.launcher, { max: 100 }))),
     invalidRequest('The external-game watch request was malformed.'),
   ), isWatchResult, invalidResponse('The external-game watcher returned an invalid result.', { watching: 0, ignored: 0 })));

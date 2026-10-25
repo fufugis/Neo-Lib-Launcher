@@ -4,7 +4,7 @@ export const HOME_EDITOR_GRID = 24;
 export const homeCanvasHeight = value => clamp(finite(value, 540), 540, 100000);
 
 export function resizeHomeEditorCanvas(draft, requestedHeight) {
-  return { ...draft, height: Math.max(homeCanvasHeight(requestedHeight), ...Object.values(draft.positions).map(box => box.y + box.height + 24)) };
+  return { ...draft, height: Math.max(homeCanvasHeight(requestedHeight), ...Object.entries(draft.positions).filter(([id]) => !(draft.hiddenIds || []).includes(id)).map(([, box]) => box.y + box.height + 24)) };
 }
 
 export function parkHomeEditorBox(draft, parked, id) {
@@ -29,9 +29,18 @@ export function normalizeEditorBox(raw = {}) {
 export function createHomeEditorDraft(widgets, captured, layout = {}, canvas = {}) {
   const positions = Object.fromEntries(widgets.map((widget, index) => [widget.id,
     normalizeEditorBox(captured[widget.id] || layout.freePositions?.[widget.id] || { x: 0, y: index * 260, width: 480, height: 240 })]));
-  return { positions, order: widgets.map(widget => widget.id), snap: layout.editorSnapToGrid !== false,
-    width: Math.max(320, finite(canvas.width, 320), ...Object.values(positions).map(box => box.x + box.width + 24)),
-    height: Math.max(homeCanvasHeight(layout.freeCanvasHeight), finite(canvas.height, 540), ...Object.values(positions).map(box => box.y + box.height + 24)) };
+  const visible = widgets.filter(widget => !(layout.hidden || []).includes(widget.id)).map(widget => positions[widget.id]);
+  return { positions, order: widgets.map(widget => widget.id), hiddenIds: [...(layout.hidden || [])], snap: layout.editorSnapToGrid !== false,
+    width: Math.max(320, finite(canvas.width, 320), ...visible.map(box => box.x + box.width + 24)),
+    height: Math.max(homeCanvasHeight(layout.freeCanvasHeight), finite(canvas.height, 540), ...visible.map(box => box.y + box.height + 24)) };
+}
+
+export function toggleHomeEditorWidget(draft, id, enabled) {
+  const box = draft.positions[id];
+  if (!box) return draft;
+  return { ...draft, hiddenIds: enabled ? (draft.hiddenIds || []).filter(value => value !== id) : [...new Set([...(draft.hiddenIds || []), id])],
+    width: enabled ? Math.max(draft.width, box.x + box.width + 24) : draft.width,
+    height: enabled ? Math.max(draft.height, box.y + box.height + 24) : draft.height };
 }
 
 export function adjustEditorBox(box, dx, dy, canvas, snap = true, resize = false) {
@@ -56,6 +65,7 @@ export function homeEditorSavePatch(layout, draft, activeIds) {
   const positions = { ...(layout.freePositions || {}) };
   for (const id of editedIds) positions[id] = normalizeEditorBox(draft.positions[id]);
   return { freePositions: positions, freeCanvasHeight: homeCanvasHeight(draft.height), snapToGrid: false, editorSnapToGrid: draft.snap === true,
+    hidden: [...new Set([...(layout.hidden || []).filter(id => !allowed.has(id) && !(id === 'library-tools' && allowed.has('storage') && allowed.has('chronicle'))), ...(draft.hiddenIds || layout.hidden || []).filter(id => allowed.has(id))])],
     widgetOrder: [...new Set([...(layout.widgetOrder || []).filter(id => !editedIds.includes(id)), ...editedIds])] };
 }
 

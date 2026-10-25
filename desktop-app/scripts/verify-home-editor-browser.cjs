@@ -1,0 +1,85 @@
+// Real editor and native Chromium mouse input, isolated from player settings.
+const fs = require('node:fs'), path = require('node:path'), os = require('node:os'), assert = require('node:assert/strict');
+if (!process.versions.electron) {
+  const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE;
+  const result = require('node:child_process').spawnSync(require('electron'), [__filename], { env, stdio: 'inherit', windowsHide: true, timeout: 60000 });
+  if (result.error) console.error(result.error.message);
+  process.exit(result.status ?? 1);
+}
+const { app, BrowserWindow } = require('electron');
+const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'neolib-home-editor-'));
+app.setPath('userData', profile);
+app.whenReady().then(async () => {
+  const root = path.resolve(__dirname, '..');
+  const esbuild = require('node:module').createRequire(require.resolve('vite'))('esbuild');
+  const bundle = await esbuild.build({ stdin: { resolveDir: root, loader: 'jsx', contents: `
+    import React from 'react'; import { createRoot } from 'react-dom/client'; import { flushSync } from 'react-dom';
+    import Editor from './src/components/home/HomeLayoutEditor.jsx';
+    const root = createRoot(document.getElementById('root'));
+    const initial = {width:1200,height:900,snap:false,hiddenIds:['b'],order:['a','b'],positions:{a:{x:30,y:40,width:300,height:200},b:{x:400,y:60,width:400,height:240}}};
+    window.saved = null; window.cancelled = false;
+    window.mount = (home = true) => flushSync(() => root.render(<Editor key={Math.random()} initialDraft={structuredClone(initial)} widgets={[{id:'a',label:'Alpha'},{id:'b',label:'Beta'}]} holdingArea={home} expandableHeight={home} chooseWidgets={home} onSave={draft => {window.saved = structuredClone(draft)}} onCancel={() => {window.cancelled = true}} />));
+    window.mount();
+  ` }, bundle: true, write: false, format: 'iife', define: { 'process.env.NODE_ENV': '"development"' } });
+  const win = new BrowserWindow({ show: false, width: 1400, height: 1000, useContentSize: true, webPreferences: { sandbox: true, contextIsolation: true, backgroundThrottling: false } });
+  await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent('<!doctype html><body style="margin:0;--panel:30 40 60;--ink:240 245 255;--muted:180 195 210;--border:90 110 140;--accent:100 200 255;--accent-2:220 160 255"><div id="root"></div></body>'));
+  await win.webContents.insertCSS(fs.readFileSync(path.join(root, 'src/styles.css'), 'utf8') + '\nbutton,input,select{font:inherit;color:inherit}button{cursor:pointer}');
+  await win.webContents.executeJavaScript(bundle.outputFiles[0].text);
+  const run = code => win.webContents.executeJavaScript(code);
+  const settle = () => new Promise(resolve => setTimeout(resolve, 65));
+  const click = async selector => { await run(`document.querySelector(${JSON.stringify(selector)}).click()`); await settle(); };
+  const style = () => run(`(()=>{const b=document.querySelector('[data-editor-widget-id="a"]');return {left:b.style.left,top:b.style.top}})()`);
+  const moveButton = '.home-editor-widget-move[aria-label="Move Alpha"]';
+  const rect = await run(`(()=>{const extension=document.querySelector('[data-testid="home-editor-extension"]'), parking=document.querySelector('[data-testid="home-editor-parking"]'), viewport=document.querySelector('.home-editor-viewport');return {extension:extension.getBoundingClientRect().y,viewportBottom:viewport.getBoundingClientRect().bottom,parkingWidth:parseFloat(parking.style.width),parkingHeight:parseFloat(parking.style.height),toolbarHasExtension:!!document.querySelector('header [data-testid="home-editor-add-height"]'),checkboxes:document.querySelectorAll('.home-editor-widget-choices input').length}})()`);
+  assert.equal(rect.parkingWidth, 896); assert.equal(rect.parkingHeight, 1800);
+  assert(rect.extension >= rect.viewportBottom); assert.equal(rect.toolbarHasExtension, false); assert.equal(rect.checkboxes, 2);
+  await click('[data-testid="home-editor-add-height"]');
+  assert.equal(await run(`document.querySelector('[data-testid="home-editor-canvas"]').style.height`), '1400px');
+  await click('.home-editor-widget-choices label:nth-child(2) input');
+  assert.equal(await run(`!!document.querySelector('[data-editor-widget-id="b"]')`), true);
+  assert.equal(await run('window.saved'), null, 'visibility does not save before Save');
+  await click('[data-testid="home-editor-save"]');
+  assert.deepEqual(await run('window.saved.hiddenIds'), []); assert.equal(await run('window.saved.height'), 1400);
+  await run('window.saved=null;window.mount()'); await settle();
+  await click('.home-editor-widget-choices label:nth-child(1) input');
+  await click('[data-controller-close]');
+  assert.equal(await run('window.cancelled'), true); assert.equal(await run('window.saved'), null);
+  await run('window.mount()'); await settle();
+  await run(`document.addEventListener('pointerdown',e=>window.activePointerId=e.pointerId,true)`);
+  const point = async () => run(`(()=>{const r=document.querySelector(${JSON.stringify(moveButton)}).getBoundingClientRect();return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`);
+  const down = async () => { const p = await point(); win.webContents.sendInputEvent({ type: 'mouseMove', ...p }); win.webContents.sendInputEvent({ type: 'mouseDown', button: 'left', modifiers: ['leftButtonDown'], clickCount: 1, ...p }); await settle(); return p; };
+  const before = await style(); let p = await down();
+  win.webContents.sendInputEvent({ type: 'mouseMove', modifiers: ['leftButtonDown'], x: p.x + 130, y: p.y + 65 }); await settle();
+  win.webContents.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, x: p.x + 130, y: p.y + 65 }); await settle();
+  const released = await style(); assert.notDeepEqual(released, before, 'native drag moves a box');
+  win.webContents.sendInputEvent({ type: 'mouseMove', x: p.x + 200, y: p.y + 100 }); await settle();
+  assert.deepEqual(await style(), released, 'native mouse release detaches the widget');
+  // A release delivered on the window, rather than the original button, still commits.
+  p = await down();
+  win.webContents.sendInputEvent({ type: 'mouseMove', modifiers: ['leftButtonDown'], x: p.x + 25, y: p.y + 10 }); await settle();
+  await run(`window.dispatchEvent(new PointerEvent('pointerup',{pointerId:window.activePointerId,pointerType:'mouse',button:0,buttons:0,bubbles:true}))`); await settle();
+  const globalRelease = await style();
+  win.webContents.sendInputEvent({ type: 'mouseMove', x: p.x + 80, y: p.y + 20 }); await settle();
+  assert.deepEqual(await style(), globalRelease);
+  win.webContents.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, ...p });
+  // Simulate a missed OS release: the next mouse move says no button is held.
+  p = await down();
+  await run(`document.querySelector(${JSON.stringify(moveButton)}).dispatchEvent(new PointerEvent('pointermove',{pointerId:window.activePointerId,pointerType:'mouse',buttons:0,clientX:${p.x + 50},clientY:${p.y + 30},bubbles:true}))`); await settle();
+  const recovered = await style();
+  win.webContents.sendInputEvent({ type: 'mouseMove', x: p.x + 100, y: p.y + 40 }); await settle();
+  assert.deepEqual(await style(), recovered, 'zero-buttons move recovers a lost release');
+  win.webContents.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, ...p });
+  p = await down();
+  win.webContents.sendInputEvent({ type: 'mouseMove', modifiers: ['leftButtonDown'], x: p.x + 20, y: p.y + 10 }); await settle();
+  await run(`window.dispatchEvent(new Event('blur'))`); await settle();
+  assert.deepEqual(await style(), recovered, 'blur cancels the current gesture');
+  win.webContents.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, ...p });
+  await click('[data-testid="home-editor-park-selected"]');
+  assert.equal(await run(`document.querySelector('[data-testid="home-editor-save"]').disabled`), true);
+  await click('.home-editor-widget-choices label:nth-child(1) input');
+  assert.equal(await run(`document.querySelector('[data-testid="home-editor-save"]').disabled`), false, 'hiding a parked box clears temporary parking');
+  await run('window.mount(false)'); await settle();
+  assert.equal(await run(`!!document.querySelector('.home-editor-widget-choices, [data-testid="home-editor-extension"], [data-testid="home-editor-parking"]')`), false, 'shared Preview defaults have no Home-specific controls');
+  console.log('PASS: real Home editor bottom extension, doubled holding bay, draft visibility/Save/Cancel, native mouse release, global release, missed-release recovery, blur cancellation, parked-hide recovery and shared Preview defaults. No player profile touched.');
+  win.destroy(); app.quit();
+}).catch(error => { console.error(error); app.exit(1); });

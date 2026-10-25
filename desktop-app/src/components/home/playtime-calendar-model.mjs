@@ -3,11 +3,11 @@ import { statisticsGames } from '../../lib/emulator-profile-model.mjs';
 
 export const CALENDAR_HEAT = Object.freeze(['rgb(var(--surface)/0.7)', '#164e63', '#0e7490', '#0891b2', '#22d3ee']);
 export function calendarHeat(minutes) { return minutes <= 0 ? 0 : minutes < 30 ? 1 : minutes < 120 ? 2 : minutes < 240 ? 3 : 4; }
-export function normalizeCalendarPreferences(input = {}, now = new Date()) {
+export function normalizeCalendarPreferences(input = {}, now = new Date(), { allowFuture = false } = {}) {
   input = input && typeof input === 'object' ? input : {};
   return { view: input.view === 'month' ? 'month' : 'year',
     excludeRoms: input.excludeRoms === true,
-    year: Number.isFinite(Number(input.year)) && input.year != null ? Math.max(2000, Math.min(now.getFullYear(), Math.round(Number(input.year)))) : now.getFullYear(),
+    year: Number.isFinite(Number(input.year)) && input.year != null ? Math.max(2000, Math.min(now.getFullYear() + (allowFuture ? 5 : 0), Math.round(Number(input.year)))) : now.getFullYear(),
     month: Number.isFinite(Number(input.month)) && input.month != null ? Math.max(0, Math.min(11, Math.round(Number(input.month)))) : now.getMonth(),
     gameId: typeof input.gameId === 'string' ? input.gameId.slice(0, 200) : '' };
 }
@@ -19,8 +19,8 @@ export function calendarMonth(year, month, today = localPlayDay(new Date())) {
     return { key, day: index + 1, future: key > today };
   })];
 }
-export function playtimeCalendar(games = [], input = {}, now = new Date()) {
-  const preferences = normalizeCalendarPreferences(input, now);
+export function playtimeCalendar(games = [], input = {}, now = new Date(), options = {}) {
+  const preferences = normalizeCalendarPreferences(input, now, options);
   const today = localPlayDay(now);
   const visible = [], seen = new Set();
   for (const game of statisticsGames(games, preferences.excludeRoms)) {

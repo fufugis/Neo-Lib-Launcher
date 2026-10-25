@@ -77,17 +77,17 @@ function createDocumentStore({ storage }) {
     try {
       raw = await storage.parseJson(filePath);
     } catch (error) {
-      if (error?.code === 'ENOENT') {
-        writeBlocked.delete(name);
-        diagnostics.set(name, { state: 'missing', recovered: false });
-        return fallbackFor(name);
-      }
       try {
         const recovered = await parseValid(name, backupFor(name));
         writeBlocked.delete(name);
         diagnostics.set(name, { state: 'recovered-backup', recovered: true, reason: String(error?.message || error) });
         return recovered;
-      } catch {
+      } catch (backupError) {
+        if (error?.code === 'ENOENT' && backupError?.code === 'ENOENT') {
+          writeBlocked.delete(name);
+          diagnostics.set(name, { state: 'missing', recovered: false });
+          return fallbackFor(name);
+        }
         writeBlocked.add(name);
         diagnostics.set(name, { state: 'invalid', recovered: false, reason: String(error?.message || error) });
         return fallbackFor(name);
@@ -151,6 +151,16 @@ function createDocumentStore({ storage }) {
         await storage.copyFile(filePath, backupFor(name));
       } catch (error) {
         const recovered = diagnostics.get(name)?.recovered === true;
+        if (error?.code === 'ENOENT' && !recovered) {
+          // A backup may be the only surviving copy, even if callers save
+          // before loading. Never treat its presence as a fresh installation.
+          let backupMissing = false;
+          try { await parseValid(name, backupFor(name)); } catch (backupError) { backupMissing = backupError?.code === 'ENOENT'; }
+          if (!backupMissing) {
+            writeBlocked.add(name);
+            throw new Error(`Refusing to replace missing ${name} storage before backup recovery. Restart NEO-LIB to recover it.`);
+          }
+        }
         if (error?.code !== 'ENOENT' && !recovered) {
           writeBlocked.add(name);
           throw new Error(`Refusing to overwrite unreadable or newer ${name} storage.`);
@@ -194,11 +204,6 @@ function createDocumentStore({ storage }) {
       diagnostics.set(name, { state: 'ready-sync', recovered: false });
       return prepared;
     } catch (error) {
-      if (error?.code === 'ENOENT') {
-        writeBlocked.delete(name);
-        diagnostics.set(name, { state: 'missing-sync', recovered: false });
-        return fallbackFor(name);
-      }
       if (error?.code === 'UNSUPPORTED_SCHEMA') {
         writeBlocked.add(name);
         diagnostics.set(name, { state: 'unsupported-newer-schema', recovered: false, reason: String(error.message) });
@@ -209,7 +214,12 @@ function createDocumentStore({ storage }) {
         writeBlocked.delete(name);
         diagnostics.set(name, { state: 'recovered-backup-sync', recovered: true, reason: String(error?.message || error) });
         return recovered;
-      } catch {
+      } catch (backupError) {
+        if (error?.code === 'ENOENT' && backupError?.code === 'ENOENT') {
+          writeBlocked.delete(name);
+          diagnostics.set(name, { state: 'missing-sync', recovered: false });
+          return fallbackFor(name);
+        }
         writeBlocked.add(name);
         return fallbackFor(name);
       }

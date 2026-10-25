@@ -2,6 +2,16 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import { checkForUpdates } from '../src/lib/updateChecker.js';
+import { UPDATE_REMINDER_MS, normalizeUpdateReminder, updateReminderDue, dismissUpdateReminder } from '../src/lib/update-reminder.mjs';
+
+const reminder = normalizeUpdateReminder(null, 'test', 1000);
+assert(!updateReminderDue(reminder, 1000 + UPDATE_REMINDER_MS - 1));
+assert(updateReminderDue(reminder, 1000 + UPDATE_REMINDER_MS));
+const pendingReminder = { ...reminder, pending: true };
+assert(!updateReminderDue(pendingReminder, 1000 + UPDATE_REMINDER_MS * 9), 'An open bubble never repeats sound');
+assert(normalizeUpdateReminder(JSON.parse(JSON.stringify(pendingReminder)), 'test', 1000 + UPDATE_REMINDER_MS).pending);
+assert.equal(dismissUpdateReminder(pendingReminder, 5000).nextAt, 5000 + UPDATE_REMINDER_MS);
+assert.equal(normalizeUpdateReminder(pendingReminder, 'new-version', 5000).nextAt, 5000 + UPDATE_REMINDER_MS);
 
 const original = { fetch: globalThis.fetch, localStorage: globalThis.localStorage, now: Date.now, setTimeout: globalThis.setTimeout, clearTimeout: globalThis.clearTimeout };
 const values = new Map();
@@ -56,7 +66,10 @@ for (const text of ['New update available', 'Download update', 'DISMISSED_KEY', 
 assert(!prompt.includes('fungistEnabled'), 'release popup does not depend on mascot');
 assert(app.includes("paused={gameRestActive || lounge.active || firstRunPhase !== 'ready'}"));
 assert(app.includes('if (!info.error) setUpdateInfo(info);'), 'manual network failure preserves previous update');
-assert(app.includes('window.setInterval(check, 60 * 60 * 1000)'));
+const checks = read('hooks/use-app-update-checks.mjs');
+assert(app.includes('useAppUpdateChecks(APP_VERSION, setUpdateInfo)'));
+assert(checks.includes('window.setInterval(check, 60 * 60 * 1000)') && !checks.includes('gameRestActive'), 'hourly release checks continue during gameplay');
+assert(checks.includes('!cancelled && !info.error') && checks.includes('window.clearInterval(timer)'), 'keep known release on errors and stop cleanly');
 const require = createRequire(import.meta.url), babel = createRequire(require.resolve('@vitejs/plugin-react'))('@babel/core');
 babel.parseSync(prompt, { configFile: false, babelrc: false, parserOpts: { plugins: ['jsx'] } });
 console.log('PASS: GitHub stable version/installer lookup, cache/current-version/force/hourly behavior, trusted URLs, draft/malformed/rate-limit/timeout failures, standalone deferred popup and download wiring. Live popup/installer acceptance pending.');

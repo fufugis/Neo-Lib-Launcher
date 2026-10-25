@@ -1,6 +1,6 @@
 import React from 'react';
 import { Gamepad2 } from 'lucide-react';
-import { hasPortraitDimensions, portraitArtworkCandidates } from '../../lib/game-artwork-model.mjs';
+import { gameArtworkCandidates } from '../../lib/artwork-fallbacks.mjs';
 
 // Share successful decode/validation between shelf, hero and remounted cards.
 // URL identity keeps an edited game's new cover independent of its old cover.
@@ -25,17 +25,19 @@ function LoungeCover({ game }) {
   const [approvedPortraitUrl, setApprovedPortraitUrl] = React.useState('');
   const [failedBackdrop, setFailedBackdrop] = React.useState(false);
   const [failedIcon, setFailedIcon] = React.useState(false);
+  const [coverFit, setCoverFit] = React.useState('contain');
   React.useEffect(() => {
     setRejectedPortraitUrls([]);
     setFailedBackdrop(false);
     setFailedIcon(false);
   }, [game?.id]);
-  const portrait = portraitArtworkCandidates(game).find(url => !rejectedPortraitUrls.includes(url));
+  const portrait = gameArtworkCandidates(game, 'cover').find(url => !rejectedPortraitUrls.includes(url));
   React.useLayoutEffect(() => {
     const image = portraitRef.current;
     // Reuse validation before paint only when this actual element has pixels.
     // A previously approved URL alone does not guarantee a cache hit.
-    if (portrait && decodedPortraits.has(portrait) && image?.complete && hasPortraitDimensions(image.naturalWidth, image.naturalHeight)) {
+    if (portrait && decodedPortraits.has(portrait) && image?.complete && image.naturalWidth > 0 && image.naturalHeight > 0) {
+      setCoverFit(image.naturalHeight >= image.naturalWidth * 1.15 ? 'cover' : 'contain');
       setApprovedPortraitUrl(portrait);
     }
   }, [portrait, game?.id]);
@@ -59,7 +61,7 @@ function LoungeCover({ game }) {
     {portrait && <img ref={portraitRef} key={portrait} src={portrait} alt="" loading="eager" decoding="async" onError={() => rejectPortrait(portrait)} onLoad={async event => {
       const image = event.currentTarget;
       const { naturalWidth, naturalHeight } = image;
-      if (!hasPortraitDimensions(naturalWidth, naturalHeight)) { rejectPortrait(portrait); return; }
+      if (!(naturalWidth > 0 && naturalHeight > 0)) { rejectPortrait(portrait); return; }
       // Load can precede async decode. Do not remove the fallback until the
       // actual pixels are ready, or let a superseded candidate approve itself.
       try { if (image.decode) await image.decode(); }
@@ -68,9 +70,13 @@ function LoungeCover({ game }) {
         decodedPortraits.delete(portrait); decodedPortraits.set(portrait, true);
         if (decodedPortraits.size > 512) decodedPortraits.delete(decodedPortraits.keys().next().value);
         setApprovedPortraitUrl(portrait);
+        setCoverFit(naturalHeight >= naturalWidth * 1.15 ? 'cover' : 'contain');
       }
-    }} className={`absolute inset-0 z-[2] h-full w-full object-cover ${portraitVisible ? 'visible' : 'invisible'}`} />}
+    }} style={{ objectFit: coverFit }} className={`absolute inset-0 z-[2] h-full w-full ${portraitVisible ? 'visible' : 'invisible'}`} />}
   </span>;
 }
 
-export default React.memo(LoungeCover);
+function RetryingLoungeCover({ game }) {
+  return <LoungeCover key={JSON.stringify([gameArtworkCandidates(game, 'cover'), game.metadataFetchedAt, game.artworkRevisions?.at(-1)?.at])} game={game} />;
+}
+export default React.memo(RetryingLoungeCover);

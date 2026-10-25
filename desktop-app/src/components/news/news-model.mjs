@@ -7,12 +7,12 @@ const MAX_INBOX = 1000;
 const MAX_SEEN = 10000;
 const validId = value => typeof value === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$/.test(value);
 
-export function newsVoiceOptions(settings = {}) {
+export function newsVoiceOptions(settings = {}, mascotResting = false) {
   const configuredVolume = Number(settings.fungistVoiceVolume ?? 72);
   const volume = Number.isFinite(configuredVolume) ? Math.max(0, Math.min(100, configuredVolume)) : 72;
   return {
     mascotId: settings.mascotId === 'fifi' ? 'fifi' : 'fungist', volume, cooldownMs: 7000,
-    enabled: settings.fungistEnabled !== false && settings.soundsEnabled !== false
+    enabled: !mascotResting && settings.fungistEnabled !== false && settings.soundsEnabled !== false
       && settings.fungistVoiceEnabled !== false && settings.soundPack !== 'none' && volume > 0,
   };
 }
@@ -53,7 +53,8 @@ export function normalizeNewsInbox(raw) {
       const message = normalizeMessage(entry);
       if (ids.has(message.id)) continue;
       ids.add(message.id);
-      messages.push({ ...message, read: entry.read === true, notified: entry.notified === true });
+      messages.push({ ...message, read: entry.read === true, notified: entry.notified === true,
+        acknowledged: entry.acknowledged === true || (entry.acknowledged == null && entry.notified === true) });
       if (!seenIds.includes(message.id) && seenIds.length < MAX_SEEN) seenIds.push(message.id);
     } catch { /* Corrupt stored entries never become executable or block startup. */ }
   }
@@ -76,7 +77,9 @@ export function updateNewsMessage(inbox, id, action) {
   const next = normalizeNewsInbox(inbox);
   if (action === 'delete') return { ...next, messages: next.messages.filter(message => message.id !== id) };
   return { ...next, messages: next.messages.map(message => message.id === id
-    ? { ...message, ...(action === 'read' ? { read: true, notified: true } : action === 'notify' ? { notified: true } : {}) } : message) };
+    ? { ...message, ...(action === 'read' ? { read: true, notified: true, acknowledged: true }
+      : action === 'present' ? { notified: true, acknowledged: false }
+        : action === 'notify' || action === 'acknowledge' ? { notified: true, acknowledged: true } : {}) } : message) };
 }
 
 export function newsCheckDue(inbox, now = Date.now()) {

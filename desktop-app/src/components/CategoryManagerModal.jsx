@@ -11,7 +11,7 @@ export default function CategoryManagerModal({
   open, onClose, categories = [], games = [], onCreate, onEdit, onDelete, onClearRegular,
 }) {
   const unassigned = games.filter((game) => !(game.categoryIds || []).length).length;
-  const regular = categories.filter((category) => !category.private);
+  const regular = categories.filter((category) => !category.private&&category.system!=='tools');
 
   return (
     <Modal open={open} onClose={onClose} title="Manage categories" wide testid="category-manager-modal">
@@ -45,10 +45,10 @@ export default function CategoryManagerModal({
                 <span className="h-3 w-3 shrink-0 rounded-full shadow-[0_0_10px_currentColor]" style={{ color: colorFromId(category.colorId), background: colorFromId(category.colorId) }} />
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-ink">{category.name}{category.private && <Lock size={12} className="shrink-0 text-[rgb(var(--accent-2))]" />}</p>
-                  <p className="text-[11px] text-muted">{count} game{count === 1 ? '' : 's'} · {category.private ? 'Private category' : 'Games return to Uncategorized if removed'}</p>
+                  <p className="text-[11px] text-muted">{count} {category.system==='tools'?'tool':'entry'}{count === 1 ? '' : 's'} · {category.system==='tools'?'Automatic software collection':category.private ? 'Private category' : 'Entries remain in your Library if removed'}</p>
                 </div>
-                <button data-testid={`category-manager-edit-${category.id}`} onClick={() => onEdit(category)} title={`Edit ${category.name}`} className="grid h-8 w-8 place-items-center rounded-md text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink"><Pencil size={14} /></button>
-                <button data-testid={`category-manager-delete-${category.id}`} onClick={() => onDelete(category)} title={`Remove ${category.name}; games stay in NEO-LIB`} className="grid h-8 w-8 place-items-center rounded-md text-muted hover:bg-red-500/15 hover:text-red-300"><Trash2 size={14} /></button>
+                {category.system==='tools'?<span className="text-xs font-bold text-muted">Automatic · Tools</span>:<><button data-testid={`category-manager-edit-${category.id}`} onClick={() => onEdit(category)} title={`Edit ${category.name}`} className="grid h-8 w-8 place-items-center rounded-md text-muted hover:bg-[rgb(var(--accent)/0.12)] hover:text-ink"><Pencil size={14} /></button>
+                <button data-testid={`category-manager-delete-${category.id}`} onClick={() => onDelete(category)} title={`Remove ${category.name}; games stay in NEO-LIB`} className="grid h-8 w-8 place-items-center rounded-md text-muted hover:bg-red-500/15 hover:text-red-300"><Trash2 size={14} /></button></>}
               </div>
             );
           }) : (

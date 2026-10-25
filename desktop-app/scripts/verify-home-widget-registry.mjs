@@ -46,8 +46,8 @@ assert.match(homeSource, /RESIZE_GRIP_POSITION\[direction\]/, 'all eight grips m
 assert.doesNotMatch(homeSource, /direction\.includes\('n'\)/, 'resize grips must not rely on conditional utility positioning');
 assert.match(homeSource, /data-home-widget-held=/, 'the held widget must be visibly identifiable');
 assert.match(homeSource, /HOME_WIDGET_ACCENTS/, 'first-party widgets need restrained per-widget colour accents');
-assert.match(homeSource, /flex h-8 shrink-0/, 'the widget title strip stays compact while leaving room for readable labels');
-assert.match(homeSource, /text-\[11px\] font-black tracking-wide text-ink/, 'widget titles use strong high-contrast text');
+assert.match(homeSource, /style=\{titleStyle.bar\} className=\{`flex shrink-0/, 'the title strip grows only to fit the chosen heading and remains outside widget-content zoom');
+assert.match(homeSource, /style=\{titleStyle.text\}/, 'widget titles use bounded size, weight and contrast with the original 11px default');
 assert.match(homeSource, /layoutUnlocked && <span className="font-mono text-\[9px\] font-bold text-ink\/80">\{sizeLabel\}<\/span>/, 'size labels are legible while layout editing is unlocked');
 assert.match(homeSource, /function MyBestGames[\s\S]*?Your five highest personal ratings/, 'My Best Games keeps its content hint without repeating the widget title or adding a second outer card');
 assert.match(homeSource, /function GamingChronicle[\s\S]*?Milestones, sessions, ratings, and updates/, 'Gaming Chronicle keeps a concise content hint without a repeated title');

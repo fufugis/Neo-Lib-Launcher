@@ -110,6 +110,19 @@ export default function FungistMascot({
   const [idleMoment, setIdleMoment] = React.useState('');
   const [sleeping, setSleeping] = React.useState(false);
   const [spokenLine, setSpokenLine] = React.useState(null);
+  const [teamNewsReaction, setTeamNewsReaction] = React.useState(false);
+  React.useEffect(() => {
+    if (!enabled || resting) { setTeamNewsReaction(false); return undefined; }
+    let timer;
+    const react = () => {
+      setSleeping(false); setTeamNewsReaction(true);
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setTeamNewsReaction(false), 3600);
+    };
+    window.addEventListener('neolib:team-news', react);
+    window.addEventListener('neolib:calendar-reminder', react);
+    return () => { window.removeEventListener('neolib:team-news', react); window.removeEventListener('neolib:calendar-reminder', react); window.clearTimeout(timer); };
+  }, [enabled, resting]);
   const [hovering, setHovering] = React.useState(false);
   const [welcoming, setWelcoming] = React.useState(false);
   const [showWhy, setShowWhy] = React.useState(false);
@@ -406,11 +419,11 @@ export default function FungistMascot({
   const launchFlyX = Number.isFinite(launchOrigin?.x) ? Math.round(launchOrigin.x - (viewport.width - 77) - dock.x) : -190;
   const launchFlyY = Number.isFinite(launchOrigin?.y) ? Math.round(launchOrigin.y - (viewport.height - 175) - dock.y) : -210;
   const speaking = Boolean(spokenLine);
-  const displayPose = major ? (!arrived ? 'fly' : 'shocked') : launching || spokenLine?.mood === 'celebrate' ? 'complete' : spokenLine?.mood === 'urgent' || spokenLine?.mood === 'concerned' ? 'shocked' : completing ? 'complete' : chatOpen || speaking ? 'smile' : smiling || idlePulse ? 'smile' : sleeping ? 'sleep' : blinking ? 'blink' : 'stand';
+  const displayPose = major ? (!arrived ? 'fly' : 'shocked') : launching || spokenLine?.mood === 'celebrate' ? 'complete' : spokenLine?.mood === 'urgent' || spokenLine?.mood === 'concerned' ? 'shocked' : completing ? 'complete' : teamNewsReaction || chatOpen || speaking ? 'smile' : smiling || idlePulse ? 'smile' : sleeping ? 'sleep' : blinking ? 'blink' : 'stand';
   const displayAsset = ASSETS[displayPose];
   const fifiIdleMood = idleMoment === 'curious' ? 'curious' : idleMoment === 'greet' ? 'greeting' : idleMoment === 'smile' || idleMoment === 'sparkle' ? 'happy' : 'idle';
-  const fifiMood = sleeping ? 'sleep' : major ? (!arrived ? 'fly' : 'alert') : launching || completing ? 'celebrate' : spokenLine?.mood || (chatOpen ? 'listening' : fifiIdleMood);
-  const fifiParticles = spokenLine?.particles || (major ? 'beacon' : launching || completing ? 'burst' : idleMoment === 'sparkle' ? 'glint' : 'soft');
+  const fifiMood = sleeping ? 'sleep' : major ? (!arrived ? 'fly' : 'alert') : launching || completing ? 'celebrate' : teamNewsReaction ? 'happy' : spokenLine?.mood || (chatOpen ? 'listening' : fifiIdleMood);
+  const fifiParticles = spokenLine?.particles || (major ? 'beacon' : teamNewsReaction || launching || completing ? 'burst' : idleMoment === 'sparkle' ? 'glint' : 'soft');
 
   const act = () => {
     if (!notice) {
@@ -656,7 +669,8 @@ export default function FungistMascot({
             onMouseLeave={() => setHovering(false)}
             onContextMenu={(event) => { event.preventDefault(); setSleeping(false); setChatOpen(false); setContextTab('inbox'); setContextOpen(true); }}
             aria-label={`Talk to ${mascotName}`}
-            animate={launching || spokenLine?.mood === 'celebrate' ? { scale: [1, 1.14, 1.02, 1.12, 1], y: [0, -12, -3, -11, 0], rotate: [0, -6, 5, -4, 0] }
+            data-news-reaction={teamNewsReaction || undefined}
+            animate={teamNewsReaction || launching || spokenLine?.mood === 'celebrate' ? { scale: [1, 1.14, 1.02, 1.12, 1], y: [0, -12, -3, -11, 0], rotate: [0, -6, 5, -4, 0] }
               : spokenLine?.mood === 'urgent' || spokenLine?.mood === 'concerned' ? { scale: [1, 1.08, 0.98, 1.06, 1], x: [0, -2, 2, -1, 0], rotate: [0, -2, 2, -1, 0] }
               : speaking ? { scale: [1, 1.065, 1.02, 1.06, 1], y: [0, -4, -1, -4, 0], rotate: [0, -1.2, 1.1, -0.8, 0] }
               : chatOpen ? { scale: [1, 1.075, 1.03, 1.075, 1], y: [0, -5, -2, -5, 0], rotate: [0, -1.5, 1.2, -1, 0] }
@@ -669,7 +683,7 @@ export default function FungistMascot({
                       : idleMoment === 'greet' ? { scale: [1, 1.075, 1.025, 1], y: [0, -7, -2, 0], rotate: [0, -2.8, 2.1, -1.2, 0] }
                       : idleMoment === 'sparkle' ? { scale: [1, 1.06, 1], y: [0, -6, 0], rotate: [0, 0.85, -0.85, 0] }
                         : { scale: idlePulse ? [1, 1.075, 1.01, 1] : [1, 1.032, 1], y: idlePulse ? [0, -5, -1, 0] : [0, -3.5, 0], rotate: idlePulse ? [0, 1.1, -0.75, 0] : [0, 0.85, -0.55, 0] }}
-            transition={launching || spokenLine?.mood === 'celebrate' ? { duration: 1.12, repeat: Infinity, ease: 'easeInOut' }
+            transition={teamNewsReaction || launching || spokenLine?.mood === 'celebrate' ? { duration: 1.12, repeat: teamNewsReaction ? 1 : Infinity, ease: 'easeInOut' }
               : spokenLine?.mood === 'urgent' || spokenLine?.mood === 'concerned' ? { duration: 0.52, repeat: Infinity, ease: 'easeInOut' }
               : speaking ? { duration: 0.78, repeat: Infinity, ease: 'easeInOut' }
               : chatOpen ? { duration: 1.7, repeat: Infinity, ease: 'easeInOut' }

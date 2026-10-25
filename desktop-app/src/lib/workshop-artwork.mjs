@@ -1,11 +1,8 @@
+import { gameArtworkCandidates } from './artwork-fallbacks.mjs';
+
 export function workshopArtworkAssets(record, slot) {
   if (!record) return [];
-  const screenshots = Array.isArray(record.screenshots) ? record.screenshots : String(record.screenshots || '').split(/\r?\n/);
-  const urls = slot === 'cover' ? [record.portraitImage, record.coverUrl, record.capsuleImage]
-    : slot === 'logo' ? [record.logoImage, record.logo]
-      : slot === 'icon' ? [record.icon, record.portraitImage, record.coverUrl]
-        : slot === 'hero' ? [record.headerImage, record.hero, record.background, ...screenshots]
-          : [record.background, ...screenshots, record.headerImage, record.hero];
+  const urls = gameArtworkCandidates(record, slot, { includeGenerated: false });
   return [...new Set(urls.filter(url => typeof url === 'string' && /^(https?:|file:|neolib-background:|data:image\/)/i.test(url.trim())).map(url => url.trim()))].slice(0, 24).map((url, index) => ({id: `${slot}-${index}-${url}`, url, thumb: url, author: record.source || 'Existing game images', style: slot}));
 }
 

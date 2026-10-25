@@ -1,5 +1,7 @@
 // Pure helpers shared by the refresh picker and its regression tests.
 import { cleanDescriptionText } from './descriptionFormatting.mjs';
+import { safeGameRecord } from '../state/record-safety.mjs';
+import { gameArtworkCandidates } from './artwork-fallbacks.mjs';
 import { appendArtworkRevision, artworkSnapshot, normalizeArtworkLocks } from './artwork-revision-model.mjs';
 
 const imageUrl = (value) => typeof value === 'string' && /^(https?:|file:|data:image\/)/i.test(value);
@@ -12,6 +14,7 @@ export function matchesCoverTitle(query, candidate, game = {}) {
 }
 
 export function fieldCandidates(record, field) {
+  record = safeGameRecord(record);
   if (!record) return [];
   const base = { source: record.source || 'Metadata provider', name: record.name || 'Untitled', record };
   if (field === 'all-locked') return [{ ...base, value: record, key: JSON.stringify(record) }];
@@ -20,10 +23,7 @@ export function fieldCandidates(record, field) {
     return value ? [{ ...base, value, key: value }] : [];
   }
   if (field === 'cover') {
-    const value = record.portraitImage || record.capsuleImage || record.coverUrl;
-    const dimensions = String(value || '').match(/(?:^|[^\d])(\d{2,4})[x×](\d{2,4})(?:[^\d]|$)/i);
-    const knownLandscape = dimensions && Number(dimensions[1]) >= Number(dimensions[2]);
-    return imageUrl(value) && !knownLandscape ? [{ ...base, value, key: value }] : [];
+    return gameArtworkCandidates(record, 'cover', { includeGenerated: false }).map(value => ({ ...base, value, key: value }));
   }
   if (field === 'artwork') {
     const values = [record.portraitImage, record.capsuleImage, record.icon, record.headerImage, record.background, record.logoImage || record.logo].filter(imageUrl);
@@ -98,7 +98,7 @@ export function createRefreshSearch(api, game, field, options = {}, verifyCover 
           verifiedUrl = typeof result === 'string' ? result : result ? candidate.value : '';
         } catch { /* Unavailable image is not a usable suggestion. */ }
         if (!verifiedUrl) {
-          if (!failures.includes('Unavailable or non-portrait cover images were skipped.')) failures.push('Unavailable or non-portrait cover images were skipped.');
+          if (!failures.includes('Unavailable cover images were skipped. Other game artwork can be used.')) failures.push('Unavailable cover images were skipped. Other game artwork can be used.');
           continue;
         }
         candidate.value = verifiedUrl;

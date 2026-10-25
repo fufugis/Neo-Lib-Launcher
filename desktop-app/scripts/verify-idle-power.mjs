@@ -71,9 +71,10 @@ assert.match(app, /const visualRestActive = gameRestActive \|\| idlePowerSaving/
 assert.match(app, /<BgAmbience[^\n]+resting=\{visualRestActive\}/);
 assert.match(app, /<HomeHub[^\n]+resting=\{visualRestActive\}/);
 assert.match(app, /<FungistMascot[\s\S]+?resting=\{gameRestActive\}/);
-assert.match(app, /newsPaused=\{gameRestActive \|\| lounge.active \|\| firstRunPhase !== 'ready'\}/);
+assert(app.includes("newsPaused={firstRunPhase !== 'ready'}"), 'gameplay, Lounge and ZZZ do not suppress team announcements');
+assert(app.includes('newsMascotResting={gameRestActive}'), 'ZZZ still suppresses mascot reaction/voice');
 assert.match(app, /setSoundPack\(gameRestActive \|\| settings.soundsEnabled/);
-assert.match(app, /window.setInterval\(check, 60 \* 60 \* 1000\)/);
+assert.match(source('../src/hooks/use-app-update-checks.mjs'), /window.setInterval\(check, 60 \* 60 \* 1000\)/);
 assert.match(source('../src/components/controller/ControllerNavigationBridge.jsx'), /new Event\('neolib:controller-activity'\)/);
 assert.match(source('../src/components/modules/ModuleWindowApp.jsx'), /idlePowerSaving=\{idlePowerSaving\}/);
 assert.match(source('../src/components/lounge/NeoLounge.jsx'), /const fxEnabled = !resting && !idlePowerSaving/);

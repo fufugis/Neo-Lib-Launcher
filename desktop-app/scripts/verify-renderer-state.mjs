@@ -191,6 +191,6 @@ assert(appSource.includes('visibleUnlockedGames('), 'Wall/preview privacy must u
 assert(appSource.includes('loungeVisibleGames('), 'Lounge privacy must use its separately opted-in and PIN-gated selector');
 assert(appSource.includes("from './components/ThemeVisuals'"), 'theme rendering must not remain embedded in App.jsx');
 assert(!appSource.includes('function ThemeArtwork('), 'theme artwork implementation belongs to the visual boundary');
-assert(storeSource.includes('nativeApi?.saveLibrary?.(library)') && storeSource.includes('nativeApi?.saveSettings?.(next)'), 'renderer store owns library/settings persistence');
+assert(storeSource.includes("useDocumentWriter(nativeApi, 'saveLibrary')") && storeSource.includes("useDocumentWriter(nativeApi, 'saveSettings')") && storeSource.includes('saved = await nativeApi[method](value) === true'), 'renderer store owns acknowledged library/settings persistence');
 
 console.log('PASS: renderer state domains cover library/category transitions, restart-safe navigation, global private-game redaction, panic locking, metadata queues, playtime, settings/visual state and a single native API boundary. Pure fixtures only.');

@@ -42,6 +42,12 @@ Owns daily Steam lifetime-minute snapshots under `byAppid` and
 
 ### Other owned paths
 
+`external-playtime.json` is a bounded native write-ahead journal owned by
+`game/external-session-journal.cjs`: recent cumulative external-game sessions,
+IDs and timestamps only, with temp/rename writes and `.bak` recovery. Library
+records retain the actual minutes, dated activity and duplicate-session receipts.
+See [external playtime](../game/EXTERNAL_PLAYTIME.md) for timing and recovery limits.
+
 `covers/`, `save-backups/`, `managed-tools/`, `diagnostics/`, `launch-safety.json` and
 the retained launch-safety state receive their locations and low-level operations from
 `app-storage.cjs`. Save-game backups are not document-store JSON and retain their

@@ -8,6 +8,8 @@ export const CURSOR_OPTIONS = Object.freeze([
   { id: 'industrial', label: 'Industrial', description: 'Steel drill and hazard grip', preview: new URL('../assets/cursors/industrial.svg', import.meta.url).href },
   { id: 'future', label: 'Future', description: 'Angular sci-fi craft', preview: new URL('../assets/cursors/future.svg', import.meta.url).href },
   { id: 'stoneage', label: 'Stoneage', description: 'Chipped flint and wood', preview: new URL('../assets/cursors/stoneage.svg', import.meta.url).href },
+  { id: 'aurora', label: 'Aurora', description: 'Classic arrow with icy cyan and iridescent violet', preview: new URL('../assets/cursors/aurora.svg', import.meta.url).href },
+  { id: 'ember', label: 'Ember', description: 'Classic arrow with luminous amber and coral', preview: new URL('../assets/cursors/ember.svg', import.meta.url).href },
 ]);
 
 export function normalizeCursorTheme(value) {

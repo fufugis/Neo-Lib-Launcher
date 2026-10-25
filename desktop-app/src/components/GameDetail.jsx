@@ -1,9 +1,14 @@
 import React from 'react';
+import { safeGameRecord } from '../state/record-safety.mjs';
+import PreviewErrorBoundary from './preview/PreviewErrorBoundary';
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 import { DetailList, GameCapabilities, GameMediaGallery, GameStory } from './preview/PreviewInformationPanels';
 import PreviewActionBar from './preview/PreviewActionBar';
 import PreviewPageLayout from './preview/PreviewPageLayout';
+import GameNewsHistory from './preview/GameNewsHistory';
+import useGameHistory from './preview/use-game-history.mjs';
+import { gameArtworkCandidates, generatedGameArtwork } from '../lib/artwork-fallbacks.mjs';
 import PreviewHeroTitle from './preview/PreviewHeroTitle';
 import { installSizePatch, savedStorageSnapshot } from '../state/install-size-state.mjs';
 import { LatestNewsPill, ManagedToolSetup, SteamManifestLine, UpdateAvailablePill } from './preview/PreviewStatusCards';
@@ -17,10 +22,16 @@ import { libraryHeroArtworkOptions, libraryHeroCandidates, libraryHeroFocalPoint
  *   [ Library-hugging information column | richer source-owned gallery ]
  *   [ Calm, readable game details + genre identity ]
  */
-export default function GameDetail({
+export default function GameDetail(props) {
+  const game = React.useMemo(() => props.game ? safeGameRecord(props.game) : null, [props.game]);
+  return <PreviewErrorBoundary key={props.game?.id || 'empty'} onEdit={props.game && props.onCustomize ? () => props.onCustomize(game) : undefined}><GameDetailContent {...props} game={game} /></PreviewErrorBoundary>;
+}
+
+function GameDetailContent({
   game, categories, onLaunch, onLaunchError, onRefetch, onRevealFolder,
   onToggleCategory, onCustomize, onUpdateGame, onOpenSaveManager, onLocateManagedTool, onInstallManagedTool, managedToolInstalling = false, fetching, settings = {}, onPreviewLayoutChange,
 }) {
+  const history = useGameHistory(game);
   const installSize = React.useMemo(() => savedStorageSnapshot(game ? [game] : []).results[0] || null, [game]);
   const [measuringSize, setMeasuringSize] = React.useState(false);
   const measureInstallSize = React.useCallback(async () => {
@@ -35,9 +46,9 @@ export default function GameDetail({
       // A failed rescan must never erase a saved measurement.
     } finally { setMeasuringSize(false); }
   }, [game, measuringSize, onUpdateGame]);
-  const heroCandidates = React.useMemo(() => libraryHeroCandidates(game), [game]);
+  const heroCandidates = React.useMemo(() => [...new Set([...libraryHeroCandidates(game || {}), ...gameArtworkCandidates(game || {}, 'hero', { includeGenerated: false })])], [game]);
   const [heroIndex, setHeroIndex] = React.useState(0);
-  const bg = heroCandidates[heroIndex];
+  const bg = heroCandidates[heroIndex] || generatedGameArtwork(game || {}, 'hero');
   const [heroDimensions, setHeroDimensions] = React.useState(null);
   const focalPoint = libraryHeroFocalPoint(game);
   const heroMotion = libraryHeroMotion(game);
@@ -114,11 +125,12 @@ export default function GameDetail({
     el.style.setProperty('--hero-ty', '0px');
   }, []);
   if (!game) return <EmptyState />;
-  const measuredWidth = heroDimensions?.src === bg ? heroDimensions.width : 0;
+  const measuredWidth = heroDimensions && bg && heroDimensions.src === bg ? heroDimensions.width : 0;
   const isHeroVideo = libraryHeroMediaKind(bg) === 'video';
   const compactWidth = isHeroVideo ? null : libraryHeroWidth(measuredWidth, heroRef.current?.clientWidth || 0);
   const blocks = {
     hero: (<div
+        data-preview-hero
         ref={heroRef}
         className="relative isolate shrink-0"
         onMouseMove={onHeroMove}
@@ -219,11 +231,12 @@ export default function GameDetail({
         />
 
       </div>),
-    notices: <><ManagedToolSetup game={game} onLocate={onLocateManagedTool} onInstall={onInstallManagedTool} installing={managedToolInstalling} /><UpdateAvailablePill game={game} /><LatestNewsPill game={game} /></>,
+notices: <><ManagedToolSetup game={game} onLocate={onLocateManagedTool} onInstall={onInstallManagedTool} installing={managedToolInstalling} /><UpdateAvailablePill game={game} /><LatestNewsPill game={game} history={history} /></>,
     details: <DetailList game={game} />,
     capabilities: <GameCapabilities game={game} onUpdateGame={onUpdateGame} />,
     description: <GameStory game={game} profile={game.genreProfile} />,
     media: <GameMediaGallery game={game} />,
+    history: <GameNewsHistory game={game} history={history} onUpdateGame={onUpdateGame} />,
     source: <><div className="rounded-xl border border-[rgb(var(--border)/0.56)] bg-[rgb(var(--surface)/0.30)] px-3 py-2.5 text-[10.5px] text-muted/75 break-all font-mono">
       {game.exePath}
       {game.appid && <span className="block mt-0.5">Steam App ID · {game.appid}</span>}

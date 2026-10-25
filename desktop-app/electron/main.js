@@ -69,6 +69,7 @@ const { createStorageScanService } = require('./storage/storage-scan-service.cjs
 const { createJunkService } = require('./optimize/junk-service.cjs');
 const { createOptimizeProcessService } = require('./optimize/process-inspection-service.cjs');
 const { createExternalGameWatchService } = require('./game/external-game-watch-service.cjs');
+const { createExternalSessionJournal } = require('./game/external-session-journal.cjs');
 const { createGameLaunchService } = require('./game/game-launch-service.cjs');
 const { createStoreProviderService } = require('./providers/store-provider-service.cjs');
 const { createSteamGridDbArtworkService } = require('./providers/steamgriddb-artwork-service.cjs');
@@ -81,6 +82,9 @@ const { createPublicNewsProviderService } = require('./providers/public-news-pro
 const { createWeeklyReleaseProviderService } = require('./providers/weekly-release-provider-service.cjs');
 const { createSteamNewsProviderService } = require('./providers/steam-news-provider-service.cjs');
 const { createOwnedNewsProviderService } = require('./providers/owned-news-provider-service.cjs');
+const { createGameHistoryHttp } = require('./providers/game-history-http.cjs');
+const { createGameHistoryService } = require('./providers/game-history-service.cjs');
+const { createGamePressHistoryService } = require('./providers/game-press-history-service.cjs');
 const { createUpdateHistoryProviderService } = require('./providers/update-history-provider-service.cjs');
 const { createDealsProviderService } = require('./providers/deals-provider-service.cjs');
 const { createUpdateScanCoordinatorService } = require('./providers/update-scan-coordinator-service.cjs');
@@ -1225,16 +1229,41 @@ Object.assign(remainingIpcServices, createLauncherScanners({
 // injects code, hooks graphics, or assumes that an idle launcher means a game
 // is running. Windows exposes these paths through the ordinary process list.
 function normalWinPath(value) { return String(value || '').replace(/^"|"$/g, '').replace(/\//g, '\\').toLowerCase(); }
+const externalSessionJournal = createExternalSessionJournal({ fs, path, file: () => path.join(appStorage.dataDir(), 'external-playtime.json') });
+function sendExternalPlaytime(payload) {
+  externalSessionJournal.record(payload);
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('playtime:externalSession', payload);
+}
 const externalGameWatch = createExternalGameWatchService({
   execFile, path, normalWinPath, isLikelyGameExe,
   getRunningGameKeys: () => gameLaunchService.runningKeys(),
+  now: Date.now, makeSessionId: () => crypto.randomUUID(), sendSession: sendExternalPlaytime,
   sendExternalState(payload) {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('game:externalState', payload);
   },
 });
-remainingIpcServices["game:watchExternal"] = async (_e, { games = [] } = {}) => {
-  return externalGameWatch.watch({ games });
+const externalReplayClients = new Map();
+remainingIpcServices["game:watchExternal"] = async (_e, { games = [], clientId = 'legacy' } = {}) => {
+  const snapshots = externalSessionJournal.entries();
+  const adjusted = games.map(game => ({ ...game, playtime: Math.max(Number(game.playtime) || 0, ...snapshots.filter(entry => entry.gameId === String(game.id) && entry.startedAt >= Number(game.playtimeResetAt || 0)).map(entry => entry.basePlaytime + entry.totalSeconds / 60)) }));
+  const result = await externalGameWatch.watch({ games: adjusted });
+  const clientKey = String(_e?.sender?.id || 0) + ':' + clientId;
+  if (!externalReplayClients.has(clientKey)) externalReplayClients.set(clientKey, new Map());
+  while (externalReplayClients.size > 4) externalReplayClients.delete(externalReplayClients.keys().next().value);
+  const delivered = externalReplayClients.get(clientKey);
+  for (const snapshot of snapshots) {
+    const revision = snapshot.totalSeconds + ':' + snapshot.final;
+    if (delivered.get(snapshot.sessionId) === revision || !games.some(game => String(game.id) === snapshot.gameId && game.trackingEnabled !== false && snapshot.startedAt >= Number(game.playtimeResetAt || 0))) continue;
+    delivered.set(snapshot.sessionId, revision);
+    // Replay to the requesting page, never broadcast recovery to other pages.
+    _e?.sender?.send?.('playtime:externalSession', { ...snapshot, replayed: true });
+  }
+  while (delivered.size > 128) delivered.delete(delivered.keys().next().value);
+  return result;
 };
+powerMonitor?.on?.('suspend', () => externalGameWatch.suspend());
+powerMonitor?.on?.('resume', () => externalGameWatch.resume());
+app.on('before-quit', () => externalGameWatch.shutdown());
 remainingIpcServices["game:scanExternalNow"] = async () => {
   // Player-requested scan used from a high-usage warning. It remains the same
   // path-only local check as the passive watcher—no launcher account, game
@@ -2974,6 +3003,9 @@ async function fetchGogChangelog(game, cutoffMs) {
 const updateHistoryProvider = createUpdateHistoryProviderService({ httpGetText, stripHtml, now: Date.now });
 
 const ownedNewsProvider = createOwnedNewsProviderService({ httpGetText, httpGetJson, stripHtml });
+const gameHistoryHttp = createGameHistoryHttp();
+const gameHistoryProvider = createGameHistoryService({ http: gameHistoryHttp, press: createGamePressHistoryService({ http: gameHistoryHttp }) });
+remainingIpcServices["news:historyForGame"] = async (_event, payload) => gameHistoryProvider.fetch(payload);
 
 // ---------------- Public web news fallback ---------------- //
 // Steam, GOG and itch expose useful public feeds. Most other launchers do

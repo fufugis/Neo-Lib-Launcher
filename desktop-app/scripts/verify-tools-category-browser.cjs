@@ -1,0 +1,40 @@
+const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict');
+if(!process.versions.electron){const env={...process.env};delete env.ELECTRON_RUN_AS_NODE;const result=require('node:child_process').spawnSync(require('electron'),[__filename],{env,stdio:'inherit',windowsHide:true,timeout:60000});if(result.error)console.error(result.error);process.exit(result.status??1);}
+const {app,BrowserWindow}=require('electron');
+app.setPath('userData',fs.mkdtempSync(path.join(os.tmpdir(),'neolib-tools-category-')));
+app.whenReady().then(async()=>{
+ const root=path.resolve(__dirname,'..'),esbuild=require('node:module').createRequire(require.resolve('vite'))('esbuild');
+ const bundle=await esbuild.build({stdin:{resolveDir:root,loader:'jsx',contents:`
+ import React from 'react';import {createRoot} from 'react-dom/client';import {flushSync} from 'react-dom';
+ import Sidebar from './src/components/Sidebar.jsx';import {toolsLibraryView} from './src/state/tools-category-state.mjs';
+ window.errors=[];window.addEventListener('error',e=>window.errors.push(e.message));
+ window.data={games:[{id:'g',name:'Game',categoryIds:[]}],categories:[],tools:[{id:'a',name:'Zulu',categoryIds:[]},{id:'b',name:'Alpha',categoryIds:[]},{id:'p',name:'Private utility',categoryIds:['private']}],toolCategories:[{id:'private',name:'Secret',private:true}],gameOrderByCategory:{},toolOrderByCategory:{}};
+ window.opts={sort:'name',icons:false,two:false,unlocked:[],rowSize:44};window.selected=null;window.adds=0;
+ const no=()=>{};const root=createRoot(document.getElementById('root'));
+ window.render=()=>{const v=toolsLibraryView(window.data);window.view=v;flushSync(()=>root.render(<Sidebar games={v.games} categories={v.categories} gameOrderByCategory={v.gameOrderByCategory} mode="library" collapsed={{}} unlockedCategories={window.opts.unlocked} search="" selectedId={window.selected} librarySortMode={window.opts.sort} rowSize={window.opts.rowSize} libraryIconMode={window.opts.icons} twoRow={window.opts.two} sidebarWidth={400} onSetMode={no} onSelect={id=>{window.selected=id;window.render()}} onAddTool={()=>window.adds++} onGameContext={action=>{if(action==='add-tool')window.adds++}} onToggleCollapsed={no} onCreateCategory={no} onCategoryContext={no} onUnlockCategory={no} onReorderCategory={no} onMoveGameToCategory={no} onReorderGameInCategory={no} onOpenWizard={no} onOpenSettings={no}/>));};
+ window.render();void 0;
+`},loader:{'.webp':'dataurl','.png':'dataurl','.svg':'dataurl'},bundle:true,write:false,format:'iife',define:{'process.env.NODE_ENV':'"development"','import.meta.env.BASE_URL':'"./"'},plugins:[{name:'fixture-assets',setup(build){build.onLoad({filter:/stock-theme-registry\.mjs$/},args=>({loader:'js',contents:fs.readFileSync(args.path,'utf8').replace(/^const (modules|assets) = import\.meta\.glob\(.*$/gm,'const $1 = {};')}));}}]});
+ const win=new BrowserWindow({show:false,width:1000,height:1000,webPreferences:{sandbox:true,contextIsolation:true,backgroundThrottling:false,offscreen:true}});
+ await win.loadURL('data:text/html,'+encodeURIComponent('<body style="margin:0;--ink:240 245 255;--surface:20 30 45;--panel:30 40 60;--border:90 110 140;--accent:100 200 255;--accent-2:220 160 255"><div id="root" style="height:100vh;display:flex"></div></body>'));
+ const assets=path.join(root,'dist-renderer/assets');await win.webContents.insertCSS(fs.readFileSync(path.join(assets,fs.readdirSync(assets).find(n=>/^index-.*\.css$/.test(n))),'utf8'));
+ const run=s=>win.webContents.executeJavaScript(s);await run(bundle.outputFiles[0].text);
+ const settle=()=>new Promise(r=>setTimeout(r,150));await settle();
+ assert.equal(await run('document.querySelectorAll("[data-testid=tab-tools]").length'),0);
+ assert.equal(await run('!!document.querySelector("[aria-label=\\"Tools category\\"]")'),true);
+ assert.equal(await run('document.querySelector("[data-testid=\\"tool-tag-__tool__:a\\"]").textContent'),'Tools');
+ assert.equal(await run('!!document.querySelector("[data-testid=\\"game-row-__tool__:p\\"]")'),false);
+ assert.deepEqual(await run('[...document.querySelectorAll("[data-testid^=game-row-]")].filter(e=>!e.dataset.testid.startsWith("game-row-menu-")).map(e=>e.dataset.testid)'),['game-row-__tool__:b','game-row-__tool__:a','game-row-g']);
+ await run('document.querySelector("[data-testid=tools-category-add]").click();void 0');assert.equal(await run('window.adds'),1);
+ await run('document.querySelector("[data-testid=\\"game-row-__tool__:a\\"]").click();void 0');assert.equal(await run('window.selected'),'__tool__:a');
+ await run('window.opts.icons=true;window.render();void 0');await settle();
+ assert.equal(await run('document.querySelector("[data-testid=\\"game-row-__tool__:a\\"]").title'),'Zulu · Tools');
+ assert.equal(await run('!!document.querySelector("[data-testid=\\"tool-tag-__tool__:a\\"] svg")'),true);
+ assert.equal(await run('!!document.querySelector("[data-testid=\\"game-row-__tool__:p\\"]")'),false);
+ await run('window.opts.icons=false;window.opts.two=true;window.opts.rowSize=64;window.opts.unlocked=[window.view.categories.find(c=>c.libraryToolCategoryId).id];window.data.tools.push({id:"future",name:"Future tool"});window.render();void 0');await settle();
+ assert.equal(await run('!!document.querySelector("[data-testid=\\"game-row-__tool__:future\\"]")'),true);
+ assert.equal(await run('!!document.querySelector("[data-testid=\\"game-row-__tool__:p\\"]")'),true);
+ await run('document.querySelector("[data-testid=tools-category-add]").click();void 0');assert.equal(await run('window.adds'),2);
+ assert.deepEqual(await run('window.errors'),[]);
+ console.log('PASS: real Library Tools wrench/tag, shared alphabetical sort/selection/row size/icon/two-column modes, add button/new tool and private-group lock/unlock.');
+ win.destroy();app.quit();
+}).catch(error=>{console.error(error);app.exit(1);});

@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowDown, ArrowUp, CalendarDays, CheckSquare, Clock3, Cloud, ExternalLink, Gamepad2, Grid3X3, HardDrive, Home, ImageOff, Library, List, LockKeyhole, Minus, Play, Plus, Radio, ShieldAlert, SlidersHorizontal, Square, Star, Trophy, UserRound, Users, Wrench, X } from 'lucide-react';
-import { hasPortraitDimensions, portraitArtworkCandidates } from '../lib/game-artwork-model.mjs';
+import GameArtwork from './GameArtwork';
 import { formatPlaytime } from '../lib/utils';
 import { applyWallFilter, WALL_FILTERS } from './library/wall-filter-model.mjs';
 import { gameSignals } from '../lib/game-signals-model.mjs';
@@ -111,6 +111,7 @@ function WallCovers({ games, tiles, coverShape, onSelect, selectionMode, selecte
       return <motion.button key={game.id} type="button" aria-pressed={selectionMode ? selected : undefined} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1 }} transition={{ duration: 0.2, delay: Math.min(index, 20) * 0.018 }} onClick={() => onSelect?.(game.id)} className={`group relative min-w-0 overflow-hidden rounded-xl border bg-[rgb(var(--panel)/0.42)] text-left shadow-[0_10px_25px_-20px_rgba(0,0,0,.95)] transition hover:-translate-y-1 hover:border-[rgb(var(--accent)/0.72)] hover:bg-[rgb(var(--accent)/0.08)] hover:shadow-[0_16px_35px_-18px_rgb(var(--accent)/0.48)] ${selected ? 'border-[rgb(var(--accent))] ring-2 ring-[rgb(var(--accent)/0.55)]' : 'border-[rgb(var(--border)/0.78)]'}`} title={selectionMode ? `Select ${game.name || 'game'}` : `Open ${game.name || 'game'} details`}>
         <div className={`relative overflow-hidden bg-[rgb(var(--surface)/0.7)] ${coverShape === 'square' ? 'aspect-square' : 'aspect-[2/3]'}`}>
           <CoverArtwork game={game} eager={index < 18} />
+          {game.libraryToolId != null && <span data-testid={`wall-tool-tag-${game.id}`} className="pointer-events-none absolute bottom-2 left-2 z-10 inline-flex items-center gap-1 rounded border border-amber-300/60 bg-black/80 px-2 py-1 text-[10px] font-bold text-amber-200"><Wrench size={11}/>Tools</span>}
           <span className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/80 via-black/22 to-transparent" />
           {rating && <span data-testid={`cover-wall-rating-${game.id}`} className="pointer-events-none absolute right-1.5 top-1.5 z-10 inline-flex min-w-12 items-center justify-center gap-1 rounded-md border border-amber-100 bg-amber-300 px-2 py-1 text-[11px] font-bold leading-none tracking-normal text-amber-950 shadow-none" style={{ textShadow: 'none' }} title={`Your personal rating: ${rating} out of 5`} aria-label={`Your personal rating: ${rating} out of 5`}><Star size={10} strokeWidth={2.4} fill="currentColor" />{rating}</span>}
           {selectionMode && <span className="pointer-events-none absolute left-1.5 top-1.5 z-10 grid h-6 w-6 place-items-center rounded-md bg-black/62 text-white">{selected ? <CheckSquare size={15} /> : <Square size={15} />}</span>}
@@ -297,24 +298,9 @@ function Signal({ signal }) {
 function EmptyWall() { return <div className="grid min-h-64 place-items-center rounded-2xl border border-dashed border-[rgb(var(--border)/0.78)] bg-[rgb(var(--panel)/0.25)] px-6 text-center"><div><ImageOff className="mx-auto text-[rgb(var(--accent-2))]" size={24} /><p className="mt-3 text-sm font-bold text-ink">No visible games here</p><p className="mt-1 text-xs text-muted">Try another launcher filter or clear your search.</p></div></div>; }
 
 function CoverArtwork({ game, eager }) {
-  const [rejectedPortraitUrls, setRejectedPortraitUrls] = React.useState([]);
-  const [approvedPortraitUrl, setApprovedPortraitUrl] = React.useState('');
-  React.useEffect(() => {
-    setRejectedPortraitUrls([]);
-    setApprovedPortraitUrl('');
-  }, [game?.id]);
-  const portrait = portraitArtworkCandidates(game).find(url => !rejectedPortraitUrls.includes(url));
-  const rejectPortrait = url => setRejectedPortraitUrls(current => current.includes(url) ? current : [...current, url]);
   const fallback = fallbackCoverStyle(game);
-  return <span data-testid={approvedPortraitUrl === portrait ? undefined : 'cover-artwork-fallback'} className="relative grid h-full w-full place-items-end overflow-hidden p-3 text-left" style={fallback}>
-    <span className="absolute -right-8 top-7 h-28 w-28 rotate-12 rounded-[30%] border border-white/20 bg-white/10" />
-    <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/10" />
-    <span className="relative w-full text-white [text-shadow:0_1px_3px_rgb(0_0_0/.88)]">{game.source === 'emulation' ? <span className="mb-2 inline-flex items-center gap-1 rounded border border-white/30 bg-black/35 px-1.5 py-1 text-[8px] font-black uppercase tracking-[0.12em]"><Gamepad2 size={10} />{game.platform || 'Retro'}</span> : <ImageOff size={16} className="mb-2 opacity-80" />}<small className="block text-[9px] font-bold uppercase tracking-[0.1em]">Portrait cover needed</small></span>
-    {portrait && <img src={portrait} alt="" className={`absolute inset-0 z-[2] h-full w-full object-cover object-center transition duration-300 group-hover:scale-[1.045] ${approvedPortraitUrl === portrait ? 'visible' : 'invisible'}`} decoding="async" loading={eager ? 'eager' : 'lazy'} onError={() => rejectPortrait(portrait)} onLoad={event => {
-      const { naturalWidth, naturalHeight } = event.currentTarget;
-      if (hasPortraitDimensions(naturalWidth, naturalHeight)) setApprovedPortraitUrl(portrait);
-      else rejectPortrait(portrait);
-    }} />}
+  return <span className="relative block h-full w-full overflow-hidden" style={fallback}>
+    <GameArtwork game={game} role="cover" loading={eager ? 'eager' : 'lazy'} className="absolute inset-0 h-full w-full object-center transition duration-300 group-hover:scale-[1.045]" />
   </span>;
 }
 

@@ -210,15 +210,18 @@ async function main() {
   await verifyResponseGuard(metadata, 'artwork:steamGridDb', [{ apiKey: 'player-key', action: 'assets', gameId: '1', kind: 'cover' }], { ok: true, assets: [{ id: '1', url: 'javascript:bad', thumb: 'https://cdn.test/thumb.png', author: 'Artist', nsfw: false, humor: false }] }, {}, { ok: false, code: 'INVALID_RESPONSE', error: 'SteamGridDB returned an invalid artwork response.' });
   await verifyServiceResultPreserved(metadata, 'metadata:auto', [{ query: 'Unknown' }], null);
 
-  const newsChannels = ['news:latestForGame', 'news:fetchAll', 'news:fetchSteam'];
+  const newsChannels = ['news:latestForGame', 'news:historyForGame', 'news:fetchAll', 'news:fetchSteam'];
   const newsItem = { platform: 'steam', title: 'Patch notes', url: 'https://example.test/news', date: 1, snippet: 'Updated.' };
   const newsResults = {
+    'news:historyForGame': {ok:true,items:[{...newsItem,id:'entry',sourceLabel:'Steam',kind:'Patch'}],fetchedAt:1,cached:false,stale:false,unavailable:false,noSource:false},
     'news:latestForGame': { ok: true, item: newsItem, cached: false },
     'news:fetchAll': { ok: true, items: [newsItem], counts: { steam: 1, itch: 0, gog: 0, officialWeb: 0, web: 0 }, sources: { steam: 1, itch: 0, gog: 0, publicWeb: 0 }, fetchedAt: 1, cached: false },
     'news:fetchSteam': { ok: true, items: [newsItem], fetchedAt: 1, cached: false },
   };
   const news = register(registerNewsIpc, newsChannels, newsResults);
   const newsGame = { id: 'g1', appid: 620, name: 'Portal 2', website: 'https://example.test', source: 'steam', launcher: 'steam' };
+  await verifyGuard(news, 'news:historyForGame', [{game:newsGame,force:false}], [{game:{...newsGame,newsUrl:[]}}, {game:newsGame,force:'yes'}, {games:[newsGame]}], {ok:false,code:'INVALID_REQUEST',items:[]});
+  await verifyResponseGuard(news, 'news:historyForGame', [{game:newsGame}], {ok:true,items:Array(11).fill(newsItem),fetchedAt:1,cached:false}, {items:[]});
   await verifyGuard(news, 'news:latestForGame', [newsGame], [{ ...newsGame, name: [] }], { ok: false, code: 'INVALID_REQUEST', item: null });
   await verifyGuard(news, 'news:fetchAll', [{ games: [newsGame], days: 14, force: false }], [{ games: [newsGame], days: 0 }], { ok: false, code: 'INVALID_REQUEST', items: [] });
   await verifyGuard(news, 'news:fetchSteam', [{ games: [newsGame], days: 30, force: true }], [{ games: 'all', days: 30 }], { ok: false, code: 'INVALID_REQUEST', items: [] });

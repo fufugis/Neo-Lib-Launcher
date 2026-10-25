@@ -1,4 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
+// Changes on reload, but not on every library save or playtime checkpoint.
+const externalWatchClientId = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
 
 // A renderer timer must never be able to arm a game launch. Electron's
 // window-level before-input-event timestamp is not reliable on every Windows
@@ -77,8 +79,9 @@ contextBridge.exposeInMainWorld('api', {
   extractIcon: (exePath) => ipcRenderer.invoke('exe:icon', exePath),
   armGameLaunch,
   launchGame: (opts) => ipcRenderer.invoke('game:launch', opts),
-  onGameExited: (cb) => ipcRenderer.on('game:exited', (_e, info) => cb(info)),
-  watchExternalGames: (payload) => ipcRenderer.invoke('game:watchExternal', payload),
+  onGameExited: (cb) => { const listener = (_e, info) => cb(info); ipcRenderer.on('game:exited', listener); return () => ipcRenderer.removeListener('game:exited', listener); },
+  onExternalPlaytime: (cb) => { const listener = (_e, info) => cb(info); ipcRenderer.on('playtime:externalSession', listener); return () => ipcRenderer.removeListener('playtime:externalSession', listener); },
+  watchExternalGames: (payload) => ipcRenderer.invoke('game:watchExternal', { ...payload, clientId: externalWatchClientId }),
   scanExternalGamesNow: () => ipcRenderer.invoke('game:scanExternalNow'),
   onExternalGameState: (cb) => ipcRenderer.on('game:externalState', (_e, info) => cb(info)),
 
@@ -169,6 +172,7 @@ contextBridge.exposeInMainWorld('api', {
   fetchAllNews: (opts) => ipcRenderer.invoke('news:fetchAll', opts),
   fetchWeeklyReleases: (opts) => ipcRenderer.invoke('releases:weekly', opts),
   latestNewsForGame: (game) => ipcRenderer.invoke('news:latestForGame', game),
+  gameNewsHistory: (payload) => ipcRenderer.invoke('news:historyForGame', payload),
   getSteamManifest: (appid) => ipcRenderer.invoke('steam:manifest', appid),
   scanGameUpdates: (opts) => ipcRenderer.invoke('updates:scan', opts),
   fetchUpdateHistory: (opts) => ipcRenderer.invoke('updates:history', opts),

@@ -1,10 +1,11 @@
+import { toolsLibraryView } from './tools-category-state.mjs';
 const MODES = new Set(['home', 'library', 'wall', 'tools']);
 
 export function hydrateNavigation(settings = {}, library = {}) {
-  const mode = settings.mode === 'tools' ? 'tools' : 'home';
+  const mode = settings.mode === 'tools' ? 'library' : 'home';
   return {
     mode,
-    selectedGameId: existingId(library.games, settings.lastGameId),
+    selectedGameId: existingId(toolsLibraryView(library).games, settings.lastGameId),
     selectedToolId: existingId(library.tools, settings.lastToolId),
   };
 }
@@ -30,12 +31,13 @@ export function navigationTransition(state, event, library = {}) {
   }
   if (event.type === 'OPEN_TOOLS') {
     const tool = preferredTool(library.tools || [], current.selectedToolId);
-    return { ...current, mode: 'tools', selectedToolId: tool?.id || null };
+    const row = toolsLibraryView(library).games.find(item => item.libraryToolId === tool?.id);
+    return { ...current, mode: 'library', selectedToolId: tool?.id || null, selectedGameId: row?.id || null };
   }
-  if (event.type === 'SELECT_GAME') return { ...current, selectedGameId: existingId(library.games, event.id) };
+  if (event.type === 'SELECT_GAME') return { ...current, selectedGameId: existingId(toolsLibraryView(library).games, event.id) };
   if (event.type === 'SELECT_TOOL') return { ...current, selectedToolId: existingId(library.tools, event.id) };
   if (event.type === 'RESTORE') return hydrateNavigation(event.settings || {}, library);
-  if (event.type === 'MODE' && MODES.has(event.mode)) return { ...current, mode: event.mode };
+  if (event.type === 'MODE' && MODES.has(event.mode)) return { ...current, mode: event.mode === 'tools' ? 'library' : event.mode };
   return current;
 }
 

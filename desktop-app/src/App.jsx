@@ -7,6 +7,8 @@ import AddonPage from './components/addons/AddonPage';
 import { enabledAddons } from './components/addons/addon-model.mjs';
 import GlobalVisualsPanel from './components/library/GlobalVisualsPanel';
 import GameDetail from './components/GameDetail';
+import StorageSafetyNotice from './components/StorageSafetyNotice';
+import { safeGameRecord } from './state/record-safety.mjs';
 import DealsBar from './components/DealsBar';
 import ToolDetail from './components/ToolDetail';
 import HoverTips from './components/HoverTips';
@@ -19,13 +21,18 @@ import CoverWall from './components/CoverWall';
 import { BgAmbience, WorkspaceEmpty } from './components/ThemeVisuals';
 import { checkForUpdates } from './lib/updateChecker';
 import AppUpdatePrompt from './components/AppUpdatePrompt';
-import { hydrateLibrary, selectWorkspace, filterByLauncher, applyGameSession } from './state/library-state.mjs';
+import CalendarReminderAlarm from './components/home/CalendarReminderAlarm';
+import UpdateReminder from './components/UpdateReminder';
+import { useAppUpdateChecks } from './hooks/use-app-update-checks.mjs';
+import { hydrateLibrary, selectWorkspace, filterByLauncher } from './state/library-state.mjs';
+import { toolsLibraryView, applyToolsLibraryView, isLibraryTool, canonicalTool } from './state/tools-category-state.mjs';
 import { applyStorageMeasurements } from './state/install-size-state.mjs';
 import { gameLockedCategoryMap, loungeVisibleGames, redactLockedHomeGames, visibleUnlockedGames } from './state/privacy-state.mjs';
 import { hydrateNavigation, preferredLibraryGame, preferredTool } from './state/navigation-state.mjs';
 import { hydrateSettings, visualState } from './state/settings-state.mjs';
 import { EMPTY_REFRESH_QUEUE } from './state/metadata-refresh-state.mjs';
-import { sessionResult, applyPlaytimeImport } from './state/playtime-state.mjs';
+import { applyPlaytimeImport } from './state/playtime-state.mjs';
+import useGameSessionEvents from './hooks/use-game-session-events.mjs';
 import { isRomGame, gameLaunchContext, statisticsGames } from './lib/emulator-profile-model.mjs';
 import { getRendererApi } from './services/renderer-api.mjs';
 import { useRendererStore } from './state/use-renderer-store.mjs';
@@ -68,12 +75,13 @@ const {
   toolCategories: DEMO_TOOL_CATEGORIES,
 } = createDemoLibrary(hashPin);
 export default function App() {
+  const [startupReady, setStartupReady] = React.useState(false);
   const {
     library, setLibrary, settings, setSettings,
     selectedId, setSelectedId, selectedToolId, setSelectedToolId,
     unlockedCategories, setUnlockedCategories,
-    persistSettings, updateSetting,
-  } = useRendererStore(nativeApi);
+    persistSettings, updateSetting, saveStatus, retrySaves, saveSettingsWithFeedback, saveLibraryWithFeedback,
+  } = useRendererStore(nativeApi, { ready: startupReady });
   // A game launched by NEO-LIB stays tracked; Rest Mode pauses background work.
   const [runningGame, setRunningGame] = React.useState(null);
   // External game detection enters Rest Mode on a confident library match.
@@ -162,7 +170,6 @@ export default function App() {
     setSoundPack(gameRestActive || settings.soundsEnabled === false ? 'none' : (settings.soundPack || 'synthwave'));
   }, [gameRestActive, settings.soundsEnabled, settings.soundPack]);
 
-  const [startupReady, setStartupReady] = React.useState(false);
   const [startupError, setStartupError] = React.useState('');
 
   /* --- Tutorial state (first-time popup) --- */
@@ -236,13 +243,16 @@ export default function App() {
   const libraryRef = React.useRef(library);
   React.useEffect(() => { libraryRef.current = library; }, [library]);
   // Existing Tools collections deserve the same first-class identity as a
-  // newly added program. On the first Tools visit, fill only missing fields
+  // newly added program. On the first Library visit, fill only missing fields
   // for a small bounded batch. Custom names, descriptions, images, categories
   // and paths always win; this never launches, installs, or uploads a tool.
   const toolMetadataBackfillRef = React.useRef(new Set());
   React.useEffect(() => {
-    if (!isElectron || settings.mode !== 'tools' || !nativeApi?.fetchToolMetadata) return undefined;
+    if (!isElectron || settings.mode !== 'library' || !nativeApi?.fetchToolMetadata) return undefined;
+    const view = toolsLibraryView(library);
+    const visibleToolIds = new Set(visibleUnlockedGames(view.games, view.categories, unlockedCategories).filter(isLibraryTool).map(item => item.libraryToolId));
     const candidates = (library.tools || [])
+      .filter(tool => visibleToolIds.has(tool.id))
       .filter((tool) => tool?.exePath && (!tool.icon || !tool.shortDescription || !tool.about || !tool.publisher))
       .filter((tool) => !toolMetadataBackfillRef.current.has(tool.id))
       .slice(0, 8);
@@ -281,7 +291,7 @@ export default function App() {
       }
     })();
     return () => { cancelled = true; };
-  }, [library.tools, settings.mode]);
+  }, [library.tools, library.categories, library.toolCategories, settings.mode, unlockedCategories]);
   React.useEffect(() => {
     if (!isElectron || !nativeApi?.detectLaunchers) return undefined;
     if (settings.launcherDetectEnabled === false || visualRestActive || firstRunPhase !== 'ready') return undefined;
@@ -367,7 +377,6 @@ export default function App() {
               // First hydration normally skips its auto-save. Persist this
               // one-time hardware setup directly so a fast GPU query cannot
               // race the initial effect and lose the new Tools shortcuts.
-              nativeApi.saveLibrary(next).catch(() => {});
               return next;
             });
             const gpuSettings = {
@@ -377,7 +386,7 @@ export default function App() {
                 driverVersion: setup.primary?.driverVersion || '', detectedAt: Date.now(),
               },
             };
-            setSettings((current) => { const next = { ...current, ...gpuSettings }; nativeApi.saveSettings(next).catch(() => {}); return next; });
+            setSettings((current) => ({ ...current, ...gpuSettings }));
           }).catch(() => {});
         }
 
@@ -386,8 +395,8 @@ export default function App() {
         // subsequent boot if the user closes NEO-LIB immediately.
         if (resetRatings || addGraphicsSuggestions) {
           await Promise.all([
-            nativeApi.saveLibrary(initialLibrary),
-            nativeApi.saveSettings(cleanSettings),
+            saveLibraryWithFeedback(initialLibrary),
+            saveSettingsWithFeedback(cleanSettings),
           ]);
         }
 
@@ -404,24 +413,6 @@ export default function App() {
           nativeApi.scanGameUpdates?.({ games: loadedLibrary.games.map(({ id, name, appid, launcher, source, steamOwned, installedVersion, updateWatchUrl, website, exePath }) => ({ id, name, appid, launcher, source, steamOwned, installedVersion, updateWatchUrl, website, exePath })) }).then(recordUpdateLedger).catch(() => {});
         }, 35_000);
 
-        // Wire playtime tracking event
-        // v1.4.0 — playtime is stored in MINUTES throughout the app (matches
-        // Steam's localconfig.vdf unit and StatsPanel expectations). Convert
-        // the raw session seconds → minutes here so we stop inflating values.
-        nativeApi.onGameExited(({ gameId, seconds, trackingDisabled }) => {
-          setRunningGame((active) => !gameId || active?.id === gameId ? null : active);
-          if (!gameId || trackingDisabled) return;
-          setLibrary((curr) => {
-            const playedGame = curr.games.find((game) => game.id === gameId);
-            const outcome = sessionResult(playedGame, seconds, Date.now());
-            if (outcome.shouldPromptRating) window.setTimeout(() => setRatingPromptGame({ game: playedGame, seconds: Number(seconds) }), 650);
-            return applyGameSession(curr, gameId, seconds, Date.now());
-          });
-          // A game process that closes almost immediately can be a wrong exe,
-          // launcher bootstrap, or a real failure. We wait for a second event
-          // before offering Doctor so a one-off launcher handoff is not noisy.
-          if (Number(seconds) > 0 && Number(seconds) < 8) recordLaunchProblem(gameId, 'closed immediately');
-        });
         nativeApi.onExternalGameState?.(({ active, gameId, name }) => {
           if (active) {
             const game = { id: gameId, name: name || 'External game', source: 'external' };
@@ -432,7 +423,7 @@ export default function App() {
               key: `external-rest-${game.id}-${Date.now()}`,
               kind: 'external-rest',
               title: `${game.name} was detected`,
-              body: `It is running outside NEO-LIB, so I automatically put the launcher into Rest Mode. Background effects and non-essential checks are paused, and NEO-LIB will wake again when the game closes.`,
+              body: `It is running outside NEO-LIB, so I automatically put the launcher into Rest Mode. Automatic playtime tracking continues while background effects and non-essential checks pause. NEO-LIB will wake again when the game closes.`,
             });
             return;
           }
@@ -479,23 +470,7 @@ export default function App() {
   }, [settings.motionCadence]);
 
   /* ----- Auto-update checker (GitHub releases API) ----- */
-  React.useEffect(() => {
-    if (gameRestActive) return undefined;
-    let cancelled = false;
-    let busy = false;
-    const check = async () => {
-      if (busy) return;
-      busy = true;
-      try {
-        const info = await checkForUpdates(APP_VERSION);
-        if (!cancelled && !info.error) setUpdateInfo(info);
-      } catch { /* Keep the last known release during a temporary failure. */ }
-      finally { busy = false; }
-    };
-    void check();
-    const timer = window.setInterval(check, 60 * 60 * 1000);
-    return () => { cancelled = true; window.clearInterval(timer); };
-  }, [gameRestActive]);
+  useAppUpdateChecks(APP_VERSION, setUpdateInfo);
   const openReleasesPage = () => {
     const url = updateInfo?.releaseUrl || 'https://github.com/fufugis/Neo-Lib-Launcher/releases/latest';
     if (nativeApi?.openExternal) nativeApi.openExternal(url);
@@ -507,7 +482,7 @@ export default function App() {
   // check provides an explicit low-usage offer; an idle launcher never counts.
   React.useEffect(() => {
     if (!isElectron || !nativeApi?.watchExternalGames) return undefined;
-    const games = statisticsGames(library.games || [], false, settings.retroProfiles || []).filter(game => !isRomGame(game)).map(({ id, name, exePath, installDir, installdir, launcher }) => ({ id, name, exePath, installDir: installDir || installdir || '', launcher }));
+    const games = statisticsGames(library.games || [], false, settings.retroProfiles || []).filter(game => !isRomGame(game)).map(({ id, name, exePath, installDir, installdir, launcher, playtime, trackingMethod, playtimeResetAt }) => ({ id, name, exePath, installDir: installDir || installdir || '', launcher, playtime: Math.max(0, Number(playtime) || 0), trackingEnabled: trackingMethod !== 'manual', playtimeResetAt: Number(playtimeResetAt) || 0 }));
     nativeApi.watchExternalGames({ games }).catch(() => {});
     return undefined;
   }, [library.games, settings.retroProfiles]);
@@ -561,15 +536,17 @@ export default function App() {
 
   /* --- Mode-aware slice keys (library vs tools) --- */
   const isTools = settings.mode === 'tools';
-  const workspace = selectWorkspace(library, settings.mode);
+  const libraryView = React.useMemo(() => toolsLibraryView(library), [library]);
+  const setWorkspaceLibrary = React.useCallback(change => setLibrary(previous => applyToolsLibraryView(previous, change)), [setLibrary]);
+  const workspace = selectWorkspace(libraryView, 'library');
   const sliceK = workspace.keys;
   const currentItems = workspace.items;
   const currentCats = workspace.categories;
   const currentOrder = workspace.order;
-  const currentSelectedId = isTools ? selectedToolId : selectedId;
-  const setCurrentSelectedId = isTools ? setSelectedToolId : setSelectedId;
+  const currentSelectedId = selectedId;
+  const setCurrentSelectedId = id => { setSelectedId(id); const tool = currentItems.find(item => item.id === id && isLibraryTool(item)); if(tool)setSelectedToolId(tool.libraryToolId); };
 
-  const setMode = (m) => updateSetting({ mode: m });
+  const setMode = (m) => updateSetting({ mode: m === 'tools' ? 'library' : m });
 
   // The onboarding tour changes the actual visible workspace as it explains
   // it. It never mutates a game, category, or tool; it only selects a safe
@@ -588,8 +565,8 @@ export default function App() {
     }
     if (view === 'tools') {
       const firstTool = (library.tools || [])[0];
-      updateSetting({ mode: 'tools' });
-      setSelectedToolId(firstTool?.id || null);
+      updateSetting({ mode: 'library', libraryViewMode: 'preview', launcherFilter: 'all', showLibraryCategories: true });
+      setSelectedId(toolsLibraryView(library).games.find(item => item.libraryToolId === firstTool?.id)?.id || null);
       return;
     }
     if (view === 'visuals') {
@@ -785,11 +762,11 @@ export default function App() {
     setSettings((prev) => {
       const next = mergeUpdateStatusLedger(prev, result);
       if (next === prev) return prev;
-      if (isElectron) nativeApi.saveSettings(next);
       return next;
     });
   }, []);
   const withGenreProfile = (data) => {
+    data = safeGameRecord(data);
     if (data?.genreProfile || !(data?.genreTags?.length || data?.genres?.length)) return data;
     const source = data.source || data.launcher || 'web';
     return {
@@ -839,7 +816,7 @@ export default function App() {
     const timelinePatch = Object.prototype.hasOwnProperty.call(patch || {}, 'rating')
       ? { ...patch, ratedAt: Date.now() }
       : patch;
-    setLibrary((prev) => ({
+    setWorkspaceLibrary((prev) => ({
       ...prev,
       [sliceK.items]: (prev[sliceK.items] || []).map((g) => {
         if (g.id !== id) return g;
@@ -861,9 +838,9 @@ export default function App() {
   };
   useExternalFileDrop({ enabled: isElectron && firstRunPhase === 'ready', nativeApi, addToGames, setDragOver, setWizardPrefillRoot, setWizardAutoScan, setShowWizard, notify });
   const updateBulkFavorite = (ids, favorite) => { const picked = Array.isArray(ids) ? ids : []; if (!picked.length) return; updateSetting({ pinnedGameIds: collectionFavoriteIds(settings.pinnedGameIds || [], picked, favorite) }); notify(`${favorite ? 'Favorited' : 'Unfavorited'} ${picked.length} game${picked.length === 1 ? '' : 's'}.`); };
-  const updateBulkJourneyStatus = (ids, journeyStatus) => { const picked = Array.isArray(ids) ? ids : []; if (!picked.length || !journeyStatus) return; setLibrary((previous) => ({ ...previous, [sliceK.items]: collectionJourneyStatus(previous[sliceK.items] || [], picked, journeyStatus) })); notify(`Updated Journey Status for ${picked.length} game${picked.length === 1 ? '' : 's'}.`); };
-  const addBulkCategory = (ids, categoryId) => { const picked = Array.isArray(ids) ? ids : []; const category = (library.categories || []).find((item) => item.id === categoryId && !item.private); if (!picked.length || !category) return; setLibrary((previous) => ({ ...previous, [sliceK.items]: collectionCategoryAssignment(previous[sliceK.items] || [], picked, categoryId) })); notify(`Added ${picked.length} game${picked.length === 1 ? '' : 's'} to ${category.name}.`); };
-  const collectionReview = createCollectionReviewWorkflow({ games: library[sliceK.items] || [], categories: library.categories || [], unlockedCategoryIds: unlockedCategories, setConfirmCfg, setRefreshReview, setLibrary, sliceKey: sliceK.items, notify });
+  const updateBulkJourneyStatus = (ids, journeyStatus) => { const picked = Array.isArray(ids) ? ids : []; if (!picked.length || !journeyStatus) return; setWorkspaceLibrary((previous) => ({ ...previous, [sliceK.items]: collectionJourneyStatus(previous[sliceK.items] || [], picked, journeyStatus) })); notify(`Updated Journey Status for ${picked.length} game${picked.length === 1 ? '' : 's'}.`); };
+  const addBulkCategory = (ids, categoryId) => { const picked = Array.isArray(ids) ? ids : []; const category = (library.categories || []).find((item) => item.id === categoryId && !item.private); if (!picked.length || !category) return; setWorkspaceLibrary((previous) => ({ ...previous, [sliceK.items]: collectionCategoryAssignment(previous[sliceK.items] || [], picked, categoryId) })); notify(`Added ${picked.length} game${picked.length === 1 ? '' : 's'} to ${category.name}.`); };
+  const collectionReview = createCollectionReviewWorkflow({ games: currentItems.filter(item => !isLibraryTool(item)), categories: library.categories || [], unlockedCategoryIds: unlockedCategories, setConfirmCfg, setRefreshReview, setLibrary: setWorkspaceLibrary, sliceKey: sliceK.items, notify });
   const importRetroGames = (entries) => {
     const requested = Array.isArray(entries) ? entries : [];
     if (!requested.length) return 0;
@@ -890,6 +867,8 @@ export default function App() {
     };
     setLibrary((prev) => ({ ...prev, tools: [tool, ...(prev.tools || [])] }));
     setSelectedToolId(tool.id);
+    setSelectedId(toolsLibraryView({...library, tools:[tool,...(library.tools||[])]}).games.find(item=>item.libraryToolId===tool.id)?.id || null);
+    updateSetting({ mode:'library',libraryViewMode:'preview',launcherFilter:'all' });
     setShowAdd(false);
     setToolMetadataTarget(null);
     notify(`Added tool · ${tool.name}`);
@@ -953,8 +932,9 @@ export default function App() {
       notify(`Launch Doctor · ${current.name} closed immediately more than once.`);
     }
   };
+  useGameSessionEvents({ enabled: isElectron, nativeApi, libraryRef, setLibrary, setRunningGame, setRatingPromptGame, recordLaunchProblem });
   const removeGame = (id) => {
-    setLibrary((prev) => {
+    setWorkspaceLibrary((prev) => {
       const order = { ...(prev[sliceK.order] || {}) };
       for (const k of Object.keys(order)) order[k] = order[k].filter((x) => x !== id);
       return {
@@ -970,10 +950,12 @@ export default function App() {
       });
     }
     if (currentSelectedId === id) setCurrentSelectedId(null);
-    notify(isTools ? 'Tool removed' : 'Game removed');
+    notify(currentItems.some(item => item.id === id && isLibraryTool(item)) ? 'Tool removed' : 'Game removed');
   };
-  const launchGame = async (g, launchToken = '') => {
-    const { game, error, toolLaunch, trackPlaytime } = gameLaunchContext(g, settings.retroProfiles, library.tools, isTools);
+  const launchGame = async (g, launchToken = '', forceTool = false) => {
+    const toolEntry = forceTool || isLibraryTool(g);
+    g = canonicalTool(g);
+    const { game, error, toolLaunch, trackPlaytime } = gameLaunchContext(g, settings.retroProfiles, [], toolEntry);
     if (error) { notify(error); return false; }
     g = game;
     if (launchRequestInFlight.current) {
@@ -990,14 +972,14 @@ export default function App() {
         libraryRootPath: externalRootForGame(g, settings.externalLibraryRoots)?.location || '',
       });
       if (!res.ok) {
-        recordLaunchProblem(g.id, res.error || 'could not start');
+        if (!toolLaunch) recordLaunchProblem(g.id, res.error || 'could not start');
         notify('Launch failed: ' + (res.error || ''));
         return false;
       }
       else {
         if (toolLaunch || g.launchTargetType === 'uri' || res.target === 'steam') {
           if (toolLaunch) updateSetting({ lastToolId: g.id });
-          if (res.target === 'steam') {
+          if (res.target === 'steam' && !toolLaunch) {
             updateGame(g.id, { lastPlayedAt: Date.now(), journeyStatus: journeyStatusAfterFirstLaunch(g.journeyStatus, g.playtime) });
             notify(`Opening ${g.name} through Steam…`);
           } else notify(`${g.name} opened.`);
@@ -1080,7 +1062,7 @@ export default function App() {
     handleCategoryAction,
     panicLockPrivateLibrary,
   } = createCategoryPrivacyWorkflow({
-    setLibrary,
+    setLibrary: setWorkspaceLibrary,
     sliceK,
     setCatModal,
     notify,
@@ -1089,7 +1071,7 @@ export default function App() {
     setPinThen,
     setPinModal,
     askPrompt,
-    library,
+    library: libraryView,
     askConfirm,
     updateGame,
     catCtx,
@@ -1119,7 +1101,7 @@ export default function App() {
   const { applyAutoSort: handleAutoSortApply, undoAutoSort } = createAutoSortWorkflow({
     currentCats,
     currentItems,
-    setLibrary,
+    setLibrary: setWorkspaceLibrary,
     sliceK,
     setAutoSortUndo,
     notify,
@@ -1145,6 +1127,8 @@ export default function App() {
 
   /* --- Game right-click actions --- */
   const handleGameContext = async (action, g) => {
+    if(action==='add-tool'){setToolMetadataTarget({});setShowAdd(true);return;}
+    if (isLibraryTool(g) && ['refetch','research','details'].includes(action)) { setToolMetadataTarget(canonicalTool(g)); setShowAdd(true); return; }
     if (action === 'pin' || action === 'unpin') {
       const current = settings.pinnedGameIds || [];
       if (action === 'pin') {
@@ -1211,7 +1195,7 @@ export default function App() {
         typedConfirm: requireTyping ? 'RESET' : undefined,
       });
       if (!ok) return;
-      updateGame(g.id, { playtime: 0, lastPlayedAt: 0, playtimeManual: false });
+      updateGame(g.id, { playtime: 0, lastPlayedAt: 0, playtimeManual: false, playtimeResetAt: Date.now(), externalPlaytimeSessions: {} });
       notify(`Local playtime reset for ${g.name}`);
       return;
     }
@@ -1307,7 +1291,7 @@ export default function App() {
   // was fetched from Steam is NOT a Steam-launcher game.
   const launcherFilter = settings.launcherFilter || 'all';
   const visibleGames = React.useMemo(() => filterByLauncher(currentItems, launcherFilter, isTools), [currentItems, isTools, launcherFilter]);
-  const selected = currentItems.find((g) => g.id === currentSelectedId) || null;
+  const selected = visibleUnlockedGames(currentItems, currentCats, unlockedCategories).find((g) => g.id === currentSelectedId) || null;
   const libraryViewMode = settings.libraryViewMode || 'preview';
   const wallActive = settings.mode === 'library' && libraryViewMode === 'wall';
   const preferredLibraryEntry = React.useMemo(() => preferredLibraryGame(library.games || [], settings.lastGameId), [library.games, settings.lastGameId]);
@@ -1317,15 +1301,12 @@ export default function App() {
     setSelectedId(preferredLibraryEntry?.id || null);
   }, [preferredLibraryEntry, updateSetting]);
   const openToolsDefault = React.useCallback(() => {
-    updateSetting({ mode: 'tools' });
-    setSelectedToolId(preferredToolEntry?.id || null);
-  }, [preferredToolEntry, updateSetting]);
+    updateSetting({ mode: 'library', libraryViewMode:'preview', launcherFilter:'all', showLibraryCategories:true });
+    setSelectedId(currentItems.find(item=>item.libraryToolId===preferredToolEntry?.id)?.id||null);
+  }, [currentItems, preferredToolEntry, updateSetting]);
   React.useEffect(() => {
     if ((settings.mode || 'library') === 'library' && libraryViewMode === 'preview' && !selectedId && preferredLibraryEntry) setSelectedId(preferredLibraryEntry.id);
   }, [settings.mode, libraryViewMode, selectedId, preferredLibraryEntry]);
-  React.useEffect(() => {
-    if (settings.mode === 'tools' && !selectedToolId && preferredToolEntry) setSelectedToolId(preferredToolEntry.id);
-  }, [settings.mode, selectedToolId, preferredToolEntry]);
   React.useEffect(() => {
     if (selectedId && selectedId !== settings.lastGameId) updateSetting({ lastGameId: selectedId });
   }, [selectedId, settings.lastGameId, updateSetting]);
@@ -1398,16 +1379,17 @@ export default function App() {
       '--special-magical-button-frame': `url("${stockThemeAssetUrl('colorful', 'controlFrame')}")`,
     }}>
       <HoverTips />
+      <StorageSafetyNotice status={saveStatus} library={library} settings={settings} onRetry={retrySaves} onExport={exportLibraryBackup} />
       <ControllerNavigationBridge enabled={settings.controllerNavigationEnabled === true} preferredFingerprint={settings.preferredControllerFingerprint || ''} resting={gameRestActive} privacyEpoch={unlockedCategories.join('|')} onBlockedLaunch={() => notify('Controller launch needs its own safety confirmation. Use mouse or keyboard for now.')} />
       {/* Window edge glow — soft inner halo around the frameless window (Riot/Discord style) */}
       <div className="window-edge-glow" aria-hidden="true" />
       {idlePowerSaving && <span role="status" className="pointer-events-none fixed bottom-3 left-3 z-[90] rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--panel)/0.92)] px-3 py-2 text-[11px] text-muted">Idle power saver · mascot and announcements stay on</span>}
       {!lounge.active && <BgAmbience theme={settings.theme} settings={settings} game={selected} resting={visualRestActive} eventPulse={fungistLaunchCelebration?.key > confetti.key ? { kind: 'launch', key: fungistLaunchCelebration.key } : { kind: 'celebrate', key: confetti.key }} />}
-      {/* v1.6.4 — BgTexture no longer renders as full-viewport overlay.
-          Sidebar renders the texture inside its own body via bgTextureStyle. */}
+      {/* Sidebar owns its texture via bgTextureStyle; no full-viewport texture overlay. */}
       <div className="neolib-ui-foreground relative z-20" inert={lounge.active ? '' : undefined}>
         <TitleBar
-          newsPaused={gameRestActive || lounge.active || firstRunPhase !== 'ready'}
+          newsPaused={firstRunPhase !== 'ready'}
+          newsMascotResting={gameRestActive}
           newsSettings={settings}
           search={search}
           setSearch={setSearch}
@@ -1539,6 +1521,7 @@ export default function App() {
           onGameViewed={markGameSeenInLibrary}
           onSelect={(id) => { setCurrentSelectedId(id); if (id && settings.mode === 'home') updateSetting({ mode: 'library', libraryViewMode: 'preview' }); }}
           onAddManual={() => { setToolMetadataTarget(null); setShowAdd(true); }}
+          onAddTool={() => { setToolMetadataTarget({}); setShowAdd(true); }}
           onOpenWizard={() => setShowWizard(true)}
           manualResting={manualRestActive}
           onToggleManualRest={toggleManualRest}
@@ -1600,7 +1583,7 @@ export default function App() {
             ) : !selected ? (
               <WorkspaceEmpty kind={isTools ? 'tools' : 'library'} />
             ) : (
-              <AnimatePresence mode="wait">{isTools ? <ToolDetail key={selected?.id || 'empty'} tool={selected} minimalistic={settings.interfaceMode === 'minimalistic'} onLaunch={(tool, token) => launchGame(tool, token)} onRefetch={(tool) => { setToolMetadataTarget(tool); setShowAdd(true); }} onRevealFolder={async (tool) => { if (!isElectron) return notify('Open: ' + tool.exePath); const result = await nativeApi.revealInFolder(tool.exePath); if (!result?.ok) notify(result?.error || 'Could not open this tool folder.'); }} onLocateManagedTool={locateManagedTool} onInstallManagedTool={installManagedTool} installing={managedToolInstallId === selected?.id} /> : <GameDetail key={selected?.id || 'empty'} game={selected} categories={currentCats.filter((c) => !c.private || unlockedCategories.includes(c.id))} fetching={fetching} settings={settings} onPreviewLayoutChange={previewLayout => updateSetting({ previewLayout })} onLaunch={(game, token, origin) => { launchOriginRef.current = origin || null; return launchGame(game, token); }} onLaunchError={(error) => notify(`Launch blocked: ${error}`)} onRefetch={(g) => setFetchPickerGame(g)} onRevealFolder={async (g) => { if (!isElectron) return notify('Open: ' + g.exePath); const result = await nativeApi.revealInFolder(g.exePath); if (!result?.ok) notify(result?.error || 'Could not open this game folder.'); else if (result?.missingTarget) notify('The configured game file is missing, so NEO-LIB opened its containing folder instead.'); }} onToggleCategory={toggleGameInCategory} onCustomize={(g) => setEditMetaGame(g)} onOpenSaveManager={(g) => setSaveManagerGame(g)} onUpdateGame={updateGame} onLocateManagedTool={locateManagedTool} onInstallManagedTool={installManagedTool} managedToolInstalling={managedToolInstallId === selected?.id} />}</AnimatePresence>
+<AnimatePresence mode="wait">{isLibraryTool(selected) ? <ToolDetail key={selected?.id || 'empty'} tool={canonicalTool(selected)} minimalistic={settings.interfaceMode === 'minimalistic'} onLaunch={(tool, token) => launchGame(tool, token, true)} onRefetch={(tool) => { setToolMetadataTarget(tool); setShowAdd(true); }} onRevealFolder={async (tool) => { if (!isElectron) return notify('Open: ' + tool.exePath); const result = await nativeApi.revealInFolder(tool.exePath); if (!result?.ok) notify(result?.error || 'Could not open this tool folder.'); }} onLocateManagedTool={locateManagedTool} onInstallManagedTool={installManagedTool} installing={managedToolInstallId === selected?.libraryToolId} /> : <GameDetail key={selected?.id || 'empty'} game={selected} categories={currentCats.filter((c) => !c.private || unlockedCategories.includes(c.id))} fetching={fetching} settings={settings} onPreviewLayoutChange={previewLayout => updateSetting({ previewLayout })} onLaunch={(game, token, origin) => { launchOriginRef.current = origin || null; return launchGame(game, token); }} onLaunchError={(error) => notify(`Launch blocked: ${error}`)} onRefetch={(g) => setFetchPickerGame(g)} onRevealFolder={async (g) => { if (!isElectron) return notify('Open: ' + g.exePath); const result = await nativeApi.revealInFolder(g.exePath); if (!result?.ok) notify(result?.error || 'Could not open this game folder.'); else if (result?.missingTarget) notify('The configured game file is missing, so NEO-LIB opened its containing folder instead.'); }} onToggleCategory={toggleGameInCategory} onCustomize={(g) => setEditMetaGame(g)} onOpenSaveManager={(g) => setSaveManagerGame(g)} onUpdateGame={updateGame} onLocateManagedTool={locateManagedTool} onInstallManagedTool={installManagedTool} managedToolInstalling={managedToolInstallId === selected?.id} />}</AnimatePresence>
             )}
           </div>
         </main>
@@ -1616,6 +1599,8 @@ export default function App() {
         />
       </div>
       <AppUpdatePrompt info={updateInfo} paused={gameRestActive || lounge.active || firstRunPhase !== 'ready'} onReleaseNotes={openReleasesPage} onDownload={url => nativeApi?.openExternal ? nativeApi.openExternal(url) : window.open(url, '_blank', 'noopener,noreferrer')} />
+      <UpdateReminder info={updateInfo} paused={firstRunPhase !== 'ready'} settings={settings} onDownload={url => nativeApi?.openExternal ? nativeApi.openExternal(url) : window.open(url, '_blank', 'noopener,noreferrer')} />
+      <CalendarReminderAlarm paused={firstRunPhase !== 'ready'} mascotResting={gameRestActive} settings={settings} />
       <FungistMascot
         startupBlocked={firstRunPhase !== 'ready'}
         mascotId={settings.mascotId || 'fungist'}
@@ -1698,7 +1683,7 @@ export default function App() {
       <AppModalLayer
         context={{
           showAdd,
-          isTools,
+          isTools: toolMetadataTarget !== null,
           setShowAdd,
           addGame,
           toolMetadataTarget,

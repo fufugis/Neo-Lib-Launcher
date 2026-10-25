@@ -1,0 +1,136 @@
+// Isolated real Library layout/editor components; no player data or native API.
+const fs = require('node:fs'), path = require('node:path'), os = require('node:os'), assert = require('node:assert/strict');
+if (!process.versions.electron) {
+  const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE;
+  const result = require('node:child_process').spawnSync(require('electron'), [__filename], { env, stdio: 'inherit', windowsHide: true, timeout: 60000 });
+  if (result.error) console.error(result.error.message);
+  process.exit(result.status ?? 1);
+}
+const { app, BrowserWindow } = require('electron');
+app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'neolib-preview-editor-')));
+app.whenReady().then(async () => {
+  const root = path.resolve(__dirname, '..');
+  const esbuild = require('node:module').createRequire(require.resolve('vite'))('esbuild');
+  const bundle = await esbuild.build({ stdin: { resolveDir: root, loader: 'jsx', contents: `
+    import React from 'react'; import {createRoot} from 'react-dom/client'; import {flushSync} from 'react-dom';
+    import Page from './src/components/preview/PreviewPageLayout.jsx'; import {PREVIEW_SECTIONS} from './src/components/preview/preview-layout-model.mjs';
+    import GameDetail from './src/components/GameDetail.jsx';
+    window.commits=0; window.actions=0;
+    const initial={version:1,snap:false,order:PREVIEW_SECTIONS.map(s=>s.id),positions:Object.fromEntries(PREVIEW_SECTIONS.map((s,i)=>[s.id,{x:0,y:i*170,width:s.id==='hero'?1:.48,height:160}]))};
+    const blocks=Object.fromEntries(PREVIEW_SECTIONS.map(s=>[s.id,<section ref={s.id==='hero'?node=>window.heroNode=node:undefined} style={{height:120,padding:10,background:s.id==='hero'?'linear-gradient(90deg,#285580,#a1719f)':'#35475c',color:'white',fontSize:16}}><h2>{s.label}</h2><p>Selected game's real section content.</p><button onClick={()=>window.actions++}>Example action</button></section>]));
+    function Fixture(){const [layout,setLayout]=React.useState(initial);return <Page blocks={blocks} savedLayout={layout} onLayoutChange={next=>{window.commits++;window.saved=next;setLayout(next)}}/>}
+    const renderRoot=createRoot(document.getElementById('root'));
+    const testGame={id:'actual-game',name:'Actual banner resize test',exePath:'C:/Fixture/Game.exe',description:'Readable game description. '.repeat(25),headerImage:'data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600"><rect width="1200" height="600" fill="teal"/></svg>')};
+    function ActualFixture(){const [layout,setLayout]=React.useState({...initial,positions:{...initial.positions,hero:{x:0,y:0,width:1,height:480},notices:{x:0,y:500,width:1,height:300}}});return <GameDetail game={testGame} categories={[]} settings={{previewLayout:layout,soundsEnabled:false}} onPreviewLayoutChange={value=>{window.actualSaved=value;setLayout(value)}}/>}
+    window.showActual=()=>{window.api={latestNewsForGame:async()=>({ok:true,item:{title:'Fixture update news',snippet:'This card also resizes.',date:Date.now()}}),scanGameUpdates:async()=>({items:[{platform:'steam',remainingBytes:1048576}]})};flushSync(()=>renderRoot.render(<ActualFixture/>));};
+    flushSync(()=>renderRoot.render(<Fixture/>));void 0;
+  ` }, bundle: true, write: false, format: 'iife', define: { 'process.env.NODE_ENV': '"development"', 'import.meta.env.BASE_URL': '"./"' }, plugins:[{name:'fixture-stock-assets',setup(build){build.onLoad({filter:/stock-theme-registry\.mjs$/},args=>({loader:'js',contents:fs.readFileSync(args.path,'utf8').replace(/^const (modules|assets) = import\.meta\.glob\(.*$/gm,'const $1 = {};')}));}}] });
+  const win = new BrowserWindow({ show: false, useContentSize: true, width: 1600, height: 1000, webPreferences: { sandbox: true, contextIsolation: true, backgroundThrottling: false, offscreen: true } });
+  await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent('<!doctype html><body style="margin:0;--panel:30 40 60;--surface:20 30 45;--ink:240 245 255;--muted:180 195 210;--border:90 110 140;--accent:100 200 255;--accent-2:220 160 255"><div id="root" style="height:100vh;display:flex"></div></body>'));
+  const assets = path.join(root, 'dist-renderer/assets');
+  await win.webContents.insertCSS(fs.readFileSync(path.join(assets, fs.readdirSync(assets).find(name => /^index-.*\.css$/.test(name))), 'utf8') + '\n' + fs.readFileSync(path.join(root, 'src/styles.css'), 'utf8'));
+  await win.webContents.executeJavaScript(bundle.outputFiles[0].text);
+  win.webContents.focus();
+  const run = code => win.webContents.executeJavaScript(code);
+  const settle = () => new Promise(resolve => setTimeout(resolve, 100));
+  const click = async selector => { await run(`document.querySelector(${JSON.stringify(selector)}).click()`); await settle(); };
+  const range = async (label, value) => { await run(`(()=>{const e=document.querySelector('input[aria-label="${label}"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,'${value}');e.dispatchEvent(new Event('input',{bubbles:true}));})()`); await settle(); };
+  const checkBannerButton = async () => {
+    assert.equal(await run(`(()=>{const b=document.querySelector('[data-testid="preview-edit-layout"]');const hero=b.closest('[data-preview-section="hero"]');if(!hero)return false;const r=b.getBoundingClientRect(),h=hero.getBoundingClientRect();return r.top>=h.top&&r.bottom<=h.bottom&&r.right<=h.right&&r.right>=h.right-16})()`),true,'Edit button belongs to the banner top-right');
+    assert.equal(await run(`(()=>{const p=document.querySelector('[data-testid="preview-page-layout"]').getBoundingClientRect();const v=document.querySelector('[data-testid="preview-layout-fit"]').getBoundingClientRect();return Math.abs(p.top-v.top)<1})()`),true,'No toolbar reserves space above the preview');
+  };
+  await settle(); await checkBannerButton();
+  await settle(); await click('[data-testid="preview-edit-layout"]');
+assert.equal(await run(`document.querySelectorAll('[data-live-preview-section]').length`), 8);
+  assert.equal(await run(`document.querySelector('.preview-layout-live-content').inert`), true);
+  assert.equal(await run(`window.heroNode.isConnected && !window.heroNode.closest('[data-testid="preview-layout-live"]')`), true, 'miniature does not steal the actual hero DOM ref');
+  assert.equal(await run(`document.querySelector('[data-testid="preview-layout-inspector"] h3').textContent`), 'Hero, title and launch controls');
+  const selectDescription = async () => {
+    const p = await run(`(()=>{const r=document.querySelector('.home-editor-widget-move[aria-label="Move Description and genres"]').getBoundingClientRect();return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`);
+    win.webContents.sendInputEvent({type:'mouseMove',...p});
+    win.webContents.sendInputEvent({type:'mouseDown',modifiers:['leftButtonDown'],button:'left',clickCount:1,...p});
+    await settle();
+    win.webContents.sendInputEvent({type:'mouseUp',button:'left',clickCount:1,...p}); await settle();
+  };
+  await selectDescription();
+  assert.equal(await run(`document.querySelector('[data-testid="preview-layout-inspector"] h3').textContent`), 'Description and genres');
+  await range('Section content size', 130);
+  assert.equal(await run(`document.querySelector('[data-live-preview-section="description"] .preview-section-content').style.zoom`), '1.3');
+  await range('Section X position', 160); await range('Section Y position', 800);
+  const box = () => run(`(()=>{const e=document.querySelector('[data-editor-widget-id="description"]');return {left:e.style.left,top:e.style.top,width:e.style.width,height:e.style.height}})()`);
+  assert.equal((await box()).left, '160px'); assert.equal((await box()).top, '800px');
+  assert.equal(await run('window.commits'), 0, 'sliders are draft-only');
+  const before = await box();
+  const point = await run(`(()=>{const r=document.querySelector('.home-editor-widget-move[aria-label="Move Description and genres"]').getBoundingClientRect();return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`);
+  await run(`document.addEventListener('pointerdown',e=>window.pointerId=e.pointerId,true)`);
+  win.webContents.sendInputEvent({ type: 'mouseMove', ...point });
+  win.webContents.sendInputEvent({ type: 'mouseDown', modifiers: ['leftButtonDown'], button: 'left', clickCount: 1, ...point }); await settle();
+  win.webContents.sendInputEvent({ type: 'mouseMove', modifiers: ['leftButtonDown'], x: point.x + 35, y: point.y + 15 }); await settle();
+  // Windows hidden-window capture can swallow synthetic native moves. Also
+  // exercise the real React move handler with the captured native pointer ID.
+  await run(`document.querySelector('.home-editor-widget-move[aria-label="Move Description and genres"]').dispatchEvent(new PointerEvent('pointermove',{pointerId:window.pointerId,pointerType:'mouse',buttons:1,clientX:${point.x + 35},clientY:${point.y + 15},bubbles:true}))`); await settle();
+  const liveX = await run(`document.querySelector('[data-live-preview-section="description"]').style.left`);
+  assert.notEqual(liveX, before.left, 'live preview follows an in-progress drag');
+  win.webContents.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, x: point.x + 35, y: point.y + 15 }); await settle();
+  const released = await box(); assert.notDeepEqual(released, before);
+  win.webContents.sendInputEvent({ type: 'mouseMove', x: point.x + 70, y: point.y + 40 }); await settle();
+  assert.deepEqual(await box(), released, 'Library fit-to-window release detaches the section');
+  await click('[data-testid="editor-preview-toggle"]');
+  assert.equal(await run(`!!document.querySelector('[data-testid="preview-layout-live"]')`), false);
+  assert.equal(await run(`window.heroNode?.isConnected`), true, 'turning preview off does not clear the actual hero ref');
+  await click('[data-testid="editor-preview-toggle"]');
+  assert.equal(await run(`!!document.querySelector('[data-testid="preview-layout-live"]')`), true);
+  await click('[data-testid="home-editor-save"]');
+  assert.equal(await run('window.saved.contentSizes.description'), 130);
+  assert.equal(await run(`document.querySelector('[data-preview-section="description"] .preview-section-content').style.zoom`), '1.3');
+  await click('[data-testid="preview-edit-layout"]');
+  await selectDescription();
+  assert.equal(await run(`document.querySelector('input[aria-label="Section content size"]').value`), '130');
+  const previewPath = path.join(os.tmpdir(), `neolib-library-editor-${Date.now()}.png`);
+  fs.writeFileSync(previewPath, (await win.webContents.capturePage()).toPNG());
+  console.log('Editor preview:', previewPath);
+  await range('Section content size', 75);
+  await click('[data-controller-close]');
+  assert.equal(await run('window.commits'), 1, 'Cancel does not persist the changed content size');
+  assert.equal(await run(`document.querySelector('[data-preview-section="description"] .preview-section-content').style.zoom`), '1.3');
+  assert.equal(await run('window.actions'), 0);
+  await run('window.showActual();void 0'); await settle(); await settle();
+  const actualBox = id => run(`(()=>{const e=document.querySelector('[data-preview-section="${id}"]');return {width:e.offsetWidth,height:e.offsetHeight}})()`);
+  const originalHero = await actualBox('hero');
+  await click('[data-testid="preview-edit-layout"]');
+  await range('Section width', 900); await range('Section height', 320);
+  await run(`document.querySelector('[aria-label="Resize Hero, title and launch controls"]').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true}));void 0`); await settle();
+  await click('[data-testid="home-editor-save"]'); await settle();
+  assert.equal(await run('window.actualSaved.positions.hero.height'),320);
+  assert((await actualBox('hero')).width<originalHero.width,'Actual hero width is not inflated by action controls');
+  assert((await actualBox('hero')).height<originalHero.height,'Actual hero height shrinks instead of restoring aspect-ratio padding');
+  const resizedHero=await actualBox('hero');
+  await new Promise(resolve=>setTimeout(resolve,350));
+  assert.deepEqual(await actualBox('hero'),resizedHero,'No feedback growth after repeated measurements');
+  await click('[data-testid="preview-edit-layout"]');
+  assert.equal(await run(`document.querySelector('[aria-label="Section height"]').value`),'320','Reopen preserves requested banner height');
+  // Select the actual notice section using the same native press/release path.
+  const noticePoint=await run(`(()=>{const r=document.querySelector('[aria-label="Move Setup, updates and news"]').getBoundingClientRect();return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`);
+  win.webContents.sendInputEvent({type:'mouseMove',...noticePoint});win.webContents.sendInputEvent({type:'mouseDown',button:'left',clickCount:1,...noticePoint});await settle();win.webContents.sendInputEvent({type:'mouseUp',button:'left',clickCount:1,...noticePoint});await settle();
+  await range('Section width',650);await range('Section height',130);
+  await click('[data-testid="home-editor-save"]');await settle();
+  assert.equal(await run('window.actualSaved.positions.notices.height'),130);
+  assert((await actualBox('notices')).width<=651,'Actual game update/news cards respect the narrowed box');
+  await click('[data-testid="preview-edit-layout"]');
+  await click('[data-controller-close]');
+  assert.equal(await run('window.actualSaved.positions.notices.height'),130);
+  win.setContentSize(1100,700);await settle();await settle();
+  const smallHero=await actualBox('hero');assert(smallHero.width<resizedHero.width&&smallHero.height>=320,'Window resize wraps controls without scaling away the requested height');
+  win.setContentSize(1600,1000);await settle();await settle();
+  assert.deepEqual(await actualBox('hero'),resizedHero,'Returning to the original window restores responsive geometry without drift');
+  await checkBannerButton();
+  await click('[data-testid="preview-edit-layout"]');
+  await click('[data-testid="preview-restore-default"]');await settle();await settle();
+  assert.equal(await run('window.actualSaved'),null,'Restore default remains available inside the editor');
+  await checkBannerButton();
+  assert.equal(await run(`document.querySelector('[data-testid="preview-restore-default"]')===null`),true,'Only Edit is shown outside the editor');
+  await click('[data-testid="preview-edit-layout"]');await click('[data-controller-close]');
+  console.log('PASS: actual GameDetail banner/title/actions and update/news boxes resize, Save/reopen retains requested sizes, repeated fitting is stable and window resizing reflows without shrinking text.');
+  console.log('PASS: actual Library preview editor, real-block/current-window miniature, selected inspector, content/X/Y sliders, scripted in-progress pointer move with native selection/release, toggle, Save/reopen sizing and Cancel isolation. No real library or native bridge.');
+  win.destroy(); app.quit();
+}).catch(error => { console.error(error); app.exit(1); });

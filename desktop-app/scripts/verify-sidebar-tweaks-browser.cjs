@@ -102,7 +102,7 @@ app.whenReady().then(async () => {
     check(getComputedStyle(icon).filter.includes('saturate(2)'), 'icons reach maximum saturation');
     check(getComputedStyle(button).borderTopColor !== coloredBorder, 'border chroma increases at maximum');
     setSaturation(0);
-    click('Reorder buttons');
+    click('Move icons');
     const move = document.querySelector('[aria-label="Move Library up"]'); flushSync(() => move.click());
     check(saved.order.indexOf('tab-library') < saved.order.indexOf('tab-home'), 'reorder control saves correct order');
     check(nav.querySelector('button').getAttribute('aria-label') === 'Library', 'DOM order matches saved custom order');

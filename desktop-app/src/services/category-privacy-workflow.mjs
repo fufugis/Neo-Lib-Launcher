@@ -44,6 +44,7 @@ export function createCategoryPrivacyWorkflow({
     notify(`Category "${c.name}" created`);
   };
   const updateCategory = (id, patch) => {
+    if((library.categories||[]).some(category=>category.id===id&&category.system==='tools'))return;
     setLibrary((prev) => ({
       ...prev,
       [sliceK.cats]: (prev[sliceK.cats] || []).map((c) => (c.id === id ? { ...c, ...patch } : c)),
@@ -58,6 +59,7 @@ export function createCategoryPrivacyWorkflow({
   // playtime and the game itself always remain in the library.
   const requestDeleteCategory = async (category) => {
     if (!category) return;
+    if(category.system==='tools'){notify('Tools is an automatic Library category. Remove individual tool entries instead.');return;}
     if (category.private && !unlockedCategories.includes(category.id)) {
       setPinThen(() => (pin) => {
         if (hashPin(pin) === category.pinHash) {
@@ -80,7 +82,7 @@ export function createCategoryPrivacyWorkflow({
   };
   
   const clearRegularCategories = async () => {
-    const count = (library.categories || []).filter((category) => !category.private).length;
+    const count = (library.categories || []).filter((category) => !category.private&&category.system!=='tools').length;
     if (!count) return;
     const confirmed = await askConfirm({
       title: `Remove ${count} regular ${count === 1 ? 'category' : 'categories'}?`,
@@ -101,6 +103,7 @@ export function createCategoryPrivacyWorkflow({
   
   /* --- Drag & drop --- */
   const moveGameToCategory = (gameId, fromCatId, toCatId, opts = {}) => {
+    if((library.categories||[]).some(category=>category.id===toCatId&&(category.system==='tools'||category.libraryToolCategoryId))&&!(library.games||[]).find(item=>item.id===gameId)?.libraryToolId){notify('Use Add tool for software utilities; games stay games.');return;}
     setLibrary((prev) => moveWorkspaceItem(prev, settings.mode, gameId, fromCatId, toCatId, {
       copy: opts.copy, beforeItemId: opts.beforeGameId,
     }));
@@ -111,6 +114,8 @@ export function createCategoryPrivacyWorkflow({
   };
   
   const toggleGameInCategory = (game, categoryId) => {
+    if((library.categories||[]).some(category=>category.id===categoryId&&category.system==='tools'))return;
+    if((library.categories||[]).some(category=>category.id===categoryId&&category.libraryToolCategoryId)&&!game.libraryToolId){notify('That category contains tools; games stay in game categories.');return;}
     const has = (game.categoryIds || []).includes(categoryId);
     updateGame(game.id, {
       categoryIds: has
@@ -137,6 +142,7 @@ export function createCategoryPrivacyWorkflow({
     const c = catCtx.category;
     setCatCtx({ open: false, category: null, anchor: null });
     if (!c) return;
+    if(c.system==='tools'&&!['up','down'].includes(action))return;
     if (action === 'edit' || action === 'recolor') {
       setCatModal({ open: true, initial: c });
     } else if (action === 'delete') {

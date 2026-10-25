@@ -313,7 +313,7 @@ assert.match(loungeGamePanel, /data-neolib-launch="true"/, 'Lounge launch needs 
 assert.match(loungeGamePanel, /armGameLaunch/, 'Lounge launch must request a one-use authorization token');
 assert.match(loungeGamePanel, /role="dialog" aria-modal="true"/, 'Lounge details must own controller focus while open');
 assert.match(loungeGamePanel, /lounge-detail-actions/, 'Lounge details keep the protected launch action visible outside the scrolling facts');
-assert.match(loungeGamePanel, /portraitArtwork\(game\)/, 'Lounge details remain artwork-led when no wide image exists');
+assert.match(loungeGamePanel, /<GameArtwork game=\{game\} role="hero"/, 'Lounge details recover through other same-game images when the hero is missing or broken');
 assert.match(loungeGamePanel, /aria-label="Previous game"/, 'Lounge details can browse to the previous game without closing');
 assert.match(loungeGamePanel, /aria-label="Next game"/, 'Lounge details can browse to the next game without closing');
 assert.match(loungeGamePanel, /data-controller-screenshot="true"/, 'screenshots are reachable with the gamepad focus system');
@@ -326,7 +326,7 @@ assert.match(loungeHook, /preserveForGame\.current/, 'Lounge must remain active 
 assert.match(lounge, /possible update flagged/, 'assistive labels must expose a possible update without overstating it');
 assert.match(loungeCover, /loading="lazy" decoding="async"/, 'offscreen covers should avoid eager decoding');
 assert.match(loungeCover, /onError=\{\(\) => rejectPortrait\(portrait\)\}/, 'failed cover candidates must advance to the next portrait or safe fallback');
-assert.match(loungeCover, /hasPortraitDimensions\(naturalWidth, naturalHeight\)/, 'Lounge must verify a cover is actually portrait before showing it');
+assert.match(loungeCover, /naturalWidth > 0 && naturalHeight > 0/, 'Lounge verifies usable pixels without rejecting landscape fallback art');
 assert.doesNotMatch(loungeCover, /setFailedBackdropUrl|object-contain/, 'a wide backdrop must not be shown as a horizontal strip in a portrait card');
 assert.match(lounge, /data-lounge-filter/);
 assert.match(styles, /\.lounge-filter-toggle\[aria-pressed='true'\] \{ border-color: rgb\(var\(--accent\) \/ 0\.95\); background: rgb\(var\(--accent\) \/ 0\.34\)/, 'the active Lounge filter uses a strong theme-accent border and fill');
@@ -366,7 +366,7 @@ assert.match(lounge, /<LoungeLivingBackdrop theme=\{effectiveTheme\}/, 'both Lou
 assert.match(lounge, /resting=\{resting \|\| idlePowerSaving \|\| !pageVisible \|\| editingOpen\}/, 'the large theme FX pause during idle or behind Lounge editing menus');
 assert.match(lounge, /const reducedMotion = settingsOpen \|\| soundOpen \|\| visualOpen \|\| themesOpen/, 'editing applies geometry immediately without background carousel glide');
 assert.match(lounge, /React\.useMemo\(\(\) => filterLoungeLetter\(viewGames, letter\)/, 'slider edits do not refilter the game library');
-assert.match(loungeCover, /export default React\.memo\(LoungeCover\)/, 'cover images do not rerender on every slider step');
+assert.match(loungeCover, /export default React\.memo\(RetryingLoungeCover\)/, 'cover images do not rerender on every slider step');
 assert.match(loungeCover, /!portrait && backdrop && !failedBackdrop && <img/, 'valid portrait candidates do not also fetch a large fallback backdrop for every carousel card');
 assert.match(loungeCover, /!portraitVisible && <span className="pointer-events-none absolute inset-0 bg-gradient/, 'fallback overlays stop painting behind successfully loaded portrait covers');
 assert.doesNotMatch(loungeSettings, /backdrop-blur-(?:md|lg)/, 'settings do not blur a full-screen animated background');
@@ -525,12 +525,12 @@ for (const variable of ['--lounge-wave-drift', '--lounge-bloom-spread', '--loung
 }
 assert.match(styles, /\.lounge-browser-stage\.lounge-scene-stage::after \{ content: none !important; display: none !important; \}/, 'the transparent scene preview suppresses the later generic frame rule');
 assert.match(loungeCover, /const portraitVisible = Boolean\(portrait && approvedPortraitUrl === portrait\)/, 'only an approved image instance can reveal the portrait');
-assert.match(loungeCover, /decodedPortraits.has\(portrait\) && image\?\.complete && hasPortraitDimensions/, 'cached validation requires this element to have valid loaded pixels before paint');
+assert.match(loungeCover, /decodedPortraits.has\(portrait\) && image\?\.complete && image.naturalWidth > 0 && image.naturalHeight > 0/, 'cached validation requires this element to have valid loaded pixels before paint');
 assert.match(loungeCover, /await image.decode\(\)[\s\S]*if \(image.isConnected\)[\s\S]*decodedPortraits.set\(portrait, true\)/, 'shared approval is populated only after successful decode on a connected image');
 assert.match(loungeCover, /decodedPortraits.size > 512/, 'shared portrait approval remains bounded');
 assert.match(loungeCover, /const rejectPortrait = url => \{\s*decodedPortraits.delete\(url\)/, 'a failed URL loses shared approval');
-assert.match(loungeCover, /portraitArtworkCandidates\(game\)/, 'Lounge can fall through from bad artwork to another real portrait-cover candidate');
-assert.match(loungeCover, /hasPortraitDimensions\(naturalWidth, naturalHeight\)/, 'wide artwork is rejected as a portrait cover instead of being cropped');
+assert.match(loungeCover, /gameArtworkCandidates\(game, 'cover'\)/, 'Lounge can fall through from bad artwork to another same-game asset or generated image');
+assert.match(loungeCover, /setCoverFit\(naturalHeight >= naturalWidth \* 1.15 \? 'cover' : 'contain'\)/, 'Wide fallback art keeps its proportions rather than being stretched or cropped');
 assert.match(loungeCover, /function fallbackArtwork\(game\)/, 'missing portrait covers can use the game’s own art as a cohesive atmospheric fallback');
 assert.match(loungeCover, /lounge-cover-fallback-art/, 'the fallback artwork layer remains directly testable');
 assert.match(loungeCover, /<Gamepad2 size=\{22\}/, 'the fallback uses a compact game icon rather than a giant letter');

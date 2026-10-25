@@ -12,7 +12,7 @@ assert(V188_CHANGELOG.items.every(item => typeof item === 'string' && item.lengt
 assert.equal(CHANGELOG[0], V188_CHANGELOG);
 assert.deepEqual(getChangesSince('1.8.7'), [V188_CHANGELOG], '1.8.7 upgrades receive only the new hotfix notes');
 assert.equal(UPCOMING_CHANGELOG.unreleased, true);
-assert.equal(UPCOMING_CHANGELOG.major.length, 0);
+assert(UPCOMING_CHANGELOG.major.every(item => item.title && item.body && item.body.length < 180), 'Upcoming features remain concise');
 assert.equal(UPCOMING_CHANGELOG.fixes.length, 0, 'Hotfix notes must not also remain Upcoming');
 assert.equal(V187_CHANGELOG.major.length, 10, 'Previous feature highlights are preserved');
 assert.equal(V186_CHANGELOG.major.length, 0, 'Recovery notes must not relabel features as new');
@@ -20,18 +20,24 @@ assert(V186_CHANGELOG.fixes.length > 0, 'Recovery history is preserved');
 
 const read = file => fs.readFileSync(new URL(file, import.meta.url), 'utf8');
 const modal = read('../src/components/ChangelogModal.jsx');
-assert(modal.includes('showHistory ? CHANGELOG : entries.slice(0, 1)'));
-assert(modal.includes('Older release highlights'));
-assert(modal.includes('items: entry.items || []'), 'Concise hotfix items are rendered, not filtered out like empty feature lists');
+assert(modal.includes('recentReleaseNotes(currentVersion)'));
+assert(modal.includes("if (open) setSelectedVersion(releases[0]?.version || 'upcoming')"));
+assert(modal.includes('Latest five releases'));
+assert(modal.includes('<ChangelogReleaseNotes entry={entry} />'));
 assert(!modal.includes('Fixes, adjustments & polish'));
-assert(modal.includes('if (!open) setShowHistory(false)'));
+const { recentReleaseNotes, releaseSections } = await import('../src/components/changelog/release-history-model.mjs');
+assert.deepEqual(recentReleaseNotes('1.8.10').map(e => e.version), ['1.8.10','1.8.9','1.8.8','1.8.7','1.8.6']);
+assert.deepEqual(recentReleaseNotes('v1.8.8').map(e => e.version), ['1.8.8','1.8.7','1.8.6','1.8.5','1.8.4']);
+assert(releaseSections(V186_CHANGELOG).some(s => s.title === 'Fixes' && s.items.length));
+assert.equal(recentReleaseNotes('1.8.10', [V188_CHANGELOG,V188_CHANGELOG,UPCOMING_CHANGELOG]).length, 1);
 
 const news = read('../../NEWS_CHANGELOG.md'), release = read('../../RELEASE_NOTES_v1.8.8.md');
 for (const body of [news, release]) {
   assert(body.includes('NEO-LIB v1.8.8'));
-  assert.equal(body.split(/\r?\n/).filter(line => line.startsWith('- ')).length, 5);
+  assert.equal(body.split(/\r?\n## Upcoming/)[0].split(/\r?\n/).filter(line => line.startsWith('- ')).length, 5);
   for (const item of V188_CHANGELOG.items) assert(body.includes('- ' + item), 'GitHub and in-app hotfix notes match');
 }
 const previous = read('../../RELEASE_NOTES_v1.8.7.md');
+for (const item of UPCOMING_CHANGELOG.major) assert(news.includes('**' + item.title + ':** ' + item.body), 'Upcoming GitHub/in-app highlights match');
 for (const item of V187_CHANGELOG.major) assert(previous.includes('**' + item.title + ':** ' + item.body));
 console.log('PASS: five concise matching v1.8.8 hotfix notes, visible modal items, 1.8.7 upgrade selection and preserved release history.');

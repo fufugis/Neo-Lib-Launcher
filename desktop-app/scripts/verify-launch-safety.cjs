@@ -20,7 +20,7 @@ const checks = [
   ['No executable path follows a PowerShell command script', !/execFile\(['"]powershell\.exe['"][\s\S]{0,300}['"]-Command['"][\s\S]{0,300}(?:script\s*,\s*exePath|exePath\s*\])/m.test(`${main}\n${versionEvidence}`)],
   ['Native launch requires a one-time authorization', main.includes('remainingIpcServices["game:armLaunch"]') && gameIpc.includes('registerIpc("game:armLaunch"') && launchService.includes('blocked-missing-launch-authorization')],
   ['Preload arms only after a trusted event on the visible Launch control', preload.includes("event.isTrusted") && preload.includes("[data-neolib-launch]") && preload.includes('launchIntentExpiresAt = 0')],
-  ['Renderer carries the native launch token into game:launch', app.includes("const launchGame = async (g, launchToken = '')") && app.includes('name: g.name, launchToken,')],
+  ['Renderer carries the native launch token into game:launch', app.includes("const launchGame = async (g, launchToken = '', forceTool = false)") && app.includes('name: g.name, launchToken,')],
   ['Only the visible Launch control requests authorization', !detail.includes('window.api?.armGameLaunch') && previewActionBar.includes('window.api?.armGameLaunch') && previewActionBar.includes('data-neolib-launch="true"')],
   ['Mascot imports its extracted notification preference helper', /import\s*\{[^}]*notificationEnabled[^}]*\}\s*from\s*['"]\.\/mascot\/fungist-model\.mjs['"]/.test(mascot)],
   ['Renderer shows a local recovery screen when startup fails', rendererEntry.includes("import('./App.jsx')") && rendererEntry.includes('class StartupBoundary') && rendererEntry.includes('<StartupFailure error={error} />')],

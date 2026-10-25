@@ -1,5 +1,9 @@
 # Library 3D graphics
 
+Three additional full-height material surfaces—Carbon Weave, Obsidian Slate and
+Hammered Titanium—are documented with original prompts and asset processing in
+[material-textures.md](material-textures.md). They use the same opacity/None controls.
+
 ## Full-height Library textures
 
 Star Trails, Dragon Sketches and Retro Doodles were generated with the built-in image tool as 1024×1536 transparent portrait assets. Their PNG originals are retained, full-size WebP files keep alpha, and 160px thumbnails serve the picker. These three use 100% × 100% sizing over the entire Library backdrop: no uncovered strip or cropped top/bottom; proportions adapt to the panel. Shared opacity and None remain available. Shooting-star trails are static artwork, not animation.
