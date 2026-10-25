@@ -97,6 +97,14 @@ jobs:
           Write-Host "Renderer OK"
         shell: pwsh
 
+      - name: Verify built application and patch history
+        shell: pwsh
+        run: |
+          node scripts/verify-stability-production.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Production application smoke test failed.' }
+          node scripts/verify-changelog-history-browser.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Patch history interaction test failed.' }
+
       - name: Build NSIS installer (verbose)
         # `--publish never` prevents electron-builder from trying to talk to GH releases
         # mid-build (we attach assets via action-gh-release in a later step instead).
@@ -159,7 +167,7 @@ jobs:
           draft: true
           prerelease: false
           generate_release_notes: false
-          body_path: RELEASE_NOTES_v1.8.8.md
+          body_path: RELEASE_NOTES_v1.8.11.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

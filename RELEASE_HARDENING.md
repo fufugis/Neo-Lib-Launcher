@@ -1,5 +1,15 @@
 # Release hardening checklist
 
+## Current candidate — v1.8.11 (2026-10-25)
+
+This candidate includes the completed pending Library, Home, sidebar, news and
+stability work and preserves both isolated published crash hotfixes. Its concise
+feature list is in RELEASE_NOTES_v1.8.11.md and the matching in-app release entry.
+Windows CI must pass source checks, packaging and candidate inspection before
+publishing all four assets. NEO-LIB-Setup.exe remains the fixed installer name.
+Hands-on installed acceptance remains separate in WINDOWS_ACCEPTANCE_V1.8.11.md.
+The older candidate and build records below are historical evidence only.
+
 ## Current candidate — v1.8.7 (2026-10-17)
 
 Local candidate built and inspected: Build ID DBC15379283B; configured feedback, optional usage endpoint and packaged privacy text verified. All source gates and isolated update/sidebar/performance browser fixtures pass. The installer and portable ZIP, versioned candidate report and checksum file are in desktop-app/dist. The installer is unsigned. Installed upgrade/finish-page behavior and physical-controller/visual acceptance remain unchecked in WINDOWS_ACCEPTANCE_V1.8.7.md; no publication or source push occurred.

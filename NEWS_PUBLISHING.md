@@ -48,3 +48,13 @@ No receipt or popup confirmation is sent back to the operator.
 
 The operator manually confirmed receipt and working popup/mailbox on 2026-10-17.
 That confirms the original live-feed path, not acceptance of the newer presentation.
+
+## Operator welcome message — 2026-10-18
+
+Published in main commit 161d708: `news-2026-10-18-kenneth-welcome-01`, title
+**A message from Kenneth**, using the operator's exact welcome/feedback/suggestions
+text. No expiry was specified; this remains available for new deliveries until
+removed from the feed. Existing received copies remain in each local mailbox.
+The shipped reader was independently used to fetch and verify the exact public
+entry; once-only merge and deletion memory checks passed. This verifies the feed,
+not a receipt from every client. No installer update or release was required.
