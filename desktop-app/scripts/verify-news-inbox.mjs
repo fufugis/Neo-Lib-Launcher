@@ -67,7 +67,8 @@ await assert.rejects(fetchNewsFeed({ fetchImpl: async () => new Response('{}', {
 await assert.rejects(fetchNewsFeed({ fetchImpl: async () => new Response('x'.repeat(MAX_FEED_BYTES + 1)), now }));
 const aborted = new AbortController(); aborted.abort();
 await assert.rejects(fetchNewsFeed({ fetchImpl: fakeFetch, signal: aborted.signal, now }));
-const source = relative => fs.readFileSync(fileURLToPath(new URL(relative, import.meta.url)), 'utf8');
+// GitHub's Windows checkout uses CRLF; source wiring checks must be newline-neutral.
+const source = relative => fs.readFileSync(fileURLToPath(new URL(relative, import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
 const ui = source('../src/components/news/NewsInbox.jsx');
 const announcement = source('../src/components/news/NewsAnnouncement.jsx');
 assert(!ui.includes('dangerouslySetInnerHTML') && !ui.includes('eval('));
