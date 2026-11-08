@@ -2,6 +2,8 @@
 
 ## Current candidate — v1.8.12 (2026-11-08)
 
+Published and verified: successful Windows run 42513275365, tag a985bdd, candidate ID 2D7BEF3D4FA0. All four assets are public, fixed latest-download links return 200 and the actual live checker discovers this update from 1.8.11. Detailed digest/byte evidence and remaining installed checks are in WINDOWS_ACCEPTANCE_V1.8.12.md.
+
 Includes all completed local changes since v1.8.11: currently playing in the title bar, missing-game cleanup, live editor contents, proper Steam artwork and the listed UI/reset/theme fixes. Concise matching notes are in RELEASE_NOTES_v1.8.12.md. Windows CI must pass source checks, isolated interactions, packaging and candidate inspection before publication. The stable installer remains NEO-LIB-Setup.exe; installed acceptance is recorded separately in WINDOWS_ACCEPTANCE_V1.8.12.md. Older sections below are historical evidence.
 
 ## Current candidate — v1.8.11 (2026-10-25)

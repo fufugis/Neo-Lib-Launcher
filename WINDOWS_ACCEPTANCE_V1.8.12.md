@@ -4,11 +4,17 @@
 
 - [x] Full source gate: native commands have one registration and request/response contracts.
 - [x] Production renderer and isolated interaction regressions pass for the final candidate.
-- [ ] Windows packaging and candidate inspection pass on GitHub.
-- [ ] All four nonempty assets are published and latest downloads resolve.
-- [ ] The shipped update checker recognizes v1.8.12 from v1.8.11.
+- [x] Windows packaging and candidate inspection pass on GitHub.
+- [x] All four nonempty assets are published and latest downloads resolve.
+- [x] The shipped update checker recognizes v1.8.12 from v1.8.11.
 
-Publication and package evidence will be recorded after the tagged build completes.
+Published 2026-11-08 19:10 UTC / 20:10 Europe/Oslo. [Successful Windows run](https://github.com/fufugis/Neo-Lib-Launcher/actions/runs/42513275365) builds tag v1.8.12 at a985bdd8a3f10cbd34c6c6a7b68eca59bf424d37; candidate ID 2D7BEF3D4FA0. All four assets are nonempty. Downloaded report and checksum manifest agree with GitHub's server-side installer/portable digests and byte counts. Both fixed-name latest download HEAD requests return HTTP 200. The unchanged shipped update checker, called against live GitHub from v1.8.11, reports v1.8.12 available and selects the exact installer.
+
+- Installer: 251789008 bytes; SHA-256 97A1BB15735056DD7C4A48C60CC09630FDEAAC8749C56A762BB974ECFD9A0122.
+- Portable ZIP: 284704628 bytes; SHA-256 E7EBF745A34F02A0CCCBDFFF0798F16000146EAC831EDA7240AAB633CC5F8226.
+- Package report: 482 archive entries, 80 mascot/voice assets; feedback and Discord configuration verified present.
+
+The complete binaries were not downloaded or executed locally. Server digests and automated package inspection do not replace the installed checks below.
 
 The first unpublished Windows run exposed a check-order dependency: manual-add pointer verification needs built CSS but was also included before Vite. It remains mandatory after compilation, with the prebuild Wizard suite kept independent of generated output. The replacement tag/build will record the corrected source SHA.
 
