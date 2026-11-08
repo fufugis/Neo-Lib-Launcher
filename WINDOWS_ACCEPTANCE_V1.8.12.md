@@ -10,6 +10,8 @@
 
 Publication and package evidence will be recorded after the tagged build completes.
 
+The first unpublished Windows run exposed a check-order dependency: manual-add pointer verification needs built CSS but was also included before Vite. It remains mandatory after compilation, with the prebuild Wizard suite kept independent of generated output. The replacement tag/build will record the corrected source SHA.
+
 Local full prebuild, production compile (11.13s), compiled-app smoke, patch-history current v1.8.12 selection, in-box editor content, missing-game/reset, manual-add selection, launch mascot and Steam artwork interaction checks pass. Secret boundary and whitespace checks pass. All native interactions use synthetic/temporary profiles; actual installed interaction remains below.
 
 ## Installed Windows interaction — pending
