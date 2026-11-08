@@ -12,6 +12,8 @@ Publication and package evidence will be recorded after the tagged build complet
 
 The first unpublished Windows run exposed a check-order dependency: manual-add pointer verification needs built CSS but was also included before Vite. It remains mandatory after compilation, with the prebuild Wizard suite kept independent of generated output. The replacement tag/build will record the corrected source SHA.
 
+The next run passed compilation, app smoke, patch history, live editors, Library maintenance and manual-add checks. Its mascot fixture used an off-display native click on the runner's smaller virtual desktop. The fixture now sizes its window against the available display, derives the right-edge case from the actual viewport and verifies the click target before input; placement, bounds and click-through assertions remain mandatory.
+
 Local full prebuild, production compile (11.13s), compiled-app smoke, patch-history current v1.8.12 selection, in-box editor content, missing-game/reset, manual-add selection, launch mascot and Steam artwork interaction checks pass. Secret boundary and whitespace checks pass. All native interactions use synthetic/temporary profiles; actual installed interaction remains below.
 
 ## Installed Windows interaction — pending
