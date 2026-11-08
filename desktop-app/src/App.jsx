@@ -61,7 +61,7 @@ import { journeyStatusAfterFirstLaunch } from './lib/game-journey-model.mjs';
 import { externalRootForGame, normalizeExternalLibraryRoots } from './lib/externalLibraryRoots.mjs';
 import { applyStockThemePalette, stockThemeAssetUrl, customThemeCanvas, preloadSidebarArtwork } from './themes/stock-theme-registry.mjs';
 import { useCustomThemes } from './themes/use-custom-themes';
-const APP_VERSION = '1.8.11';
+const APP_VERSION = '1.8.12';
 import { uid, guessNameFromPath, hashPin, formatPlaytime } from './lib/utils';
 import { normalizeGenreProfile, GENRE_TAXONOMY_VERSION } from './lib/genreTaxonomy';
 import { setSoundPack } from './lib/sound';
@@ -1085,13 +1085,17 @@ export default function App() {
     onMascotActivity: setMascotActivity,
   });
 
-  const { exportLibraryBackup, importLibraryBackup, confirmCategoryRemoval, removeCategoriesById, resetLibraryGames } = createLibraryManagementWorkflow({
+  const libraryResetPending=React.useRef(false);
+  const { exportLibraryBackup, importLibraryBackup, confirmCategoryRemoval, removeCategoriesById, resetLibraryGames, removeMissingGames, relocateMissingGame } = createLibraryManagementWorkflow({
     library,
     setLibrary,
     setUnlockedCategories,
     setSelectedId,
     setSelectedToolId,
     nativeApi,
+    getLibrary: () => libraryRef.current,
+    saveLibrary: nativeApi?.saveLibrary ? value => nativeApi.saveLibrary(value) : async () => true,
+    resetPending: libraryResetPending,
     askConfirm,
     notify,
   });
@@ -1292,6 +1296,7 @@ export default function App() {
   const launcherFilter = settings.launcherFilter || 'all';
   const visibleGames = React.useMemo(() => filterByLauncher(currentItems, launcherFilter, isTools), [currentItems, isTools, launcherFilter]);
   const selected = visibleUnlockedGames(currentItems, currentCats, unlockedCategories).find((g) => g.id === currentSelectedId) || null;
+  const currentPlayingGame = visibleUnlockedGames(library.games, library.categories, unlockedCategories).find(game => !isLibraryTool(game) && game.id === (runningGame || externalRunningGame)?.id) || null;
   const libraryViewMode = settings.libraryViewMode || 'preview';
   const wallActive = settings.mode === 'library' && libraryViewMode === 'wall';
   const preferredLibraryEntry = React.useMemo(() => preferredLibraryGame(library.games || [], settings.lastGameId), [library.games, settings.lastGameId]);
@@ -1392,6 +1397,7 @@ export default function App() {
           newsMascotResting={gameRestActive}
           newsSettings={settings}
           search={search}
+          playingGame={currentPlayingGame}
           setSearch={setSearch}
           currentVersion={APP_VERSION}
           updateAvailable={updateInfo?.available || false}
@@ -1714,6 +1720,9 @@ export default function App() {
           confirmCategoryRemoval,
           removeCategoriesById,
           resetLibraryGames,
+          removeMissingGames,
+          relocateMissingGame,
+          maintenanceGames: visibleUnlockedGames(library.games, library.categories, unlockedCategories),
           themeStudioOpen,
           installedCustomThemes,
           refreshCustomThemes,

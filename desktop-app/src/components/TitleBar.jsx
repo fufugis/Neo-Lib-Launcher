@@ -2,11 +2,12 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Minus, Square, X, DownloadCloud, MessageCircle, MessagesSquare, Heart } from 'lucide-react';
 import NewsInbox from './news/NewsInbox';
+import GameArtwork from './GameArtwork';
 
 const DISCORD_INVITE = 'https://discord.gg/spk6QWREk8';
 const REDDIT_COMMUNITY = 'https://www.reddit.com/r/NeoLibLauncher/';
 
-export default function TitleBar({ search, setSearch, currentVersion, updateAvailable, latestVersion, onClickUpdate, onOpenFeedback, onDonate, newsPaused = false, newsMascotResting = false, newsSettings }) {
+export default function TitleBar({ search, setSearch, playingGame = null, currentVersion, updateAvailable, latestVersion, onClickUpdate, onOpenFeedback, onDonate, newsPaused = false, newsMascotResting = false, newsSettings }) {
   const openDiscord = () => {
     if (typeof window !== 'undefined' && window.api?.openExternal) window.api.openExternal(DISCORD_INVITE);
     else window.open(DISCORD_INVITE, '_blank');
@@ -89,7 +90,14 @@ export default function TitleBar({ search, setSearch, currentVersion, updateAvai
         <span className="absolute right-2 top-1/2 -translate-y-1/2 kbd">⌘K</span>
       </div>
 
-      <div className="flex-1" />
+      <div className="titlebar-playing-slot titlebar-nodrag" role="status" aria-live="polite" aria-atomic="true">
+        {playingGame && <div className="titlebar-playing" data-testid="titlebar-playing-game" title={`Currently playing: ${playingGame.name}`}>
+          <GameArtwork game={playingGame} role="icon" className="h-5 w-5 shrink-0 rounded object-cover" alt="" />
+          <span className="min-w-0 truncate"><span className="titlebar-playing-label">Playing · </span>{playingGame.name}</span>
+        </div>}
+      </div>
+
+      <div className="min-w-0 flex-1" />
 
       {/* Update available pill — only shown when GitHub releases reports a newer tag.
           The custom `update-pulse` class keeps it gently blinking so it's hard to miss. */}

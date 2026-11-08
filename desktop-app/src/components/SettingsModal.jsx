@@ -21,6 +21,7 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
   const [categoryRemoval, setCategoryRemoval] = React.useState(null);
   const [categoryPin, setCategoryPin] = React.useState('');
   const [categoryPinError, setCategoryPinError] = React.useState('');
+  const [resetBusy,setResetBusy]=React.useState(false),[resetNotice,setResetNotice]=React.useState('');
   const categories = library?.categories || [];
   const removalTarget = categoryRemoval?.queue?.[categoryRemoval.index] || null;
 
@@ -252,7 +253,9 @@ export default function SettingsModal({ open, onClose, settings, setSettings, on
                 {categoryPinError && <p role="alert" className="mt-2 text-[10px] text-rose-200">{categoryPinError}</p>}
                 <div className="mt-2 flex items-center justify-between gap-3"><button type="button" onClick={skipProtectedCategory} className="text-[10px] font-semibold text-muted underline decoration-dotted underline-offset-2 hover:text-ink">Skip this category and keep it</button><button type="button" onClick={() => { setCategoryRemoval(null); setCategoryPin(''); setCategoryPinError(''); }} className="text-[10px] text-muted hover:text-ink">Cancel all</button></div>
               </div>}
-              <button type="button" data-testid="settings-library-reset" onClick={() => onResetLibrary?.()} className="mt-2 flex w-full items-center gap-2 rounded-lg border border-rose-400/35 bg-rose-400/[0.055] px-3 py-2.5 text-left text-xs font-semibold text-rose-100 transition hover:border-rose-300/75 hover:bg-rose-400/10"><Trash2 size={15} className="text-rose-300" /> Reset and Clear Entire library</button>
+              <button type="button" data-testid="settings-library-reset" disabled={resetBusy} onClick={async () => {setResetBusy(true);setResetNotice('');try{const result=await onResetLibrary?.();if(result?.error)setResetNotice(result.error);else if(result?.ok)setResetNotice('Library cleared and saved.');}catch{setResetNotice('The reset did not finish. Check your Library before trying again.');}finally{setResetBusy(false);}}} className="mt-2 flex w-full items-center gap-2 rounded-lg border border-rose-400/35 bg-rose-400/[0.055] px-3 py-2.5 text-left text-xs font-semibold text-rose-100 transition hover:border-rose-300/75 hover:bg-rose-400/10"><Trash2 size={15} className="text-rose-300" /> Reset and Clear Entire library</button>
+              {resetNotice&&<p role="status" className="mt-2 text-xs text-rose-100" data-testid="settings-reset-status">{resetNotice}</p>}
+              <p className="mt-1 text-[10px] text-muted">Clears games, Tools and categories—not installed files. Home/settings/history stay. Two typed confirmations are required.</p>
               <p className="mt-1.5 text-[10px] leading-relaxed text-muted">Removing categories never removes games. Protected categories require their own PIN; skipped or unverified categories remain.</p>
             </div>
           </div>

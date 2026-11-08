@@ -103,6 +103,7 @@ contextBridge.exposeInMainWorld('api', {
   // steam
   searchSteam: (q) => ipcRenderer.invoke('steam:search', q),
   steamDetails: (appid) => ipcRenderer.invoke('steam:details', appid),
+  steamArtwork: (appids) => ipcRenderer.invoke('steam:artwork', appids),
 
   // multi-source metadata
   fetchMetadata: (opts) => ipcRenderer.invoke('metadata:auto', opts),
@@ -151,6 +152,7 @@ contextBridge.exposeInMainWorld('api', {
   findSaveCandidates: (payload) => ipcRenderer.invoke('saves:findCandidates', payload),
   scanGameStorage: (payload) => ipcRenderer.invoke('storage:scanGames', payload),
   inspectLaunchDoctor: (payload) => ipcRenderer.invoke('doctor:inspectLaunch', payload),
+  auditGamePaths: (rows) => ipcRenderer.invoke('game:auditPaths', rows),
 
   // launcher imports
   scanSteam: () => ipcRenderer.invoke('launcher:scan-steam'),

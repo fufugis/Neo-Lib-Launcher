@@ -2,8 +2,12 @@ import React from 'react';
 import { fitPreviewSurface, previewContentMeasurement, previewContentSize, savePreviewLayout } from './preview-layout-model.mjs';
 
 // The miniature must not steal DOM/video refs owned by the real game page.
-function previewBlock(node) {
+export function previewBlock(node) {
   if (!React.isValidElement(node)) return node;
+  if (['iframe', 'video', 'audio', 'object', 'embed'].includes(node.type)) {
+    return node.props.poster ? <img src={node.props.poster} alt="Paused media preview" className={node.props.className} />
+      : <div className="grid min-h-20 place-items-center rounded bg-panel/50 p-3 text-xs text-muted">Media paused while editing</div>;
+  }
   const props = typeof node.type === 'string' ? { ref: null } : {};
   return React.cloneElement(node, props, React.Children.map(node.props.children, previewBlock));
 }

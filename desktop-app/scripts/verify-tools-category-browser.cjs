@@ -7,10 +7,12 @@ app.whenReady().then(async()=>{
  const bundle=await esbuild.build({stdin:{resolveDir:root,loader:'jsx',contents:`
  import React from 'react';import {createRoot} from 'react-dom/client';import {flushSync} from 'react-dom';
  import Sidebar from './src/components/Sidebar.jsx';import {toolsLibraryView} from './src/state/tools-category-state.mjs';
+ import CoverWall from './src/components/CoverWall.jsx';
  window.errors=[];window.addEventListener('error',e=>window.errors.push(e.message));
  window.data={games:[{id:'g',name:'Game',categoryIds:[]}],categories:[],tools:[{id:'a',name:'Zulu',categoryIds:[]},{id:'b',name:'Alpha',categoryIds:[]},{id:'p',name:'Private utility',categoryIds:['private']}],toolCategories:[{id:'private',name:'Secret',private:true}],gameOrderByCategory:{},toolOrderByCategory:{}};
  window.opts={sort:'name',icons:false,two:false,unlocked:[],rowSize:44};window.selected=null;window.adds=0;
  const no=()=>{};const root=createRoot(document.getElementById('root'));
+ window.renderWall=()=>flushSync(()=>root.render(<CoverWall games={[{id:'wall-tool',name:'Utility',libraryToolId:'a'}]}/>));
  window.render=()=>{const v=toolsLibraryView(window.data);window.view=v;flushSync(()=>root.render(<Sidebar games={v.games} categories={v.categories} gameOrderByCategory={v.gameOrderByCategory} mode="library" collapsed={{}} unlockedCategories={window.opts.unlocked} search="" selectedId={window.selected} librarySortMode={window.opts.sort} rowSize={window.opts.rowSize} libraryIconMode={window.opts.icons} twoRow={window.opts.two} sidebarWidth={400} onSetMode={no} onSelect={id=>{window.selected=id;window.render()}} onAddTool={()=>window.adds++} onGameContext={action=>{if(action==='add-tool')window.adds++}} onToggleCollapsed={no} onCreateCategory={no} onCategoryContext={no} onUnlockCategory={no} onReorderCategory={no} onMoveGameToCategory={no} onReorderGameInCategory={no} onOpenWizard={no} onOpenSettings={no}/>));};
  window.render();void 0;
 `},loader:{'.webp':'dataurl','.png':'dataurl','.svg':'dataurl'},bundle:true,write:false,format:'iife',define:{'process.env.NODE_ENV':'"development"','import.meta.env.BASE_URL':'"./"'},plugins:[{name:'fixture-assets',setup(build){build.onLoad({filter:/stock-theme-registry\.mjs$/},args=>({loader:'js',contents:fs.readFileSync(args.path,'utf8').replace(/^const (modules|assets) = import\.meta\.glob\(.*$/gm,'const $1 = {};')}));}}]});
@@ -21,7 +23,7 @@ app.whenReady().then(async()=>{
  const settle=()=>new Promise(r=>setTimeout(r,150));await settle();
  assert.equal(await run('document.querySelectorAll("[data-testid=tab-tools]").length'),0);
  assert.equal(await run('!!document.querySelector("[aria-label=\\"Tools category\\"]")'),true);
- assert.equal(await run('document.querySelector("[data-testid=\\"tool-tag-__tool__:a\\"]").textContent'),'Tools');
+ assert.equal(await run('document.querySelector("[data-testid=\\"tool-tag-__tool__:a\\"]").textContent'),'');
  assert.equal(await run('!!document.querySelector("[data-testid=\\"game-row-__tool__:p\\"]")'),false);
  assert.deepEqual(await run('[...document.querySelectorAll("[data-testid^=game-row-]")].filter(e=>!e.dataset.testid.startsWith("game-row-menu-")).map(e=>e.dataset.testid)'),['game-row-__tool__:b','game-row-__tool__:a','game-row-g']);
  await run('document.querySelector("[data-testid=tools-category-add]").click();void 0');assert.equal(await run('window.adds'),1);
@@ -35,6 +37,10 @@ app.whenReady().then(async()=>{
  assert.equal(await run('!!document.querySelector("[data-testid=\\"game-row-__tool__:p\\"]")'),true);
  await run('document.querySelector("[data-testid=tools-category-add]").click();void 0');assert.equal(await run('window.adds'),2);
  assert.deepEqual(await run('window.errors'),[]);
+ await run('window.renderWall();void 0');await settle();
+ assert.equal(await run('document.querySelector("[data-testid=wall-tool-tag-wall-tool]").textContent'),'');
+ assert.equal(await run('document.querySelector("[data-testid=wall-tool-tag-wall-tool]").getAttribute("aria-label")'),'Tools');
+ assert.equal(await run('!!document.querySelector("[data-testid=wall-tool-tag-wall-tool] svg")'),true);
  console.log('PASS: real Library Tools wrench/tag, shared alphabetical sort/selection/row size/icon/two-column modes, add button/new tool and private-group lock/unlock.');
  win.destroy();app.quit();
 }).catch(error=>{console.error(error);app.exit(1);});

@@ -1,39 +1,8 @@
+const { createSteamArtworkService } = require('./steam-artwork-service.cjs');
 function createStoreProviderService({ httpGetJson, cleanSearchTerm, stripHtml, steamGenreEvidence }) {
-  const portraitCache = new Map(), portraitRequests = new Map();
+  const artwork = createSteamArtworkService({ httpGetJson });
   async function getSteamPortraitImages(appid) {
-    const id = String(appid || '').trim();
-    if (!/^\d{1,12}$/.test(id)) return [];
-    const cached = portraitCache.get(id);
-    if (cached && cached.expires > Date.now()) return [...cached.urls];
-    if (portraitRequests.has(id)) return portraitRequests.get(id);
-    const pending = (async () => {
-      try {
-        const input = { ids: [{ appid: Number(id) }], context: { language: 'english', country_code: 'US' }, data_request: { include_assets: true, include_assets_without_overrides: true } };
-        const data = await httpGetJson(`https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?input_json=${encodeURIComponent(JSON.stringify(input))}`, 7000);
-        const item = data?.response?.store_items?.find(entry => String(entry.appid || entry.id) === id && entry.success === 1 && entry.item_type === 0);
-        const urls = [];
-        for (const assets of [item?.assets, item?.assets_without_overrides]) {
-          if (!assets) continue;
-          // Trust only this app's official relative asset template, never a
-          // remote absolute URL or traversal supplied in provider data.
-          const format = String(assets.asset_url_format || '');
-          if (!new RegExp(`^steam/apps/${id}/\\$\\{FILENAME\\}(?:\\?t=\\d+)?$`).test(format)) continue;
-          for (const file of [assets.library_capsule_2x, assets.library_capsule]) {
-            if (typeof file !== 'string' || !/^(?:[a-f\d]{40}\/)?library_(?:capsule|600x900)(?:_alt_assets_\d+)?(?:_2x)?\.(?:jpg|png|webp)$/i.test(file)) continue;
-            urls.push(`https://shared.fastly.steamstatic.com/store_item_assets/${format.replace('${FILENAME}', file)}`);
-          }
-        }
-        const unique = [...new Set(urls)];
-        if (unique.length) {
-          if (portraitCache.size >= 64) portraitCache.delete(portraitCache.keys().next().value);
-          portraitCache.set(id, { urls: unique, expires: Date.now() + 600000 });
-        }
-        return unique;
-      } catch { return []; } // No negative cache: a transient failure may be retried.
-      finally { portraitRequests.delete(id); }
-    })();
-    portraitRequests.set(id, pending);
-    return pending;
+    return (await artwork.getMany([appid]))[0]?.portraits || [];
   }
   if (typeof httpGetJson !== 'function' || typeof cleanSearchTerm !== 'function' || typeof stripHtml !== 'function' || typeof steamGenreEvidence !== 'function') {
     throw new TypeError('createStoreProviderService requires HTTP, search, HTML and Steam taxonomy dependencies.');
@@ -63,6 +32,7 @@ function createStoreProviderService({ httpGetJson, cleanSearchTerm, stripHtml, s
       const details = entry.data;
       const genreTags = await steamGenreEvidence(appid, details);
       const capabilities = steamCapabilities(details);
+      const steamArtwork = (await artwork.getMany([appid]))[0];
       return {
         appid,
         name: details.name,
@@ -80,7 +50,8 @@ function createStoreProviderService({ httpGetJson, cleanSearchTerm, stripHtml, s
         releaseDate: details.release_date ? details.release_date.date : '',
         metacritic: details.metacritic ? details.metacritic.score : null,
         website: details.website || '',
-        portraitImage: (await getSteamPortraitImages(appid))[0] || steamPortraitImage(appid),
+        icon: steamArtwork?.icon || '',
+        portraitImage: steamArtwork?.portraitImage || steamPortraitImage(appid),
         capabilities,
         achievementSummary: steamAchievementSummary(details, capabilities),
       };
@@ -111,7 +82,7 @@ function createStoreProviderService({ httpGetJson, cleanSearchTerm, stripHtml, s
     } catch { return []; }
   }
 
-  return Object.freeze({ searchSteam, getSteamDetails, searchGog, getSteamPortraitImages });
+  return Object.freeze({ searchSteam, getSteamDetails, searchGog, getSteamPortraitImages, getSteamArtwork: artwork.getMany });
 }
 
 function steamPortraitImage(appid) {

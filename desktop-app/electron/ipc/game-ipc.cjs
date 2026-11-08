@@ -38,6 +38,11 @@ function registerGameIpc({ registerIpc, services }) {
     isScanResult,
     invalidResponse('The external-game scan returned an invalid result.', { active: false, gameId: null, name: '' }),
   ));
+  registerIpc('game:auditPaths', guardResult(guardHandler(
+    requireService(services,'game:auditPaths'),
+    rows=>isBoundedArray(rows,100,row=>isPlainObject(row)&&isIdentifier(row.id)&&isPath(row.filePath,{required:false})&&isPath(row.folderPath,{required:false})),
+    [],
+  ),rows=>isBoundedArray(rows,100,row=>isPlainObject(row)&&isIdentifier(row.id)&&['missing','present','unavailable','unsupported'].includes(row.status)&&['present','missing','skip','unavailable','unsupported'].includes(row.file)&&['present','missing','skip','unavailable','unsupported'].includes(row.folder)&&isPath(row.filePath,{required:false})&&isPath(row.folderPath,{required:false})),[]));
   registerIpc("game:watchExternal", guardResult(guardHandler(
     requireService(services, "game:watchExternal"),
     payload => isPlainObject(payload)

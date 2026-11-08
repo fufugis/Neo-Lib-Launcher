@@ -2,6 +2,7 @@ const PRESERVED_HOME_FIELDS = Object.freeze([
   'playtime', 'playtimeImportedAt', 'playtimeSource', 'lastPlayed', 'lastPlayedAt', 'addedAt',
   'rating', 'myRating', 'ratedAt', 'ratingPromptDismissed', 'ratingPromptSnoozedUntil',
   'journeyStatus', 'journeyStartedAt', 'journeyCompletedAt', 'homeLockedCategory',
+  'playtimeByDay', 'playtimeDays', 'playtimeHistory', 'externalPlaytimeReceipts',
 ]);
 
 export function clearLibraryGamesPreservingHome(library = {}) {
@@ -17,6 +18,13 @@ export function clearLibraryGamesPreservingHome(library = {}) {
   return {
     ...library,
     games: [],
+    tools: [],
+    categories: [],
+    toolCategories: [],
+    toolOrderByCategory: {},
+    unifiedCategoryOrder: [],
+    libraryRecovery: [],
+    libraryFieldRecovery: {},
     gameOrderByCategory: {},
     homeGameDataArchive: archive,
   };

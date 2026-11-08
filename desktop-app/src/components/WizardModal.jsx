@@ -15,6 +15,7 @@ import { createBoundedOperation } from '../services/bounded-operation.mjs';
 import { OPERATION_STATUS } from '../state/operation-state.mjs';
 import RetroProfilesPanel from './wizard/RetroProfilesPanel';
 import ExternalLibraryRootsPanel from './wizard/ExternalLibraryRootsPanel';
+import MissingGamesPanel from './wizard/MissingGamesPanel';
 
 const WIZARD_TABS = [['launchers', 'Launchers'], ['folder', 'Folder scan'], ['manual', 'Manual add'], ['retro', 'Retro'], ['external', 'External libraries'], ['care', 'Library care']];
 function WizardTaskTabs({ active, onChange, disabled }) {
@@ -61,7 +62,7 @@ function operationFailureMessage(operation, label) {
   return operation?.message || `${label} failed.`;
 }
 
-export default function WizardModal({ open, suspended = false, onClose, onImport, onAccept, onAddManual, onRefreshLibrary, onTidyLibrary, onRetroProfilesChange, onImportRoms, onRetroMetadataApply, retroVisibleGames = [], retroProfiles = [], onExternalLibraryRootsChange, externalLibraryRoots = [], geminiKey, aiModel = 'gemini-2.5-flash', existingExePaths = [], existingGames = [], prefilledRoot = '', autoScan = false }) {
+export default function WizardModal({ open, suspended = false, onClose, onImport, onAccept, onAddManual, onRefreshLibrary, onTidyLibrary, onRetroProfilesChange, onImportRoms, onRetroMetadataApply, retroVisibleGames = [], retroProfiles = [], onExternalLibraryRootsChange, externalLibraryRoots = [], geminiKey, aiModel = 'gemini-2.5-flash', existingExePaths = [], existingGames = [], maintenanceGames = [], onRemoveMissingGames, onRelocateMissingGame, prefilledRoot = '', autoScan = false }) {
   const [step, setStep] = React.useState(1);
   const [activeTab, setActiveTab] = React.useState('launchers');
   const [root, setRoot] = React.useState('');
@@ -411,7 +412,7 @@ export default function WizardModal({ open, suspended = false, onClose, onImport
       installDir: current?.installdir || current?.installDir || '',
       launcher: current?.launcher || result?.source || '',
       launcherProductId: current?.launcherProductId || '',
-      icon,
+      icon: result?.icon || icon,
       source: result?.source,
       appid: result?.appid,
       coverUrl: coverUrl || result?.headerImage,
@@ -528,6 +529,7 @@ export default function WizardModal({ open, suspended = false, onClose, onImport
           </div>
 
           <div id="wizard-care-section" role="tabpanel" aria-labelledby="wizard-tab-care" hidden={activeTab !== 'care'} className="rounded-lg hairline bg-surface/50 p-4" data-testid="wizard-library-care-section">
+            {activeTab==='care'&&<MissingGamesPanel games={maintenanceGames} onRemove={onRemoveMissingGames} onRelocate={onRelocateMissingGame}/>}
             <div className="mb-3 flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[rgb(var(--accent)/0.14)] text-[rgb(var(--accent))]"><RefreshCw size={17} /></span><div><div className="text-sm font-bold text-ink">Care for your library</div><p className="text-[11px] text-muted">Improve games already added.</p></div></div>
             <div className="grid gap-2 sm:grid-cols-3">
               <button

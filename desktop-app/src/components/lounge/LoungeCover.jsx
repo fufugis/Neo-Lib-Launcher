@@ -1,6 +1,7 @@
 import React from 'react';
 import { Gamepad2 } from 'lucide-react';
 import { gameArtworkCandidates } from '../../lib/artwork-fallbacks.mjs';
+import { useSteamArtwork } from '../../hooks/use-steam-artwork.mjs';
 
 // Share successful decode/validation between shelf, hero and remounted cards.
 // URL identity keeps an edited game's new cover independent of its old cover.
@@ -20,6 +21,7 @@ function fallbackArtwork(game) {
 }
 
 function LoungeCover({ game }) {
+  game = useSteamArtwork(game);
   const portraitRef = React.useRef(null);
   const [rejectedPortraitUrls, setRejectedPortraitUrls] = React.useState([]);
   const [approvedPortraitUrl, setApprovedPortraitUrl] = React.useState('');

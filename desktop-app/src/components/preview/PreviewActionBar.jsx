@@ -1,4 +1,5 @@
 import React from 'react';
+import { launchButtonOrigin } from '../mascot/launch-placement.mjs';
 import PreviewJourneyControl from './PreviewJourneyControl';
 import { motion } from 'framer-motion';
 import { ArchiveRestore, ChevronDown, Download, FileText, FolderOpen, Play, RefreshCw, Tag, Wand2, Wrench, Youtube } from 'lucide-react';
@@ -30,7 +31,7 @@ export default function PreviewActionBar({ game, categories, onLaunch, onLaunchE
   }, [catOpen]);
   const launchWithSafety = React.useCallback(async (target, event) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    const launchOrigin = { x: rect.left + (rect.width / 2), y: rect.top + (rect.height / 2) };
+    const launchOrigin = launchButtonOrigin(rect);
     if (!window.api?.armGameLaunch) {
       if (settings.soundsEnabled !== false) playLaunch();
       onLaunch(target, '', launchOrigin);

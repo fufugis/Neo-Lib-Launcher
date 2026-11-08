@@ -5,6 +5,7 @@ import { playFungistCue } from '../lib/sound';
 import { fungistChatVoiceFor, playMascotVoice, stopMascotVoice } from '../lib/mascotVoice';
 import { isLikelyGameProcess, libraryCommandFor, messageFor, noticeCooldownMs, notificationEnabled, shortMemory, shortTime, voiceForNotice, whyFor } from './mascot/fungist-model.mjs';
 import FifiAvatar from './FifiAvatar';
+import { launchButtonOrigin, launchMascotOffset } from './mascot/launch-placement.mjs';
 
 // Vite's production base is relative (`./`) so these work in both the browser
 // and Electron's file:// renderer. Root paths such as `/mascot/...` resolve to
@@ -416,8 +417,9 @@ export default function FungistMascot({
   const chatFlyX = Math.round(18 - Math.min(150, Math.max(82, viewport.width * 0.105)) - dock.x);
   const chatFlyY = Math.round(-Math.min(430, Math.max(330, viewport.height * 0.48)) - dock.y);
   const launchOrigin = launchCelebration?.origin;
-  const launchFlyX = Number.isFinite(launchOrigin?.x) ? Math.round(launchOrigin.x - (viewport.width - 77) - dock.x) : -190;
-  const launchFlyY = Number.isFinite(launchOrigin?.y) ? Math.round(launchOrigin.y - (viewport.height - 175) - dock.y) : -210;
+  const launchOffset = launchMascotOffset(launchOrigin, viewport, mascotScale);
+  const launchFlyX = launchOffset.x - dock.x;
+  const launchFlyY = launchOffset.y - dock.y;
   const speaking = Boolean(spokenLine);
   const displayPose = major ? (!arrived ? 'fly' : 'shocked') : launching || spokenLine?.mood === 'celebrate' ? 'complete' : spokenLine?.mood === 'urgent' || spokenLine?.mood === 'concerned' ? 'shocked' : completing ? 'complete' : teamNewsReaction || chatOpen || speaking ? 'smile' : smiling || idlePulse ? 'smile' : sleeping ? 'sleep' : blinking ? 'blink' : 'stand';
   const displayAsset = ASSETS[displayPose];
@@ -545,7 +547,7 @@ export default function FungistMascot({
     const game = (libraryGames || []).find((item) => item.id === message?.action?.gameId);
     if (!game || !onLaunchRequested) return;
     const rect = event.currentTarget.getBoundingClientRect();
-    const origin = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    const origin = launchButtonOrigin(rect);
     if (!window.api?.armGameLaunch) { onLaunchRequested(game, '', origin); return; }
     const armed = await window.api.armGameLaunch();
     if (!armed?.ok) {
@@ -566,7 +568,7 @@ export default function FungistMascot({
         // Keep the companion clear of the permanent Friends / sponsored rail.
         style={{ right: 18, bottom: 116 }}
       >
-        <div className="pointer-events-auto relative flex flex-col items-end">
+        <div className="pointer-events-auto relative flex flex-col items-end" style={{pointerEvents:launching?'none':undefined}}>
           <AnimatePresence>
             {notice && (
               <motion.section

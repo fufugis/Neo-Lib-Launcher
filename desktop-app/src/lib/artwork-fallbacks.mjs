@@ -3,6 +3,14 @@ import { officialSteamPortrait } from './game-artwork-model.mjs';
 const imageUrl = value => typeof value === 'string' && /^(https?:\/\/|file:|neolib-background:|data:image\/)/i.test(value.trim());
 const escape = value => String(value).replace(/[<>&"']/g, character => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' })[character]);
 
+export function explicitArtwork(game, role) {
+  const field = role === 'cover' ? 'coverUrl' : role;
+  return Boolean(game.artworkLocks?.[role] || (role === 'cover' && game.manualOverride)
+    || (typeof game.artworkSources?.[role] === 'string' && game.artworkSources[role].trim())
+    || /^(file:|data:image\/)/i.test(game[field] || ''));
+}
+const steamBanner = value => /(?:steamstatic\.com|steamcdn-a\.akamaihd\.net)\/.*\/(?:header|capsule_(?!600x900)|hero_capsule|library_hero)[^/]*\.(?:jpg|png|webp)(?:\?|$)/i.test(value || '');
+
 export function generatedGameArtwork(game = {}, role = 'cover') {
   const name = String(game.name || 'Untitled game').trim().slice(0, 90);
   let hash = 0;
@@ -21,11 +29,15 @@ export function gameArtworkCandidates(game = {}, role = 'cover', { includeGenera
   const hero = [game.heroArtworkOverride, game.headerImage, game.hero];
   const logo = [game.logo, game.logoImage];
   const official = officialSteamPortrait(game.steamAppId || game.appid);
-  const preferred = role === 'icon' ? [game.icon, ...cover]
+  const steamIcon = game.steamArtwork?.icon;
+  const steamPortrait = game.steamArtwork?.portraitImage;
+  const properCover = [steamPortrait, game.portraitImage, official, game.coverUrl].filter(value => !steamBanner(value));
+  const properIcon = [steamIcon, game.icon].filter(value => !steamBanner(value));
+  const preferred = role === 'icon' ? (explicitArtwork(game, role) ? [game.icon, steamIcon, ...properCover] : [...properIcon, ...properCover])
     : role === 'logo' ? logo
       : role === 'hero' ? hero
         : role === 'background' ? [game.background, ...hero]
-          : [...cover, official];
+          : explicitArtwork(game, role) ? [...cover, steamPortrait, official] : [...properCover];
   const candidates = [...preferred, ...cover, ...hero, game.background, game.capsuleImage, ...logo, game.icon, ...screenshots.slice(0, 24), official];
   const urls = [...new Set(candidates.filter(imageUrl).map(value => value.trim()))];
   if (includeGenerated) urls.push(generatedGameArtwork(game, role));

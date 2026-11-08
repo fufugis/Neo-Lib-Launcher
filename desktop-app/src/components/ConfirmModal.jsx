@@ -21,7 +21,7 @@ export default function ConfirmModal({
   testid = 'confirm-modal',
 }) {
   const [typed, setTyped] = React.useState('');
-  React.useEffect(() => { if (open) setTyped(''); }, [open]);
+  React.useEffect(() => { if (open) setTyped(''); }, [open, typedConfirm]);
   if (!open) return null;
   const typedOk = !typedConfirm || typed.trim() === typedConfirm;
   return (
@@ -49,7 +49,7 @@ export default function ConfirmModal({
           <button
             data-testid={`${testid}-confirm`}
             disabled={!typedOk}
-            onClick={() => { if (!typedOk) return; onConfirm?.(); onClose?.(); }}
+            onClick={() => { if (!typedOk) return; onConfirm?.(); }}
             className={
               'rounded-md px-3 py-1.5 text-xs font-semibold transition-opacity ' +
               (!typedOk ? 'opacity-40 cursor-not-allowed ' : '') +

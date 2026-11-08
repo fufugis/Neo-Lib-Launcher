@@ -24,6 +24,7 @@ const { createDiagnosticRecorder } = require('./diagnostics/diagnostic-recorder.
 const { registerPersistenceIpc } = require('./ipc/persistence-ipc.cjs');
 const { registerLibraryBackupIpc } = require('./ipc/library-backup-ipc.cjs');
 const { createLibraryBackupService } = require('./library/library-backup-service.cjs');
+const { createGamePathAuditService } = require('./game/game-path-audit-service.cjs');
 const { registerWindowIpc } = require('./ipc/window-ipc.cjs');
 const { registerDialogIpc } = require('./ipc/dialog-ipc.cjs');
 const { registerShellIpc } = require('./ipc/shell-ipc.cjs');
@@ -968,6 +969,7 @@ const metadataCandidates = createMetadataCandidateService({
 });
 remainingIpcServices["steam:search"] = (_event, query) => storeProviders.searchSteam(query);
 remainingIpcServices["steam:details"] = (_event, appid) => storeProviders.getSteamDetails(appid);
+remainingIpcServices["steam:artwork"] = (_event, appids) => storeProviders.getSteamArtwork(appids);
 remainingIpcServices['artwork:steamGridDb'] = (_event, request) => steamGridDbArtwork.request(request);
 
 // ---------------- IPC: cache image locally ---------------- //
@@ -1264,6 +1266,7 @@ remainingIpcServices["game:watchExternal"] = async (_e, { games = [], clientId =
 powerMonitor?.on?.('suspend', () => externalGameWatch.suspend());
 powerMonitor?.on?.('resume', () => externalGameWatch.resume());
 app.on('before-quit', () => externalGameWatch.shutdown());
+remainingIpcServices["game:auditPaths"] = (_event, rows) => createGamePathAuditService({ fsp, path }).audit(rows);
 remainingIpcServices["game:scanExternalNow"] = async () => {
   // Player-requested scan used from a high-usage warning. It remains the same
   // path-only local check as the passive watcher—no launcher account, game
@@ -2031,6 +2034,7 @@ async function expandSteam(c) {
     headerImage: d.header_image,
     capsuleImage: d.capsule_imagev5 || d.capsule_image,
     portraitImage: (await storeProviders.getSteamPortraitImages(c.id))[0] || `https://cdn.cloudflare.steamstatic.com/steam/apps/${c.id}/library_600x900.jpg`,
+    icon: (await storeProviders.getSteamArtwork([c.id]))[0]?.icon || '',
     background: d.background_raw || d.background,
     screenshots: (d.screenshots || []).slice(0, 6).map((s) => s.path_full),
     genres: (d.genres || []).map((g) => g.description),
@@ -2390,6 +2394,7 @@ remainingIpcServices["metadata:auto"] = async (_e, { query, skipSources = [], ge
           headerImage: d.header_image,
           capsuleImage: d.capsule_imagev5 || d.capsule_image,
           portraitImage: (await storeProviders.getSteamPortraitImages(lockedAppid))[0] || `https://cdn.cloudflare.steamstatic.com/steam/apps/${lockedAppid}/library_600x900.jpg`,
+          icon: (await storeProviders.getSteamArtwork([lockedAppid]))[0]?.icon || '',
           background: d.background_raw || d.background,
           screenshots: (d.screenshots || []).slice(0, 6).map((s) => s.path_full),
           genres: (d.genres || []).map((g) => g.description),
@@ -2455,6 +2460,7 @@ remainingIpcServices["metadata:auto"] = async (_e, { query, skipSources = [], ge
             headerImage: d.header_image,
             capsuleImage: d.capsule_imagev5 || d.capsule_image,
             portraitImage: (await storeProviders.getSteamPortraitImages(top.id))[0] || `https://cdn.cloudflare.steamstatic.com/steam/apps/${top.id}/library_600x900.jpg`,
+            icon: (await storeProviders.getSteamArtwork([top.id]))[0]?.icon || '',
             background: d.background_raw || d.background,
             screenshots: (d.screenshots || []).slice(0, 6).map((s) => s.path_full),
             genres: (d.genres || []).map((g) => g.description),

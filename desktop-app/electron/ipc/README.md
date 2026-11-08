@@ -8,9 +8,13 @@ the shared request guards in `contract-guards.cjs`.
 
 ## Current checkpoint
 
-- 146 native commands across 35 named domains are inventoried by
+- 148 native commands across 35 named domains are inventoried by
   `scripts/verify-ipc-registry.cjs`.
 - Every command invoked by `preload.js` resolves to exactly one native handler.
+- `steam:artwork` accepts up to 40 numeric Steam identities and returns official
+  square icons/portrait candidates only. The injected store-owned asset service
+  validates identity, icon hashes and portrait paths, batches requests, caches
+  successful results and bounds concurrent requests; it never reads local files.
 - `gemini:metadata` is the one documented native-only command and should be
   reviewed as later domains are extracted.
 - `persistence-ipc.cjs` owns the stable library/settings IPC surface and delegates

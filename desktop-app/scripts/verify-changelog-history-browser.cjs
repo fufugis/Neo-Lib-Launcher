@@ -6,7 +6,7 @@ app.whenReady().then(async()=>{
  const root=path.resolve(__dirname,'..'),esbuild=require('node:module').createRequire(require.resolve('vite'))('esbuild');
  const bundle=await esbuild.build({stdin:{resolveDir:root,loader:'jsx',contents:`
  import React from 'react';import {createRoot} from 'react-dom/client';import ChangelogModal from './src/components/ChangelogModal.jsx';
- function Fixture(){const [open,setOpen]=React.useState(false);return <><button id="opener" onClick={()=>setOpen(true)}>Patch notes</button><ChangelogModal open={open} currentVersion="1.8.10" lastSeenVersion="1.8.10" onClose={()=>{window.closedNotes=(window.closedNotes||0)+1;setOpen(false)}}/></>}
+ function Fixture(){const [open,setOpen]=React.useState(false),[version,setVersion]=React.useState('1.8.10');window.setInstalledVersion=setVersion;return <><button id="opener" onClick={()=>setOpen(true)}>Patch notes</button><ChangelogModal open={open} currentVersion={version} lastSeenVersion="1.8.10" onClose={()=>{window.closedNotes=(window.closedNotes||0)+1;setOpen(false)}}/></>}
  createRoot(document.getElementById('root')).render(<Fixture/>);
  `},bundle:true,write:false,format:'iife',define:{'process.env.NODE_ENV':'"development"'},plugins:[{name:'no-network-feedback',setup(build){build.onLoad({filter:/FeedbackModal\.jsx$/},()=>({loader:'js',contents:'export async function sendChangelogReaction(value){window.reaction=value}'}));}}]});
  const win=new BrowserWindow({show:false,width:1200,height:900,webPreferences:{sandbox:true,contextIsolation:true,backgroundThrottling:false,offscreen:true}});
@@ -35,6 +35,10 @@ app.whenReady().then(async()=>{
  assert.equal(await run('window.closedNotes'),1);assert.equal(await run('document.activeElement.id'),'opener');
  await click('#opener');assert.equal(await run("document.querySelector('[role=tab][aria-selected=true]').dataset.testid"),'changelog-select-1.8.10');
  for(const width of [560,420]){win.setSize(width,740);await settle();assert.equal(await run("(()=>{const d=document.querySelector('[data-testid=changelog-modal]'),b=d.getBoundingClientRect(),f=d.querySelector('footer').getBoundingClientRect();return b.left>=0&&b.right<=innerWidth&&f.bottom<=innerHeight&&d.scrollWidth<=d.clientWidth+1})()"),true,'Small windows retain visible footer and no horizontal overflow');}
+ await run("document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));window.setInstalledVersion('1.8.12');void 0");await settle();await click('#opener');
+ assert.deepEqual(await run("[...document.querySelectorAll('[role=tab]')].map(e=>e.textContent.match(/v[0-9.]+/)[0])"),['v1.8.12','v1.8.11','v1.8.10','v1.8.9','v1.8.8']);
+ assert.equal(await run("document.querySelector('[role=tab][aria-selected=true]').dataset.testid"),'changelog-select-1.8.12');
+ assert.equal(await run("document.querySelector('[data-testid=\"changelog-entry-1.8.12\"]').textContent.includes('Currently playing at a glance')"),true);
  console.log('PASS: real patch-history chooser, latest five/current default, fix-only notes, separate Upcoming, selected-version reactions, scroll reset, keyboard navigation, close/focus/reopen and responsive bounds.');
  win.destroy();app.quit();
 }).catch(error=>{console.error(error);app.exit(1);});

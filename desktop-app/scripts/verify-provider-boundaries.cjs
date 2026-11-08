@@ -24,7 +24,12 @@ const providers = [
 ];
 
 const historySupport=['game-history-http.cjs','game-history-parser.cjs'];
-assert.deepEqual(fs.readdirSync(providerDir).filter(name => name.endsWith('.cjs')).sort(), [...providers,...historySupport].sort(), 'Provider inventory changed without updating its completion contract');
+const storeSupport=['steam-artwork-service.cjs'];
+assert.deepEqual(fs.readdirSync(providerDir).filter(name => name.endsWith('.cjs')).sort(), [...providers,...historySupport,...storeSupport].sort(), 'Provider inventory changed without updating its completion contract');
+const steamArtwork=fs.readFileSync(path.join(providerDir,'steam-artwork-service.cjs'),'utf8');
+assert(!/require\(['"](?:https?|electron|child_process)['"]\)/.test(steamArtwork), 'Steam artwork uses the injected public HTTP transport');
+assert(fs.readFileSync(path.join(providerDir,'store-provider-service.cjs'),'utf8').includes("require('./steam-artwork-service.cjs')"), 'Store provider owns Steam artwork batching/cache');
+assert(pkg.scripts['test:artwork'].includes('verify-steam-artwork.mjs'), 'Steam artwork remains covered by the mandatory source gate');
 for (const name of providers) {
   const source = fs.readFileSync(path.join(providerDir, name), 'utf8');
   assert.match(source, /module\.exports\s*=\s*\{\s*create[A-Za-z]+Service\s*\}/, `${name} exports an injectable factory`);

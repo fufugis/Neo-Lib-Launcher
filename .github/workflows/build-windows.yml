@@ -104,6 +104,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Production application smoke test failed.' }
           node scripts/verify-changelog-history-browser.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Patch history interaction test failed.' }
+          node scripts/verify-layout-live-content-browser.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Live layout content interaction test failed.' }
+          node scripts/verify-library-maintenance-production.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Library maintenance/reset interaction test failed.' }
+          node scripts/verify-manual-add-browser.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Manual-add selection interaction test failed.' }
+          node scripts/verify-mascot-launch-browser.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Launch mascot placement interaction test failed.' }
 
       - name: Build NSIS installer (verbose)
         # `--publish never` prevents electron-builder from trying to talk to GH releases
@@ -167,7 +175,7 @@ jobs:
           draft: true
           prerelease: false
           generate_release_notes: false
-          body_path: RELEASE_NOTES_v1.8.11.md
+          body_path: RELEASE_NOTES_v1.8.12.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

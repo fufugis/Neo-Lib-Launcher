@@ -24,13 +24,13 @@ export const LIBRARY_GRAPHICS = Object.freeze([
   { id: 'star-trails', label: 'Star Trails', art: starTrails, thumbnail: starsThumb, fullHeight: true },
   { id: 'dragon-sketches', label: 'Dragon Sketches', art: dragonSketches, thumbnail: dragonsThumb, fullHeight: true },
   { id: 'retro-doodles', label: 'Retro Doodles', art: retroDoodles, thumbnail: retroThumb, fullHeight: true },
-  { id: 'carbon-weave', label: 'Carbon Weave', art: carbonWeave, thumbnail: carbonThumb, fullHeight: true, material: true },
+  { id: 'carbon-weave', label: 'Carbon Weave', art: carbonWeave, thumbnail: carbonThumb, fullHeight: true, material: true, tileSize: '160px 240px' },
   { id: 'obsidian-slate', label: 'Obsidian Slate', art: obsidianSlate, thumbnail: slateThumb, fullHeight: true, material: true },
   { id: 'hammered-titanium', label: 'Hammered Titanium', art: hammeredTitanium, thumbnail: titaniumThumb, fullHeight: true, material: true },
 ]);
 export function libraryGraphicStyle(id, preview = false) {
   const graphic = LIBRARY_GRAPHICS.find(item => item.id === id);
   return graphic ? { backgroundImage: `url(${JSON.stringify(preview ? graphic.thumbnail : graphic.art)})`,
-    backgroundSize: graphic.fullHeight ? '100% 100%' : preview ? 'cover' : 'auto 100%', backgroundPosition: preview || graphic.fullHeight ? 'center' : 'left center', backgroundRepeat: 'no-repeat' } : null;
+    backgroundSize: graphic.tileSize || (graphic.fullHeight ? '100% 100%' : preview ? 'cover' : 'auto 100%'), backgroundPosition: preview || graphic.fullHeight ? 'center' : 'left center', backgroundRepeat: graphic.tileSize ? 'repeat' : 'no-repeat' } : null;
 }
 export const LIBRARY_GRAPHIC_PATTERNS = Object.fromEntries(LIBRARY_GRAPHICS.map(item => [item.id, libraryGraphicStyle(item.id)]));

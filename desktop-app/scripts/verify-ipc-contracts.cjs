@@ -102,14 +102,17 @@ async function verifyRejected(handlers, calls, channel, invalidArgs, invalidShap
 }
 
 async function main() {
-  const gameChannels = ['game:scanExternalNow', 'game:watchExternal', 'game:launch', 'game:armLaunch'];
+  const gameChannels = ['game:auditPaths', 'game:scanExternalNow', 'game:watchExternal', 'game:launch', 'game:armLaunch'];
   const gameResults = {
+    'game:auditPaths': [{id:'g1',status:'missing',file:'missing',folder:'skip',filePath:'C:\\Games\\Game.exe',folderPath:''}],
     'game:scanExternalNow': { ok: true, active: false, gameId: null, name: '' },
     'game:watchExternal': { ok: true, watching: 1, ignored: 0 },
     'game:launch': { ok: true },
     'game:armLaunch': { ok: true, token: 'launch-token' },
   };
   const game = register(registerGameIpc, gameChannels, gameResults);
+  await verifyGuard(game,'game:auditPaths',[[{id:'g1',filePath:'C:\\Games\\Game.exe',folderPath:''}]],[[{id:'g1',filePath:[]}]],{},[]);
+  await verifyResponseGuard(game,'game:auditPaths',[[]],[{id:'g1',status:'absent'}],{},[]);
   await verifyGuard(game, 'game:watchExternal', [{ games: [{ id: 'g1', name: 'Game', exePath: 'C:\\Games\\Game.exe' }] }], [{ games: 'not-an-array' }], { ok: false, code: 'INVALID_REQUEST' });
   assert.deepEqual(await game.handlers['game:watchExternal']({}, {}), gameResults['game:watchExternal'], 'empty watch payload must retain stop-watching behavior');
   await verifyGuard(game, 'game:launch', [{ exePath: 'C:\\Games\\Game.exe', launchArgs: '--safe', workingDirectory: 'C:\\Games', gameId: 'g1', name: 'Game', launchToken: 'token' }], [{ exePath: ['C:\\Games\\Game.exe'] }], { ok: false, code: 'INVALID_REQUEST' });
@@ -250,8 +253,9 @@ async function main() {
   await verifyResponseGuard(releases, 'releases:weekly', [{ force: true }], { ok: true, items: [], tier: 'unknown', criteria: '', fetchedAt: 1 }, { items: [] });
   await verifyServiceResultPreserved(releases, 'releases:weekly', [{ force: true }], { ok: false, items: [], error: 'Unavailable.' });
 
-  const steamChannels = ['steam:achievements', 'steam:importPlaytime', 'steam:manifest', 'steam:details', 'steam:search'];
+  const steamChannels = ['steam:artwork', 'steam:achievements', 'steam:importPlaytime', 'steam:manifest', 'steam:details', 'steam:search'];
   const steamResults = {
+    'steam:artwork': [{ appid: '620', icon: '', portraitImage: '', portraits: [] }],
     'steam:achievements': { ok: true, source: 'steam', appid: '620', steamid64: '76561197960278073', earned: 1, total: 2, syncedAt: 1 },
     'steam:importPlaytime': { ok: true, data: { 620: { playtime: 120, lastPlayed: 1 } }, ownedAppids: ['620'], currentAccount: { steamid3: '12345', personaName: 'Player' }, count: 1, ownedCount: 1, debug: {}, cached: false },
     'steam:manifest': { ok: true, appid: '620', name: 'Portal 2', buildid: '42', lastUpdated: 1, sizeOnDisk: 2, stateFlags: 4, bytesToDownload: 0, bytesDownloaded: 0, updateResult: '', library: 'C:\\Steam', cached: false },
@@ -264,6 +268,8 @@ async function main() {
   await verifyGuard(steam, 'steam:importPlaytime', [{ force: true }], [{ force: 1 }], { ok: false, code: 'INVALID_REQUEST' });
   await verifyGuard(steam, 'steam:manifest', [620], ['../../secret'], { ok: false, code: 'INVALID_REQUEST' });
   await verifyGuard(steam, 'steam:details', ['620'], [{}], {}, null);
+  await verifyGuard(steam, 'steam:artwork', [['620']], [['../private']], {}, []);
+  await verifyResponseGuard(steam, 'steam:artwork', [['620']], [{ appid: '620', icon: 5 }], {}, []);
   await verifyGuard(steam, 'steam:search', ['Portal 2'], [new Array(600).fill('x').join('')], {}, []);
   await verifyResponseGuard(steam, 'steam:importPlaytime', [{ force: true }], { ok: true, data: [], ownedAppids: [] }, { data: {}, ownedAppids: [], currentAccount: null });
   await verifyResponseGuard(steam, 'steam:achievements', [achievementRequest], { ok: true, source: 'steam', earned: 99, total: 2 });

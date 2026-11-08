@@ -1,4 +1,5 @@
 import React from 'react';
+import { renderForegroundPortal, UI_LAYERS } from './ui/VisualBoundary';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { Check, X, GripVertical, Lock, RefreshCw, ExternalLink } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -112,13 +113,14 @@ export default function AcceptMetadataModal({ open, game, proposed, onAccept, on
     onAccept(patch);
   };
 
-  return (
+  return renderForegroundPortal(
     <AnimatePresence>
       <motion.div ref={dragBoundsRef}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[220] grid place-items-center bg-black/60 backdrop-blur-sm"
+        style={{zIndex:UI_LAYERS.modal+1}}
         onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }}
         data-testid="accept-meta-overlay"
       >

@@ -49,11 +49,12 @@ app.whenReady().then(async()=>{
       const full=await load(graphic.art),thumb=await load(graphic.thumbnail);
       check(full.naturalWidth===1024&&full.naturalHeight===1536,'full resolution is not replaced with thumbnail');check(thumb.naturalWidth===160,'picker uses small thumbnail');
       check(libraryGraphicStyle(id).backgroundImage!==libraryGraphicStyle(id,true).backgroundImage,'runtime and preview use distinct assets');
+      if(id==='carbon-weave'){const preview=libraryGraphicStyle(id,true);check(preview.backgroundSize==='160px 240px'&&preview.backgroundRepeat==='repeat','Carbon picker matches the finer runtime scale');}
       const saved=hydrateSettings({bgTextureId:id,bgTextureOpacity:37});check(saved.bgTextureId===id&&saved.bgTextureOpacity===37,'selection and opacity persist');
       const card=document.createElement('section');card.style.cssText='height:570px;position:relative;overflow:hidden;border-radius:12px;background:#253a51';
       const art=document.createElement('div');Object.assign(art.style,LIBRARY_GRAPHIC_PATTERNS[id],{position:'absolute',inset:'0',opacity:'0.55',pointerEvents:'none'});card.append(art);
       const label=document.createElement('div');label.style.cssText='position:relative;padding:16px;line-height:2.4;text-shadow:0 1px 3px #000';label.innerHTML='<h2>'+graphic.label+'</h2><p>Full-height Library background</p><p>Game collection</p><p>Favorites</p><p>Recently played</p><p>Opacity stays adjustable</p>';card.append(label);board.append(card);
-      for(const [width,height]of [[160,570],[320,740],[560,400]]){card.style.width=width+'px';card.style.height=height+'px';const box=art.getBoundingClientRect(),parent=card.getBoundingClientRect();check(box.width===parent.width&&box.height===parent.height,'surface covers panel at resized aspect ratios');check(getComputedStyle(art).backgroundSize==='100% 100%'&&getComputedStyle(art).backgroundRepeat==='no-repeat','no cropped or uncovered strip');}
+      for(const [width,height]of [[160,570],[320,740],[560,400]]){card.style.width=width+'px';card.style.height=height+'px';const box=art.getBoundingClientRect(),parent=card.getBoundingClientRect();check(box.width===parent.width&&box.height===parent.height,'surface covers panel at resized aspect ratios');check(getComputedStyle(art).backgroundSize===(id==='carbon-weave'?'160px 240px':'100% 100%')&&getComputedStyle(art).backgroundRepeat===(id==='carbon-weave'?'repeat':'no-repeat'),'no cropped or uncovered strip');}
       card.style.width='auto';card.style.height='570px';
     }
     await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));return {cursors:2,materials:3,nativeSize:32,textureSize:'1024x1536',thumbWidth:160};

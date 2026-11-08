@@ -10,6 +10,11 @@ The existing background opacity controls their blend with the theme. Full-height
 placement fills the entire Library backdrop; none paints above text or screenshots.
 They are static images, not animated textures or 3D scenes.
 
+Carbon Weave uses a fixed 160×240 CSS-pixel repeat (original 2:3 aspect ratio)
+instead of stretching one image to the panel. Its small weave details stay the
+same size as the Library is resized, with coverage on both axes. Picker previews
+use the same tile scale; other materials retain full-panel placement.
+
 ## Final prompts (verbatim)
 
 Shared prompt:

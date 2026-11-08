@@ -98,7 +98,7 @@ export default function AddGameModal({ open, onClose, onCreate }) {
 
   return (
     <>
-      <Modal open={open} onClose={onClose} title="Add Game" wide testid="add-game-modal">
+      <Modal open={open && !review.open} onClose={onClose} title="Add Game" wide testid="add-game-modal">
         <div className="space-y-5 p-5">
         {/* Exe picker */}
         <div className="rounded-lg hairline bg-surface/50 p-4">

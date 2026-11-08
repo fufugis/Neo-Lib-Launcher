@@ -44,7 +44,8 @@ for (const id of ['cyber-rings', 'prism-shards', 'liquid-chrome', 'star-trails',
   }
 }
 assert.doesNotMatch(graphicsSource, /requestAnimationFrame|setInterval|setTimeout|canvas|three\.js/, 'static decorations need no per-frame work');
-assert(graphicsSource.includes("backgroundSize: graphic.fullHeight ? '100% 100%'"), 'full-height textures cover both axes without cropping their top/bottom');
+assert(graphicsSource.includes("graphic.fullHeight ? '100% 100%'"), 'non-tiled full-height textures cover both axes');
+assert(graphicsSource.includes("tileSize: '160px 240px'") && graphicsSource.includes("backgroundRepeat: graphic.tileSize ? 'repeat' : 'no-repeat'"), 'Carbon uses a finer aspect-correct repeat with no panel stretching');
 // Yarn/npm hoist Babel to node_modules, while pnpm keeps it in its content store.
 // Accept both layouts so the same verification runs locally and in GitHub Actions.
 const flatParser = path.join(root, 'node_modules', '@babel', 'parser', 'lib', 'index.js');

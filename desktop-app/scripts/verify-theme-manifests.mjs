@@ -49,8 +49,12 @@ assert(cssTokens('gaming').surface[0] > cssTokens('gaming').surface[1] && cssTok
 assert(cssTokens('gaming').accent[0] > 220 && cssTokens('gaming').accent[1] > 150 && cssTokens('gaming').accent[2] > 100, 'Gaming highlights are soft peach orange');
 assert(cssTokens('modern').surface[1] > Math.max(cssTokens('modern').surface[0], cssTokens('modern').surface[2]) && cssTokens('modern').surface[1] <= 70, 'Modern is darker military green');
 const folders = fs.readdirSync(stockRoot, { withFileTypes: true }).filter(item => item.isDirectory()).map(item => item.name).sort();
-assert(cssTokens('gaming').surface[0] <= 64 && cssTokens('gaming').panel[0] <= 74, 'brown canvas and panels are noticeably darker');
-assert(cssTokens('modern').surface[1] <= 49 && cssTokens('modern').panel[1] <= 61, 'military-green canvas and panels are noticeably darker');
+for(const [id,old] of [['gaming',{surface:[64,44,32],panel:[74,51,36],'grad-1':[43,28,20],'grad-2':[68,46,32]}],['modern',{surface:[30,49,33],panel:[39,61,40],'grad-1':[22,38,26],'grad-2':[39,58,38]}]]){
+  for(const [token,previous] of Object.entries(old))assert(luminance(cssTokens(id)[token])>luminance(previous)*1.3, `${id} ${token} noticeably lighter than its former palette`);
+  const colours=cssTokens(id),extra=colours['accent-soft'];
+  assert(extra[2]>150&&extra[1]>180&&extra[0]<150,`${id} adds a distinct cool accent`);
+  for(const token of ['accent','accent-2'])assert(Math.hypot(...extra.map((value,index)=>value-colours[token][index]))>100,`${id} new colour stays distinct from existing accents`);
+}
 assert.deepEqual(folders, THEMES.map(theme => theme.id).sort(), 'Every selectable stock theme needs exactly one folder.');
 
 // Preserve the actual user originals, not a downsampled chat attachment.

@@ -4,6 +4,18 @@ Home is a player-owned widget space. A widget is independently placeable HTML/CS
 
 ## Current host
 
+Home's Rearrange editor now has **Content preview** on by default. Built-in
+widgets use the actual Home renderers, shared title/content-size settings and
+current data inside the movable boxes. Resizing recomputes the real layout;
+zoom only changes the editor view. Contents are inert, while drag/resize handles,
+keyboard adjustment, parking, visibility, Save and Cancel retain their behavior.
+Turn Content preview off for simple named boxes.
+
+Built-in content is mounted in one place while editing, not duplicated behind
+the editor. Existing Home data services stay shared. Imported widget sandboxes
+are not restarted or cloned: they remain on Home, and their editor box shows an
+explicit placeholder rather than executing community code a second time.
+
 The first release of this foundation registers every existing Home panel as a **first-party widget**. Their present content, privacy rules and controls are unchanged. The registry records each widget's stable ID, Home group and minimum size so the future grid cannot make a widget too small to read.
 
 Community widgets are imported disabled. Open Home → Widgets to review the author, version and requested capabilities, then enable a widget deliberately. Its HTML, CSS and JavaScript run inside a separate sandboxed frame.

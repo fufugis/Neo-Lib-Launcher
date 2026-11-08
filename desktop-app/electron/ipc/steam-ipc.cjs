@@ -58,6 +58,13 @@ function registerSteamIpc({ registerIpc, services }) {
     invalidResponse('The Steam manifest reader returned an invalid result.'),
   ));
   registerIpc("steam:details", guardResult(guardHandler(requireService(services, "steam:details"), validAppid, null), isDetail, null));
+  registerIpc('steam:artwork', guardResult(guardHandler(
+    requireService(services, 'steam:artwork'),
+    ids => isBoundedArray(ids, 40, validAppid),
+    [],
+  ), rows => isBoundedArray(rows, 40, row => isPlainObject(row) && validAppid(row.appid)
+    && isBoundedString(row.icon, { max: 4096 }) && isBoundedString(row.portraitImage, { max: 4096 })
+    && isBoundedArray(row.portraits, 4, url => isBoundedString(url, { required: true, max: 4096 }))), []));
   registerIpc("steam:search", guardResult(guardHandler(
     requireService(services, "steam:search"),
     query => isBoundedString(query, { required: true, max: 500 }),

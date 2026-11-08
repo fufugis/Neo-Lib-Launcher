@@ -558,7 +558,7 @@ const MemoizedLibraryGameRow = React.memo(function LibraryGameRowContent({
           New
         </span>
       )}
-      {!iconOnly && g.libraryToolId != null && <span data-testid={`tool-tag-${g.id}`} className="inline-flex shrink-0 items-center gap-1 rounded border border-amber-300/40 bg-amber-300/10 px-1.5 py-0.5 text-[9px] font-bold text-amber-200"><Wrench size={11}/>Tools</span>}
+      {!iconOnly && g.libraryToolId != null && <span data-testid={`tool-tag-${g.id}`} className="inline-flex shrink-0 items-center text-amber-200" title="Tools" aria-label="Tools"><Wrench size={12} aria-hidden="true"/></span>}
 
       {/* Icon — position controlled by iconPosition setting (left | right | none) */}
       {(iconOnly || (iconPosition !== 'none' && iconPosition !== 'right')) && (

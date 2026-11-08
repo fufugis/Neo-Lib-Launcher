@@ -75,7 +75,8 @@ export function selectedRefreshPatch(field, candidates, game = {}) {
   // A wide header is useful as a hero, but not a fabricated portrait case cover.
   const cover = record.portraitImage || record.capsuleImage;
   if (record.portraitImage) patch.portraitImage = record.portraitImage;
-  if (cover) { patch.coverUrl = cover; patch.icon = record.icon || cover; }
+  if (cover) patch.coverUrl = cover;
+  if (record.icon) patch.icon = record.icon;
   return patch;
 }
 

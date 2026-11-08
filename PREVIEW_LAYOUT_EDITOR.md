@@ -2,6 +2,16 @@
 
 In Library → game Preview, choose **Edit preview layout**. A bordered, zoomed-out canvas shows fixed named sections: Hero/title/launch controls, Setup/updates/news, Game details, Capabilities/achievements, Description/genres, Game media and Source/install information.
 
+**Content preview** starts on: actual section content is rendered inside each
+editable rectangle at its draft width and content-size setting. Text wraps and
+responsive layouts reflow during resizing; only the editor canvas is zoomed.
+Turning it off restores named boxes. Controls inside previews are inert, excluded
+from keyboard focus, and cannot launch games or write metadata. Native media
+embeds are paused placeholders. Original page content is not mounted a second
+time underneath the editor, and cloned preview nodes do not take its DOM refs.
+The separate **Window overview** miniature remains available as an optional overview,
+off initially when in-box content is available. Save/Cancel/reset remain draft-only.
+
 - Drag a section to move it; drag its corner to resize. Narrow Description to give another section more room.
 - Snap aligns to a 24px grid; Free placement allows finer moves. Zoom/Fit only change the editor view.
 - The Section picker brings a covered box forward. Tab and arrow keys move/resize focused boxes; Shift increases move steps.

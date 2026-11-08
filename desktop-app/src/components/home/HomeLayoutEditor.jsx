@@ -5,9 +5,10 @@ import { adjustEditorBox, homeEditorFitZoom, HOME_EDITOR_GRID, resizeHomeEditorC
 
 // Shared box-arrangement mechanics. Preview uses its own fixed sections/model,
 // never the widget registry, community runtime or Home layout settings.
-export default function HomeLayoutEditor({ initialDraft, widgets, onSave, onCancel, title = 'Rearrange Home widgets', description = 'Zoomed-out Home · drag the named boxes, then Save. Overlap is allowed.', itemLabel = 'Widget', itemsLabel = 'widgets', holdingArea = false, expandableHeight = false, fitToWindow = false, chooseWidgets = false, renderPreview, renderInspector }) {
+export default function HomeLayoutEditor({ initialDraft, widgets, onSave, onCancel, title = 'Rearrange Home widgets', description = 'Zoomed-out Home · drag or resize the boxes, then Save. Overlap is allowed.', itemLabel = 'Widget', itemsLabel = 'widgets', holdingArea = false, expandableHeight = false, fitToWindow = false, chooseWidgets = false, renderPreview, renderInspector, renderBoxContent }) {
   const [draft, setDraft] = React.useState(initialDraft);
-  const [previewEnabled, setPreviewEnabled] = React.useState(true);
+  const [previewEnabled, setPreviewEnabled] = React.useState(!renderBoxContent);
+  const [contentPreviewEnabled, setContentPreviewEnabled] = React.useState(true);
   const [previewDraft, setPreviewDraft] = React.useState(initialDraft);
   const previewFrame = React.useRef(null);
   React.useEffect(() => setPreviewDraft(draft), [draft]);
@@ -65,7 +66,7 @@ export default function HomeLayoutEditor({ initialDraft, widgets, onSave, onCanc
     const key = event => {
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); finishGesture(false); cancelRef.current(); }
       if (event.key !== 'Tab') return;
-      const controls = [...(dialog.current?.querySelectorAll('button:not(:disabled), input, select') || [])];
+      const controls = [...(dialog.current?.querySelectorAll('button:not(:disabled), input, select') || [])].filter(element => !element.closest('[inert]'));
       const index = controls.indexOf(document.activeElement);
       if (!controls.length) return;
       if (event.shiftKey && index <= 0) { event.preventDefault(); controls.at(-1).focus(); }
@@ -128,7 +129,7 @@ export default function HomeLayoutEditor({ initialDraft, widgets, onSave, onCanc
     active.next = adjustEditorBox(active.initial, (event.clientX - active.startX + host.scrollLeft - active.scrollX) / active.scale,
       (event.clientY - active.startY + host.scrollTop - active.scrollY) / active.scale, active.resize ? resizeBounds : workspace, latest.current.snap, active.resize);
     applyBoxStyle(boxes.current.get(active.id), active.next);
-    if (renderPreview && previewEnabled && previewFrame.current == null) previewFrame.current = requestAnimationFrame(() => {
+    if ((renderPreview && previewEnabled || renderBoxContent && contentPreviewEnabled) && previewFrame.current == null) previewFrame.current = requestAnimationFrame(() => {
       previewFrame.current = null;
       const current = gesture.current;
       if (current) setPreviewDraft({ ...latest.current, positions: { ...latest.current.positions, [current.id]: current.next } });
@@ -161,7 +162,8 @@ export default function HomeLayoutEditor({ initialDraft, widgets, onSave, onCanc
     <header className="home-layout-editor-toolbar">
       <div><h2><Move size={19} />{title}</h2><p>{description}</p></div>
       <div className="home-editor-controls">
-        {renderPreview && <button type="button" aria-pressed={previewEnabled} data-testid="editor-preview-toggle" onClick={() => { finishGesture(false); setPreviewEnabled(value => !value); }}>Live preview {previewEnabled ? 'on' : 'off'}</button>}
+        {renderBoxContent && <button type="button" aria-pressed={contentPreviewEnabled} data-testid="editor-content-preview-toggle" onClick={() => { finishGesture(false); setContentPreviewEnabled(value => !value); }}>Content preview {contentPreviewEnabled ? 'on' : 'off'}</button>}
+        {renderPreview && <button type="button" aria-pressed={previewEnabled} data-testid="editor-preview-toggle" onClick={() => { finishGesture(false); setPreviewEnabled(value => !value); }}>{renderBoxContent ? 'Window overview' : 'Live preview'} {previewEnabled ? 'on' : 'off'}</button>}
         {chooseWidgets && <button type="button" aria-expanded={choicesOpen} onClick={() => { finishGesture(false); setChoicesOpen(value => !value); }}>Choose widgets · {visibleWidgets.length}/{widgets.length}</button>}
         {visibleWidgets.length > 0 && <label>{itemLabel} <select aria-label={itemLabel === 'Widget' ? 'Choose widget to move' : 'Choose preview section to move'} value={visibleWidgets.some(widget => widget.id === selectedId) ? selectedId : ''} onChange={event => chooseWidget(event.target.value)}>
           <option value="" disabled>Select a box</option>
@@ -204,8 +206,12 @@ export default function HomeLayoutEditor({ initialDraft, widgets, onSave, onCanc
             <b style={{ fontSize: `${13 / zoom}px`, top: `${-22 / zoom}px` }}>Temporary holding area</b>
           </aside>}
           {draft.order.filter(id => !hiddenIds.includes(id)).map((id, index) => { const box = parked[id] || draft.positions[id]; return <div key={id} ref={element => { if (element) boxes.current.set(id, element); else boxes.current.delete(id); }}
-            className={`home-editor-widget ${selectedId === id ? 'is-selected' : ''} ${parked[id] ? 'is-parked' : ''}`} data-editor-widget-id={id} data-editor-parked={Boolean(parked[id])}
+            className={`home-editor-widget ${selectedId === id ? 'is-selected' : ''} ${parked[id] ? 'is-parked' : ''} ${renderBoxContent && contentPreviewEnabled ? 'is-content-preview' : ''}`} data-editor-widget-id={id} data-editor-parked={Boolean(parked[id])}
             style={{ left: box.x, top: box.y, width: box.width, height: box.height, zIndex: selectedId === id ? draft.order.length + 1 : index + 1, '--editor-label-size': `${13 / zoom}px`, '--editor-line-width': `${1 / zoom}px` }}>
+            {renderBoxContent && contentPreviewEnabled && <div className="home-editor-widget-content" inert="" aria-hidden="true" data-editor-live-content={id}
+              onClickCapture={event => { event.preventDefault(); event.stopPropagation(); }} onSubmitCapture={event => { event.preventDefault(); event.stopPropagation(); }}>
+              {renderBoxContent(id, gesture.current ? parked[id] || previewDraft.positions[id] || box : box, gesture.current ? previewDraft : draft)}
+            </div>}
             <button type="button" className="home-editor-widget-move" onFocus={() => setSelectedId(id)} onKeyDown={event => nudge(event, id)}
               aria-label={`Move ${labelById[id] || id}`} onPointerDown={event => start(event, id)} {...pointerProps}>
               <span>{labelById[id] || id}</span>

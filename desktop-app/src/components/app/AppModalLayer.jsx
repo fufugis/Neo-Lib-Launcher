@@ -68,6 +68,7 @@ export default function AppModalLayer({ context }) {
     confirmCategoryRemoval,
     removeCategoriesById,
     resetLibraryGames,
+    removeMissingGames, relocateMissingGame, maintenanceGames,
     themeStudioOpen,
     installedCustomThemes,
     refreshCustomThemes,
@@ -199,6 +200,7 @@ export default function AppModalLayer({ context }) {
         retroProfiles={settings.retroProfiles || []}
         existingExePaths={(library.games || []).map((g) => g.exePath).filter(Boolean)}
         existingGames={library.games || []}
+        maintenanceGames={maintenanceGames || []} onRemoveMissingGames={removeMissingGames} onRelocateMissingGame={relocateMissingGame}
         retroVisibleGames={retroVisibleGames || []}
         prefilledRoot={wizardPrefillRoot}
         autoScan={wizardAutoScan}
@@ -315,6 +317,7 @@ export default function AppModalLayer({ context }) {
       />
 
       <ConfirmModal
+        key={confirmCfg.typedConfirm || confirmCfg.title || 'confirmation'}
         open={!!confirmCfg.open}
         title={confirmCfg.title}
         message={confirmCfg.message}
@@ -322,12 +325,9 @@ export default function AppModalLayer({ context }) {
         cancelLabel={confirmCfg.cancelLabel}
         destructive={confirmCfg.destructive}
         typedConfirm={confirmCfg.typedConfirm}
-        onConfirm={() => { confirmCfg.onConfirm && confirmCfg.onConfirm(); }}
+        onConfirm={() => { const accept=confirmCfg.onConfirm;setConfirmCfg({open:false});accept?.(); }}
         onClose={() => {
-          setConfirmCfg((p) => {
-            if (p.onCancel) p.onCancel();
-            return { open: false };
-          });
+          const cancel=confirmCfg.onCancel;setConfirmCfg({open:false});cancel?.();
         }}
       />
 

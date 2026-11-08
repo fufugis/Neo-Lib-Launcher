@@ -1,31 +1,30 @@
-# NEO-LIB v1.8.11 — Your Library, your layout
+# NEO-LIB v1.8.12 — A clearer Library
 
-- **Recent patch-note history:** Browse the latest five releases from a version chooser. Current notes open first, hotfixes remain visible, and unreleased additions stay clearly separate.
-- **Library recovery safeguards:** Stronger backup recovery, retained problem records, visible save warnings with retry, and isolated preview failures protect your Library.
-- **Sidebar icon customization:** Drag icons into order, select one to choose its saved colour, and hide button frames for a clean symbol-only look. Existing size and spacing controls stay available.
-- **Playtime from other launchers:** Known games started outside Neo-Lib now update playtime and dated statistics while it runs, including in the tray. Minute saves recover without duplicate hours.
-- **Per-game news history:** Up to ten dated posts, official feeds first and labelled magazine coverage as fallback. Move the timeline in the preview editor or save a game-specific feed.
-- **Tools joins the Library:** Existing and new tools share an automatic wrench-marked Tools category, Tools tags and Library sorting/display controls. Separate Tools navigation is removed.
-- **Calendar reminders:** Click a Home calendar date to add a personal note and time. Outlined dates mark reminders; due alarms use a centered X-to-close popup, chime and mascot reaction.
-- **Home widget title styling:** Make headings stand out with text size, weight, colour, title-bar darkening and uppercase controls. Shared or per-widget styles include a live sample and reset.
-- **Artwork without empty covers:** Wall, Library and Lounge reuse related game images when artwork is missing or broken. Any shape is usable, with a generated game-name image as the last resort.
-- **Two classic arrow cursors:** Aurora adds an icy iridescent finish; Ember adds warm amber and coral. Both keep a familiar arrow shape and precise click tip.
-- **Three Library material textures:** Carbon Weave, Obsidian Slate and Hammered Titanium fill the panel top to bottom, with small picker previews and the existing opacity control.
-- **Unmissable team announcements:** A glowing unread mailbox and persistent X-to-close messages, including during background gameplay and Lounge. Sound respects mute; ZZZ keeps the mascot asleep.
-- **Hourly update reminders:** Available app updates get a blinking icon, chime and X-to-close reminder bubble every hour. The bubble stays until closed, with no repeated sound while open.
-- **Easier Home arrangement:** Choose visible widgets while rearranging, use a roomier temporary holding area, and extend Home from the bottom bar. Save applies your layout and visibility together.
-- **Live Library layout editor:** Edit from the banner’s top-right corner, arrange sections with a live preview, and tweak content, position and size. Saved banner/card sizes stay put without whole-page scaling.
+- **Currently playing at a glance:** The active game appears beside Library search with its icon and green text, including games detected from other launchers.
+- **Wizard Library cleanup:** Check missing game files and folders, locate moved games or remove selected Library entries. Offline drives are kept safe; installed game files are never deleted.
+- **Live content while arranging:** Home and Library layout editors show actual content inside each box as it resizes. Toggle simple boxes, and Save or Cancel without activating preview controls.
+- **Proper Steam artwork:** Steam games prefer official square icons and portrait covers, including existing libraries. Custom choices and related-image fallbacks remain available.
+
+## Fixes and polish
+
+- Camo and Ember have lighter surfaces and artwork, with new ice-blue and turquoise accents.
+- The launch mascot cheers beside the Launch button, with size-aware placement and click-through animation.
+- Manual-add search results open a visible, clickable metadata review instead of hiding it behind Add Game.
+- Entire Library reset clears games, Tools and categories after a confirmed save, even if artwork-cache cleanup fails.
+- Edit preview layout stays in the banner’s top-right corner.
+- Tools entries show a compact wrench; the category header keeps its name.
+- Carbon Weave uses finer, consistently sized details instead of stretching with the Library panel.
 
 ## Windows installer rebuild
 
-The installer remains **NEO-LIB-Setup.exe**. Existing clients can discover this clean-tag update through Settings and hourly checks. Downloads are deliberate; nothing installs automatically. Windows packages remain unsigned.
+The installer remains **NEO-LIB-Setup.exe**. Existing clients discover this update through the normal GitHub release check. Downloads are deliberate; nothing installs automatically. Windows packages remain unsigned.
 
 ## Carried-forward features
 
-Includes the published v1.8.9 missing-artwork and v1.8.10 Wizard folder-review crash fixes, plus earlier features. [Previous release](RELEASE_NOTES_v1.8.10.md).
+Includes the features and stability improvements from [v1.8.11](RELEASE_NOTES_v1.8.11.md).
 
 ## Release status
 
-Publication is gated on Windows packaging, candidate inspection and all four nonempty assets. Automated checks and hands-on installed acceptance remain separate; see [Windows acceptance](WINDOWS_ACCEPTANCE_V1.8.11.md).
+Publication follows Windows packaging, candidate inspection and verification of all four release assets. Automated checks and installed Windows acceptance remain separate; see [Windows acceptance](WINDOWS_ACCEPTANCE_V1.8.12.md).
 
 Stable download: https://github.com/fufugis/Neo-Lib-Launcher/releases/latest/download/NEO-LIB-Setup.exe

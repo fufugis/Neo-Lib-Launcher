@@ -26,7 +26,7 @@ app.whenReady().then(async () => {
     flushSync(()=>renderRoot.render(<Fixture/>));void 0;
   ` }, bundle: true, write: false, format: 'iife', define: { 'process.env.NODE_ENV': '"development"', 'import.meta.env.BASE_URL': '"./"' }, plugins:[{name:'fixture-stock-assets',setup(build){build.onLoad({filter:/stock-theme-registry\.mjs$/},args=>({loader:'js',contents:fs.readFileSync(args.path,'utf8').replace(/^const (modules|assets) = import\.meta\.glob\(.*$/gm,'const $1 = {};')}));}}] });
   const win = new BrowserWindow({ show: false, useContentSize: true, width: 1600, height: 1000, webPreferences: { sandbox: true, contextIsolation: true, backgroundThrottling: false, offscreen: true } });
-  await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent('<!doctype html><body style="margin:0;--panel:30 40 60;--surface:20 30 45;--ink:240 245 255;--muted:180 195 210;--border:90 110 140;--accent:100 200 255;--accent-2:220 160 255"><div id="root" style="height:100vh;display:flex"></div></body>'));
+  await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent('<!doctype html><body style="margin:0;--panel:30 40 60;--surface:20 30 45;--ink:240 245 255;--muted:180 195 210;--border:90 110 140;--accent:100 200 255;--accent-2:220 160 255"><div id="root" class="neolib-ui-foreground" style="height:100vh;display:flex"></div></body>'));
   const assets = path.join(root, 'dist-renderer/assets');
   await win.webContents.insertCSS(fs.readFileSync(path.join(assets, fs.readdirSync(assets).find(name => /^index-.*\.css$/.test(name))), 'utf8') + '\n' + fs.readFileSync(path.join(root, 'src/styles.css'), 'utf8'));
   await win.webContents.executeJavaScript(bundle.outputFiles[0].text);
@@ -36,14 +36,18 @@ app.whenReady().then(async () => {
   const click = async selector => { await run(`document.querySelector(${JSON.stringify(selector)}).click()`); await settle(); };
   const range = async (label, value) => { await run(`(()=>{const e=document.querySelector('input[aria-label="${label}"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,'${value}');e.dispatchEvent(new Event('input',{bubbles:true}));})()`); await settle(); };
   const checkBannerButton = async () => {
-    assert.equal(await run(`(()=>{const b=document.querySelector('[data-testid="preview-edit-layout"]');const hero=b.closest('[data-preview-section="hero"]');if(!hero)return false;const r=b.getBoundingClientRect(),h=hero.getBoundingClientRect();return r.top>=h.top&&r.bottom<=h.bottom&&r.right<=h.right&&r.right>=h.right-16})()`),true,'Edit button belongs to the banner top-right');
+    assert.equal(await run(`(()=>{const b=document.querySelector('[data-testid="preview-edit-layout"]');const hero=b.closest('[data-preview-section="hero"]');if(!hero)return false;const r=b.getBoundingClientRect(),h=hero.getBoundingClientRect();return getComputedStyle(b).position==='absolute'&&r.top>=h.top&&r.top<=h.top+16&&r.bottom<=h.bottom&&r.right<=h.right&&r.right>=h.right-16})()`),true,'Edit button belongs to the banner top-right in the app foreground layer');
     assert.equal(await run(`(()=>{const p=document.querySelector('[data-testid="preview-page-layout"]').getBoundingClientRect();const v=document.querySelector('[data-testid="preview-layout-fit"]').getBoundingClientRect();return Math.abs(p.top-v.top)<1})()`),true,'No toolbar reserves space above the preview');
   };
   await settle(); await checkBannerButton();
   await settle(); await click('[data-testid="preview-edit-layout"]');
+  assert.equal(await run('document.querySelectorAll("[data-editor-live-content]").length'), 8, 'Real content is shown inside the editable sections by default');
+  assert.equal(await run('document.querySelector("[data-editor-live-content]").inert'), true);
+  assert.equal(await run('window.heroNode'), null, 'Read-only content does not steal the original section ref');
+  await click('[data-testid="editor-preview-toggle"]');
 assert.equal(await run(`document.querySelectorAll('[data-live-preview-section]').length`), 8);
   assert.equal(await run(`document.querySelector('.preview-layout-live-content').inert`), true);
-  assert.equal(await run(`window.heroNode.isConnected && !window.heroNode.closest('[data-testid="preview-layout-live"]')`), true, 'miniature does not steal the actual hero DOM ref');
+  assert.equal(await run('window.heroNode'), null, 'Neither in-box content nor miniature takes ownership of the original ref');
   assert.equal(await run(`document.querySelector('[data-testid="preview-layout-inspector"] h3').textContent`), 'Hero, title and launch controls');
   const selectDescription = async () => {
     const p = await run(`(()=>{const r=document.querySelector('.home-editor-widget-move[aria-label="Move Description and genres"]').getBoundingClientRect();return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`);
@@ -77,7 +81,7 @@ assert.equal(await run(`document.querySelectorAll('[data-live-preview-section]')
   assert.deepEqual(await box(), released, 'Library fit-to-window release detaches the section');
   await click('[data-testid="editor-preview-toggle"]');
   assert.equal(await run(`!!document.querySelector('[data-testid="preview-layout-live"]')`), false);
-  assert.equal(await run(`window.heroNode?.isConnected`), true, 'turning preview off does not clear the actual hero ref');
+  assert.equal(await run('window.heroNode'), null, 'Turning the miniature off does not assign an original ref to editor content');
   await click('[data-testid="editor-preview-toggle"]');
   assert.equal(await run(`!!document.querySelector('[data-testid="preview-layout-live"]')`), true);
   await click('[data-testid="home-editor-save"]');
@@ -129,7 +133,12 @@ assert.equal(await run(`document.querySelectorAll('[data-live-preview-section]')
   assert.equal(await run('window.actualSaved'),null,'Restore default remains available inside the editor');
   await checkBannerButton();
   assert.equal(await run(`document.querySelector('[data-testid="preview-restore-default"]')===null`),true,'Only Edit is shown outside the editor');
-  await click('[data-testid="preview-edit-layout"]');await click('[data-controller-close]');
+  await click('[data-testid="preview-edit-layout"]');
+  await new Promise(resolve=>setTimeout(resolve,450));
+  assert.equal(await run(`(()=>{const title=document.querySelector('[data-editor-live-content="hero"] [data-testid="detail-title"]');return title?.textContent==='Actual banner resize test'&&Number(getComputedStyle(title).opacity)>.7})()`),true,'Real game title remains visible inside the live hero');
+  const actualPreviewPath = path.join(os.tmpdir(), `neolib-actual-game-live-editor-${Date.now()}.png`);
+  fs.writeFileSync(actualPreviewPath, (await win.webContents.capturePage()).toPNG());console.log('Actual game in-box preview:', actualPreviewPath);
+  await click('[data-controller-close]');
   console.log('PASS: actual GameDetail banner/title/actions and update/news boxes resize, Save/reopen retains requested sizes, repeated fitting is stable and window resizing reflows without shrinking text.');
   console.log('PASS: actual Library preview editor, real-block/current-window miniature, selected inspector, content/X/Y sliders, scripted in-progress pointer move with native selection/release, toggle, Save/reopen sizing and Cancel isolation. No real library or native bridge.');
   win.destroy(); app.quit();

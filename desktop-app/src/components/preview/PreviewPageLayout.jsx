@@ -1,7 +1,7 @@
 import React from 'react';
 import { Move, RotateCcw } from 'lucide-react';
 import HomeLayoutEditor from '../home/HomeLayoutEditor';
-import PreviewLayoutLivePreview from './PreviewLayoutLivePreview';
+import PreviewLayoutLivePreview, { previewBlock } from './PreviewLayoutLivePreview';
 import PreviewLayoutInspector from './PreviewLayoutInspector';
 import { PREVIEW_SECTIONS, normalizePreviewLayout, previewLayoutDraft, savePreviewLayout, fitPreviewSurface, previewContentMeasurement, previewContentSize } from './preview-layout-model.mjs';
 
@@ -70,14 +70,14 @@ export default function PreviewPageLayout({ blocks, savedLayout, onLayoutChange 
     }
     setEditor(previewLayoutDraft(captured, baseWidth, Math.max(viewport.height, surface.current.offsetHeight), saved));
   };
-  const editButton = <button type="button" disabled={!onLayoutChange} onClick={openEditor} aria-haspopup="dialog" data-testid="preview-edit-layout" className="absolute right-3 top-3 z-40 inline-flex items-center gap-1 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.92)] px-2.5 py-2 text-xs font-bold text-ink shadow-lg hover:border-[rgb(var(--accent)/0.7)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[rgb(var(--accent))]"><Move size={13} />Edit preview layout</button>;
-  const box = id => <div className="preview-section relative" data-preview-section={id}>{blocks[id]}{id === 'hero' && editButton}</div>;
+  const editButton = <button type="button" disabled={!onLayoutChange} onClick={openEditor} aria-haspopup="dialog" style={{ position: 'absolute', top: 12, right: 12, zIndex: 40 }} data-testid="preview-edit-layout" className="absolute right-3 top-3 z-40 inline-flex items-center gap-1 rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--surface)/0.92)] px-2.5 py-2 text-xs font-bold text-ink shadow-lg hover:border-[rgb(var(--accent)/0.7)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[rgb(var(--accent))]"><Move size={13} />Edit preview layout</button>;
+  const box = id => <div className="preview-section relative" data-preview-section={id}>{!editor && blocks[id]}{id === 'hero' && editButton}</div>;
   return <div className="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="preview-page-layout">
     <div ref={page} className="preview-fit-viewport min-h-0 flex-1" data-testid="preview-layout-fit">
       <div ref={surface} className="preview-fit-surface" style={{ width: baseWidth, height: saved ? fitted.height : undefined }}>
       {saved ? <div className="relative" style={{ height: fitted.height }} data-testid="preview-custom-canvas">
         {saved.order.map(id => <div key={id} data-preview-section={id} data-preview-kind={id} className="preview-custom-block" style={{ ...fitted.boxes[id], zIndex: saved.order.indexOf(id) + 1 }}>
-          <div className="preview-section-content" style={{ zoom: previewContentSize(saved.contentSizes[id]) / 100, height: id === 'hero' ? (fitted.boxes[id].height - 2) / (previewContentSize(saved.contentSizes[id]) / 100) : undefined }}>{blocks[id]}</div>
+          <div className="preview-section-content" style={{ zoom: previewContentSize(saved.contentSizes[id]) / 100, height: id === 'hero' ? (fitted.boxes[id].height - 2) / (previewContentSize(saved.contentSizes[id]) / 100) : undefined }}>{!editor && blocks[id]}</div>
           {id === 'hero' && editButton}
         </div>)}
       </div> : <>
@@ -93,7 +93,11 @@ export default function PreviewPageLayout({ blocks, savedLayout, onLayoutChange 
       </div>
     </div>
     {editor && <HomeLayoutEditor initialDraft={editor} widgets={PREVIEW_SECTIONS} title="Edit game preview layout"
-      description="One layout for every game · select a box for sliders · live preview shows this window, not a saved screenshot"
+      description="One layout for every game · real content reflows inside each box · select a section for sliders"
+      renderBoxContent={(id, box, draft) => <div data-preview-kind={id} className="preview-custom-block" style={{ position: 'relative', width: '100%', height: '100%', border: 0 }}>
+        <div className="preview-section-content" style={{ zoom: previewContentSize(draft.contentSizes?.[id]) / 100,
+          height: id === 'hero' ? box.height / (previewContentSize(draft.contentSizes?.[id]) / 100) : undefined }}>{previewBlock(blocks[id])}</div>
+      </div>}
       renderPreview={draft => <PreviewLayoutLivePreview draft={draft} blocks={blocks} viewport={viewport} />}
       renderInspector={props => <><PreviewLayoutInspector {...props} />{saved && <button type="button" data-testid="preview-restore-default" onClick={() => { onLayoutChange?.(null); setEditor(null); }} className="mt-3 inline-flex items-center gap-1 rounded-lg border hairline px-3 py-2 text-xs font-bold hover:bg-surface"><RotateCcw size={13} />Restore default</button>}</>}
       itemLabel="Section" itemsLabel="preview sections" fitToWindow onCancel={() => setEditor(null)} onSave={draft => { const next = savePreviewLayout(draft); if (next) { onLayoutChange(next); setEditor(null); } }} />}
